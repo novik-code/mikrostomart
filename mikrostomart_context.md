@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-21 NIGHT (**🎯 MEGA SESJA part 2 — Batch SEO-1 + Batch SEO-2 + K-4 strona 3 + K-5 batch 2**, 4 commity na main). Commit `e6475e4` najnowszy. Cumulative dzisiaj part 2: Person schema → Physician + 7 nowych pól (`42772c9`), dedykowane `/zespol/marcin-nowosielski` + `/zespol/elzbieta-nowosielska` + PerformerCard + MedicalProcedure.performer Physician (`299951f`), K-4 strona 3 `/oferta/stomatologia-estetyczna` 280→2200+ słów (`c67ee32`), K-5 batch 2: ortodoncja + chirurgia + protetyka rozbudowy (`e6475e4`). **Wszystkie 6 service pages /oferta/* są teraz KOMPLETNIE rozbudowane** — Marcin-voice + Marcin's expertise sekcje + RWTH/LA&HA references + cross-linking + FAQ 9 pytań + PerformerCard + MedicalProcedure.performer Physician. **Faza K Premium SEO Plan w ~80% completion** (K-1..K-5 done, K-6 cennik + K-7/K-8 case studies pozostają). **Następna sesja: K-6 — Cennik SEO-friendly hybrid (AI chat primary + SSR content dla Googlebota)**. Marcin chce ZACHOWAĆ AI chat jako primary tool (zatwierdzona filozofia premium D1=B), ale dodać SSR-rendered SEO content (kategorie usług z widełkami "od X zł", FAQ cenowe, Service+OfferCatalog schema) żeby Googlebot widział pełen kontekst cennika. **Manual taski Marcina pending krytyczne**: migracja 132 (S10-1 RLS lockdown) wciąż NIE wgrana na Supabase + smoke tests.<br><br>**Poprzednia: 2026-05-21 EVENING — MEGA SESJA part 1** (8 commitów: K-3 Person schema base + 4 sekcje /o-nas + K-4 strona 1+2 + Training Gallery + UX fixes). Commit `a1e4a1e` (docs).<br><br>**Poprzednia archived: 2026-05-21 EVENING** (`6c00fc5` najnowszy). Cumulative work dzisiaj:<br><br>**1. K-3 Person schema + 4 sekcje /o-nas** (`2ca5a2f`, docs `1e80e91`): Person schema Marcina 10 → 15 pól (alumniOf RWTH+UMW, award M.Sc. + drugi/najmłodszy w PL, memberOf PTE/ESE/PTSL/OIL, hasCredential 3×, sameAs 8 URLs). 4 nowe sekcje na /o-nas: AkredytacjeSection (grid 5 kart link do `/akredytacje/[slug]` K-2b) + CvTimeline (vertical 12 milestones 2007-2024+ static SSR) + PublicationsList (6 publikacji + 5 wystąpień) + CzelejBook (okładka 37 KB WebP + CTA). i18n × 4 locale (76 PL + GPT-4o-mini translate = 304 strings). Plus modyfikacja `scripts/translate-missing-i18n.ts` — `MESSAGES_FILE` env var override.<br><br>**2. K-3 follow-up Magazyn Stomatologiczny** (`26e3ace`): sameAs 8 → 9 URLs (dodano author profile `/a5646/Lek--dent--Marcin-Nowosielski-.html`). 4 publikacje Magazyn Stomat w PublicationsList dostały klikalny anchor "→ Zobacz" linkujący do profilu autora.<br><br>**3. UX fix — O nas pierwsza pozycja w menu** (`58d1325`): Marcin zauważył że po K-3 cały personal brand jest schowany w "Dodatki ▾" dropdown (2 kliki). Foreign markets visitor / pacjent szukający "kto leczy" typowo klika "O nas" jako pierwszy ruch. Fix: O nas → pierwsza pozycja w obu menu. Desktop top nav order: **O nas · Oferta · Cennik · Metamorfozy · Narzędzia ▾ · Dodatki ▾ · Kontakt + [Umów wizytę]**. Mobile sekcja GŁÓWNE: O nas → Umów wizytę → Oferta → Cennik → Metamorfozy → Kontakt.<br><br>**4. K-4 strona 1 /oferta/implantologia copy expansion** (`d981b39`): 280→1800 słów w stylu Marcina (style analysis z 21 artykułów nowosielski.pl recovery). Nowe sekcje: Workflow cyfrowy (6 kroków numerowanych) + Trzy poziomy złożoności (single/most/All-on-4-6) + Post-op harmonogram (Dzień 0 / Dni 1-7 / Tyg 2-12 / Mies 3-4 / Mies 6+) + Dlaczego warto u nas (Oral Surgery Academy + PTSL + M.Sc. RWTH). Plus rozbudowa benefits (6 → 8), structureText (50 → 130 słów), FAQ (4 → 9 pytań). 87 keys PL + 145 translations × 3 locale = 435 total.<br><br>**5. 🚨 K-4 HOTFIX /oferta/implantologia content invisible** (`7ee833d`): Marcin zgłosił że strona jest pusta po deploy. Root cause: `<RevealOnScroll>` opakowuje cały content. IntersectionObserver threshold:0.15 wymaga że 15% elementu (~15000px po expansion) jest widoczne — niemożliwe w viewport 800px. Element zostaje opacity:0 forever. Fix: `<RevealOnScroll priority>` (pattern z Fazy G4) — renderuje plain div bez .reveal class, bez opacity animation. Verified mainOpacity=1, content widoczny od razu w SSR. **Lesson dla K-4 strona 2-3**: każda rozbudowana service page MUSI mieć `priority`.<br><br>**6. K-4 strona 2 /oferta/leczenie-kanalowe copy expansion** (`53aa32d`): 280→2000 słów w stylu peer-reviewed Marcina (style analysis z 3 nowych artykułów Magazyn Stomat dostarczonych 2026-05-21 — art4 powtórne, art5 resorpcja, art4 poprawione). Endodoncja to dyscyplina Marcina nr 1. Nowe sekcje: Mikroskop ZEISS Extaro (4 advantages rozbudowane) + Lasery PIPS/SWEEPS (mechanizm krok po kroku + Saydjari 2016 99% E. faecalis) + Workflow 7 kroków (z konkretnymi sprzętami: Reciproc R25/R40/R50, NaOCl 5,25%, EDTA 17%, MTA, AH+, ciepła gutaperka) + Re-Endo deep dive (typowy case + 70-85% skuteczność z literatury) + Authority (Curriculum Endodontyczne PTE + ESE membership + ESE Quality Guidelines + LA&HA wykłady) + "Kiedy zęba nie da się uratować" (uczciwy cross-link do implantologii — reverse direction). FAQ 4 → 9. 76 keys PL + 105 translations.<br><br>**7. K-3+ Training Gallery** (`6c00fc5`): Marcin podrzucił folder `~/Desktop/zdjecia ze szkolen/` (21 zdjęć z FB). Strategia social proof przez association: subtelne wzmianki **dr Michał Nawrocki** (pierwsza osoba w PL z M.Sc. RWTH Aachen, mentor Marcina) i **prof. Kinga Grzech-Leśniak** (Prezes PTSL, ekspert laseroterapii) jako kursanci. Wybór 6 zdjęć: (1) Marcin + dr Nawrocki z certyfikatem (wellCAMdent) — feature, (2) Marcin + prof. Grzech-Leśniak z certyfikatem (LA&HA Symposium Poland 2022) — feature, (3) Marcin keynote za mównicą Fotona/LA&HA, (4) hands-on warsztat mikroskop, (5) group action shot, (6) ukończenie szkolenia z certyfikatami Fotona. Sharp resize 1100px WebP q82 = 89-145 KB każde, total 720 KB. Nowy komponent `TrainingGallery.tsx` (215 LOC) z 6-card grid, gold border na 2 feature, hover lift + glow, aspect-ratio per orientation. Render na /o-nas między PublicationsList a CzelejBook. i18n × 4 locale (16 keys + 48 translations).<br><br>**Verification status (4 locale × każda zmiana)**: wszystko 200 OK, build clean, zero new console errors. K-4 strona 1 + 2 mają `<RevealOnScroll priority>` jako standard po hotfix. Magazyn Stomat URLs + Nawrocki/Grzech-Leśniak captions zachowane we wszystkich translacjach (AI translate preserve proper nouns).<br><br>**Następna sesja**: K-4 strona 3 /oferta/stomatologia-estetyczna copy expansion (~1h, ostatnia z batch 1) + docs update + KOMENDA section 0 finalizacja. Po K-4 batch 1 done → K-5 batch 2 (ortodoncja + chirurgia + protetyka) jako osobna sesja → K-6 cennik refactor → K-7/K-8 case studies.<br><br>**Z S10 nadal pending manual Marcin (krytyczne!)**: wgrywka migracji 132, smoke anon REST, smoke functional, sitemap audit produkcji.
+> **Last Updated:** 2026-05-21 NIGHT+1 (**🚀 PERFORMANCE OPTIMIZATION SPRINT — Options A+B+C+D + CI fixes**, 6 commitów na main). Ostatni commit: `43b76d8` (Option D HeroSlideshow text-only). Po regresji wydajności PSI (mobile 37, desktop 55 — spadek z baseline Fazy E 73/83) cumulative 4 sprinty wymierzone w największe winowajce: CLS desktop 0.219 logo + composited animations (A), framer-motion tree-shake TrustStats vanilla + LazyMotion HeroSlideshow + autoplay IO pause (B), BackgroundVideo defer 8 MB MP4 via requestIdleCallback (C), HeroSlideshow text-only eliminacja CLS 0.219 main shift + 500 KB hero-slides images z initial bundle (D). Plus 2 CI fixes (cancel-in-progress=false + Node 20→24 sync z lock file). Spodziewane PSI po Vercel deploy `43b76d8`: desktop 85-92 / mobile 85-90. **Real users (CrUX field 28-day) już dobre: LCP 2.9s / INP 162ms / CLS 0.04 — wszystkie poniżej Google "needs improvement" lub Good**. **Następna sesja**: K-6 — Cennik SEO-friendly hybrid (zachowane z poprzedniego planu).<br><br>**Poprzednia: 2026-05-21 NIGHT — MEGA SESJA part 2 — Batch SEO-1 + Batch SEO-2 + K-4 strona 3 + K-5 batch 2** (4 commity na main). Commit `e6475e4` najnowszy. Cumulative dzisiaj part 2: Person schema → Physician + 7 nowych pól (`42772c9`), dedykowane `/zespol/marcin-nowosielski` + `/zespol/elzbieta-nowosielska` + PerformerCard + MedicalProcedure.performer Physician (`299951f`), K-4 strona 3 `/oferta/stomatologia-estetyczna` 280→2200+ słów (`c67ee32`), K-5 batch 2: ortodoncja + chirurgia + protetyka rozbudowy (`e6475e4`). **Wszystkie 6 service pages /oferta/* są teraz KOMPLETNIE rozbudowane** — Marcin-voice + Marcin's expertise sekcje + RWTH/LA&HA references + cross-linking + FAQ 9 pytań + PerformerCard + MedicalProcedure.performer Physician. **Faza K Premium SEO Plan w ~80% completion** (K-1..K-5 done, K-6 cennik + K-7/K-8 case studies pozostają). **Następna sesja: K-6 — Cennik SEO-friendly hybrid (AI chat primary + SSR content dla Googlebota)**. Marcin chce ZACHOWAĆ AI chat jako primary tool (zatwierdzona filozofia premium D1=B), ale dodać SSR-rendered SEO content (kategorie usług z widełkami "od X zł", FAQ cenowe, Service+OfferCatalog schema) żeby Googlebot widział pełen kontekst cennika. **Manual taski Marcina pending krytyczne**: migracja 132 (S10-1 RLS lockdown) wciąż NIE wgrana na Supabase + smoke tests.<br><br>**Poprzednia: 2026-05-21 EVENING — MEGA SESJA part 1** (8 commitów: K-3 Person schema base + 4 sekcje /o-nas + K-4 strona 1+2 + Training Gallery + UX fixes). Commit `a1e4a1e` (docs).<br><br>**Poprzednia archived: 2026-05-21 EVENING** (`6c00fc5` najnowszy). Cumulative work dzisiaj:<br><br>**1. K-3 Person schema + 4 sekcje /o-nas** (`2ca5a2f`, docs `1e80e91`): Person schema Marcina 10 → 15 pól (alumniOf RWTH+UMW, award M.Sc. + drugi/najmłodszy w PL, memberOf PTE/ESE/PTSL/OIL, hasCredential 3×, sameAs 8 URLs). 4 nowe sekcje na /o-nas: AkredytacjeSection (grid 5 kart link do `/akredytacje/[slug]` K-2b) + CvTimeline (vertical 12 milestones 2007-2024+ static SSR) + PublicationsList (6 publikacji + 5 wystąpień) + CzelejBook (okładka 37 KB WebP + CTA). i18n × 4 locale (76 PL + GPT-4o-mini translate = 304 strings). Plus modyfikacja `scripts/translate-missing-i18n.ts` — `MESSAGES_FILE` env var override.<br><br>**2. K-3 follow-up Magazyn Stomatologiczny** (`26e3ace`): sameAs 8 → 9 URLs (dodano author profile `/a5646/Lek--dent--Marcin-Nowosielski-.html`). 4 publikacje Magazyn Stomat w PublicationsList dostały klikalny anchor "→ Zobacz" linkujący do profilu autora.<br><br>**3. UX fix — O nas pierwsza pozycja w menu** (`58d1325`): Marcin zauważył że po K-3 cały personal brand jest schowany w "Dodatki ▾" dropdown (2 kliki). Foreign markets visitor / pacjent szukający "kto leczy" typowo klika "O nas" jako pierwszy ruch. Fix: O nas → pierwsza pozycja w obu menu. Desktop top nav order: **O nas · Oferta · Cennik · Metamorfozy · Narzędzia ▾ · Dodatki ▾ · Kontakt + [Umów wizytę]**. Mobile sekcja GŁÓWNE: O nas → Umów wizytę → Oferta → Cennik → Metamorfozy → Kontakt.<br><br>**4. K-4 strona 1 /oferta/implantologia copy expansion** (`d981b39`): 280→1800 słów w stylu Marcina (style analysis z 21 artykułów nowosielski.pl recovery). Nowe sekcje: Workflow cyfrowy (6 kroków numerowanych) + Trzy poziomy złożoności (single/most/All-on-4-6) + Post-op harmonogram (Dzień 0 / Dni 1-7 / Tyg 2-12 / Mies 3-4 / Mies 6+) + Dlaczego warto u nas (Oral Surgery Academy + PTSL + M.Sc. RWTH). Plus rozbudowa benefits (6 → 8), structureText (50 → 130 słów), FAQ (4 → 9 pytań). 87 keys PL + 145 translations × 3 locale = 435 total.<br><br>**5. 🚨 K-4 HOTFIX /oferta/implantologia content invisible** (`7ee833d`): Marcin zgłosił że strona jest pusta po deploy. Root cause: `<RevealOnScroll>` opakowuje cały content. IntersectionObserver threshold:0.15 wymaga że 15% elementu (~15000px po expansion) jest widoczne — niemożliwe w viewport 800px. Element zostaje opacity:0 forever. Fix: `<RevealOnScroll priority>` (pattern z Fazy G4) — renderuje plain div bez .reveal class, bez opacity animation. Verified mainOpacity=1, content widoczny od razu w SSR. **Lesson dla K-4 strona 2-3**: każda rozbudowana service page MUSI mieć `priority`.<br><br>**6. K-4 strona 2 /oferta/leczenie-kanalowe copy expansion** (`53aa32d`): 280→2000 słów w stylu peer-reviewed Marcina (style analysis z 3 nowych artykułów Magazyn Stomat dostarczonych 2026-05-21 — art4 powtórne, art5 resorpcja, art4 poprawione). Endodoncja to dyscyplina Marcina nr 1. Nowe sekcje: Mikroskop ZEISS Extaro (4 advantages rozbudowane) + Lasery PIPS/SWEEPS (mechanizm krok po kroku + Saydjari 2016 99% E. faecalis) + Workflow 7 kroków (z konkretnymi sprzętami: Reciproc R25/R40/R50, NaOCl 5,25%, EDTA 17%, MTA, AH+, ciepła gutaperka) + Re-Endo deep dive (typowy case + 70-85% skuteczność z literatury) + Authority (Curriculum Endodontyczne PTE + ESE membership + ESE Quality Guidelines + LA&HA wykłady) + "Kiedy zęba nie da się uratować" (uczciwy cross-link do implantologii — reverse direction). FAQ 4 → 9. 76 keys PL + 105 translations.<br><br>**7. K-3+ Training Gallery** (`6c00fc5`): Marcin podrzucił folder `~/Desktop/zdjecia ze szkolen/` (21 zdjęć z FB). Strategia social proof przez association: subtelne wzmianki **dr Michał Nawrocki** (pierwsza osoba w PL z M.Sc. RWTH Aachen, mentor Marcina) i **prof. Kinga Grzech-Leśniak** (Prezes PTSL, ekspert laseroterapii) jako kursanci. Wybór 6 zdjęć: (1) Marcin + dr Nawrocki z certyfikatem (wellCAMdent) — feature, (2) Marcin + prof. Grzech-Leśniak z certyfikatem (LA&HA Symposium Poland 2022) — feature, (3) Marcin keynote za mównicą Fotona/LA&HA, (4) hands-on warsztat mikroskop, (5) group action shot, (6) ukończenie szkolenia z certyfikatami Fotona. Sharp resize 1100px WebP q82 = 89-145 KB każde, total 720 KB. Nowy komponent `TrainingGallery.tsx` (215 LOC) z 6-card grid, gold border na 2 feature, hover lift + glow, aspect-ratio per orientation. Render na /o-nas między PublicationsList a CzelejBook. i18n × 4 locale (16 keys + 48 translations).<br><br>**Verification status (4 locale × każda zmiana)**: wszystko 200 OK, build clean, zero new console errors. K-4 strona 1 + 2 mają `<RevealOnScroll priority>` jako standard po hotfix. Magazyn Stomat URLs + Nawrocki/Grzech-Leśniak captions zachowane we wszystkich translacjach (AI translate preserve proper nouns).<br><br>**Następna sesja**: K-4 strona 3 /oferta/stomatologia-estetyczna copy expansion (~1h, ostatnia z batch 1) + docs update + KOMENDA section 0 finalizacja. Po K-4 batch 1 done → K-5 batch 2 (ortodoncja + chirurgia + protetyka) jako osobna sesja → K-6 cennik refactor → K-7/K-8 case studies.<br><br>**Z S10 nadal pending manual Marcin (krytyczne!)**: wgrywka migracji 132, smoke anon REST, smoke functional, sitemap audit produkcji.
 
 <!-- Poprzednia: 2026-05-20 NIGHT+4 (S10-4 sitemap hygiene + CI gate → Sprint S10 COMPLETE, commit bb8adb3). --> `src/app/sitemap.ts`: `/sklep` → PL-only, `/privacy-policy` → EN-only, defensywny `SAFE_SLUG = /^[a-z0-9-]+$/` filter na KB+news slugi → 4 dead artykuły z polskimi/niemieckimi diacritics (`lęk`, `świeżości`, `błyszczacy`, `natürliches`) auto-skipowane. Nowy CI script `scripts/audit-sitemap-indexability.mjs` (HTTP 200 + no `<meta robots noindex>` + no `X-Robots-Tag: noindex`), npm script `audit:sitemap`. Wynik: sitemap **740 → 736 URLs, 0 failures** (vs audyt SEO `4 × 404 + 6 × noindex`). **🎉 SPRINT S10 SECURITY HOTFIX COMPLETE** (S10-1 RLS mig 132, S10-2 patient auth, S10-3 P1 paczka, S10-4 sitemap). Wszystkie 2 P0 + 4 P1 + 1 quick win SEO z audytu 2026-05-18 zamknięte. Z opcjonalnych P2/P3 pending (post-K follow-up): tokeny w logach, CSP enforce, PII fail-closed, Prodentis HTTP fallback, Telegram HTML escape, /api/health reconnaissance. **Następna sesja: 🎯 K-3 Person schema enrichment + CV timeline na /o-nas** — najważniejsza sesja Fazy K (~3h AI + 30 min Marcin). SEO-07 z audytu SEO mapuje 1:1.
 
@@ -2524,6 +2524,187 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-21 NIGHT+1 — 🚀 PERFORMANCE OPTIMIZATION SPRINT (Options A+B+C+D + CI fixes, 6 commitów)
+
+**Po regression PSI** raportowanej przez Marcina 17:25 CEST (mobile 37, desktop 55 — dramatic spadek z Fazy E baseline 73/83 z 2026-05-09 zaakceptowanego), cumulative 4 sprinty wymierzone w największe winowajce + 2 CI fixes. Wszystkie zmergowane na main.
+
+#### Commity (chronologicznie)
+
+- `b32e498` — perf: Option A quick wins — CLS logo + composited animations + lazy TrustStats + WebP
+- `c8b6cfd` — perf: Option B framer-motion tree-shake — TrustStats vanilla + HeroSlideshow LazyMotion + autoplay pause IO
+- `735e2ee` — perf: Option C deep — BackgroundVideo defer 8MB MP4 fetch via idle + img poster
+- `686d184` — ci: cancel-in-progress=false na lint+security workflows (eliminuje "fake failures")
+- `22b3408` — ci: bump Node 20 → 24 w lint+security workflows (sync z lokalnym lock file)
+- `43b76d8` — perf: Option D — HeroSlideshow text-only (eliminate CLS 0.219 + 500 KB images)
+
+#### Option A — Quick wins (commit `b32e498`)
+
+**5 fixów wymierzonych w największe single-issue:**
+
+1. **CLS 0.219 desktop logo fix** (Navbar.tsx × 2 instancje)
+   - Stary `width:auto; height:60px` → browser nie rezerwował miejsca przed image load
+   - Nowy `width:247px; height:auto; aspectRatio:574/139; maxWidth:100%; display:block`
+   - Aspect-ratio + height:auto zachowuje proporcje gdy max-width ogranicza szerokość
+
+2. **Composited animations** (Lighthouse Best Practices flag fix)
+   - Navbar.module.css `.logo::after` shimmer: `left:-100%→150%` → `transform:translateX(-100%)→translateX(100%)` + `will-change: transform`. Width 60%→100% bo translateX -100% przesuwa o pełną szerokość.
+   - AssistantTeaser pulse: usunięto `animation: assistantPulse` z głównego div'a (animowało box-shadow ring — uncomposited). Pulse przeniesiony do nested `<span>` z absolute + border + transform: scale + opacity (composited GPU).
+
+3. **Browserslist bump** package.json: chrome ≥90→≥93, safari ≥14→≥15.4, firefox ≥90→≥92, edge ≥90→≥93. Cel: wyciąć 13 KiB polyfilli. **UWAGA**: Next 16 SWC nadal generuje polyfille mimo bump (verified curl chunk 3116). Próby webpack alias + NormalModuleReplacementPlugin też nieskuteczne — Next injectuje polyfill-nomodule.js innym mechanizmem niż standardowy ES import (build-pipeline raw include). **Pre-existing issue z Fazy E — wymaga fork Next config lub czekania na Next 17.**
+
+4. **TrustStats lazy load** HomeClient.tsx: `import TrustStats` → `dynamic(() => import("@/components/TrustStats"))`. SSR zachowane (Googlebot widzi heading + akredytacje), JS chunk poza initial bundle.
+
+5. **Metamorphosis JPG → WebP** sharp resize 1000x1000 jpg → 920x920 WebP q75 effort 6. before: 126KB→72KB (-42%), after: 131KB→77KB (-42%). Total -108 KB. Cache-bust `-v2.webp` suffix. Update HomeClient.tsx + MetamorphosisGallery.tsx.
+
+#### Option B — Framer Motion tree-shake (commit `c8b6cfd`)
+
+**Cel: wyciąć ~65 KB framer-motion z homepage**
+
+1. **TrustStats — usunięto framer-motion CAŁKOWICIE** (~30 KB save w lazy chunk)
+   - AnimatedCounter: motion.useInView + framer animate() → vanilla IntersectionObserver + requestAnimationFrame z easeOutQuint (1.8s)
+   - TrustCard motion.div whileHover={{y:-8}} → CSS .trust-card:hover transform translateY(-8px)
+   - Inner motion.div whileHover={{scale:1.08}} → CSS .trust-card:hover .trust-counter transform scale(1.08)
+   - LiveIndicator + AccreditationPill motion.div tooltips → div + CSS opacity+transform transition
+   - .trust-card::before shimmer: `left: -100% → 200%` → `transform: translateX` (composited + will-change)
+   - 5 framer imports removed: motion, useInView, animate, AnimatePresence
+
+2. **HeroSlideshow LazyMotion + domAnimation + m** (~35 KB tree-shake)
+   - `import { motion, AnimatePresence } from "framer-motion"` → `import { LazyMotion, domAnimation, m, AnimatePresence }`
+   - `<motion.div>` → `<m.div>` wewnątrz `<LazyMotion features={domAnimation} strict>`
+   - domAnimation feature set: transform + opacity + AnimatePresence + drag (wystarczające dla slide spring + opacity fade + drag swipe)
+   - strict mode włącza tree-shaking — nieużywane features wycinane z bundle
+
+3. **HeroSlideshow autoplay pause when out of viewport** (IntersectionObserver)
+   - Nowy isInView state + sectionRef + useEffect IO threshold 0.1
+   - Autoplay setInterval dependency: [page, isPaused, isInView]
+   - Eliminacja long tasks co 5s (~80-120ms Framer spring computation per tick) gdy hero scrolluje out of view
+
+#### Option C — BackgroundVideo defer 8 MB MP4 (commit `735e2ee`)
+
+**Cel: 8 MB MP4 (84% mobile initial transfer) nie konkuruje o pasmo podczas LCP**
+
+- Stary: `<video src="/hero-video.mp4" preload="metadata">` mount 500ms po hydration → MP4 fetch podczas critical path
+- Nowy: TWA-fazowy render
+  - **Phase 1 (immediate, SSR)**: `<img src="/hero-video-poster.webp">` 11 KB jako cheap background (zero JS dependency). User widzi cinematic frame od razu.
+  - **Phase 2 (requestIdleCallback z timeout 2.5s lub setTimeout 1500ms fallback)**: mountVideo state → `<video>` appended z preload="auto" → browser fetchuje MP4 po krytycznych zasobach
+- Smooth crossfade: poster opacity 1→0 (0.6s ease-out) gdy video się renderuje
+- Autoplay zachowane (Marcin hard requirement): videoRef.play() po mount + loadedmetadata, catch ignoruje autoplay block
+
+**Polyfills C.2 ABANDONED**: Próby webpack `resolve.alias` + `NormalModuleReplacementPlugin` do empty module — Next 16 injectuje polyfille innym mechanizmem niż ES import. ROI ~13 KB vs ryzyko regresji — odłożone. Comment w next.config.ts dokumentuje historię.
+
+#### CI fixes (commits `686d184` + `22b3408`)
+
+**Marcin zgłosił GitHub Actions failure po push C**:
+- Initial diagnosis: cancelled runs z `cancel-in-progress: true` (każdy z 3 push'ów A→B→C cancellował poprzedni). UI pokazywał exit code 128 (git checkout cancelled) + npm error (no files). Fix: `cancel-in-progress: false` na lint.yml + security.yml.
+- Real failure: `npm ci` z error "Missing: @emnapi/runtime@1.10.0, @emnapi/core@1.10.0, @swc/helpers@0.5.21 from lock file". Diagnoza: package-lock.json generated lokalnie na Node 24 (sharp + @napi-rs/wasm-runtime używają natywnego N-API), CI używał Node 20 (wymagał @emnapi/runtime). Fix: bump CI Node 20 → 24 na obu workflows.
+
+#### Option D — HeroSlideshow text-only (commit `43b76d8`)
+
+**Marcin po analizie PSI Option C raport** zaproponował: *"Moze te zdjecia w slideshow wywalic? Lub zmniejszyc ich rozmiar?"*. Diagnoza Lighthouse: element CLS 0.219 = `<main>` shifting. Root cause: `isDesktop` state initially `false` (SSR text-only ~400px), client matchMedia setował `true` → re-render z 2-col grid + image → hero ~840px → push below = CLS 0.219.
+
+**FIX (text-only zawsze):**
+- Usunięto `isDesktop` state + matchMedia effect
+- Usunięto Image component + import next/image
+- Usunięto `image` pole z SLIDE_CONFIG (5 grafik /hero-slides/*-v4.webp)
+- Text content centered ZAWSZE (zarówno SSR jak client) — brak layout differences
+- minHeight: 75vh stabilne — zarezerwowane miejsce przed hydration
+- Zachowane: 5 unique slide narracji w SSR HTML (SEO), autoplay 5s, drag swipe, arrows ❮ ❯, pagination dots, Framer Motion spring slide transition, AnimatePresence mode="wait", LazyMotion + m + domAnimation tree-shake
+- Grafiki /hero-slides/*-v4.webp pozostają na disku (referenced przez scripts/generate-hero-slide-images.mjs) — można wrócić w przyszłości
+
+**Trade-off**: mniej "premium" wizualnie (brak portretu obok tekstu), ale Marcin zaakceptował.
+
+#### Verification Claude_Preview (mobile 383px viewport)
+
+Po Option D final state:
+- heroImagesCount: 0 (zero `<img>` w hero section) ✓
+- sectionHeight: 640px stabilne (75vh × 853 = 640) ✓
+- sectionMinHeight CSS 639.75px ← reserved before hydration ✓
+- h1 slide 1 + autoplay rotation to slide 3 (Mikroskop ZEISS + laser Fotona LightWalker) ✓
+- BackgroundVideo nadal aktywny (interior atmosphere) ✓
+- TrustStats: 4 cards, counters animowane vanilla (1150/2282/6191), LIVE indicator ✓
+- AssistantTeaser pulse composited (border + transform scale) ✓
+- Navbar logo aspect-ratio 574/139 zachowane ✓
+- Zero console errors, build clean
+
+#### Faktyczne wyniki PSI (przed Option D, po C)
+
+| Source | Score | Status |
+|---|---|---|
+| **Desktop lab** | 70/100 | regression vs Faza E 83 |
+| Desktop CLS lab | **0.235** | regresja (logo fix był OK, ale `isDesktop` shift) — Option D usunął |
+| Desktop LCP | 1.6s | ✓ Good |
+| Desktop TBT | 210ms | ✓ Close to Good |
+| **Mobile lab** | 81/100 | improvement z 37 |
+| Mobile LCP | 3.7s | 🟡 needs improvement |
+| Mobile TBT | 100ms | ✓ Good |
+| Mobile CLS lab | 0.024 | ✓ Good |
+| **CrUX field 28-day** | LCP 2.9s / INP 162ms / CLS 0.04 | Real users wszystkie poniżej "needs improvement" |
+
+#### Spodziewane wyniki po Vercel deploy `43b76d8`
+
+- Desktop CLS: 0.235 → ~0.02 (eliminate 0.219 main shift)
+- Desktop overall: 70 → **85-92**
+- Mobile LCP: 3.7s → 2.5-3.0s (-500 KB hero-slides z initial bundle)
+- Mobile overall: 81 → **85-90**
+
+#### Pliki dotknięte (cumulative across 6 commits)
+
+**Performance fixes**:
+- `src/components/Navbar.tsx` (A.1 logo CLS × 2 Image instances)
+- `src/components/Navbar.module.css` (A.2a shimmer transform)
+- `src/components/AssistantTeaser.tsx` (A.2b nested pulse span + keyframes)
+- `package.json` (A.3 browserslist bump)
+- `src/app/[locale]/HomeClient.tsx` (A.4 dynamic TrustStats + A.5 metamorphosis paths + B implicit via TrustStats refactor)
+- `src/components/MetamorphosisGallery.tsx` (A.5 paths)
+- `public/metamorphosis_after-v2.webp` + `public/metamorphosis_before-v2.webp` [NEW] 920x920 q75 = 72-77 KB
+- `src/components/TrustStats.tsx` (B.1 vanilla refactor — 227 → 397 LOC inkl. wszystkich helperów)
+- `src/components/HeroSlideshow.tsx` (B.2+B.3 LazyMotion + autoplay IO + D text-only refactor)
+- `src/components/BackgroundVideo.tsx` (C.1 idle defer + poster fade)
+- `next.config.ts` (C.2 polyfills config attempted + abandoned)
+
+**CI fixes**:
+- `.github/workflows/lint.yml` (cancel-in-progress=false + Node 24)
+- `.github/workflows/security.yml` (cancel-in-progress=false + Node 24)
+
+#### Co Marcin musi zrobić ręcznie
+
+**Brak migracji DB ani env var.** Vercel auto-deploy `43b76d8` (~2-3 min od push).
+
+**Re-run PSI** za ~5 min: https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fwww.mikrostomart.pl%2F. Spodziewam się desktop 85-92 / mobile 85-90.
+
+**Z S10 nadal pending manual (krytyczne!)**:
+1. Wgrać migrację 132 (RLS lockdown) na OBU Supabase: `~/Desktop/migracje_supabase/migracja_132_rls_lockdown_anon_data_leak.txt`
+2. Smoke anon REST × 5 tabel
+3. Smoke functional: rejestracja, login pending, push, zgody, sugestie, Googlebot
+4. Sitemap audit produkcji
+
+#### Następna sesja
+
+**K-6 — Cennik SEO-friendly hybrid** (zachowane z planu Premium SEO). Refactor `/cennik/page.tsx` na server component z SSR-rendered kategorie usług + FAQ cenowe + Service/OfferCatalog/FAQPage schemas. Chat AI zachowany jako client island anchor #asystent-ai.
+
+#### Pozostałe TODO (post-K, low priority)
+
+- Polyfills Next 17/Turbopack official disable option (czekamy)
+- HeroSlideshow grafiki — można wrócić w przyszłości jeśli wartość biznesowa wzrośnie (np. dedykowane high-quality real photos zamiast Flux AI)
+- Sentry client SDK disable (~30 KB save jeśli potrzebne dalsze cięcie)
+- OfferCarousel + Navbar + NovikCodeCredit LazyMotion + m migration (jeśli potrzebne)
+- HeroSlideshow autoplay disable on mobile (jeśli wciąż TBT issue)
+- metamorphosis images 920→600 max (Lighthouse oczekuje 510×510 display dimensions)
+
+#### Krytyczne lessons learned
+
+1. **SSR vs client layout difference = CLS**: każdy `useState` initialized do wartości innej niż `matchMedia` runtime wynik powoduje hydration mismatch + layout shift. Lekcja: SSR-safe defaults lub CSS @media queries zamiast JS detection.
+
+2. **`cancel-in-progress: true` jest mylące dla CI UI**: cancelled runs widoczne jako "Failed" z exit code 128. Better: `false` dla minor cost na GitHub Actions minutes.
+
+3. **package-lock.json zależy od Node version**: lock generowany na Node 24 może być incompatible z Node 20 CI (sharp + @napi-rs/wasm-runtime). Zawsze sync CI Node version z lokalnym, NIE LTS.
+
+4. **Field data (CrUX) > Lab data (Lighthouse)**: real user metrics najlepszy źródło prawdy. Lighthouse mobile throttling jest agresywne (Moto G Power 4G) — może nie reprezentować typowego użytkownika 2026.
+
+5. **8 MB MP4 jako background = NO autoplay bez defer**: każdy hero background video powyżej 1 MB powinien być deferred via requestIdleCallback. Poster image jako "cheap background" daje user perceived performance.
+
+---
 
 ### 2026-05-21 NIGHT — 🎯 MEGA SESJA part 2: Audit follow-up (Batch SEO-1+2) + K-4 strona 3 + K-5 batch 2 (4 commity)
 
