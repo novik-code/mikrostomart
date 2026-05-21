@@ -30,7 +30,9 @@ const TARGETS: Array<{ code: string; name: string; languageDescription: string }
 ];
 
 const MESSAGES_DIR = path.join(__dirname, '..', 'messages');
-const FILE = 'pages.json';
+// Override via MESSAGES_FILE env var (e.g. `MESSAGES_FILE=common.json npx tsx ...`)
+// Default keeps backwards compat with original Phase 2 SEO recovery use case.
+const FILE = process.env.MESSAGES_FILE || 'pages.json';
 const MODEL = 'gpt-4o-mini';
 
 type FlatDict = Record<string, string>;

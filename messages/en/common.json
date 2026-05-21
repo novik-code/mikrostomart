@@ -810,5 +810,137 @@
             "updated": "Updated!",
             "errorUpdate": "Failed to update"
         }
+    },
+    "oNasBrand": {
+        "akredytacjeEyebrow": "Accreditations and scientific activity",
+        "akredytacjeHeading": "Titles, memberships, international lectures",
+        "akredytacjeLead": "Marcin is a member of key dental societies in Poland and Europe, a graduate of RWTH Aachen, and an active lecturer at international symposiums. Each accreditation brings specific qualifications and knowledge to the practice.",
+        "akredytacjeCardCta": "Details",
+        "cvEyebrow": "Career path",
+        "cvHeading": "From high school in Opole to the international laser dentistry scene",
+        "cvLead": "Medical-dental studies in Wrocław, the second Master of Science diploma in Poland from RWTH Aachen, a professional book published by Czelej, lectures at symposiums in Slovenia and Poland.",
+        "cv": {
+            "umw": {
+                "title": "Medical-dental studies",
+                "desc": "Medical University of Wrocław — dental studies alongside medical studies (dual track, a rarity)."
+            },
+            "oil": {
+                "title": "Member of the Opole Chamber of Physicians",
+                "desc": "After diploma nostrification — qualification to practice as a dentist."
+            },
+            "pteEse": {
+                "title": "PTE and ESE — endodontic societies",
+                "desc": "Member of the Polish Endodontic Society (Endodontic Curriculum) and the European Society of Endodontology."
+            },
+            "mikrostomart": {
+                "title": "Opening of the Mikrostomart clinic",
+                "desc": "Together with my wife Elżbieta — a unique dental practice in Opole. Mikrostomart = Microscopic Artistic Dentistry."
+            },
+            "ptslOralSurgery": {
+                "title": "PTSL and Oral Surgery Academy",
+                "desc": "Member of the Polish Laser Dentistry Society. Graduate of training in surgery and implantology."
+            },
+            "rwth": {
+                "title": "Master of Science RWTH Aachen",
+                "desc": "The second dentist in Poland, the youngest in the country with the title M.Sc. in Lasers in Dentistry. Diploma defended with distinction."
+            },
+            "lahaSlovenia": {
+                "title": "First lecture at the LA&HA Symposium in Slovenia",
+                "desc": "International symposium on dental lasers — lecture \"Star Wars in my Dental Office?\"."
+            },
+            "publications": {
+                "title": "Four publications in the Dental Magazine",
+                "desc": "Articles with videos and clinical reports: root canal treatment, retreatment in endodontics, apical root resection."
+            },
+            "lahaPolandKeynote": {
+                "title": "Keynote LA&HA Poland 2022",
+                "desc": "Major speaker Day 2: \"From Root to Crown — Comprehensive Laser Treatment of Teeth\". Plus pre-conference workshops and expert panel."
+            },
+            "lahaSlovenia2023": {
+                "title": "LA&HA Symposium 2023 — second lecture in Slovenia",
+                "desc": "\"Er:YAG and Nd:YAG Assisted Apical Endodontic Microsurgery Protocol\" — international exchange of clinical knowledge."
+            },
+            "czelejBook": {
+                "title": "Book \"Own Practice\" published by Czelej",
+                "desc": "276 pages, 30 chapters. A practical guide for dentists planning or running their own practice."
+            },
+            "pte20": {
+                "title": "Lecturer at the 20th anniversary of PTE",
+                "desc": "Marcin as one of the lecturers at the anniversary symposium of the Polish Endodontic Society."
+            }
+        },
+        "publicationsEyebrow": "Publications and presentations",
+        "publicationsHeading": "Not only do I treat — I also teach my colleagues",
+        "publicationsLead": "A professional book published by Czelej, regular publications in the \"Dental Magazine\", lectures and workshops at international LA&HA symposiums.",
+        "publicationsColPubs": "Publications",
+        "publicationsColLectures": "Presentations",
+        "pubs": {
+            "typeBook": "Book",
+            "typeMagazine": "Magazine",
+            "typeConference": "Conference",
+            "openLink": "See",
+            "czelej": {
+                "title": "Own Practice. A Guide for Dentists",
+                "venue": "Czelej Publishing",
+                "issue": "276 pages · ISBN 978-83-7563-319-1"
+            },
+            "magStomat": {
+                "venue": "Dental Magazine"
+            },
+            "magStomat2021nr5": {
+                "title": "Article with video. Case description of root canal treatment of tooth 37",
+                "issue": "2021 no. 5, pp. 10–24"
+            },
+            "magStomat2021nr3": {
+                "title": "Clinical report. Case description of retreatment",
+                "issue": "2021 no. 3, pp. 64–78"
+            },
+            "magStomat2020nr10": {
+                "title": "Article with video. Apical root resection",
+                "issue": "2020 no. 10, pp. 20–30"
+            },
+            "magStomat2020nr3": {
+                "title": "When the future meets the past…",
+                "issue": "2020 no. 3, pp. 24–30"
+            },
+            "laha2019": {
+                "title": "Marques & Nowosielski — conference publication LA&HA 2019",
+                "venue": "LA&HA Symposium 2019 Proceedings"
+            }
+        },
+        "lectures": {
+            "typeSymposium": "Symposium",
+            "typeKeynote": "Keynote",
+            "typeWorkshop": "Workshop",
+            "typePanel": "Panel",
+            "lahaSym2019": {
+                "title": "Star Wars in my Dental Office?",
+                "venue": "LA&HA Symposium 2019"
+            },
+            "lahaPoland2022": {
+                "title": "From Root to Crown — Comprehensive Laser Treatment of Teeth",
+                "venue": "LA&HA Poland 2022 — Day 2 Keynote"
+            },
+            "lahaPolandWorkshop": {
+                "title": "No Time to Die — How Effective Endodontic Treatment Can Avoid Extraction",
+                "venue": "LA&HA Poland 2022 — pre-conference workshops"
+            },
+            "lahaSym2023": {
+                "title": "Er:YAG and Nd:YAG Assisted Apical Endodontic Microsurgery Protocol",
+                "venue": "LA&HA Symposium 2023"
+            },
+            "pte20": {
+                "title": "Lecturer at the 20th anniversary of PTE",
+                "venue": "Polish Endodontic Society"
+            }
+        },
+        "czelejEyebrow": "Author of the book",
+        "czelejHeading": "Own Practice — A Guide for Dentists",
+        "czelejBadge": "Book — Czelej Publishing",
+        "czelejBookTitle": "Own Practice. A Guide for Dentists",
+        "czelejAuthor": "Dr. dent. Marcin Nowosielski, M.Sc.",
+        "czelejMeta": "276 pages · B5 format · ISBN 978-83-7563-319-1 · Czelej Publishing",
+        "czelejDescription": "30 chapters covering the entire cycle of running one's own practice: from choosing a location and equipment, through business, marketing, pricing, and staff, to digitization, branding, negotiations, and legal and financial aspects. A practical guide for dentists planning or running their own practice.",
+        "czelejCta": "Buy at Czelej Publishing"
     }
 }

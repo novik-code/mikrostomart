@@ -200,6 +200,138 @@
             ]
         }
     },
+    "oNasBrand": {
+        "akredytacjeEyebrow": "Akredytacje i działalność naukowa",
+        "akredytacjeHeading": "Tytuły, członkostwa, międzynarodowe wykłady",
+        "akredytacjeLead": "Marcin jest członkiem kluczowych towarzystw stomatologicznych w Polsce i Europie, absolwentem RWTH Aachen oraz aktywnym wykładowcą międzynarodowych sympozjów. Każda akredytacja to konkretne uprawnienia i wiedza, którą wnosi do gabinetu.",
+        "akredytacjeCardCta": "Szczegóły",
+        "cvEyebrow": "Droga zawodowa",
+        "cvHeading": "Od matury w Opolu do międzynarodowej sceny laserów stomatologicznych",
+        "cvLead": "Studia lekarsko-dentystyczne we Wrocławiu, drugi w Polsce dyplom Master of Science RWTH Aachen, książka branżowa w Wydawnictwie Czelej, wykłady na sympozjach w Słowenii i Polsce.",
+        "cv": {
+            "umw": {
+                "title": "Studia lekarsko-dentystyczne",
+                "desc": "Uniwersytet Medyczny we Wrocławiu — kierunek lekarsko-dentystyczny równolegle z kierunkiem lekarskim (dual track, rzadkość)."
+            },
+            "oil": {
+                "title": "Członek Opolskiej Izby Lekarskiej",
+                "desc": "Po nostryfikacji dyplomu — uprawnienie do wykonywania zawodu lekarza dentysty."
+            },
+            "pteEse": {
+                "title": "PTE i ESE — towarzystwa endodontyczne",
+                "desc": "Członek Polskiego Towarzystwa Endodontycznego (Curriculum Endodontyczne) oraz European Society of Endodontology."
+            },
+            "mikrostomart": {
+                "title": "Otwarcie kliniki Mikrostomart",
+                "desc": "Razem z żoną Elżbietą — autorski gabinet stomatologiczny w Opolu. Mikrostomart = Mikroskopowa Stomatologia Artystyczna."
+            },
+            "ptslOralSurgery": {
+                "title": "PTSL i Oral Surgery Academy",
+                "desc": "Członek Polskiego Towarzystwa Stomatologii Laserowej. Absolwent szkolenia z chirurgii i implantologii."
+            },
+            "rwth": {
+                "title": "Master of Science RWTH Aachen",
+                "desc": "Drugi w Polsce, najmłodszy w kraju dentysta z tytułem M.Sc. in Lasers in Dentistry. Dyplom obroniony z wyróżnieniem."
+            },
+            "lahaSlovenia": {
+                "title": "Pierwszy wykład LA&HA Symposium w Słowenii",
+                "desc": "Międzynarodowe sympozjum laserów stomatologicznych — wykład \"Star Wars in my Dental Office?\"."
+            },
+            "publications": {
+                "title": "Cztery publikacje w Magazynie Stomatologicznym",
+                "desc": "Artykuły z filmem i reportaże kliniczne: leczenie kanałowe, ponowne leczenie endodontyczne, resekcja wierzchołka korzenia."
+            },
+            "lahaPolandKeynote": {
+                "title": "Keynote LA&HA Poland 2022",
+                "desc": "Major speaker Day 2: \"Od korzenia do korony — kompleksowe laserowe leczenie zębów\". Plus warsztaty przed-konferencyjne i panel ekspertów."
+            },
+            "lahaSlovenia2023": {
+                "title": "LA&HA Symposium 2023 — drugi wykład w Słowenii",
+                "desc": "\"Er:YAG and Nd:YAG Assisted Apical Endodontic Microsurgery Protocol\" — międzynarodowa wymiana wiedzy klinicznej."
+            },
+            "czelejBook": {
+                "title": "Książka \"Własny gabinet\" w Wydawnictwie Czelej",
+                "desc": "276 stron, 30 rozdziałów. Praktyczny przewodnik dla lekarzy dentystów planujących lub prowadzących własną praktykę."
+            },
+            "pte20": {
+                "title": "Wykładowca jubileuszu 20-lecia PTE",
+                "desc": "Marcin jako jeden z wykładowców jubileuszowego sympozjum Polskiego Towarzystwa Endodontycznego."
+            }
+        },
+        "publicationsEyebrow": "Publikacje i wystąpienia",
+        "publicationsHeading": "Nie tylko leczę — uczę też kolegów po fachu",
+        "publicationsLead": "Książka branżowa w Wydawnictwie Czelej, regularne publikacje w \"Magazynie Stomatologicznym\", wykłady i warsztaty na międzynarodowych sympozjach LA&HA.",
+        "publicationsColPubs": "Publikacje",
+        "publicationsColLectures": "Wystąpienia",
+        "pubs": {
+            "typeBook": "Książka",
+            "typeMagazine": "Czasopismo",
+            "typeConference": "Konferencja",
+            "openLink": "Zobacz",
+            "czelej": {
+                "title": "Własny gabinet. Poradnik dla lekarza dentysty",
+                "venue": "Wydawnictwo Czelej",
+                "issue": "276 stron · ISBN 978-83-7563-319-1"
+            },
+            "magStomat": {
+                "venue": "Magazyn Stomatologiczny"
+            },
+            "magStomat2021nr5": {
+                "title": "Artykuł z filmem. Opis przypadku leczenia kanałowego zęba 37",
+                "issue": "2021 nr 5, s. 10–24"
+            },
+            "magStomat2021nr3": {
+                "title": "Reportaż kliniczny. Opis przypadku ponownego leczenia",
+                "issue": "2021 nr 3, s. 64–78"
+            },
+            "magStomat2020nr10": {
+                "title": "Artykuł z filmem. Resekcja wierzchołka korzenia",
+                "issue": "2020 nr 10, s. 20–30"
+            },
+            "magStomat2020nr3": {
+                "title": "Kiedy przyszłość spotyka się z przeszłością…",
+                "issue": "2020 nr 3, s. 24–30"
+            },
+            "laha2019": {
+                "title": "Marques & Nowosielski — publikacja konferencyjna LA&HA 2019",
+                "venue": "LA&HA Symposium 2019 Proceedings"
+            }
+        },
+        "lectures": {
+            "typeSymposium": "Sympozjum",
+            "typeKeynote": "Keynote",
+            "typeWorkshop": "Warsztaty",
+            "typePanel": "Panel",
+            "lahaSym2019": {
+                "title": "Star Wars in my Dental Office?",
+                "venue": "LA&HA Symposium 2019"
+            },
+            "lahaPoland2022": {
+                "title": "Od korzenia do korony — kompleksowe laserowe leczenie zębów",
+                "venue": "LA&HA Poland 2022 — Day 2 Keynote"
+            },
+            "lahaPolandWorkshop": {
+                "title": "Nie czas umierać — jak skutecznym leczeniem endodontycznym uniknąć ekstrakcji",
+                "venue": "LA&HA Poland 2022 — warsztaty przed-konferencyjne"
+            },
+            "lahaSym2023": {
+                "title": "Er:YAG and Nd:YAG Assisted Apical Endodontic Microsurgery Protocol",
+                "venue": "LA&HA Symposium 2023"
+            },
+            "pte20": {
+                "title": "Wykładowca jubileuszu 20-lecia PTE",
+                "venue": "Polskie Towarzystwo Endodontyczne"
+            }
+        },
+        "czelejEyebrow": "Autor książki",
+        "czelejHeading": "Własny gabinet — poradnik dla lekarzy dentystów",
+        "czelejBadge": "Książka — Wydawnictwo Czelej",
+        "czelejBookTitle": "Własny gabinet. Poradnik dla lekarza dentysty",
+        "czelejAuthor": "Lek. dent. Marcin Nowosielski, M.Sc.",
+        "czelejMeta": "276 stron · Format B5 · ISBN 978-83-7563-319-1 · Wydawnictwo Czelej",
+        "czelejDescription": "30 rozdziałów obejmujących cały cykl prowadzenia własnej praktyki: od wyboru lokalizacji i wyposażenia, przez biznes, marketing, ceny i personel, po cyfryzację, branding, negocjacje oraz aspekty prawne i finansowe. Praktyczny przewodnik dla lekarzy dentystów planujących lub prowadzących własny gabinet.",
+        "czelejCta": "Kup w Wydawnictwie Czelej"
+    },
     "values": {
         "heading": "Co nas wyróżnia",
         "precision": "Precyzja",

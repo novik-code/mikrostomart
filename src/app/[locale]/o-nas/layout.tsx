@@ -60,6 +60,80 @@ function buildPersonSchemas(locale: string) {
             "inLanguage": inLanguage,
             "worksFor": { "@id": brand.schemaId },
             "knowsAbout": ["Implantologia", "Endodoncja", "Stomatologia mikroskopowa", "Implantology", "Endodontics", "Microscopic dentistry"],
+            "alumniOf": [
+                {
+                    "@type": "EducationalOrganization",
+                    "name": "Uniwersytet Medyczny im. Piastów Śląskich we Wrocławiu",
+                    "url": "https://www.umw.edu.pl/",
+                },
+                {
+                    "@type": "EducationalOrganization",
+                    "name": "RWTH Aachen University — Aachen Dental Laser Center",
+                    "url": "https://www.aalz.de/en/",
+                    "description": "Master of Science in Lasers in Dentistry (2018–2021, with distinction)",
+                },
+            ],
+            "award": [
+                "Master of Science in Lasers in Dentistry with distinction (RWTH Aachen, 2021)",
+                "Drugi w Polsce dentysta z tytułem M.Sc. in Lasers in Dentistry",
+                "Najmłodszy w Polsce dentysta z tytułem M.Sc. in Lasers in Dentistry",
+            ],
+            "memberOf": [
+                {
+                    "@type": "Organization",
+                    "name": "Polskie Towarzystwo Endodontyczne (PTE)",
+                    "url": "https://endodoncja.pl/",
+                },
+                {
+                    "@type": "Organization",
+                    "name": "European Society of Endodontology (ESE)",
+                    "url": "https://www.e-s-e.eu/",
+                },
+                {
+                    "@type": "Organization",
+                    "name": "Polskie Towarzystwo Stomatologii Laserowej (PTSL)",
+                },
+                {
+                    "@type": "Organization",
+                    "name": "Opolska Izba Lekarska",
+                },
+            ],
+            "hasCredential": [
+                {
+                    "@type": "EducationalOccupationalCredential",
+                    "credentialCategory": "Master's Degree",
+                    "name": "Master of Science in Lasers in Dentistry",
+                    "recognizedBy": {
+                        "@type": "EducationalOrganization",
+                        "name": "RWTH Aachen University",
+                    },
+                    "dateCreated": "2021",
+                },
+                {
+                    "@type": "EducationalOccupationalCredential",
+                    "credentialCategory": "Curriculum Certificate",
+                    "name": "Curriculum Endodontyczne",
+                    "recognizedBy": {
+                        "@type": "Organization",
+                        "name": "Polskie Towarzystwo Endodontyczne",
+                    },
+                },
+                {
+                    "@type": "EducationalOccupationalCredential",
+                    "credentialCategory": "Diploma",
+                    "name": "Oral Surgery Academy Graduate",
+                },
+            ],
+            "sameAs": [
+                "https://www.facebook.com/marcindentist",
+                "https://www.instagram.com/nowosielski_marcin/",
+                "https://www.instagram.com/mikrostomart_opole/",
+                "https://www.youtube.com/c/DentistMarcIn",
+                "https://www.tiktok.com/@nowosielskimarcin",
+                "https://czelej.com.pl/sklep/wlasny-gabinet-poradnik/",
+                "https://endodoncja.pl/20-lecie-pte/",
+                "https://www.laserandhealthacademy.com/media/uploads/laha/docs/2019/summaries/s31_marques_nowosielski.pdf",
+            ],
         },
         {
             "@context": "https://schema.org",

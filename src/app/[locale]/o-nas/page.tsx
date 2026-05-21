@@ -5,6 +5,10 @@ import { brandI18nParams } from '@/lib/brandConfig';
 import { useTranslations } from "next-intl";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import InteriorCollage from "@/components/InteriorCollage";
+import AkredytacjeSection from "@/components/about/AkredytacjeSection";
+import CvTimeline from "@/components/about/CvTimeline";
+import PublicationsList from "@/components/about/PublicationsList";
+import CzelejBook from "@/components/about/CzelejBook";
 import { useState } from "react";
 
 export default function AboutPage() {
@@ -313,6 +317,12 @@ export default function AboutPage() {
                     </div>
                 </div>
             </section>
+
+            {/* K-3: Personal brand exposure — 4 nowe sekcje */}
+            <AkredytacjeSection />
+            <CvTimeline />
+            <PublicationsList />
+            <CzelejBook />
         </main>
     );
 }

@@ -810,5 +810,137 @@
             "updated": "Aktualisiert!",
             "errorUpdate": "Aktualisierung fehlgeschlagen"
         }
+    },
+    "oNasBrand": {
+        "akredytacjeEyebrow": "Akkreditierungen und wissenschaftliche Tätigkeit",
+        "akredytacjeHeading": "Titel, Mitgliedschaften, internationale Vorträge",
+        "akredytacjeLead": "Marcin ist Mitglied der wichtigsten zahnärztlichen Gesellschaften in Polen und Europa, Absolvent der RWTH Aachen und aktiver Referent internationaler Symposien. Jede Akkreditierung bringt spezifische Berechtigungen und Wissen, das er in die Praxis einbringt.",
+        "akredytacjeCardCta": "Details",
+        "cvEyebrow": "Beruflicher Werdegang",
+        "cvHeading": "Vom Abitur in Opole zur internationalen Bühne der zahnärztlichen Laser",
+        "cvLead": "Medizinisch-zahnärztliches Studium in Wrocław, zweiter in Polen Diplom Master of Science RWTH Aachen, Fachbuch im Verlag Czelej, Vorträge auf Symposien in Slowenien und Polen.",
+        "cv": {
+            "umw": {
+                "title": "Medizinisch-zahnärztliches Studium",
+                "desc": "Medizinische Universität Wrocław — Studiengang Zahnmedizin parallel zum Studiengang Medizin (Dual Track, selten)."
+            },
+            "oil": {
+                "title": "Mitglied der Opolischen Ärztekammer",
+                "desc": "Nach der Nostrifizierung des Diploms — Berechtigung zur Ausübung des Berufs des Zahnarztes."
+            },
+            "pteEse": {
+                "title": "PTE und ESE — endodontische Gesellschaften",
+                "desc": "Mitglied der Polnischen Gesellschaft für Endodontie (Curriculum Endodonticum) sowie der European Society of Endodontology."
+            },
+            "mikrostomart": {
+                "title": "Eröffnung der Klinik Mikrostomart",
+                "desc": "Gemeinsam mit meiner Frau Elżbieta — eigene Zahnarztpraxis in Opole. Mikrostomart = Mikroskopische Zahnheilkunde."
+            },
+            "ptslOralSurgery": {
+                "title": "PTSL und Oral Surgery Academy",
+                "desc": "Mitglied der Polnischen Gesellschaft für Laserzahnheilkunde. Absolvent der Ausbildung in Chirurgie und Implantologie."
+            },
+            "rwth": {
+                "title": "Master of Science RWTH Aachen",
+                "desc": "Zweiter in Polen, jüngster Zahnarzt im Land mit dem Titel M.Sc. in Lasers in Dentistry. Diplom mit Auszeichnung verteidigt."
+            },
+            "lahaSlovenia": {
+                "title": "Erster Vortrag beim LA&HA Symposium in Slowenien",
+                "desc": "Internationales Symposium für zahnärztliche Laser — Vortrag \"Star Wars in my Dental Office?\"."
+            },
+            "publications": {
+                "title": "Vier Publikationen im Zahnmedizinischen Magazin",
+                "desc": "Artikel mit Film und klinische Berichte: Wurzelkanalbehandlung, erneute endodontische Behandlung, Resektion der Wurzelspitze."
+            },
+            "lahaPolandKeynote": {
+                "title": "Keynote LA&HA Polen 2022",
+                "desc": "Hauptredner Tag 2: \"Vom Wurzel bis zur Krone — umfassende laserunterstützte Zahnbehandlung\". Plus Vor-Konferenz-Workshops und Expertenpanel."
+            },
+            "lahaSlovenia2023": {
+                "title": "LA&HA Symposium 2023 — zweiter Vortrag in Slowenien",
+                "desc": "\"Er:YAG und Nd:YAG unterstütztes apikales endodontisches Mikrochirurgieprotokoll\" — internationaler Wissensaustausch."
+            },
+            "czelejBook": {
+                "title": "Buch \"Eigene Praxis\" im Verlag Czelej",
+                "desc": "276 Seiten, 30 Kapitel. Praktischer Leitfaden für Zahnärzte, die eine eigene Praxis planen oder führen."
+            },
+            "pte20": {
+                "title": "Referent des 20-jährigen Jubiläums der PTE",
+                "desc": "Marcin als einer der Referenten des Jubiläumssymposiums der Polnischen Gesellschaft für Endodontie."
+            }
+        },
+        "publicationsEyebrow": "Publikationen und Vorträge",
+        "publicationsHeading": "Ich behandle nicht nur — ich unterrichte auch Kollegen",
+        "publicationsLead": "Fachbuch im Verlag Czelej, regelmäßige Publikationen im \"Zahnmedizinischen Magazin\", Vorträge und Workshops auf internationalen LA&HA-Symposien.",
+        "publicationsColPubs": "Publikationen",
+        "publicationsColLectures": "Vorträge",
+        "pubs": {
+            "typeBook": "Buch",
+            "typeMagazine": "Zeitschrift",
+            "typeConference": "Konferenz",
+            "openLink": "Ansehen",
+            "czelej": {
+                "title": "Eigene Praxis. Leitfaden für den Zahnarzt",
+                "venue": "Verlag Czelej",
+                "issue": "276 Seiten · ISBN 978-83-7563-319-1"
+            },
+            "magStomat": {
+                "venue": "Zahnmedizinisches Magazin"
+            },
+            "magStomat2021nr5": {
+                "title": "Artikel mit Film. Fallbeschreibung der Wurzelkanalbehandlung eines Zahnes 37",
+                "issue": "2021 Nr. 5, S. 10–24"
+            },
+            "magStomat2021nr3": {
+                "title": "Klinischer Bericht. Fallbeschreibung der erneuten Behandlung",
+                "issue": "2021 Nr. 3, S. 64–78"
+            },
+            "magStomat2020nr10": {
+                "title": "Artikel mit Film. Resektion der Wurzelspitze",
+                "issue": "2020 Nr. 10, S. 20–30"
+            },
+            "magStomat2020nr3": {
+                "title": "Wenn die Zukunft auf die Vergangenheit trifft…",
+                "issue": "2020 Nr. 3, S. 24–30"
+            },
+            "laha2019": {
+                "title": "Marques & Nowosielski — Konferenzpublikation LA&HA 2019",
+                "venue": "LA&HA Symposium 2019 Proceedings"
+            }
+        },
+        "lectures": {
+            "typeSymposium": "Symposium",
+            "typeKeynote": "Keynote",
+            "typeWorkshop": "Workshops",
+            "typePanel": "Panel",
+            "lahaSym2019": {
+                "title": "Star Wars in my Dental Office?",
+                "venue": "LA&HA Symposium 2019"
+            },
+            "lahaPoland2022": {
+                "title": "Vom Wurzel bis zur Krone — umfassende laserunterstützte Zahnbehandlung",
+                "venue": "LA&HA Polen 2022 — Tag 2 Keynote"
+            },
+            "lahaPolandWorkshop": {
+                "title": "Nicht Zeit zu sterben — wie man mit erfolgreicher endodontischer Behandlung eine Extraktion vermeidet",
+                "venue": "LA&HA Polen 2022 — Vor-Konferenz-Workshops"
+            },
+            "lahaSym2023": {
+                "title": "Er:YAG und Nd:YAG unterstütztes apikales endodontisches Mikrochirurgieprotokoll",
+                "venue": "LA&HA Symposium 2023"
+            },
+            "pte20": {
+                "title": "Referent des 20-jährigen Jubiläums der PTE",
+                "venue": "Polnische Gesellschaft für Endodontie"
+            }
+        },
+        "czelejEyebrow": "Autor des Buches",
+        "czelejHeading": "Eigene Praxis — Leitfaden für Zahnärzte",
+        "czelejBadge": "Buch — Verlag Czelej",
+        "czelejBookTitle": "Eigene Praxis. Leitfaden für den Zahnarzt",
+        "czelejAuthor": "Dr. med. dent. Marcin Nowosielski, M.Sc.",
+        "czelejMeta": "276 Seiten · Format B5 · ISBN 978-83-7563-319-1 · Verlag Czelej",
+        "czelejDescription": "30 Kapitel, die den gesamten Zyklus der Führung einer eigenen Praxis abdecken: von der Standortwahl und Ausstattung über Geschäft, Marketing, Preise und Personal bis hin zu Digitalisierung, Branding, Verhandlungen sowie rechtlichen und finanziellen Aspekten. Praktischer Leitfaden für Zahnärzte, die eine eigene Praxis planen oder führen.",
+        "czelejCta": "Kaufen im Verlag Czelej"
     }
 }
