@@ -2528,7 +2528,7 @@ NODE_ENV=production
 **Ostatnia sesja S10 Security Hotfix. Wszystkie 2 P0 + 4 P1 + 1 quick win SEO z niezależnego audytu 2026-05-18 zamknięte.**
 
 #### Commit
-- TBD — sitemap.ts fix + audit script + npm script
+- `bb8adb3` — feat(seo,security): S10-4 — sitemap hygiene + CI gate (Sprint S10 COMPLETE)
 
 #### Problem (audyt SEO SEO-01)
 - Sitemap.xml zwracał 710 URLs, w tym **6 z `<meta robots noindex>`** i **4 z 404**:
