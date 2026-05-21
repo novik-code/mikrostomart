@@ -31,6 +31,13 @@ const nextConfig: NextConfig = {
       '/api/cron/video-process': ['./node_modules/ffmpeg-static/**/*'],
     },
   } as any,
+  // Option C perf 2026-05-21: próba wykluczenia polyfill-nomodule.js z client bundle
+  // (Array.at, Array.flat, Object.hasOwn, etc.) ABANDONED.
+  // Webpack alias + NormalModuleReplacementPlugin nie zadziałały — Next 16 injectuje
+  // polyfille innym mechanizmem (prawdopodobnie raw build-pipeline file include
+  // zamiast standardowego ES import). Wymaga deeper investigation Next 16 internals
+  // (post-build script patching lub fork Next config). Save ROI ~13 KB vs ryzyko
+  // regresji wysoki. Odłożone — można wrócić gdy Next 17 doda official config option.
   images: {
     // Faza G3 (2026-05-09): wyłączone. Allows remote SVG to be served via next/image
     // without sanitization — XSS risk + Lighthouse Best Practices flagi. Nasze remote
