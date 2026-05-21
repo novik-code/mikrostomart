@@ -972,5 +972,13 @@
             },
             "footnote": "Marcin was also a lecturer at the anniversary symposium celebrating the 20th anniversary of the Polish Endodontic Society (PTE) and the keynote speaker at the LA&HA Symposium Poland 2022 with the lecture 'From Root to Crown — Comprehensive Laser Treatment of Teeth'."
         }
+    },
+    "performerCard": {
+        "heading": "The doctor performing this procedure",
+        "viewBio": "Full bio",
+        "marcinName": "Dr. dent. Marcin Nowosielski, M.Sc.",
+        "marcinSummary": "M.Sc. in Lasers in Dentistry RWTH Aachen (2021, with distinction) — the second in Poland to hold this title. Author of the book “Own Practice” (Czelej Publishing 2024). Specializes in implantology, microscopic endodontics, and laser dentistry.",
+        "elaName": "Dental hygienist Elżbieta Nowosielska",
+        "elaSummary": "Dental hygienist, co-owner of the Mikrostomart clinic. Specializes in professional hygiene, dental prevention, and patient education."
     }
 }

@@ -74,7 +74,9 @@
         "marcinText1": "Absolvent der Medizinischen Akademie in Wrocław. Ein Mann mit Leidenschaft und Berufung zur Zahnmedizin, für den jeder Tag eine neue Herausforderung ist. Master of Science in Lasers in Dentistry (RWTH Aachen).",
         "marcinText2": "Zahnarzt, Enthusiast der mikroskopischen Endodontie, der prothetischen Behandlung unter Vergrößerung, der zahnärztlichen Implantologie und der Laserzahnmedizin.",
         "marcinText3": "Er sammelte Berufserfahrung in den besten Praxen der Region. 2021 erwarb er mit Auszeichnung — als Zweiter in Polen und jüngster Zahnarzt des Landes — den Titel 'Master of Science in Lasers in Dentistry'.",
-        "marcinText4": "Privat Ehemann von Elżbieta und Vater des kleinen Michael und Lily. Fan von Off-Road-Snowboarding und gutem Bassgitarrenklang."
+        "marcinText4": "Privat Ehemann von Elżbieta und Vater des kleinen Michael und Lily. Fan von Off-Road-Snowboarding und gutem Bassgitarrenklang.",
+        "viewMoreMarcin": "Vollständiges Bio von Marcin →",
+        "viewMoreEla": "Vollständiges Bio von Elżbieta →"
     },
     "sklep": {
         "title": "Shop",
@@ -823,5 +825,41 @@
         "teaserTitle": "Sie kommen aus dem Ausland nach Opole? Alles ist vorbereitet.",
         "teaserDesc": "Kostenfreies Parken vor der Klinik · Deutsch-, Englisch- und Polnischsprachiges Personal · Hotels 2–5 Min · 50 Min von A4 / Wrocław",
         "teaserCta": "Mehr für ausländische Patienten"
+    },
+    "zespolMarcin": {
+        "heroTagline": "Bio · Ausbildung · Veröffentlichungen · Vorträge",
+        "heroLead": "Dr. med. dent. mit dem Titel Master of Science in Lasers in Dentistry RWTH Aachen (2021, mit Auszeichnung) — der zweite in Polen mit diesem Titel, der jüngste im Land. Implantologie, mikroskopische Endodontie, Laserzahnheilkunde.",
+        "bioHeading": "Arbeitsphilosophie",
+        "languagesHeading": "Sprachen",
+        "languagesIntro": "Marcin betreut Patienten in drei Sprachen. Postgraduiertenstudium in Deutschland (RWTH Aachen 2018-2021) sowie internationale Vorträge LA&HA ermöglichen es ihm, ausländische Patienten ohne Übersetzer zu konsultieren.",
+        "langPL": "Polnisch",
+        "langPLLevel": "Muttersprache",
+        "langEN": "Englisch",
+        "langENLevel": "fließend · internationale Vorträge",
+        "langDE": "Deutsch",
+        "langDELevel": "RWTH Aachen 2018-2021",
+        "mediaHeading": "In den Medien",
+        "mediaIntro": "Zahnmedizinische Bildung — Fallstudien, Tipps für Patienten, Einblicke in die Praxis. Marcin betreibt den YouTube-Kanal DentistMarcIn sowie Profile in sozialen Medien.",
+        "ctaTitle": "Vereinbaren Sie einen Termin bei Marcin",
+        "ctaLead": "Implantatberatung, endodontische Behandlung unter dem Mikroskop, Clear Correct Kieferorthopädie, ästhetische und Laserzahnheilkunde.",
+        "ctaButton": "Termin buchen"
+    },
+    "zespolEla": {
+        "heroTagline": "Hygienisierung · Prävention · Bildung",
+        "heroLead": "Zahnmedizinische Hygienikerin mit über 10 Jahren Erfahrung, Mitinhaberin der Klinik {brandName}. Professionelle Hygienisierung, Prävention und Patientenbildung — das Fundament eines gesunden Lächelns für Jahre.",
+        "bioHeading": "Arbeitsphilosophie",
+        "specialtiesHeading": "Spezialisierungen",
+        "specialtiesIntro": "Ela führt umfassende zahnärztliche Hygienemaßnahmen durch und erstellt einen individuellen Plan für die häusliche Prävention für jeden Patienten. Sie glaubt, dass Prävention günstiger, schneller und weniger schmerzhaft ist als Behandlung.",
+        "spec1Title": "Professionelle Hygienisierung",
+        "spec1Desc": "Zahnsteinentfernung über dem Zahnfleisch + Ultraschall, Air-Flow-Pulverstrahlen, Polieren mit Prophylaxepaste. Vollständige Behandlung angepasst an den Zustand der Mundhöhle.",
+        "spec2Title": "Kariesprävention",
+        "spec2Desc": "Fluoridierung, Fissurenversiegelung bei Kindern, Risikobewertung für Karies, individuelle Empfehlungen für Patienten mit hohem Risiko.",
+        "spec3Title": "Patientenbildung",
+        "spec3Desc": "Individuelle Anleitung zum Zähneputzen, Auswahl von Zahnbürste und Zahnpasta, Technik der Zahnseide und des Irrigators. Keine langweiligen Belehrungen — praktische Tipps.",
+        "spec4Title": "Parodontalprävention",
+        "spec4Desc": "Frühe Bewertung des Zahnfleischzustands, Kontrolle von Blutungen, Anleitungen zur häuslichen Pflege. Unterstützung bei der Behandlung fortgeschrittener Parodontalerkrankungen.",
+        "ctaTitle": "Hygienisierung vereinbaren",
+        "ctaLead": "Professionelle Hygienisierung alle 6-12 Monate + individuelle Tipps zur häuslichen Pflege. Kümmern Sie sich um Ihr Lächeln, bevor es einer Intervention bedarf.",
+        "ctaButton": "Termin reservieren"
     }
 }

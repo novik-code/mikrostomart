@@ -74,7 +74,9 @@
         "marcinText1": "Graduate of the Medical Academy in Wrocław. A man with a passion and calling for dentistry, for whom every day is a new challenge. Master of Science in Lasers in Dentistry (RWTH Aachen University).",
         "marcinText2": "Dentist, enthusiast of microscopic endodontics, prosthetic treatment under magnification, dental implantology and laser dentistry.",
         "marcinText3": "He gained professional experience in the best clinics in the region. In 2021, he obtained with distinction — as the second in Poland and the youngest dentist in the country — the title 'Master of Science in Lasers in Dentistry'.",
-        "marcinText4": "Privately, the husband of Elżbieta and father of little Michael and Lily. Off-road snowboarding fan and bass guitar sound enthusiast."
+        "marcinText4": "Privately, the husband of Elżbieta and father of little Michael and Lily. Off-road snowboarding fan and bass guitar sound enthusiast.",
+        "viewMoreMarcin": "Full bio of Marcin →",
+        "viewMoreEla": "Full bio of Elżbieta →"
     },
     "sklep": {
         "title": "Shop",
@@ -823,5 +825,41 @@
         "teaserTitle": "Visiting Opole from abroad? Everything's ready for you.",
         "teaserDesc": "Free parking at the clinic · English-, German- and Polish-speaking staff · Hotels 2–5 min away · 50 min from A4 / Wrocław",
         "teaserCta": "Learn more for international patients"
+    },
+    "zespolMarcin": {
+        "heroTagline": "Bio · Education · Publications · Lectures",
+        "heroLead": "Dr. dent. with a Master of Science in Lasers in Dentistry from RWTH Aachen (2021, with honors) — the second in Poland to hold this title, the youngest in the country. Implantology, microscopic endodontics, laser dentistry.",
+        "bioHeading": "Work Philosophy",
+        "languagesHeading": "Languages",
+        "languagesIntro": "Marcin serves patients in three languages. Postgraduate studies in Germany (RWTH Aachen 2018-2021) and international lectures allow him to consult foreign patients without a translator.",
+        "langPL": "Polish",
+        "langPLLevel": "native",
+        "langEN": "English",
+        "langENLevel": "fluent · international lectures",
+        "langDE": "German",
+        "langDELevel": "RWTH Aachen 2018-2021",
+        "mediaHeading": "In the Media",
+        "mediaIntro": "Dental education — case studies, patient advice, behind the scenes of the clinic. Marcin runs the YouTube channel DentistMarcIn and profiles on social media.",
+        "ctaTitle": "Schedule an appointment with Marcin",
+        "ctaLead": "Implant consultation, root canal treatment under a microscope, Clear Correct orthodontics, aesthetic and laser dentistry.",
+        "ctaButton": "Book an appointment"
+    },
+    "zespolEla": {
+        "heroTagline": "Hygienization · Prevention · Education",
+        "heroLead": "Dental hygienist with over 10 years of experience, co-owner of the Mikrostomart clinic. Professional hygienization, prevention, and patient education — the foundation of a healthy smile for years.",
+        "bioHeading": "Work Philosophy",
+        "specialtiesHeading": "Specialties",
+        "specialtiesIntro": "Ela conducts comprehensive dental hygiene treatments and individually tailors a home prevention plan for each patient. She believes that prevention is cheaper, faster, and less painful than treatment.",
+        "spec1Title": "Professional Hygienization",
+        "spec1Desc": "Supra-gingival scaling + ultrasound, air-flow polishing, polishing with preventive paste. A complete treatment tailored to the condition of the oral cavity.",
+        "spec2Title": "Cavity Prevention",
+        "spec2Desc": "Fluoride varnishing, fissure sealing in children, cavity risk assessment, individual recommendations for high-risk patients.",
+        "spec3Title": "Patient Education",
+        "spec3Desc": "Individual brushing instruction, selection of toothbrush and toothpaste, dental floss and irrigator technique. No boring lectures — practical tips.",
+        "spec4Title": "Periodontal Prevention",
+        "spec4Desc": "Early assessment of gum condition, bleeding control, home care instructions. Support in the treatment of advanced periodontal diseases.",
+        "ctaTitle": "Schedule Hygienization",
+        "ctaLead": "Professional hygienization every 6-12 months + individual home care tips. Take care of your smile before it requires intervention.",
+        "ctaButton": "Book an Appointment"
     }
 }

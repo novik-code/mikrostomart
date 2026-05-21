@@ -445,6 +445,54 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
         },
     },
 
+    // ───────── /zespol/marcin-nowosielski (Batch SEO-2, dedykowane bio Marcina) ─────────
+    '/zespol/marcin-nowosielski': {
+        pl: {
+            title: 'lek. dent. Marcin Nowosielski M.Sc. RWTH | Mikrostomart Opole',
+            description: 'lek. dent. Marcin Nowosielski, M.Sc. in Lasers in Dentistry RWTH Aachen (2021, z wyróżnieniem) — drugi w Polsce z tym tytułem. Autor książki "Własny gabinet" (Czelej 2024). Implantologia, mikroskopowe leczenie kanałowe, stomatologia laserowa.',
+            keywords: 'marcin nowosielski stomatolog opole, marcin nowosielski rwth aachen, implantolog opole, endodonta mikroskopowy opole, marcin nowosielski książka czelej, marcin nowosielski m.sc., stomatologia laserowa opole',
+        },
+        en: {
+            title: 'Marcin Nowosielski DDS, M.Sc. RWTH Aachen | Mikrostomart Opole, Poland',
+            description: 'Marcin Nowosielski, dentist with M.Sc. in Lasers in Dentistry from RWTH Aachen (with distinction, 2021) — second dentist in Poland with this title. Author of "Własny gabinet" (Czelej 2024). Implantology, microscopic endodontics, laser dentistry.',
+            keywords: 'marcin nowosielski dentist, marcin nowosielski rwth aachen, implantologist opole poland, microscopic endodontist opole, marcin nowosielski book, marcin nowosielski m.sc.',
+        },
+        de: {
+            title: 'Marcin Nowosielski M.Sc. RWTH Aachen | Zahnarzt Opole, Polen',
+            description: 'Marcin Nowosielski, Zahnarzt mit M.Sc. in Lasers in Dentistry der RWTH Aachen (mit Auszeichnung, 2021) — zweiter Zahnarzt in Polen mit diesem Titel. Autor des Buches "Własny gabinet" (Czelej 2024). Implantologie, mikroskopische Endodontie, Laserzahnmedizin.',
+            keywords: 'Marcin Nowosielski Zahnarzt, Marcin Nowosielski RWTH Aachen, Implantologe Opole Polen, mikroskopische Endodontie Opole, Marcin Nowosielski Buch, Marcin Nowosielski M.Sc.',
+        },
+        ua: {
+            title: 'Марцін Новосельський M.Sc. RWTH Aachen | Mikrostomart Ополе, Польща',
+            description: 'Марцін Новосельський, лікар-стоматолог з M.Sc. in Lasers in Dentistry RWTH Aachen (з відзнакою, 2021) — другий у Польщі стоматолог із цим званням. Автор книги "Власний кабінет" (Czelej 2024). Імплантологія, мікроскопічна ендодонтія, лазерна стоматологія.',
+            keywords: 'марцін новосельський стоматолог, марцін новосельський rwth aachen, імплантолог ополе польща, мікроскопічна ендодонтія ополе, марцін новосельський книга',
+        },
+    },
+
+    // ───────── /zespol/elzbieta-nowosielska (Batch SEO-2, dedykowane bio Eli) ─────────
+    '/zespol/elzbieta-nowosielska': {
+        pl: {
+            title: 'hig. stom. Elżbieta Nowosielska | Mikrostomart Opole',
+            description: 'hig. stom. Elżbieta Nowosielska — współwłaścicielka kliniki Mikrostomart w Opolu. Specjalizuje się w profesjonalnej higienizacji, profilaktyce stomatologicznej i edukacji pacjentów.',
+            keywords: 'elżbieta nowosielska higienistka, higienistka stomatologiczna opole, higienizacja zębów opole, profilaktyka stomatologiczna opole, mikrostomart elżbieta',
+        },
+        en: {
+            title: 'Elżbieta Nowosielska — Dental Hygienist | Mikrostomart Opole, Poland',
+            description: 'Elżbieta Nowosielska — dental hygienist, co-owner of Mikrostomart dental clinic in Opole, Poland. Specialises in professional hygiene, prevention, and patient education.',
+            keywords: 'elżbieta nowosielska hygienist, dental hygienist opole poland, professional teeth cleaning opole, dental prevention opole',
+        },
+        de: {
+            title: 'Elżbieta Nowosielska — Dentalhygienikerin | Mikrostomart Opole, Polen',
+            description: 'Elżbieta Nowosielska — Dentalhygienikerin, Mitinhaberin der Zahnklinik Mikrostomart in Opole, Polen. Schwerpunkte: professionelle Mundhygiene, Prävention und Patientenedukation.',
+            keywords: 'Elżbieta Nowosielska Dentalhygienikerin, Dentalhygienikerin Opole, professionelle Zahnreinigung Opole, Zahnprävention Opole',
+        },
+        ua: {
+            title: 'Ельжбета Новосельська — стоматологічний гігієніст | Mikrostomart Ополе',
+            description: 'Ельжбета Новосельська — стоматологічний гігієніст, співвласниця клініки Mikrostomart в Ополе, Польща. Спеціалізується на професійній гігієні, профілактиці та едукації пацієнтів.',
+            keywords: 'ельжбета новосельська гігієніст, стоматологічний гігієніст ополе, професійна гігієна ополе, стоматологічна профілактика ополе',
+        },
+    },
+
     // ───────── /nowosielski (Dr Nowosielski blog) ─────────
     '/nowosielski': {
         pl: {

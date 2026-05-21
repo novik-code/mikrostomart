@@ -530,12 +530,25 @@ export function buildServicePageSchemas(path: string, locale: string) {
         howPerformed: data.procedure.howPerformed,
         preparation: data.procedure.preparation,
         followup: data.procedure.followup,
-        performer: {
-            '@type': 'MedicalOrganization',
-            name: brand.name,
-            url: brand.appUrl,
-            '@id': brand.schemaId,
-        },
+        // Batch SEO-2 (2026-05-21, audyt P2 Issue 4): performer to array
+        // [MedicalOrganization (klinika) + Physician (Marcin)]. Wszystkie 6
+        // service pages /oferta/* są wykonywane przez Marcina (implantologia,
+        // endodoncja, estetyczna, ortodoncja, chirurgia, protetyka). Physician @id
+        // linkuje do entity z /zespol/marcin-nowosielski via Knowledge Graph.
+        performer: [
+            {
+                '@type': 'MedicalOrganization',
+                name: brand.name,
+                url: brand.appUrl,
+                '@id': brand.schemaId,
+            },
+            {
+                '@type': 'Physician',
+                '@id': `${brand.appUrl}/#marcin-nowosielski`,
+                name: 'Marcin Nowosielski',
+                url: `${brand.appUrl}${localePath(locale, '/zespol/marcin-nowosielski')}`,
+            },
+        ],
     };
 
     const serviceUrl = `${brand.appUrl}${localePath(locale, path)}`;

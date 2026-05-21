@@ -110,15 +110,20 @@ const nextConfig: NextConfig = {
         destination: '/aktualnosci',
         permanent: true,
       },
-      // Old team pages: /zespol and /zespol/{ID-slug} → /o-nas (8 URLs)
-      // /o-nas already includes team info; no separate /zespol page in current structure.
+      // Batch SEO-2 (2026-05-21): /zespol/marcin-nowosielski + /zespol/elzbieta-nowosielska
+      // teraz są DEDYKOWANYMI stronami (audyt P1). Stare URL-e Joomla z numerycznym
+      // ID-slug (np. /zespol/12-marcin-nowosielski) redirectujemy na /o-nas
+      // jako "team overview" fallback. Czyste /zespol bez slug (legacy index) też.
       {
         source: '/zespol',
         destination: '/o-nas',
         permanent: true,
       },
+      // Stare Joomla URLs `/zespol/{cyfra-cyfra-slug}` (np. `/zespol/12-marcin-nowosielski`)
+      // redirectują na /o-nas. Nowe nie-numeryczne /zespol/marcin-nowosielski itd.
+      // NIE są łapane bo regex `[0-9]+-` wymaga prefixu numerycznego.
       {
-        source: '/zespol/:rest*',
+        source: '/zespol/:idSlug([0-9]+-.+)',
         destination: '/o-nas',
         permanent: true,
       },

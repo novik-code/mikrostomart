@@ -1,24 +1,13 @@
 import type { Metadata } from 'next';
 import { pageMetadata, localizedBreadcrumb, breadcrumbHref } from '@/lib/seo';
 import { PAGE_SEO } from '@/lib/seoTranslations';
+import { getElaSchema } from '@/lib/personSchemas';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
-    return pageMetadata(locale, '/o-nas', PAGE_SEO['/o-nas']);
+    return pageMetadata(locale, '/zespol/elzbieta-nowosielska', PAGE_SEO['/zespol/elzbieta-nowosielska']);
 }
 
-// Batch SEO-2 (2026-05-21): Person/Physician schemas Marcina i Eli zostały
-// PRZENIESIONE z tego pliku do:
-//   - src/lib/personSchemas.ts (factory `getMarcinSchema` / `getElaSchema`)
-//   - src/app/[locale]/zespol/marcin-nowosielski/layout.tsx
-//   - src/app/[locale]/zespol/elzbieta-nowosielska/layout.tsx
-//
-// /o-nas to teraz "team overview" (wariant 1C audytu) — krótkie bio + linki
-// do dedykowanych stron `/zespol/*`. Person schemas pozostają stabilne dzięki
-// @id (#marcin-nowosielski / #elzbieta-nowosielska) — Google Knowledge Graph
-// łączy entity przez @id niezależnie od URL renderującej strony.
-//
-// Dentist + WebSite schemas pozostają w src/app/layout.tsx (root).
 export default async function Layout({
     children,
     params,
@@ -29,12 +18,15 @@ export default async function Layout({
     const { locale } = await params;
     const breadcrumb = localizedBreadcrumb(locale, [
         { key: 'home', url: breadcrumbHref(locale, '/') },
-        { key: 'o-nas' },
+        { key: 'zespol', url: breadcrumbHref(locale, '/o-nas') },
+        { key: 'elzbieta-nowosielska' },
     ]);
+    const ela = getElaSchema(locale);
 
     return (
         <>
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
+            <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ela) }} />
             {children}
         </>
     );

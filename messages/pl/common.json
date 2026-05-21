@@ -200,6 +200,14 @@
             ]
         }
     },
+    "performerCard": {
+        "heading": "Lekarz wykonujący ten zabieg",
+        "viewBio": "Pełne bio",
+        "marcinName": "lek. dent. Marcin Nowosielski, M.Sc.",
+        "marcinSummary": "M.Sc. in Lasers in Dentistry RWTH Aachen (2021, z wyróżnieniem) — drugi w Polsce z tym tytułem. Autor książki „Własny gabinet” (Wydawnictwo Czelej 2024). Specjalizuje się w implantologii, mikroskopowej endodoncji i stomatologii laserowej.",
+        "elaName": "hig. stom. Elżbieta Nowosielska",
+        "elaSummary": "Higienistka stomatologiczna, współwłaścicielka kliniki Mikrostomart. Specjalizuje się w profesjonalnej higienizacji, profilaktyce stomatologicznej i edukacji pacjentów."
+    },
     "oNasBrand": {
         "akredytacjeEyebrow": "Akredytacje i działalność naukowa",
         "akredytacjeHeading": "Tytuły, członkostwa, międzynarodowe wykłady",

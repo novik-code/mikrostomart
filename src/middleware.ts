@@ -34,7 +34,11 @@ const NON_LOCALE_PATHS = [
     '/auth/',
     '/opieka/',
     '/s/',
-    '/zespol',  // 301-redirected to /o-nas via next.config redirects
+    // Batch SEO-2 (2026-05-21): usunięto '/zespol' z NON_LOCALE_PATHS — teraz
+    // /zespol/marcin-nowosielski i /zespol/elzbieta-nowosielska to dedykowane
+    // multi-locale strony pod src/app/[locale]/zespol/*. Stary redirect
+    // /zespol → /o-nas (plus /zespol/<numeric-slug>) nadal działa via next.config
+    // redirects (apply BEFORE middleware), więc legacy Joomla URLs są obsłużone.
 ];
 
 function shouldBypassIntl(pathname: string): boolean {

@@ -1,16 +1,17 @@
 "use client";
 
 import Image from "next/image";
+import { Link } from "@/i18n/navigation";
 import { brandI18nParams } from '@/lib/brandConfig';
 import { useTranslations } from "next-intl";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import InteriorCollage from "@/components/InteriorCollage";
-import AkredytacjeSection from "@/components/about/AkredytacjeSection";
-import CvTimeline from "@/components/about/CvTimeline";
-import PublicationsList from "@/components/about/PublicationsList";
-import CzelejBook from "@/components/about/CzelejBook";
-import TrainingGallery from "@/components/about/TrainingGallery";
 import { useState } from "react";
+
+// Batch SEO-2 (2026-05-21): K-3 komponenty (AkredytacjeSection, CvTimeline,
+// PublicationsList, TrainingGallery, CzelejBook) przeniesione do dedykowanej
+// strony /zespol/marcin-nowosielski. /o-nas to teraz overview kliniki +
+// krótkie bio każdej osoby + linki "Pełne bio →" (wariant 1C audytu).
 
 export default function AboutPage() {
     const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -191,6 +192,25 @@ export default function AboutPage() {
                                         </span>
                                     )}
                                 </div>
+                                {/* Batch SEO-2: Link do dedykowanej strony /zespol/elzbieta-nowosielska */}
+                                <Link
+                                    href="/zespol/elzbieta-nowosielska"
+                                    style={{
+                                        display: 'inline-block',
+                                        marginTop: '1.5rem',
+                                        padding: '0.6rem 1.4rem',
+                                        background: 'transparent',
+                                        border: '1px solid var(--color-primary)',
+                                        color: 'var(--color-primary)',
+                                        textDecoration: 'none',
+                                        fontSize: '0.9rem',
+                                        letterSpacing: '0.05em',
+                                        textTransform: 'uppercase',
+                                        transition: 'all 0.2s ease',
+                                    }}
+                                >
+                                    {t('viewMoreEla')}
+                                </Link>
                             </RevealOnScroll>
                         </div>
                     </div>
@@ -270,6 +290,26 @@ export default function AboutPage() {
                                         </span>
                                     )}
                                 </div>
+                                {/* Batch SEO-2: Link do dedykowanej strony /zespol/marcin-nowosielski
+                                    (akredytacje + CV + publikacje + książka + training gallery → tam) */}
+                                <Link
+                                    href="/zespol/marcin-nowosielski"
+                                    style={{
+                                        display: 'inline-block',
+                                        marginTop: '1.5rem',
+                                        padding: '0.6rem 1.4rem',
+                                        background: 'transparent',
+                                        border: '1px solid var(--color-primary)',
+                                        color: 'var(--color-primary)',
+                                        textDecoration: 'none',
+                                        fontSize: '0.9rem',
+                                        letterSpacing: '0.05em',
+                                        textTransform: 'uppercase',
+                                        transition: 'all 0.2s ease',
+                                    }}
+                                >
+                                    {t('viewMoreMarcin')}
+                                </Link>
                             </RevealOnScroll>
                         </div>
 
@@ -319,14 +359,6 @@ export default function AboutPage() {
                 </div>
             </section>
 
-            {/* K-3: Personal brand exposure — 4 nowe sekcje */}
-            <AkredytacjeSection />
-            <CvTimeline />
-            <PublicationsList />
-            {/* K-3+ follow-up (2026-05-21): galeria szkoleniowa między Publikacjami a Książką
-                — social proof przez association (dr Nawrocki, prof. Grzech-Leśniak jako kursanci) */}
-            <TrainingGallery />
-            <CzelejBook />
         </main>
     );
 }

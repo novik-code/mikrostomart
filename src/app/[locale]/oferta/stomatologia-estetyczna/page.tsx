@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import RevealOnScroll from "@/components/RevealOnScroll";
+import PerformerCard from "@/components/PerformerCard";
 
 export default function StomatologiaEstetycznaPage() {
     const t = useTranslations('estetyczna');
@@ -63,6 +64,8 @@ export default function StomatologiaEstetycznaPage() {
                     </div>
                 </div>
 
+                <PerformerCard doctor="marcin" />
+                {/* CTA — Umów wizytę */}
                 <div style={{ textAlign: "center", marginTop: "4rem" }}>
                     <Link href="/kontakt" className="btn-primary" style={{ padding: "1rem 3rem", fontSize: "1.2rem" }}>{t('cta')}</Link>
                 </div>

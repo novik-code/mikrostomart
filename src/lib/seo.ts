@@ -249,6 +249,9 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         symulator: 'Symulator uśmiechu',
         przyjezdni: 'Dla pacjentów spoza Opola',
         akredytacje: 'Akredytacje',
+        zespol: 'Zespół',
+        'marcin-nowosielski': 'lek. dent. Marcin Nowosielski',
+        'elzbieta-nowosielska': 'hig. stom. Elżbieta Nowosielska',
     },
     en: {
         home: 'Home',
@@ -277,6 +280,9 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         symulator: 'Smile Simulator',
         przyjezdni: 'For International Patients',
         akredytacje: 'Accreditations',
+        zespol: 'Team',
+        'marcin-nowosielski': 'Dr Marcin Nowosielski DDS',
+        'elzbieta-nowosielska': 'Elżbieta Nowosielska, Dental Hygienist',
     },
     de: {
         home: 'Startseite',
@@ -305,6 +311,9 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         symulator: 'Lächeln-Simulator',
         przyjezdni: 'Für deutsche Patienten',
         akredytacje: 'Akkreditierungen',
+        zespol: 'Team',
+        'marcin-nowosielski': 'Marcin Nowosielski M.Sc.',
+        'elzbieta-nowosielska': 'Elżbieta Nowosielska, Dentalhygienikerin',
     },
     ua: {
         home: 'Головна',
@@ -333,6 +342,9 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         symulator: 'Симулятор посмішки',
         przyjezdni: 'Для українських пацієнтів',
         akredytacje: 'Акредитації',
+        zespol: 'Команда',
+        'marcin-nowosielski': 'Марцін Новосельський M.Sc.',
+        'elzbieta-nowosielska': 'Ельжбета Новосельська, гігієніст',
     },
 };
 

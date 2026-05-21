@@ -119,6 +119,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         '/akredytacje/ptsl',
         '/akredytacje/rwth-aachen',
         '/akredytacje/la-ha',
+        // Batch SEO-2 (2026-05-21): dedykowane strony zespołu (audyt P1).
+        // Każda osoba = osobny URL z własnym Person/Physician schema.
+        '/zespol/marcin-nowosielski',
+        '/zespol/elzbieta-nowosielska',
     ];
     const mainRoutes = mainPaths.flatMap((path) =>
         multiLocaleEntries(path, {
