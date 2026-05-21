@@ -23,9 +23,15 @@
 // - Fallback do hardcoded src/data/clinic-stats.ts gdy Prodentis down
 // - LIVE indicator: pulsing green dot + tooltip pokazujący ostatni update + source
 // - RODO: dane TYLKO agregowane (counts), brak PII
+//
+// Option B perf 2026-05-21:
+// - Usunięto framer-motion (motion + useInView + animate + motion.div whileHover).
+// - AnimatedCounter: vanilla IntersectionObserver + requestAnimationFrame.
+// - TrustCard hover: CSS-only transition (z .trust-card:hover w <style jsx global>).
+// - LiveIndicator/AccreditationPill tooltips: CSS opacity transition triggered by
+//   hover state (zachowane fade-in efect bez Framer Motion).
 
 import { useState, useRef, useEffect } from "react";
-import { motion, useInView, animate } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import RevealOnScroll from "@/components/RevealOnScroll";
@@ -56,31 +62,59 @@ function buildInitialLiveStats(): LiveStats {
 
 // ─────────────────────────────────────────────────────────────
 // AnimatedCounter — counts from 0 to target when scrolled into view
+// Option B 2026-05-21: vanilla IntersectionObserver + requestAnimationFrame
+// (zamiast Framer Motion useInView + animate). Tree-shake framer-motion z chunk.
 // ─────────────────────────────────────────────────────────────
-function AnimatedCounter({ value, suffix = "" }: { value: number; suffix?: string }) {
+function AnimatedCounter({ value }: { value: number }) {
     const ref = useRef<HTMLSpanElement>(null);
-    const inView = useInView(ref, { once: true, amount: 0.3 });
     const [display, setDisplay] = useState(0);
+    const startedRef = useRef(false);
 
     useEffect(() => {
-        if (!inView) return;
-        const controls = animate(0, value, {
-            duration: 1.8,
-            ease: "easeOut",
-            onUpdate: (n) => setDisplay(Math.round(n)),
-        });
-        return () => controls.stop();
-    }, [inView, value]);
+        const node = ref.current;
+        if (!node || startedRef.current) return;
+        if (typeof window === "undefined" || !("IntersectionObserver" in window)) {
+            setDisplay(value);
+            startedRef.current = true;
+            return;
+        }
+        const io = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting && !startedRef.current) {
+                        startedRef.current = true;
+                        io.disconnect();
+                        // requestAnimationFrame counter — 1.8s ease-out
+                        const start = performance.now();
+                        const duration = 1800;
+                        const step = (now: number) => {
+                            const elapsed = now - start;
+                            const t = Math.min(1, elapsed / duration);
+                            // easeOutQuint dla snappy finish
+                            const eased = 1 - Math.pow(1 - t, 5);
+                            setDisplay(Math.round(value * eased));
+                            if (t < 1) requestAnimationFrame(step);
+                        };
+                        requestAnimationFrame(step);
+                    }
+                }
+            },
+            { threshold: 0.3 }
+        );
+        io.observe(node);
+        return () => io.disconnect();
+    }, [value]);
 
     return (
         <span ref={ref}>
-            {display.toLocaleString("pl-PL").replace(/,/g, " ")}{suffix}
+            {display.toLocaleString("pl-PL").replace(/,/g, " ")}
         </span>
     );
 }
 
 // ─────────────────────────────────────────────────────────────
-// TrustCard — pojedyncza karta z animowanym hover (shine + lift + glow + pulse)
+// TrustCard — pojedyncza karta z CSS hover (shine sweep + lift + glow + counter scale)
+// Option B: zamieniono motion.div whileHover → CSS hover transitions
 // ─────────────────────────────────────────────────────────────
 interface CardProps {
     icon: string;
@@ -96,12 +130,8 @@ interface CardProps {
 
 function TrustCard(props: CardProps) {
     return (
-        <motion.div
+        <div
             className="trust-card"
-            whileHover={{
-                y: -8,
-                transition: { duration: 0.3, ease: "easeOut" },
-            }}
             style={{
                 position: "relative",
                 padding: "var(--spacing-md)",
@@ -115,7 +145,7 @@ function TrustCard(props: CardProps) {
                 justifyContent: "center",
                 minHeight: "180px",
                 overflow: "hidden",
-                transition: "border-color 0.4s ease, box-shadow 0.4s ease",
+                transition: "transform 0.3s ease, border-color 0.4s ease, box-shadow 0.4s ease",
             }}
         >
             <div
@@ -177,9 +207,8 @@ function TrustCard(props: CardProps) {
                 </div>
             ) : (
                 <div style={{ position: "relative", zIndex: 1 }}>
-                    <motion.div
-                        whileHover={{ scale: 1.08 }}
-                        transition={{ duration: 0.3, ease: "easeOut" }}
+                    <div
+                        className="trust-counter"
                         style={{
                             fontSize: "clamp(2rem, 5vw, 3rem)",
                             fontWeight: 700,
@@ -189,10 +218,11 @@ function TrustCard(props: CardProps) {
                             marginBottom: "var(--spacing-xs)",
                             fontVariantNumeric: "tabular-nums",
                             display: "inline-block",
+                            transition: "transform 0.3s ease",
                         }}
                     >
                         <AnimatedCounter value={props.value!} />
-                    </motion.div>
+                    </div>
                     <div
                         style={{
                             fontSize: "0.95rem",
@@ -214,13 +244,14 @@ function TrustCard(props: CardProps) {
                     </div>
                 </div>
             )}
-        </motion.div>
+        </div>
     );
 }
 
 // ─────────────────────────────────────────────────────────────
 // AccreditationPill — text pill linkujący do internal /akredytacje/[slug]
 // K-2b: zmiana z external href + tooltip na internal Link + tooltip z fullName
+// Option B: tooltip CSS opacity transition zamiast motion.div animate
 // ─────────────────────────────────────────────────────────────
 interface AccreditationProps {
     slug: string;
@@ -257,36 +288,35 @@ function AccreditationPill({ slug, label, tooltip }: AccreditationProps) {
                 }}
             >
                 {label}
-                {hover && (
-                    <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        style={{
-                            position: "absolute",
-                            bottom: "calc(100% + 10px)",
-                            left: "50%",
-                            transform: "translateX(-50%)",
-                            padding: "10px 14px",
-                            background: "var(--color-surface, #1a1a22)",
-                            color: "var(--color-text-main, #e8e6e3)",
-                            border: "1px solid var(--color-primary)",
-                            borderRadius: "8px",
-                            fontSize: "0.78rem",
-                            fontWeight: 400,
-                            letterSpacing: "0",
-                            textTransform: "none",
-                            whiteSpace: "normal",
-                            minWidth: "240px",
-                            maxWidth: "320px",
-                            textAlign: "center",
-                            zIndex: 50,
-                            boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
-                            pointerEvents: "none",
-                        }}
-                    >
-                        {tooltip}
-                    </motion.div>
-                )}
+                <span
+                    style={{
+                        position: "absolute",
+                        bottom: "calc(100% + 10px)",
+                        left: "50%",
+                        transform: hover ? "translateX(-50%) translateY(0)" : "translateX(-50%) translateY(8px)",
+                        padding: "10px 14px",
+                        background: "var(--color-surface, #1a1a22)",
+                        color: "var(--color-text-main, #e8e6e3)",
+                        border: "1px solid var(--color-primary)",
+                        borderRadius: "8px",
+                        fontSize: "0.78rem",
+                        fontWeight: 400,
+                        letterSpacing: "0",
+                        textTransform: "none",
+                        whiteSpace: "normal",
+                        minWidth: "240px",
+                        maxWidth: "320px",
+                        textAlign: "center",
+                        zIndex: 50,
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.4)",
+                        pointerEvents: "none",
+                        opacity: hover ? 1 : 0,
+                        transition: "opacity 0.2s ease, transform 0.2s ease",
+                        display: "block",
+                    }}
+                >
+                    {tooltip}
+                </span>
             </div>
         </Link>
     );
@@ -294,6 +324,7 @@ function AccreditationPill({ slug, label, tooltip }: AccreditationProps) {
 
 // ─────────────────────────────────────────────────────────────
 // LiveIndicator — zielona pulsująca kropka + tooltip pokazujący source + timestamp
+// Option B: tooltip CSS opacity transition zamiast motion.div animate
 // ─────────────────────────────────────────────────────────────
 function LiveIndicator({ source, lastUpdated, label, tooltip }: {
     source: "live" | "partial" | "fallback";
@@ -349,44 +380,39 @@ function LiveIndicator({ source, lastUpdated, label, tooltip }: {
                 }}
             />
             <span>{label}{timeStr && ` · ${timeStr}`}</span>
-            {hover && (
-                <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    style={{
-                        position: "absolute",
-                        top: "calc(100% + 8px)",
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        padding: "12px 16px",
-                        background: "var(--color-surface, #1a1a22)",
-                        color: "var(--color-text-main, #e8e6e3)",
-                        border: "1px solid var(--color-surface-hover)",
-                        borderRadius: 8,
-                        fontSize: "0.82rem",
-                        fontWeight: 400,
-                        letterSpacing: 0,
-                        textTransform: "none",
-                        // K-2c fix (2026-05-20 NIGHT): tooltip cropped na Marcin screenshot
-                        // bo max-width 360 + brak wordBreak. Zwiększone do 92vw responsive
-                        // (mobile-safe) + wordBreak żeby długie słowa wrap'owały
-                        // poprawnie zamiast obcinać.
-                        whiteSpace: "normal",
-                        wordBreak: "break-word",
-                        overflowWrap: "anywhere",
-                        width: "max-content",
-                        minWidth: 280,
-                        maxWidth: "min(480px, 92vw)",
-                        textAlign: "center",
-                        zIndex: 100,
-                        boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
-                        pointerEvents: "none",
-                        lineHeight: 1.5,
-                    }}
-                >
-                    {tooltip}
-                </motion.div>
-            )}
+            <span
+                style={{
+                    position: "absolute",
+                    top: "calc(100% + 8px)",
+                    left: "50%",
+                    transform: hover ? "translateX(-50%) translateY(0)" : "translateX(-50%) translateY(6px)",
+                    padding: "12px 16px",
+                    background: "var(--color-surface, #1a1a22)",
+                    color: "var(--color-text-main, #e8e6e3)",
+                    border: "1px solid var(--color-surface-hover)",
+                    borderRadius: 8,
+                    fontSize: "0.82rem",
+                    fontWeight: 400,
+                    letterSpacing: 0,
+                    textTransform: "none",
+                    whiteSpace: "normal",
+                    wordBreak: "break-word",
+                    overflowWrap: "anywhere",
+                    width: "max-content",
+                    minWidth: 280,
+                    maxWidth: "min(480px, 92vw)",
+                    textAlign: "center",
+                    zIndex: 100,
+                    boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
+                    pointerEvents: "none",
+                    lineHeight: 1.5,
+                    opacity: hover ? 1 : 0,
+                    transition: "opacity 0.2s ease, transform 0.2s ease",
+                    display: "block",
+                }}
+            >
+                {tooltip}
+            </span>
             <style jsx>{`
                 @keyframes trustStatsLivePulse {
                     0%, 100% { opacity: 1; transform: scale(1); }
@@ -586,8 +612,8 @@ export default function TrustStats() {
                     content: '';
                     position: absolute;
                     top: 0;
-                    left: -100%;
-                    width: 60%;
+                    left: 0;
+                    width: 100%;
                     height: 100%;
                     background: linear-gradient(
                         110deg,
@@ -597,19 +623,26 @@ export default function TrustStats() {
                         rgba(220, 177, 74, 0) 70%,
                         transparent 100%
                     );
-                    transform: skewX(-15deg);
-                    transition: left 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+                    transform: translateX(-100%) skewX(-15deg);
+                    transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
                     pointer-events: none;
                     z-index: 0;
+                    will-change: transform;
                 }
                 .trust-card:hover::before {
-                    left: 200%;
+                    transform: translateX(200%) skewX(-15deg);
                 }
+                /* Option B perf 2026-05-21: hover lift + counter scale przeniesione z motion
+                   (whileHover y:-8 + scale 1.08) na CSS — composited transform. */
                 .trust-card:hover {
+                    transform: translateY(-8px);
                     border-color: var(--color-primary) !important;
                     box-shadow:
                         0 12px 32px rgba(220, 177, 74, 0.18),
                         0 0 0 1px var(--color-primary);
+                }
+                .trust-card:hover .trust-counter {
+                    transform: scale(1.08);
                 }
             `}</style>
         </section>

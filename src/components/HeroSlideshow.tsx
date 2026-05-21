@@ -11,8 +11,12 @@
 // Slide 1 = <h1> (Google preferuje 1 per page), pozostałe = <h2>.
 // Wszystkie slidów w SSR HTML (Googlebot widzi 5 narracji od razu).
 
-import { useState, useEffect, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useMemo, useRef } from "react";
+// Option B perf 2026-05-21: LazyMotion + domAnimation + m zamiast pełnego motion.
+// Tree-shake: pełne framer-motion ~50KB → LazyMotion+domAnimation ~15KB (animation
+// features ograniczone do transform/opacity/AnimatePresence — wystarczające dla
+// HeroSlideshow slide/scale/opacity transitions). Saving ~35KB w initial bundle.
+import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import Image from "next/image";
@@ -75,6 +79,11 @@ export default function HeroSlideshow() {
     const tNav = useTranslations("heroSlideshow");
     const [[page, direction], setPage] = useState([0, 0]);
     const [isPaused, setIsPaused] = useState(false);
+    // Option B perf 2026-05-21: pause autoplay gdy carousel OUT of viewport.
+    // Eliminuje long task setInterval co 5s gdy user scrolluje poniżej (heavy
+    // Framer Motion spring computation co tick). Visible state managed by IO.
+    const [isInView, setIsInView] = useState(true);
+    const sectionRef = useRef<HTMLElement>(null);
     // matchMedia desktop detection — Tailwind `hidden md:flex` NIE działa w tym
     // projekcie (brak @import "tailwindcss" w globals.css → Tailwind nie generuje
     // utility classes). Używamy SSR-safe inline conditional rendering jak
@@ -88,6 +97,20 @@ export default function HeroSlideshow() {
         const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
         mq.addEventListener?.("change", handler);
         return () => mq.removeEventListener?.("change", handler);
+    }, []);
+
+    // Option B perf: IntersectionObserver pause autoplay gdy sekcja niewidoczna.
+    useEffect(() => {
+        const node = sectionRef.current;
+        if (!node || typeof window === "undefined" || !("IntersectionObserver" in window)) return;
+        const io = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) setIsInView(entry.isIntersecting);
+            },
+            { threshold: 0.1 }
+        );
+        io.observe(node);
+        return () => io.disconnect();
     }, []);
 
     // Build translated slides
@@ -113,17 +136,20 @@ export default function HeroSlideshow() {
         setPage([page + newDirection, newDirection]);
     };
 
-    // Autoplay
+    // Autoplay — Option B perf 2026-05-21: pause when out of viewport
+    // (długie taski co 5s blokujące main thread gdy user scrolluje down).
     useEffect(() => {
-        if (isPaused) return;
+        if (isPaused || !isInView) return;
         const timer = setInterval(() => paginate(1), AUTOPLAY_MS);
         return () => clearInterval(timer);
-    }, [page, isPaused]);
+    }, [page, isPaused, isInView]);
 
     const isPrimary = activeIndex === 0;
 
     return (
+        <LazyMotion features={domAnimation} strict>
         <section
+            ref={sectionRef}
             className="relative w-full flex items-center justify-center overflow-hidden py-12 md:py-24"
             style={{
                 minHeight: "90vh",
@@ -163,7 +189,7 @@ export default function HeroSlideshow() {
 
             <div className="relative z-20 w-full max-w-6xl px-4 md:px-12 h-full flex flex-col justify-center">
                 <AnimatePresence initial={false} custom={direction} mode="wait">
-                    <motion.div
+                    <m.div
                         key={page}
                         custom={direction}
                         variants={variants}
@@ -327,7 +353,7 @@ export default function HeroSlideshow() {
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
+                    </m.div>
                 </AnimatePresence>
             </div>
 
@@ -351,5 +377,6 @@ export default function HeroSlideshow() {
                 ))}
             </div>
         </section>
+        </LazyMotion>
     );
 }
