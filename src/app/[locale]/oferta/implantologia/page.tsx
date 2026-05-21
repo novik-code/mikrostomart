@@ -50,7 +50,95 @@ export default function ImplantologiaPage() {
                         <li className="mb-2">{t('benefit4')}</li>
                         <li className="mb-2">{t('benefit5')}</li>
                         <li className="mb-2">{t('benefit6')}</li>
+                        <li className="mb-2">{t('benefit7')}</li>
+                        <li className="mb-2">{t('benefit8')}</li>
                     </ul>
+                </div>
+
+                {/* K-4: Workflow cyfrowy — 6 kroków */}
+                <div style={{ marginBottom: "4rem" }}>
+                    <h2 style={{ fontSize: "2rem", marginBottom: "1rem", color: "var(--color-text-main)" }}>{t('workflowTitle')}</h2>
+                    <p className="mb-4" style={{ lineHeight: 1.8 }}>{t('workflowIntro')}</p>
+                    <ol style={{ paddingLeft: 0, listStyle: "none", display: "grid", gap: "1.25rem", marginTop: "2rem" }}>
+                        {[1, 2, 3, 4, 5, 6].map((n) => (
+                            <li key={n} style={{
+                                display: "grid",
+                                gridTemplateColumns: "44px 1fr",
+                                gap: "1rem",
+                                alignItems: "start",
+                                padding: "1.25rem",
+                                border: "1px solid var(--color-surface-hover)",
+                                borderRadius: "0.75rem",
+                                background: "rgba(255,255,255,0.02)",
+                            }}>
+                                <div style={{
+                                    width: 36,
+                                    height: 36,
+                                    borderRadius: "50%",
+                                    background: "var(--color-primary)",
+                                    color: "var(--color-bg, #000)",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontWeight: 700,
+                                    fontSize: "0.95rem",
+                                }}>{n}</div>
+                                <div>
+                                    <h3 style={{ fontSize: "1.1rem", color: "var(--color-primary)", margin: "0 0 0.5rem 0" }}>
+                                        {t(`workflowStep${n}Title`)}
+                                    </h3>
+                                    <p style={{ margin: 0, lineHeight: 1.7, color: "var(--color-text-muted)" }}>
+                                        {t(`workflowStep${n}Desc`)}
+                                    </p>
+                                </div>
+                            </li>
+                        ))}
+                    </ol>
+                </div>
+
+                {/* K-4: 3 poziomy złożoności */}
+                <div style={{ marginBottom: "4rem" }}>
+                    <h2 style={{ fontSize: "2rem", marginBottom: "1rem", color: "var(--color-text-main)" }}>{t('complexityTitle')}</h2>
+                    <p className="mb-4" style={{ lineHeight: 1.8 }}>{t('complexityIntro')}</p>
+                    <div style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                        gap: "1rem",
+                        marginTop: "2rem",
+                    }}>
+                        {[1, 2, 3].map((n) => (
+                            <div key={n} style={{
+                                padding: "1.5rem",
+                                border: "1px solid var(--color-surface-hover)",
+                                borderRadius: "0.75rem",
+                                background: "var(--color-surface)",
+                                display: "flex",
+                                flexDirection: "column",
+                            }}>
+                                <div style={{
+                                    display: "inline-block",
+                                    padding: "4px 12px",
+                                    border: "1px solid var(--color-primary)",
+                                    color: "var(--color-primary)",
+                                    borderRadius: 999,
+                                    fontSize: "0.72rem",
+                                    fontWeight: 600,
+                                    letterSpacing: "0.08em",
+                                    textTransform: "uppercase",
+                                    alignSelf: "flex-start",
+                                    marginBottom: "0.75rem",
+                                }}>
+                                    {t('complexityLevelLabel')} {n}
+                                </div>
+                                <h3 style={{ fontSize: "1.1rem", color: "var(--color-text-main)", margin: "0 0 0.75rem 0" }}>
+                                    {t(`complexity${n}Title`)}
+                                </h3>
+                                <p style={{ margin: 0, lineHeight: 1.6, color: "var(--color-text-muted)", fontSize: "0.92rem" }}>
+                                    {t(`complexity${n}Desc`)}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Pricing */}
@@ -87,6 +175,56 @@ export default function ImplantologiaPage() {
                     </p>
                 </div>
 
+                {/* K-4: Post-op harmonogram */}
+                <div style={{ marginBottom: "4rem" }}>
+                    <h2 style={{ fontSize: "2rem", marginBottom: "1rem", color: "var(--color-text-main)" }}>{t('postOpTitle')}</h2>
+                    <p className="mb-4" style={{ lineHeight: 1.8 }}>{t('postOpIntro')}</p>
+                    <div style={{ display: "grid", gap: "1rem", marginTop: "2rem" }}>
+                        {[
+                            { key: 'D0', label: '🟢' },
+                            { key: 'D7', label: '🟡' },
+                            { key: 'D90', label: '🟠' },
+                            { key: 'M4', label: '🔵' },
+                            { key: 'M6', label: '✨' },
+                        ].map(({ key, label }) => (
+                            <div key={key} style={{
+                                display: "grid",
+                                gridTemplateColumns: "44px 1fr",
+                                gap: "1rem",
+                                alignItems: "start",
+                                padding: "1rem 1.25rem",
+                                border: "1px solid var(--color-surface-hover)",
+                                borderRadius: "0.75rem",
+                                background: "rgba(255,255,255,0.02)",
+                            }}>
+                                <div style={{ fontSize: "1.5rem", textAlign: "center" }}>{label}</div>
+                                <div>
+                                    <h3 style={{ fontSize: "1.05rem", color: "var(--color-primary)", margin: "0 0 0.4rem 0" }}>
+                                        {t(`postOp${key}Title`)}
+                                    </h3>
+                                    <p style={{ margin: 0, lineHeight: 1.65, color: "var(--color-text-muted)", fontSize: "0.93rem" }}>
+                                        {t(`postOp${key}Desc`)}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* K-4: Training references — krótka sekcja autorytetu */}
+                <div style={{
+                    marginBottom: "4rem",
+                    padding: "var(--spacing-lg)",
+                    background: "var(--color-surface)",
+                    borderRadius: "1rem",
+                    border: "1px solid rgba(var(--color-primary-rgb), 0.25)",
+                }}>
+                    <h2 style={{ fontSize: "1.5rem", color: "var(--color-primary)", margin: "0 0 1rem 0" }}>
+                        {t('trainingTitle')}
+                    </h2>
+                    <p style={{ margin: 0, lineHeight: 1.75 }}>{t('trainingDesc')}</p>
+                </div>
+
                 {/* J-5: cross-link to protetyka. Implants and prosthetics are
                     inherently paired — the implant is the root, the crown/bridge
                     is the visible tooth. Naturally placed after structure
@@ -118,27 +256,21 @@ export default function ImplantologiaPage() {
                     </Link>
                 </div>
 
-                {/* FAQ */}
+                {/* FAQ (K-4: rozszerzone z 4 → 9 pytań) */}
                 <div style={{ marginBottom: "4rem" }}>
                     <h2 style={{ fontSize: "2rem", marginBottom: "2rem" }}>{t('faqTitle')}</h2>
 
-                    <div className="space-y-6">
-                        <div>
-                            <h3 style={{ fontSize: "1.2rem", color: "var(--color-primary)", marginBottom: "0.5rem" }}>{t('faqQ1')}</h3>
-                            <p>{t('faqA1')}</p>
-                        </div>
-                        <div>
-                            <h3 style={{ fontSize: "1.2rem", color: "var(--color-primary)", marginBottom: "0.5rem" }}>{t('faqQ2')}</h3>
-                            <p>{t('faqA2')}</p>
-                        </div>
-                        <div>
-                            <h3 style={{ fontSize: "1.2rem", color: "var(--color-primary)", marginBottom: "0.5rem" }}>{t('faqQ3')}</h3>
-                            <p>{t('faqA3')}</p>
-                        </div>
-                        <div>
-                            <h3 style={{ fontSize: "1.2rem", color: "var(--color-primary)", marginBottom: "0.5rem" }}>{t('faqQ4')}</h3>
-                            <p>{t('faqA4')}</p>
-                        </div>
+                    <div className="space-y-6" style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                            <div key={n}>
+                                <h3 style={{ fontSize: "1.15rem", color: "var(--color-primary)", marginBottom: "0.5rem", lineHeight: 1.35 }}>
+                                    {t(`faqQ${n}`)}
+                                </h3>
+                                <p style={{ lineHeight: 1.7, color: "var(--color-text-muted)" }}>
+                                    {t(`faqA${n}`)}
+                                </p>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
