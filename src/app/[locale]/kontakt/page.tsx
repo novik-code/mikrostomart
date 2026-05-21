@@ -8,6 +8,7 @@ import ContactForm from "@/components/ContactForm";
 import InternationalPatientsTeaser from "@/components/InternationalPatientsTeaser";
 import { brand } from "@/lib/brandConfig";
 import { isDemoMode } from "@/lib/demoMode";
+import { formatPhoneForTel } from "@/lib/phoneFormat";
 
 export default function ContactPage() {
     const t = useTranslations('kontakt');
@@ -17,8 +18,8 @@ export default function ContactPage() {
     const PROD_MAP  = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2528.274384666504!2d17.86616297693526!3d50.677682371636184!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x471053a479cde783%3A0xe544973347f32770!2sCentralna%2033a%2C%2045-940%20Opole!5e0!3m2!1spl!2spl!4v1714488800000!5m2!1spl!2spl";
     const mapSrc = (brand as any).mapsEmbedUrl || (isDemoMode ? DEMO_MAP : PROD_MAP);
 
-    const phone1Raw = brand.phone1.replace(/-/g, '');
-    const phone2Raw = brand.phone2.replace(/-/g, '');
+    const phone1Tel = formatPhoneForTel(brand.phone1);
+    const phone2Tel = formatPhoneForTel(brand.phone2);
 
     return (
         <main>
@@ -75,7 +76,7 @@ export default function ContactPage() {
 
                                 <div style={{ marginBottom: "var(--spacing-lg)" }}>
                                     <div style={{ marginBottom: "1rem" }}>
-                                        <a href={`tel:+48${phone1Raw}`} style={{
+                                        <a href={`tel:${phone1Tel}`} style={{
                                             display: "flex",
                                             alignItems: "center",
                                             gap: "1rem",
@@ -90,7 +91,7 @@ export default function ContactPage() {
                                     </div>
 
                                     <div>
-                                        <a href={`tel:+48${phone2Raw}`} style={{
+                                        <a href={`tel:${phone2Tel}`} style={{
                                             display: "flex",
                                             alignItems: "center",
                                             gap: "1rem",

@@ -6,6 +6,7 @@ import { getSymptomData } from './getSymptomData';
 import { Link } from '@/i18n/navigation';
 import { useTranslations, useLocale } from 'next-intl';
 import { brand } from '@/lib/brandConfig';
+import { formatPhoneForTel } from '@/lib/phoneFormat';
 
 // ─────────────────────────────────────────────────────────────
 // PREMIUM DENTAL MAP — Multi-severity system
@@ -542,7 +543,7 @@ export default function PainMapInteractive() {
                                         {t('emergencyCall112')}
                                     </a>
                                     <a
-                                        href={`tel:${(brand.phone1 || '').replace(/\s/g, '')}`}
+                                        href={`tel:${formatPhoneForTel(brand.phone1)}`}
                                         style={{
                                             flex: '1 1 auto', textAlign: 'center',
                                             padding: '8px 12px', borderRadius: '10px',

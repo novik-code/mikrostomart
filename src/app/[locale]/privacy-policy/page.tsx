@@ -1,7 +1,12 @@
 import { Shield, Mail, Globe, Video, Brain, Lock, Trash2, FileText, ExternalLink } from "lucide-react";
+import { brand } from "@/lib/brandConfig";
+import { formatPhoneForTel, formatPhoneDisplay } from "@/lib/phoneFormat";
 
 export default function PrivacyPolicyPage() {
     const lastUpdated = "March 20, 2026";
+    // L-3: usunięto hardcoded "+48570270470" × 2 — używamy brand config jako single source.
+    const phoneTel = formatPhoneForTel(brand.phone1);
+    const phoneDisplay = `+48 ${formatPhoneDisplay(brand.phone1).replace(/-/g, ' ')}`;
 
     return (
         <main style={{ background: "var(--color-background)", minHeight: "100vh" }}>
@@ -90,7 +95,7 @@ export default function PrivacyPolicyPage() {
                                 Email: <a href="mailto:kontakt@mikrostomart.pl" style={{ color: "var(--color-primary)" }}>kontakt@mikrostomart.pl</a>
                             </p>
                             <p>
-                                Phone: <a href="tel:+48570270470" style={{ color: "var(--color-primary)" }}>+48 570 270 470</a>
+                                Phone: <a href={`tel:${phoneTel}`} style={{ color: "var(--color-primary)" }}>{phoneDisplay}</a>
                             </p>
                         </div>
                     </PolicySection>
@@ -315,7 +320,7 @@ export default function PrivacyPolicyPage() {
                         </p>
                         <ul>
                             <li>Email: <a href="mailto:kontakt@mikrostomart.pl" style={{ color: "var(--color-primary)" }}>kontakt@mikrostomart.pl</a></li>
-                            <li>Phone: <a href="tel:+48570270470" style={{ color: "var(--color-primary)" }}>+48 570 270 470</a></li>
+                            <li>Phone: <a href={`tel:${phoneTel}`} style={{ color: "var(--color-primary)" }}>{phoneDisplay}</a></li>
                             <li>Address: ul. Centralna 33a, 45-940 Opole, Poland</li>
                         </ul>
                         <p style={{ marginTop: "0.75rem" }}>

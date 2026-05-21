@@ -8,6 +8,7 @@ import AnimatedAt from "@/components/AnimatedAt";
 import NovikCodeCredit from "@/components/NovikCodeCredit";
 import { brand } from "@/lib/brandConfig";
 import { isDemoMode } from "@/lib/demoMode";
+import { formatPhoneForTel } from "@/lib/phoneFormat";
 
 export default function Footer() {
     const t = useTranslations('footer');
@@ -79,11 +80,11 @@ export default function Footer() {
                         </a>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            <a href={`tel:+48${brand.phone1.replace(/-/g, '')}`} style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }} className="hover-primary">
+                            <a href={`tel:${formatPhoneForTel(brand.phone1)}`} style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }} className="hover-primary">
                                 <AnimatedPhone size={16} color="var(--color-primary)" />
                                 {brand.phone1}
                             </a>
-                            <a href={`tel:+48${brand.phone2.replace(/-/g, '')}`} style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }} className="hover-primary">
+                            <a href={`tel:${formatPhoneForTel(brand.phone2)}`} style={{ color: 'var(--color-text-muted)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.5rem' }} className="hover-primary">
                                 <AnimatedPhone size={16} color="var(--color-primary)" />
                                 {brand.phone2}
                             </a>

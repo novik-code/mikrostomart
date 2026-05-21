@@ -5,6 +5,8 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import styles from './appointment.module.css';
 import { sanitizeRichHtml } from '@/lib/sanitize';
+import { brand } from '@/lib/brandConfig';
+import { formatPhoneForTel } from '@/lib/phoneFormat';
 
 interface AppointmentInstruction {
     appointment_type: string;
@@ -411,7 +413,7 @@ export default function AppointmentPreparationPage() {
                         <h2>Masz pytania?</h2>
                         <p>Skontaktuj się z nami - chętnie odpowiemy!</p>
                         <div className={styles.ctaButtons}>
-                            <a href="tel:+48570270470" className={`${styles.btn} ${styles.btnPrimary}`}>
+                            <a href={`tel:${formatPhoneForTel(brand.phone1)}`} className={`${styles.btn} ${styles.btnPrimary}`}>
                                 📞 Zadzwoń: 570 270 470
                             </a>
                             <Link href="/kontakt" className={`${styles.btn} ${styles.btnSecondary}`}>

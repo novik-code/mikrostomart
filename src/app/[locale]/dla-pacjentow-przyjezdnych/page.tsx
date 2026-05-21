@@ -4,10 +4,11 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import { brand, brandI18nParams } from "@/lib/brandConfig";
+import { formatPhoneForTel } from "@/lib/phoneFormat";
 
 export default function PrzyjezdniPage() {
     const t = useTranslations('przyjezdni');
-    const phoneRaw = brand.phone1.replace(/-/g, '');
+    const phoneTel = formatPhoneForTel(brand.phone1);
 
     const usps = [
         ['usp1Title', 'usp1Desc'],
@@ -150,7 +151,7 @@ export default function PrzyjezdniPage() {
                                 {t('ctaPrimaryLabel')}
                             </Link>
                             <a
-                                href={`tel:+48${phoneRaw}`}
+                                href={`tel:${phoneTel}`}
                                 style={{
                                     padding: '1rem 2rem',
                                     background: 'transparent',

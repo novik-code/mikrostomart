@@ -5,6 +5,7 @@ import { Link } from '@/i18n/navigation';
 import { Phone, Calendar, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { brand } from '@/lib/brandConfig';
+import { formatPhoneForTel } from '@/lib/phoneFormat';
 
 // S7-3 LUXURY (2026-05-17): Sticky bottom bar dla mobile — 3 najważniejsze CTAs:
 // Telefon (call brand.phone1) / Rezerwacja wizyty / Mapa bólu (toothache flow).
@@ -47,7 +48,9 @@ export default function MobileBottomBar() {
         };
     }, []);
 
-    const phoneHref = `tel:${(brand.phone1 || '').replace(/\s/g, '')}`;
+    // L-3 bug fix: stary `.replace(/\s/g, '')` nie usuwał myślników (`570-270-470` zostawało)
+    // i brakowało +48 — mobile dial z zagranicy fail. Helper z auto-add country code.
+    const phoneHref = `tel:${formatPhoneForTel(brand.phone1)}`;
 
     return (
         <>

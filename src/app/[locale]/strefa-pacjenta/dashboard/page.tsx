@@ -8,7 +8,8 @@ import { DashboardSkeleton } from '@/components/PatientSkeleton';
 import { usePatientAuth } from '@/hooks/usePatientAuth';
 import type { PatientData } from '@/hooks/usePatientAuth';
 import type { AppointmentStatusResponse } from '@/types/appointmentActions';
-import { demoSanitize } from '@/lib/brandConfig';
+import { brand, demoSanitize } from '@/lib/brandConfig';
+import { formatPhoneForTel } from '@/lib/phoneFormat';
 
 interface PatientDocument {
     id: string;
@@ -620,7 +621,7 @@ export default function PatientDashboard() {
                                             >
                                                 🗓️ Umów wizytę online
                                             </button>
-                                            <a href="tel:570270470" style={{ padding: '0.75rem 2rem', background: 'transparent', border: '1px solid rgba(var(--color-primary-rgb), 0.3)', borderRadius: '0.5rem', color: 'var(--color-primary)', fontSize: '1rem', fontWeight: 'bold', textDecoration: 'none', transition: 'transform 0.2s' }}
+                                            <a href={`tel:${formatPhoneForTel(brand.phone1)}`} style={{ padding: '0.75rem 2rem', background: 'transparent', border: '1px solid rgba(var(--color-primary-rgb), 0.3)', borderRadius: '0.5rem', color: 'var(--color-primary)', fontSize: '1rem', fontWeight: 'bold', textDecoration: 'none', transition: 'transform 0.2s' }}
                                                 onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                                                 onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                                             >📞 570 270 470</a>

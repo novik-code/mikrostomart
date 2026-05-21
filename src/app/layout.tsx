@@ -19,6 +19,7 @@ import {
 import { isDemoMode } from "@/lib/demoMode";
 import { brand, brandI18nParams, demoSanitize, loadBrandFromDB } from "@/lib/brandConfig";
 import { fetchReviewSchemas, getAggregateRating, getAvailableServices, getOgLocale, hreflangCode, type AggregateRating } from "@/lib/seo";
+import { formatPhoneForSchema } from "@/lib/phoneFormat";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -115,7 +116,7 @@ function SchemaOrg({ aggregateRating, reviews, locale }: { aggregateRating: Aggr
         "@id": brand.schemaId,
         "url": brand.schemaUrl,
         "inLanguage": hreflangCode(locale),
-        "telephone": isDemoMode ? undefined : `+48${brand.phone1.replace(/-/g, '')}`,
+        "telephone": isDemoMode ? undefined : formatPhoneForSchema(brand.phone1),
         // J-5 (2026-05-12): premium positioning signal. Mikrostomart targets
         // dental tourism (DE/EN/UA) where premium expectations are baseline —
         // M.Sc. RWTH Aachen + ZEISS microscope + Fotona laser justify $$$.
@@ -161,6 +162,34 @@ function SchemaOrg({ aggregateRating, reviews, locale }: { aggregateRating: Aggr
         // (np. recepcja, Elżbieta — domyślnie PL, ale rozumiemy zapytania EN/DE).
         "availableLanguage": ["pl", "en", "de"],
         "availableService": getAvailableServices(locale),
+        // L-3 (2026-05-21): locale-aware areaServed. Każda wersja językowa Dentist
+        // schema sygnalizuje Google które rynki obsługujemy. DE locale rozszerzony
+        // o Sachsen/Brandenburg/Berlin (border regions ~150-300 km od Opola) +
+        // DACH countries = ranking boost dla "Zahnarzt Opole" w SERP DE z border.
+        // EN locale: international/EU patients. UA locale: cross-border Ukraine.
+        // PL locale: focus lokalny (Opole + województwo + Poland).
+        "areaServed": (locale === 'de' ? [
+            { "@type": "City", "name": "Opole" },
+            { "@type": "Country", "name": "Poland" },
+            { "@type": "Country", "name": "Germany" },
+            { "@type": "AdministrativeArea", "name": "Sachsen" },
+            { "@type": "AdministrativeArea", "name": "Brandenburg" },
+            { "@type": "AdministrativeArea", "name": "Berlin" },
+            { "@type": "Country", "name": "Austria" },
+            { "@type": "Country", "name": "Switzerland" },
+        ] : locale === 'en' ? [
+            { "@type": "City", "name": "Opole" },
+            { "@type": "Country", "name": "Poland" },
+            { "@type": "Place", "name": "European Union" },
+        ] : locale === 'ua' ? [
+            { "@type": "City", "name": "Opole" },
+            { "@type": "Country", "name": "Poland" },
+            { "@type": "Country", "name": "Ukraine" },
+        ] : [
+            { "@type": "City", "name": "Opole" },
+            { "@type": "AdministrativeArea", "name": "województwo opolskie" },
+            { "@type": "Country", "name": "Poland" },
+        ]),
         "openingHoursSpecification": [
             {
                 "@type": "OpeningHoursSpecification",
