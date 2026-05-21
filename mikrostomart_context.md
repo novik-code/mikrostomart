@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-20 NIGHT+4 (**🎉 S10-4 DONE — sitemap hygiene + CI gate → SPRINT S10 COMPLETE 4/4**). `src/app/sitemap.ts`: `/sklep` → PL-only, `/privacy-policy` → EN-only, defensywny `SAFE_SLUG = /^[a-z0-9-]+$/` filter na KB+news slugi → 4 dead artykuły z polskimi/niemieckimi diacritics (`lęk`, `świeżości`, `błyszczacy`, `natürliches`) auto-skipowane. Nowy CI script `scripts/audit-sitemap-indexability.mjs` (HTTP 200 + no `<meta robots noindex>` + no `X-Robots-Tag: noindex`), npm script `audit:sitemap`. Wynik: sitemap **740 → 736 URLs, 0 failures** (vs audyt SEO `4 × 404 + 6 × noindex`). **🎉 SPRINT S10 SECURITY HOTFIX COMPLETE** (S10-1 RLS mig 132, S10-2 patient auth, S10-3 P1 paczka, S10-4 sitemap). Wszystkie 2 P0 + 4 P1 + 1 quick win SEO z audytu 2026-05-18 zamknięte. Z opcjonalnych P2/P3 pending (post-K follow-up): tokeny w logach, CSP enforce, PII fail-closed, Prodentis HTTP fallback, Telegram HTML escape, /api/health reconnaissance. **Następna sesja: 🎯 K-3 Person schema enrichment + CV timeline na /o-nas** — najważniejsza sesja Fazy K (~3h AI + 30 min Marcin). SEO-07 z audytu SEO mapuje 1:1.
+> **Last Updated:** 2026-05-21 EARLY (**🎉 SPRINT S10 COMPLETE 4/4 + ✅ K-3 PRE-IMPLEMENTATION BRIEF GOTOWY**). Po S10 zakończonym 2026-05-20 NIGHT+4 (`54e6c04`): wstęp K-3 — research bazy (BIO_INVENTORY + PLAN_K_DECISIONS + obecny stan `/o-nas` + `/akredytacje` z K-2b) + ankieta decyzji Marcina pre-K-3. Wszystkie 3 Recommended zatwierdzone (Akredytacje grid 5 kart linkujących, Książka Czelej card + CTA, CV static vertical timeline) + brak nowych materiałów ("pracujemy z tym co mamy"). **Output**: `~/Desktop/bałagan/PLAN_K3_BRIEF.md` (380 LOC, self-contained brief implementacji). **K-3 może lecieć w 100% z AI side w następnej sesji — zero pre-work Marcina**. Plan: Person schema enrichment (alumniOf/award/memberOf/hasCredential/sameAs 8+ URLs) + `src/data/marcin-cv.ts` typed data + 4 nowe komponenty (AkredytacjeSection/CvTimeline/PublicationsList/CzelejBook) + 4 nowe sekcje na `/o-nas/page.tsx` + i18n × 4 locale (80 PL + AI translate EN/DE/UA). **🚨 Plus: KOMENDA section 3.4 wzmocniona** explicit warning o czytaniu kontekstu w 100% — Marcin zauważył tendencję AI do skracania (anti-pattern udokumentowany).
+
+<!-- Poprzednia: 2026-05-20 NIGHT+4 (S10-4 sitemap hygiene + CI gate → Sprint S10 COMPLETE, commit bb8adb3). --> `src/app/sitemap.ts`: `/sklep` → PL-only, `/privacy-policy` → EN-only, defensywny `SAFE_SLUG = /^[a-z0-9-]+$/` filter na KB+news slugi → 4 dead artykuły z polskimi/niemieckimi diacritics (`lęk`, `świeżości`, `błyszczacy`, `natürliches`) auto-skipowane. Nowy CI script `scripts/audit-sitemap-indexability.mjs` (HTTP 200 + no `<meta robots noindex>` + no `X-Robots-Tag: noindex`), npm script `audit:sitemap`. Wynik: sitemap **740 → 736 URLs, 0 failures** (vs audyt SEO `4 × 404 + 6 × noindex`). **🎉 SPRINT S10 SECURITY HOTFIX COMPLETE** (S10-1 RLS mig 132, S10-2 patient auth, S10-3 P1 paczka, S10-4 sitemap). Wszystkie 2 P0 + 4 P1 + 1 quick win SEO z audytu 2026-05-18 zamknięte. Z opcjonalnych P2/P3 pending (post-K follow-up): tokeny w logach, CSP enforce, PII fail-closed, Prodentis HTTP fallback, Telegram HTML escape, /api/health reconnaissance. **Następna sesja: 🎯 K-3 Person schema enrichment + CV timeline na /o-nas** — najważniejsza sesja Fazy K (~3h AI + 30 min Marcin). SEO-07 z audytu SEO mapuje 1:1.
 
 <!-- Poprzednia: 2026-05-20 NIGHT+3 (S10-3 P1 paczka: push/subscribe sesja-based + suggestions auth + middleware bot bypass + staff-signatures token-scoped, commit d00a86a). --> 4 P1 findings z audytu 2026-05-18 zamknięte w jednej sesji (3/4 S10). `/api/push/subscribe` rozpoznaje sesję (Supabase Auth dla admin/employee LUB patient JWT cookie) — body's userType/userId IGNOROWANE, używamy z auth (fix hijack). DELETE też wymaga ownership match (anti-griefing). `/api/employee/suggestions` GET/POST/PUT + `/[id]/comments` GET/POST wymagają `requireEmployeeOrAdmin` — status change tylko admin (employee może upvote'ować). Author email/name pochodzą z sesji, body fields ignored. `src/middleware.ts:131-142` — bot bypass tylko dla public locale paths. Dla `shouldBypassIntl(pathname)` (admin/pracownik/api/auth/ekarta/qr-display/zgody/opieka/s) bot przechodzi przez normalną auth → /admin z UA=Googlebot → 307 /admin/login. `/api/staff-signatures` token-scoped: akceptuje `?consentToken=xxx` (verify w `consent_tokens` table, expires_at check) LUB session employee/admin. Frontend `/zgody/[token]/page.tsx` przekazuje token w query. Smoke verified curl: 4 endpointy bez auth → 401, bot na /admin → 307, bot na /oferta → 200. Build clean. **Brak migracji DB ani env var**. **Następne**: S10-4 SEO-01 sitemap hygiene quick win (~30 min). Po S10 → K-3.
 
@@ -2522,6 +2524,80 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-21 EARLY — ✅ K-3 pre-implementation brief gotowy (wstęp + research + ankieta decyzji)
+
+**Po zamknięciu Sprint S10 dziś rano (commit `54e6c04`): wstęp do K-3 zamiast od razu implementacja. Marcin chciał research + walidację decyzji przed pisaniem kodu. Output gotowy — K-3 może lecieć w 100% w następnej sesji.**
+
+#### Brak commitów kod (tylko docs)
+- Sesja research-only — żadnych zmian w src/. Wszystkie outputy w `~/Desktop/bałagan/` i docs.
+
+#### Co zrobione
+
+**1. Research bazy K-3 (parallel reads)**:
+- `MARCIN_NOWOSIELSKI_BIO_INVENTORY.md` (273 LOC, 2026-05-10) — pełen content personal brand Marcina: RWTH M.Sc. + LA&HA × 3 wystąpienia + książka Czelej + 4 publikacje Magazyn Stomatologiczny + PTE 20-lecie wykładowca + social URLs × 5
+- `PLAN_K_DECISIONS.md` (455 LOC, 2026-05-18) — K-0 Strategy Workshop zatwierdzony: Hybrid A+B hero, Wariant 1 REFRAME cennik, Wariant B Expertise TrustStats. K-3 specyficznie: "Walidacja BIO_INVENTORY: ✅ Przeczytane, OK, bez uzupełnień"
+- `src/app/[locale]/o-nas/layout.tsx` (109 LOC) — obecny Person schema Marcina + Eli × 4 locale (basic 8 pól), bez `alumniOf`/`award`/`memberOf`/`hasCredential`/`sameAs`
+- `src/app/[locale]/o-nas/page.tsx` (318 LOC) — 3 sekcje obecne: Intro/mission + Ela bio + Marcin bio (hover-expand)
+- `src/app/[locale]/akredytacje/page.tsx` (K-2b) — index page z grid 5 kart linkujących do detail pages, K-3 może reuse tę logikę dla sekcji "Akredytacje" na /o-nas
+- `src/data/akredytacje.ts` — typed entries PTE/ESE/PTSL/RWTH/LA&HA z `foundedYear` + `marcinSince`
+
+**2. Ankieta decyzji Marcina pre-K-3** (4 pytania):
+- ✅ Sekcja Akredytacje: **Grid 5 kart + link do detail** (Recommended) — reuse `src/data/akredytacje.ts`, każda karta linkuje do `/akredytacje/[slug]` z K-2b. Zero duplikacji content.
+- ✅ Sekcja Książka Czelej: **Card z okładką + CTA Czelej** — full-width card, download okładki z czelej.com.pl, optimize WebP, CTA external link
+- ✅ CV timeline: **Static vertical timeline** — 12 milestone'ów (2007-2024+), SSR-friendly = SEO win
+- ✅ Nowe materiały: **BRAK** — "nie mam, pracujemy z tym co mamy". BIO_INVENTORY 2026-05-10 = jedyne źródło danych.
+
+**3. Output: `PLAN_K3_BRIEF.md` (380 LOC)**
+Self-contained brief implementacji z:
+- Pełną listą decyzji Marcina (K-0 + ankieta K-3)
+- Wszystkimi danymi z BIO_INVENTORY do użycia (kwalifikacje, członkostwa, 5 publikacji, 5 wykładów, social URLs)
+- Strukturą plików (5 nowych + 3 modyfikowane)
+- Exact i18n keys do dodania (`oNasBrand` namespace, ~80 PL stringów)
+- Sekwencją 5 kroków implementacji z time estimate (Krok 1 schema 30 min, Krok 2 data 45 min, Krok 3 komponenty 1h 30min, Krok 4 i18n 45 min, Krok 5 build+smoke 15 min)
+- Acceptance criteria
+- Potencjalnymi problemami do uwagi (Czelej okładka hot-link, server vs client components na /o-nas, translate quality dla nazw własnych)
+
+**4. KOMENDA section 3.4 wzmocniona — explicit anti-pattern warning**
+
+Marcin zauważył że AI **zaczęło mieć tendencję do przerywania czytania kontekstu w połowie** ("przeczytałem do linii X, wystarczająco, lecę z zadaniem"). To anti-pattern który powoduje że AI traci wiedzę o pending taskach/decisions.
+
+Wzmocniona sekcja 3.4:
+- Explicit "ZASADA ABSOLUTNA: kontekst MUSI być przeczytany W CAŁOŚCI"
+- "Bez wymówek typu 'wystarczająco kontekstu', 'później doczytam'"
+- Test końcowy w punkcie 5 confirmation: AI musi powołać się na **konkretną treść Recent Changes** (najnowszy wpis), nie tylko numer linii markera
+- "Sygnał dla Marcina": jeśli AI nie powołuje się na konkretne dane z Recent Changes → wymuś re-read
+
+Plus update sekcji 3.5 punkt 1: "Najnowszy wpis Recent Changes: **<konkretna data + krótki opis>**" jako test rzeczywistego dotarcia do końca.
+
+#### Pliki dotknięte
+- `~/Desktop/bałagan/PLAN_K3_BRIEF.md` [NEW] — 380 LOC self-contained brief
+- `~/Desktop/KOMENDA_STARTOWA_MIKROSTOMART.md` [MOD] — section 0 (Last Updated, NEXT SESSION = K-3 implementation, najnowszy commit, START-OF-SESSION CHECKLIST z czytaniem BRIEF) + section 3.4 (anti-pattern warning + strategia + heurystyka decyzyjna) + section 3.5 (test punkt 1)
+- `mikrostomart_context.md` [MOD] — Last Updated + Recent Changes (TEN wpis)
+- Memory: `MEMORY.md` + `feedback_ai_context_reading_anti_pattern.md` [NEW]
+
+#### Następna sesja: K-3 Implementation (~3.5h)
+
+**🚨 Start-of-session checklist**:
+1. PRZECZYTAJ `~/Desktop/bałagan/PLAN_K3_BRIEF.md` w całości (~7 min)
+2. `git log --oneline -1 origin/main` (powinno być `54e6c04` lub późniejsze)
+3. `cd ~/mikrostomart && git status` (clean? na main?)
+4. `git checkout -b feat/k3-person-schema-cv`
+
+**Sekwencja** (z PLAN_K3_BRIEF.md):
+1. Person schema enrichment w `/o-nas/layout.tsx` (30 min)
+2. `src/data/marcin-cv.ts` typed data (45 min)
+3. 4 nowe komponenty (1h 30min)
+4. `/o-nas/page.tsx` 4 nowe sekcje (15 min)
+5. i18n × 4 locale + AI translate (45 min)
+6. Build + Claude_Preview smoke + commit (15 min)
+
+#### Co Marcin musi zrobić — NIC PRZED K-3
+Wszystkie decyzje zatwierdzone, BIO_INVENTORY wystarczy, plan jest self-contained.
+
+Po deploy K-3: opcjonalnie Rich Results Test dla `/o-nas` × 4 locale (sprawdź czy Person schema rozpoznaje 13+ pól).
+
+---
 
 ### 2026-05-20 NIGHT+4 — 🎉 S10-4: sitemap hygiene + CI gate → SPRINT S10 COMPLETE 4/4
 
