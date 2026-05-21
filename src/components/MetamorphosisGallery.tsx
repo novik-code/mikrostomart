@@ -19,8 +19,8 @@ interface MetamorphosisItem {
 const METAMORPHOSES: MetamorphosisItem[] = [
     {
         id: 1,
-        before: "/metamorphosis_before.jpg",
-        after: "/metamorphosis_after.jpg",
+        before: "/metamorphosis_before-v2.webp",
+        after: "/metamorphosis_after-v2.webp",
         title: "Metamorfoza Pana Michała",
         description: "Pełna rekonstrukcja zgryzu przywracająca funkcjonalność i estetykę.",
         motto: '"Teraz uśmiecham się do każdego zdjęcia!"'

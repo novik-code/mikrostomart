@@ -41,13 +41,18 @@
     z-index: -1;
 }
 
-/* Gold shimmer sweep across logo */
+/* Gold shimmer sweep across logo — COMPOSITED (Option A 2026-05-21):
+   Stary `left: -100% → 150%` był uncomposited (Lighthouse flag + layout invalidation
+   na każdą klatkę). Zmiana na `transform: translateX` daje GPU-accelerated shimmer
+   bez touch'owania layout/paint trees. Width zwiększone z 60% → 100% bo
+   transform: translateX(-100%) przesuwa o pełną szerokość elementu, więc gradient
+   wewnątrz utrzymuje ten sam visual rozmiar shimmer-stripe (linear-gradient 105deg). */
 .logo::after {
     content: '';
     position: absolute;
     top: 0;
-    left: -100%;
-    width: 60%;
+    left: 0;
+    width: 100%;
     height: 100%;
     background: linear-gradient(105deg,
             transparent 0%,
@@ -57,6 +62,8 @@
             rgba(var(--color-primary-rgb), 0.12) 55%,
             transparent 65%,
             transparent 100%);
+    transform: translateX(-100%);
+    will-change: transform;
     animation: logoShimmer 4s ease-in-out infinite;
     pointer-events: none;
     z-index: 1;
@@ -95,7 +102,7 @@
 
     0%,
     100% {
-        left: -100%;
+        transform: translateX(-100%);
         opacity: 0;
     }
 
@@ -104,7 +111,7 @@
     }
 
     30% {
-        left: 150%;
+        transform: translateX(100%);
         opacity: 1;
     }
 
@@ -117,7 +124,7 @@
 
     0%,
     100% {
-        left: -100%;
+        transform: translateX(-100%);
         opacity: 0;
     }
 
@@ -126,7 +133,7 @@
     }
 
     50% {
-        left: 150%;
+        transform: translateX(100%);
         opacity: 1;
     }
 

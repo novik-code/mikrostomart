@@ -247,9 +247,24 @@ export default function AssistantTeaser() {
                         pointerEvents: isInputFocused ? 'none' : 'auto',
                         transform: isHovered ? 'scale(1.1)' : 'scale(1)',
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                        animation: 'assistantPulse 3s ease-in-out infinite',
+                        // Option A 2026-05-21: usunięto `animation: assistantPulse` z głównego
+                        // div'a (animowało box-shadow → uncomposited, Lighthouse flag).
+                        // Pulse przeniesiony do nested <span> z transform: scale (composited).
                     }}
                 >
+                    {/* Composited pulse ring — transform: scale + opacity zamiast box-shadow */}
+                    <span
+                        aria-hidden="true"
+                        style={{
+                            position: 'absolute',
+                            inset: 0,
+                            borderRadius: '50%',
+                            border: '2px solid rgba(var(--color-primary-rgb), 0.5)',
+                            pointerEvents: 'none',
+                            animation: 'assistantPulse 3s ease-in-out infinite',
+                            willChange: 'transform, opacity',
+                        }}
+                    />
                     <MessageCircle
                         size={isDimmed ? 18 : 22}
                         color="var(--color-primary)"
@@ -534,8 +549,11 @@ export default function AssistantTeaser() {
             {/* Pulse keyframes (injected once) */}
             <style jsx global>{`
                 @keyframes assistantPulse {
-                    0%, 100% { box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 0 rgba(var(--color-primary-rgb), 0); }
-                    50% { box-shadow: 0 4px 16px rgba(0,0,0,0.4), 0 0 0 6px rgba(var(--color-primary-rgb), 0.15); }
+                    /* Option A 2026-05-21: zamiana box-shadow ring na composited
+                       transform: scale + opacity (Lighthouse flag fix). Visual efekt
+                       analogiczny: ring expanduje się od button outwards z fade-out. */
+                    0%, 100% { transform: scale(1); opacity: 0.6; }
+                    50% { transform: scale(1.25); opacity: 0; }
                 }
                 .animate-spin {
                     animation: spin 1s linear infinite;

@@ -4,7 +4,13 @@ import YouTubeFeed from "@/components/YouTubeFeed";
 import GoogleReviews from "@/components/GoogleReviews";
 import InternationalPatientsTeaser from "@/components/InternationalPatientsTeaser";
 import HeroSlideshow from "@/components/HeroSlideshow";
-import TrustStats from "@/components/TrustStats";
+import dynamic from "next/dynamic";
+// Option A 2026-05-21 perf fix: TrustStats lazy-loaded żeby wyciąć Framer Motion
+// (useInView + animate + motion.div whileHover × 4 cards + AccreditationPills tooltips)
+// z initial JS bundle homepage. SSR zachowane (ssr: true default) — Googlebot widzi
+// heading + akredytacje + LiveIndicator placeholder od razu, ale JS hydration
+// odbywa się w osobnym chunku poza critical path.
+const TrustStats = dynamic(() => import("@/components/TrustStats"));
 import { Link } from "@/i18n/navigation";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import BeforeAfterSlider from "@/components/BeforeAfterSlider";
@@ -269,8 +275,8 @@ function NarrativeSection({ onInteraction }: { onInteraction: () => void }) {
                                 overflow: "hidden", position: "relative"
                             }}>
                                 <BeforeAfterSlider
-                                    beforeImage="/metamorphosis_before.jpg"
-                                    afterImage="/metamorphosis_after.jpg"
+                                    beforeImage="/metamorphosis_before-v2.webp"
+                                    afterImage="/metamorphosis_after-v2.webp"
                                     onInteraction={onInteraction}
                                 />
                             </div>

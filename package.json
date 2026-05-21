@@ -76,10 +76,10 @@
     "zod": "^4.3.3"
   },
   "browserslist": [
-    "chrome >= 90",
-    "firefox >= 90",
-    "safari >= 14",
-    "edge >= 90",
+    "chrome >= 93",
+    "firefox >= 92",
+    "safari >= 15.4",
+    "edge >= 93",
     "not dead"
   ],
   "devDependencies": {

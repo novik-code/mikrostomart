@@ -213,7 +213,12 @@ export default function Navbar() {
                                 width={574}
                                 height={139}
                                 sizes="227px"
-                                style={{ width: 'auto', height: '55px' }}
+                                // Explicit width + aspect-ratio fix CLS 0.219 desktop (Option A 2026-05-21):
+                                // `width: auto` powodował że browser nie rezerwował miejsca przed
+                                // load → layout shift. `aspectRatio` + `height: auto` zachowuje
+                                // proporcje gdy maxWidth: 100% ogranicza szerokość na małym viewport
+                                // (bez distortion). 227px (desktop) × 139/574 = 55px.
+                                style={{ width: '227px', height: 'auto', aspectRatio: '574 / 139', maxWidth: '100%', display: 'block' }}
                                 priority
                             />
                         )}
@@ -307,7 +312,10 @@ export default function Navbar() {
                                 width={574}
                                 height={139}
                                 sizes="247px"
-                                style={{ width: 'auto', height: '60px' }}
+                                // Explicit width + aspect-ratio fix CLS 0.219 desktop (Option A 2026-05-21):
+                                // 247px × 139/574 = 60px. aspectRatio + height:auto zapobiega
+                                // distortion gdy maxWidth: 100% ogranicza szerokość na małych ekranach.
+                                style={{ width: '247px', height: 'auto', aspectRatio: '574 / 139', maxWidth: '100%', display: 'block' }}
                                 priority
                             />
                         )}
