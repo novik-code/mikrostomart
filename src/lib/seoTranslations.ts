@@ -665,4 +665,56 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'імпланти Ополе, імплантолог Ополе Польща, All-on-4 Ополе, Mikrostomart імпланти',
         },
     },
+
+    // ───────── /leczenie-kanalowe-opole-mikroskop — L-2a (PL-only, foreign noindex) ─────────
+    // Specjalistyczna geo page dla endodoncji mikroskopowej — dyscyplina nr 1 Marcina
+    // (Curriculum Endodontyczne PTE + ESE + 4 publikacje Magazyn Stomat + LA&HA wykłady).
+    '/leczenie-kanalowe-opole-mikroskop': {
+        pl: {
+            title: 'Leczenie kanałowe Opole mikroskop ZEISS | Endodonta Mikrostomart',
+            description: 'Endodoncja mikroskopowa w Opolu pod mikroskopem ZEISS Extaro od 800 zł. Lasery PIPS/SWEEPS, re-endodoncja trudnych przypadków, Curriculum PTE + ESE. Specjalność dr Nowosielskiego.',
+            keywords: 'leczenie kanałowe opole, leczenie kanałowe pod mikroskopem opole, endodoncja opole, endodonta opole, leczenie kanałowe opole cena, mikroskop zeiss opole',
+        },
+        en: {
+            title: 'Microscopic Root Canal Treatment Opole | Mikrostomart',
+            description: 'Microscopic endodontics in Opole, Poland from 800 PLN. ZEISS Extaro microscope, PIPS/SWEEPS lasers, re-treatment specialist. PTE + ESE curriculum.',
+            keywords: 'root canal Opole, microscopic endodontics Opole, endodontist Opole Poland, ZEISS microscope dentist Poland',
+        },
+        de: {
+            title: 'Mikroskopische Wurzelkanalbehandlung Opole | Mikrostomart',
+            description: 'Mikroskopische Endodontie in Opole, Polen ab 800 zł. ZEISS Extaro Mikroskop, PIPS/SWEEPS Laser, Re-Endodontie Spezialist.',
+            keywords: 'Wurzelkanalbehandlung Opole, mikroskopische Endodontie Opole, Endodontist Polen, ZEISS Mikroskop Zahnarzt',
+        },
+        ua: {
+            title: 'Лікування каналів під мікроскопом Ополе | Mikrostomart',
+            description: 'Мікроскопічна ендодонтія в Ополе, Польща від 800 зл. Мікроскоп ZEISS Extaro, лазери PIPS/SWEEPS, повторне лікування.',
+            keywords: 'лікування каналів Ополе, ендодонтія Ополе, ендодонтист Ополе Польща, мікроскоп ZEISS стоматолог',
+        },
+    },
+
+    // ───────── /dentysta-opole-centrum — L-2b (PL-only, foreign noindex) ─────────
+    // Broad-scope local landing dla generic queries "dentysta Opole" / "dentysta Opole centrum".
+    // Komplementarne do /implanty-opole + /leczenie-kanalowe-opole-mikroskop (specific specialties).
+    '/dentysta-opole-centrum': {
+        pl: {
+            title: 'Dentysta Opole centrum — Mikrostomart | Stomatolog ul. Centralna 33a',
+            description: 'Dentysta w centrum Opola od 2016 roku. Pełen zakres usług: konsultacje (od 250 zł), endodoncja, implanty, ortodoncja, higienizacja. Parking pod gabinetem, PKP 15 min.',
+            keywords: 'dentysta opole, dentysta opole centrum, stomatolog opole, dentysta centralna opole, mikrostomart opole, gabinet stomatologiczny opole',
+        },
+        en: {
+            title: 'Dentist Opole City Centre | Mikrostomart Dental Clinic',
+            description: 'Dentist in Opole city centre since 2016. Full range of services: consultations, endodontics, implants, orthodontics, hygiene. Parking on-site.',
+            keywords: 'dentist Opole, dental clinic Opole city centre, Mikrostomart Opole, English-speaking dentist Opole',
+        },
+        de: {
+            title: 'Zahnarzt Opole Stadtzentrum | Mikrostomart Zahnklinik',
+            description: 'Zahnarzt im Stadtzentrum von Opole seit 2016. Volles Leistungsspektrum: Beratung, Endodontie, Implantate, Kieferorthopädie, Hygiene. Parkplatz vor Ort.',
+            keywords: 'Zahnarzt Opole, Zahnklinik Opole Zentrum, Mikrostomart Opole, deutschsprachiger Zahnarzt Opole',
+        },
+        ua: {
+            title: 'Стоматолог Ополе центр | Стоматологічна клініка Mikrostomart',
+            description: 'Стоматолог в центрі Ополе з 2016 року. Повний спектр послуг: консультації, ендодонтія, імпланти, ортодонтія, гігієна. Паркінг на місці.',
+            keywords: 'стоматолог Ополе, стоматологічна клініка Ополе центр, Mikrostomart Ополе, україномовний стоматолог Ополе',
+        },
+    },
 };

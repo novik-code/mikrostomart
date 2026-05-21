@@ -253,6 +253,8 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         'marcin-nowosielski': 'lek. dent. Marcin Nowosielski',
         'elzbieta-nowosielska': 'hig. stom. Elżbieta Nowosielska',
         'implanty-opole': 'Implanty zębów w Opolu',
+        'leczenie-kanalowe-opole-mikroskop': 'Leczenie kanałowe w Opolu pod mikroskopem',
+        'dentysta-opole-centrum': 'Dentysta Opole — centrum miasta',
     },
     en: {
         home: 'Home',
@@ -285,6 +287,8 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         'marcin-nowosielski': 'Dr Marcin Nowosielski DDS',
         'elzbieta-nowosielska': 'Elżbieta Nowosielska, Dental Hygienist',
         'implanty-opole': 'Dental Implants in Opole',
+        'leczenie-kanalowe-opole-mikroskop': 'Microscopic Root Canal Treatment in Opole',
+        'dentysta-opole-centrum': 'Dentist in Opole — City Centre',
     },
     de: {
         home: 'Startseite',
@@ -317,6 +321,8 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         'marcin-nowosielski': 'Marcin Nowosielski M.Sc.',
         'elzbieta-nowosielska': 'Elżbieta Nowosielska, Dentalhygienikerin',
         'implanty-opole': 'Zahnimplantate in Opole',
+        'leczenie-kanalowe-opole-mikroskop': 'Mikroskopische Wurzelkanalbehandlung in Opole',
+        'dentysta-opole-centrum': 'Zahnarzt Opole — Stadtzentrum',
     },
     ua: {
         home: 'Головна',
@@ -349,6 +355,8 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         'marcin-nowosielski': 'Марцін Новосельський M.Sc.',
         'elzbieta-nowosielska': 'Ельжбета Новосельська, гігієніст',
         'implanty-opole': 'Імпланти зубів в Ополе',
+        'leczenie-kanalowe-opole-mikroskop': 'Лікування каналів в Ополе під мікроскопом',
+        'dentysta-opole-centrum': 'Стоматолог в Ополе — центр міста',
     },
 };
 

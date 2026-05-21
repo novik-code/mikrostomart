@@ -164,6 +164,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.9, // local geo + high commercial intent
     }];
 
+    // L-2 (2026-05-21 NIGHT+1): 2 dodatkowe PL-only local geo pages
+    const localGeoRoutes: MetadataRoute.Sitemap = [
+        {
+            url: `${BASE_URL}/leczenie-kanalowe-opole-mikroskop`,
+            lastModified: lastModForPath('/leczenie-kanalowe-opole-mikroskop'),
+            changeFrequency: 'monthly' as const,
+            priority: 0.9, // specialty + high commercial intent (endodoncja Marcina specjalność)
+        },
+        {
+            url: `${BASE_URL}/dentysta-opole-centrum`,
+            lastModified: lastModForPath('/dentysta-opole-centrum'),
+            changeFrequency: 'monthly' as const,
+            priority: 0.9, // broad geo query, high search volume
+        },
+    ];
+
     // ── Interactive tools (medium priority) — multi-locale ──
     // S5-1 (2026-05-15): /zadatek removed — page is noindex globally (Faza J-2)
     // because it has no organic search intent (one-purpose payment landing).
@@ -291,5 +307,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             };
         });
 
-    return [...mainRoutes, ...contentRoutes, ...shopRoute, ...implantyOpoleRoute, ...toolRoutes, ...legalRoutes, ...newsRoutes, ...kbRoutes];
+    return [...mainRoutes, ...contentRoutes, ...shopRoute, ...implantyOpoleRoute, ...localGeoRoutes, ...toolRoutes, ...legalRoutes, ...newsRoutes, ...kbRoutes];
 }
