@@ -48,18 +48,36 @@ function buildPersonSchemas(locale: string) {
     return [
         {
             "@context": "https://schema.org",
-            "@type": "Person",
+            // Batch SEO-1 (2026-05-21): @type Person → Physician (medical subtype,
+            // Google Rich Results lepiej obsługuje medical professionals z tym typem)
+            "@type": "Physician",
             "@id": `${brand.appUrl}/#marcin-nowosielski`,
             "name": "Marcin Nowosielski",
             "givenName": "Marcin",
             "familyName": "Nowosielski",
+            "honorificPrefix": "lek. dent.",
+            "honorificSuffix": "M.Sc.",
             "jobTitle": desc.marcinJob,
             "description": desc.marcin,
             "image": `${brand.appUrl}/marcin-final.webp`,
             "url": oNasUrl,
             "inLanguage": inLanguage,
-            "worksFor": { "@id": brand.schemaId },
-            "knowsAbout": ["Implantologia", "Endodoncja", "Stomatologia mikroskopowa", "Implantology", "Endodontics", "Microscopic dentistry"],
+            // Batch SEO-1: knowsLanguage + availableLanguage (DACH strategy —
+            // RWTH Aachen Master + LA&HA international workshops). Dla pacjentów
+            // niemieckojęzycznych/anglojęzycznych strategiczne sygnały.
+            "knowsLanguage": ["pl", "en", "de"],
+            "availableLanguage": ["pl", "en", "de"],
+            // Batch SEO-1: medicalSpecialty (enum schema.org dla medical)
+            "medicalSpecialty": ["Endodontics", "Implantology", "CosmeticDentistry", "LaserDentistry"],
+            // Batch SEO-1: worksFor rozszerzony z @id-only do pełnego obiektu
+            // Dentist (Google Knowledge Graph entity linking).
+            "worksFor": {
+                "@type": "Dentist",
+                "@id": brand.schemaId,
+                "name": brand.schemaName,
+                "url": brand.schemaUrl,
+            },
+            "knowsAbout": ["Implantologia", "Endodoncja", "Stomatologia mikroskopowa", "Stomatologia laserowa", "Implantology", "Endodontics", "Microscopic dentistry", "Laser dentistry"],
             "alumniOf": [
                 {
                     "@type": "EducationalOrganization",
@@ -124,6 +142,23 @@ function buildPersonSchemas(locale: string) {
                     "name": "Oral Surgery Academy Graduate",
                 },
             ],
+            // Batch SEO-1: author schema dla książki Czelej 2024 (semantycznie
+            // poprawne — Marcin = autor książki, vs. samego linku w sameAs).
+            // Wzmacnia Knowledge Graph + uprawnienia w "książkach napisanych
+            // przez tego eksperta" rich results.
+            "author": [
+                {
+                    "@type": "Book",
+                    "name": "Własny gabinet — poradnik dla lekarzy dentystów",
+                    "publisher": {
+                        "@type": "Organization",
+                        "name": "Wydawnictwo Czelej",
+                        "url": "https://czelej.com.pl",
+                    },
+                    "datePublished": "2024",
+                    "inLanguage": "pl",
+                },
+            ],
             "sameAs": [
                 "https://www.facebook.com/marcindentist",
                 "https://www.instagram.com/nowosielski_marcin/",
@@ -138,17 +173,26 @@ function buildPersonSchemas(locale: string) {
         },
         {
             "@context": "https://schema.org",
+            // Higienistka — schema.org nie ma dedykowanego typu DentalHygienist,
+            // Person jest poprawny (Physician byłby błędny dla niemedycznej roli).
             "@type": "Person",
             "@id": `${brand.appUrl}/#elzbieta-nowosielska`,
             "name": "Elżbieta Nowosielska",
             "givenName": "Elżbieta",
             "familyName": "Nowosielska",
+            "honorificPrefix": "hig. stom.",
             "jobTitle": desc.elaJob,
             "description": desc.ela,
             "image": `${brand.appUrl}/ela-final.webp`,
             "url": oNasUrl,
             "inLanguage": inLanguage,
-            "worksFor": { "@id": brand.schemaId },
+            // Batch SEO-1: worksFor rozszerzony jak u Marcina (Knowledge Graph).
+            "worksFor": {
+                "@type": "Dentist",
+                "@id": brand.schemaId,
+                "name": brand.schemaName,
+                "url": brand.schemaUrl,
+            },
             "knowsAbout": ["Higienizacja", "Profilaktyka stomatologiczna", "Dental hygiene", "Prevention"],
         },
     ];

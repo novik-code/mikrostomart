@@ -155,6 +155,11 @@ function SchemaOrg({ aggregateRating, reviews, locale }: { aggregateRating: Aggr
             "Orthodontics",
             "DentalHygiene"
         ],
+        // Batch SEO-1 (2026-05-21): availableLanguage na klinice — strategiczne
+        // dla DACH/EN dental tourism (Mikrostomart obsługuje pacjentów PL/EN/DE).
+        // Person.availableLanguage Marcina dotyczy lekarza; klinika ma własną
+        // (np. recepcja, Elżbieta — domyślnie PL, ale rozumiemy zapytania EN/DE).
+        "availableLanguage": ["pl", "en", "de"],
         "availableService": getAvailableServices(locale),
         "openingHoursSpecification": [
             {
