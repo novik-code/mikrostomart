@@ -330,7 +330,37 @@
         "czelejAuthor": "Lek. dent. Marcin Nowosielski, M.Sc.",
         "czelejMeta": "276 stron · Format B5 · ISBN 978-83-7563-319-1 · Wydawnictwo Czelej",
         "czelejDescription": "30 rozdziałów obejmujących cały cykl prowadzenia własnej praktyki: od wyboru lokalizacji i wyposażenia, przez biznes, marketing, ceny i personel, po cyfryzację, branding, negocjacje oraz aspekty prawne i finansowe. Praktyczny przewodnik dla lekarzy dentystów planujących lub prowadzących własny gabinet.",
-        "czelejCta": "Kup w Wydawnictwie Czelej"
+        "czelejCta": "Kup w Wydawnictwie Czelej",
+        "training": {
+            "eyebrow": "Szkolenia i społeczność branżowa",
+            "heading": "Dzielimy się tym, czego nauczyliśmy się sami",
+            "lead": "Endodoncja laserowa, leczenie mikroskopowe, protokoły PIPS/SWEEPS — to dziedziny, które wciąż się rozwijają. Marcin regularnie prowadzi warsztaty i wykłady dla kolegów dentystów w Polsce i za granicą. Bo wiedza, której nie da się przekazać dalej, traci sens.",
+            "photo1": {
+                "title": "Wspólne szkolenie z dr. Michałem Nawrockim",
+                "caption": "Dr Michał Nawrocki — pierwszy w Polsce dentysta z tytułem Master of Science in Lasers in Dentistry RWTH Aachen — jako uczestnik jednego z naszych warsztatów (wellCAMdent). Dla Marcina to także drogowskaz zawodowy, który wytyczył ścieżkę M.Sc. w Polsce."
+            },
+            "photo2": {
+                "title": "Warsztat z prof. Kingą Grzech-Leśniak",
+                "caption": "Prof. KUM Kinga Grzech-Leśniak, M.Sc. — uznany ekspert laseroterapii stomatologicznej i Prezes Polskiego Towarzystwa Stomatologii Laserowej — jako uczestnik warsztatu prowadzonego przez Marcina podczas LA&HA Symposium Poland 2022."
+            },
+            "photo3": {
+                "title": "Wykład na sympozjum LA&HA",
+                "caption": "Wystąpienia na międzynarodowych sympozjach Laser and Health Academy (Słowenia 2019, 2023; Polska 2022). Każde to okazja do wymiany wiedzy klinicznej z dentystami z całej Europy."
+            },
+            "photo4": {
+                "title": "Hands-on warsztat z mikroskopem",
+                "caption": "Warsztaty praktyczne na fantomach — uczestnicy uczą się pracy pod mikroskopem operacyjnym pod kierunkiem Marcina. Bez teorii bez praktyki, bez praktyki bez efektu."
+            },
+            "photo5": {
+                "title": "Praca grupowa w sali symulacyjnej",
+                "caption": "Małe grupy szkoleniowe (4-8 osób) — bo przy mikroskopie nie ma drogi na skróty. Każdy uczestnik ma swoje stanowisko, swój przypadek, swoje pytania."
+            },
+            "photo6": {
+                "title": "Ukończenie warsztatu z certyfikatami",
+                "caption": "Ostatni dzień szkolenia — wręczenie certyfikatów Fotona / Laser and Health Academy. Każdy uczestnik wraca do swojego gabinetu z protokołami gotowymi do wdrożenia od poniedziałku."
+            },
+            "footnote": "Marcin był też wykładowcą jubileuszowego sympozjum 20-lecia Polskiego Towarzystwa Endodontycznego (PTE) oraz keynote speakerem LA&HA Symposium Poland 2022 z wykładem „Od korzenia do korony — kompleksowe laserowe leczenie zębów”."
+        }
     },
     "values": {
         "heading": "Co nas wyróżnia",

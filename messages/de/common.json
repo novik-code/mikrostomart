@@ -941,6 +941,36 @@
         "czelejAuthor": "Dr. med. dent. Marcin Nowosielski, M.Sc.",
         "czelejMeta": "276 Seiten · Format B5 · ISBN 978-83-7563-319-1 · Verlag Czelej",
         "czelejDescription": "30 Kapitel, die den gesamten Zyklus der Führung einer eigenen Praxis abdecken: von der Standortwahl und Ausstattung über Geschäft, Marketing, Preise und Personal bis hin zu Digitalisierung, Branding, Verhandlungen sowie rechtlichen und finanziellen Aspekten. Praktischer Leitfaden für Zahnärzte, die eine eigene Praxis planen oder führen.",
-        "czelejCta": "Kaufen im Verlag Czelej"
+        "czelejCta": "Kaufen im Verlag Czelej",
+        "training": {
+            "eyebrow": "Schulungen und Branchengemeinschaft",
+            "heading": "Wir teilen, was wir selbst gelernt haben",
+            "lead": "Laserendodontie, mikroskopische Behandlung, PIPS/SWEEPS-Protokolle – das sind Bereiche, die sich ständig weiterentwickeln. Marcin leitet regelmäßig Workshops und Vorträge für Kollegen in Polen und im Ausland. Denn Wissen, das nicht weitergegeben werden kann, verliert seinen Sinn.",
+            "photo1": {
+                "title": "Gemeinsame Schulung mit Dr. Michał Nawrocki",
+                "caption": "Dr. Michał Nawrocki – der erste Zahnarzt in Polen mit dem Titel Master of Science in Lasers in Dentistry RWTH Aachen – als Teilnehmer eines unserer Workshops (wellCAMdent). Für Marcin ist es auch ein beruflicher Wegweiser, der den Weg zum M.Sc. in Polen geebnet hat."
+            },
+            "photo2": {
+                "title": "Workshop mit Prof. Kinga Grzech-Leśniak",
+                "caption": "Prof. KUM Kinga Grzech-Leśniak, M.Sc. – anerkannte Expertin für zahnärztliche Lasertherapie und Präsidentin der Polnischen Gesellschaft für Laserzahnheilkunde – als Teilnehmerin des von Marcin geleiteten Workshops während des LA&HA Symposiums Polen 2022."
+            },
+            "photo3": {
+                "title": "Vortrag beim LA&HA Symposium",
+                "caption": "Vorträge auf internationalen Symposien der Laser and Health Academy (Slowenien 2019, 2023; Polen 2022). Jede Gelegenheit ist ein Austausch klinischen Wissens mit Zahnärzten aus ganz Europa."
+            },
+            "photo4": {
+                "title": "Hands-on Workshop mit Mikroskop",
+                "caption": "Praktische Workshops an Phantommodellen – die Teilnehmer lernen, unter dem Operationsmikroskop unter Marcins Anleitung zu arbeiten. Ohne Theorie keine Praxis, ohne Praxis kein Ergebnis."
+            },
+            "photo5": {
+                "title": "Gruppenarbeit im Simulationsraum",
+                "caption": "Kleine Schulungsgruppen (4-8 Personen) – denn am Mikroskop gibt es keine Abkürzungen. Jeder Teilnehmer hat seinen eigenen Arbeitsplatz, seinen eigenen Fall, seine eigenen Fragen."
+            },
+            "photo6": {
+                "title": "Abschluss des Workshops mit Zertifikaten",
+                "caption": "Letzter Tag der Schulung – Verleihung der Zertifikate von Fotona / Laser and Health Academy. Jeder Teilnehmer kehrt mit umsetzbaren Protokollen ab Montag in seine Praxis zurück."
+            },
+            "footnote": "Marcin war auch Dozent beim Jubiläumssymposium zum 20-jährigen Bestehen der Polnischen Gesellschaft für Endodontie (PTE) sowie Hauptredner beim LA&HA Symposium Polen 2022 mit dem Vortrag „Vom Wurzel bis zur Krone – umfassende laserbasierte Zahnbehandlung“."
+        }
     }
 }

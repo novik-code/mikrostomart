@@ -9,6 +9,7 @@ import AkredytacjeSection from "@/components/about/AkredytacjeSection";
 import CvTimeline from "@/components/about/CvTimeline";
 import PublicationsList from "@/components/about/PublicationsList";
 import CzelejBook from "@/components/about/CzelejBook";
+import TrainingGallery from "@/components/about/TrainingGallery";
 import { useState } from "react";
 
 export default function AboutPage() {
@@ -322,6 +323,9 @@ export default function AboutPage() {
             <AkredytacjeSection />
             <CvTimeline />
             <PublicationsList />
+            {/* K-3+ follow-up (2026-05-21): galeria szkoleniowa między Publikacjami a Książką
+                — social proof przez association (dr Nawrocki, prof. Grzech-Leśniak jako kursanci) */}
+            <TrainingGallery />
             <CzelejBook />
         </main>
     );
