@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-05-21 EVENING (**🎯 MEGA SESJA — K-3 + K-4 batch 1 (2/3) + Training Gallery + K-3 UX fixes**, 8 commitów na main w jednym dniu). Commit `6c00fc5` najnowszy. Cumulative work dzisiaj:<br><br>**1. K-3 Person schema + 4 sekcje /o-nas** (`2ca5a2f`, docs `1e80e91`): Person schema Marcina 10 → 15 pól (alumniOf RWTH+UMW, award M.Sc. + drugi/najmłodszy w PL, memberOf PTE/ESE/PTSL/OIL, hasCredential 3×, sameAs 8 URLs). 4 nowe sekcje na /o-nas: AkredytacjeSection (grid 5 kart link do `/akredytacje/[slug]` K-2b) + CvTimeline (vertical 12 milestones 2007-2024+ static SSR) + PublicationsList (6 publikacji + 5 wystąpień) + CzelejBook (okładka 37 KB WebP + CTA). i18n × 4 locale (76 PL + GPT-4o-mini translate = 304 strings). Plus modyfikacja `scripts/translate-missing-i18n.ts` — `MESSAGES_FILE` env var override.<br><br>**2. K-3 follow-up Magazyn Stomatologiczny** (`26e3ace`): sameAs 8 → 9 URLs (dodano author profile `/a5646/Lek--dent--Marcin-Nowosielski-.html`). 4 publikacje Magazyn Stomat w PublicationsList dostały klikalny anchor "→ Zobacz" linkujący do profilu autora.<br><br>**3. UX fix — O nas pierwsza pozycja w menu** (`58d1325`): Marcin zauważył że po K-3 cały personal brand jest schowany w "Dodatki ▾" dropdown (2 kliki). Foreign markets visitor / pacjent szukający "kto leczy" typowo klika "O nas" jako pierwszy ruch. Fix: O nas → pierwsza pozycja w obu menu. Desktop top nav order: **O nas · Oferta · Cennik · Metamorfozy · Narzędzia ▾ · Dodatki ▾ · Kontakt + [Umów wizytę]**. Mobile sekcja GŁÓWNE: O nas → Umów wizytę → Oferta → Cennik → Metamorfozy → Kontakt.<br><br>**4. K-4 strona 1 /oferta/implantologia copy expansion** (`d981b39`): 280→1800 słów w stylu Marcina (style analysis z 21 artykułów nowosielski.pl recovery). Nowe sekcje: Workflow cyfrowy (6 kroków numerowanych) + Trzy poziomy złożoności (single/most/All-on-4-6) + Post-op harmonogram (Dzień 0 / Dni 1-7 / Tyg 2-12 / Mies 3-4 / Mies 6+) + Dlaczego warto u nas (Oral Surgery Academy + PTSL + M.Sc. RWTH). Plus rozbudowa benefits (6 → 8), structureText (50 → 130 słów), FAQ (4 → 9 pytań). 87 keys PL + 145 translations × 3 locale = 435 total.<br><br>**5. 🚨 K-4 HOTFIX /oferta/implantologia content invisible** (`7ee833d`): Marcin zgłosił że strona jest pusta po deploy. Root cause: `<RevealOnScroll>` opakowuje cały content. IntersectionObserver threshold:0.15 wymaga że 15% elementu (~15000px po expansion) jest widoczne — niemożliwe w viewport 800px. Element zostaje opacity:0 forever. Fix: `<RevealOnScroll priority>` (pattern z Fazy G4) — renderuje plain div bez .reveal class, bez opacity animation. Verified mainOpacity=1, content widoczny od razu w SSR. **Lesson dla K-4 strona 2-3**: każda rozbudowana service page MUSI mieć `priority`.<br><br>**6. K-4 strona 2 /oferta/leczenie-kanalowe copy expansion** (`53aa32d`): 280→2000 słów w stylu peer-reviewed Marcina (style analysis z 3 nowych artykułów Magazyn Stomat dostarczonych 2026-05-21 — art4 powtórne, art5 resorpcja, art4 poprawione). Endodoncja to dyscyplina Marcina nr 1. Nowe sekcje: Mikroskop ZEISS Extaro (4 advantages rozbudowane) + Lasery PIPS/SWEEPS (mechanizm krok po kroku + Saydjari 2016 99% E. faecalis) + Workflow 7 kroków (z konkretnymi sprzętami: Reciproc R25/R40/R50, NaOCl 5,25%, EDTA 17%, MTA, AH+, ciepła gutaperka) + Re-Endo deep dive (typowy case + 70-85% skuteczność z literatury) + Authority (Curriculum Endodontyczne PTE + ESE membership + ESE Quality Guidelines + LA&HA wykłady) + "Kiedy zęba nie da się uratować" (uczciwy cross-link do implantologii — reverse direction). FAQ 4 → 9. 76 keys PL + 105 translations.<br><br>**7. K-3+ Training Gallery** (`6c00fc5`): Marcin podrzucił folder `~/Desktop/zdjecia ze szkolen/` (21 zdjęć z FB). Strategia social proof przez association: subtelne wzmianki **dr Michał Nawrocki** (pierwsza osoba w PL z M.Sc. RWTH Aachen, mentor Marcina) i **prof. Kinga Grzech-Leśniak** (Prezes PTSL, ekspert laseroterapii) jako kursanci. Wybór 6 zdjęć: (1) Marcin + dr Nawrocki z certyfikatem (wellCAMdent) — feature, (2) Marcin + prof. Grzech-Leśniak z certyfikatem (LA&HA Symposium Poland 2022) — feature, (3) Marcin keynote za mównicą Fotona/LA&HA, (4) hands-on warsztat mikroskop, (5) group action shot, (6) ukończenie szkolenia z certyfikatami Fotona. Sharp resize 1100px WebP q82 = 89-145 KB każde, total 720 KB. Nowy komponent `TrainingGallery.tsx` (215 LOC) z 6-card grid, gold border na 2 feature, hover lift + glow, aspect-ratio per orientation. Render na /o-nas między PublicationsList a CzelejBook. i18n × 4 locale (16 keys + 48 translations).<br><br>**Verification status (4 locale × każda zmiana)**: wszystko 200 OK, build clean, zero new console errors. K-4 strona 1 + 2 mają `<RevealOnScroll priority>` jako standard po hotfix. Magazyn Stomat URLs + Nawrocki/Grzech-Leśniak captions zachowane we wszystkich translacjach (AI translate preserve proper nouns).<br><br>**Następna sesja**: K-4 strona 3 /oferta/stomatologia-estetyczna copy expansion (~1h, ostatnia z batch 1) + docs update + KOMENDA section 0 finalizacja. Po K-4 batch 1 done → K-5 batch 2 (ortodoncja + chirurgia + protetyka) jako osobna sesja → K-6 cennik refactor → K-7/K-8 case studies.<br><br>**Z S10 nadal pending manual Marcin (krytyczne!)**: wgrywka migracji 132, smoke anon REST, smoke functional, sitemap audit produkcji.
+> **Last Updated:** 2026-05-21 NIGHT (**🎯 MEGA SESJA part 2 — Batch SEO-1 + Batch SEO-2 + K-4 strona 3 + K-5 batch 2**, 4 commity na main). Commit `e6475e4` najnowszy. Cumulative dzisiaj part 2: Person schema → Physician + 7 nowych pól (`42772c9`), dedykowane `/zespol/marcin-nowosielski` + `/zespol/elzbieta-nowosielska` + PerformerCard + MedicalProcedure.performer Physician (`299951f`), K-4 strona 3 `/oferta/stomatologia-estetyczna` 280→2200+ słów (`c67ee32`), K-5 batch 2: ortodoncja + chirurgia + protetyka rozbudowy (`e6475e4`). **Wszystkie 6 service pages /oferta/* są teraz KOMPLETNIE rozbudowane** — Marcin-voice + Marcin's expertise sekcje + RWTH/LA&HA references + cross-linking + FAQ 9 pytań + PerformerCard + MedicalProcedure.performer Physician. **Faza K Premium SEO Plan w ~80% completion** (K-1..K-5 done, K-6 cennik + K-7/K-8 case studies pozostają). **Następna sesja: K-6 — Cennik SEO-friendly hybrid (AI chat primary + SSR content dla Googlebota)**. Marcin chce ZACHOWAĆ AI chat jako primary tool (zatwierdzona filozofia premium D1=B), ale dodać SSR-rendered SEO content (kategorie usług z widełkami "od X zł", FAQ cenowe, Service+OfferCatalog schema) żeby Googlebot widział pełen kontekst cennika. **Manual taski Marcina pending krytyczne**: migracja 132 (S10-1 RLS lockdown) wciąż NIE wgrana na Supabase + smoke tests.<br><br>**Poprzednia: 2026-05-21 EVENING — MEGA SESJA part 1** (8 commitów: K-3 Person schema base + 4 sekcje /o-nas + K-4 strona 1+2 + Training Gallery + UX fixes). Commit `a1e4a1e` (docs).<br><br>**Poprzednia archived: 2026-05-21 EVENING** (`6c00fc5` najnowszy). Cumulative work dzisiaj:<br><br>**1. K-3 Person schema + 4 sekcje /o-nas** (`2ca5a2f`, docs `1e80e91`): Person schema Marcina 10 → 15 pól (alumniOf RWTH+UMW, award M.Sc. + drugi/najmłodszy w PL, memberOf PTE/ESE/PTSL/OIL, hasCredential 3×, sameAs 8 URLs). 4 nowe sekcje na /o-nas: AkredytacjeSection (grid 5 kart link do `/akredytacje/[slug]` K-2b) + CvTimeline (vertical 12 milestones 2007-2024+ static SSR) + PublicationsList (6 publikacji + 5 wystąpień) + CzelejBook (okładka 37 KB WebP + CTA). i18n × 4 locale (76 PL + GPT-4o-mini translate = 304 strings). Plus modyfikacja `scripts/translate-missing-i18n.ts` — `MESSAGES_FILE` env var override.<br><br>**2. K-3 follow-up Magazyn Stomatologiczny** (`26e3ace`): sameAs 8 → 9 URLs (dodano author profile `/a5646/Lek--dent--Marcin-Nowosielski-.html`). 4 publikacje Magazyn Stomat w PublicationsList dostały klikalny anchor "→ Zobacz" linkujący do profilu autora.<br><br>**3. UX fix — O nas pierwsza pozycja w menu** (`58d1325`): Marcin zauważył że po K-3 cały personal brand jest schowany w "Dodatki ▾" dropdown (2 kliki). Foreign markets visitor / pacjent szukający "kto leczy" typowo klika "O nas" jako pierwszy ruch. Fix: O nas → pierwsza pozycja w obu menu. Desktop top nav order: **O nas · Oferta · Cennik · Metamorfozy · Narzędzia ▾ · Dodatki ▾ · Kontakt + [Umów wizytę]**. Mobile sekcja GŁÓWNE: O nas → Umów wizytę → Oferta → Cennik → Metamorfozy → Kontakt.<br><br>**4. K-4 strona 1 /oferta/implantologia copy expansion** (`d981b39`): 280→1800 słów w stylu Marcina (style analysis z 21 artykułów nowosielski.pl recovery). Nowe sekcje: Workflow cyfrowy (6 kroków numerowanych) + Trzy poziomy złożoności (single/most/All-on-4-6) + Post-op harmonogram (Dzień 0 / Dni 1-7 / Tyg 2-12 / Mies 3-4 / Mies 6+) + Dlaczego warto u nas (Oral Surgery Academy + PTSL + M.Sc. RWTH). Plus rozbudowa benefits (6 → 8), structureText (50 → 130 słów), FAQ (4 → 9 pytań). 87 keys PL + 145 translations × 3 locale = 435 total.<br><br>**5. 🚨 K-4 HOTFIX /oferta/implantologia content invisible** (`7ee833d`): Marcin zgłosił że strona jest pusta po deploy. Root cause: `<RevealOnScroll>` opakowuje cały content. IntersectionObserver threshold:0.15 wymaga że 15% elementu (~15000px po expansion) jest widoczne — niemożliwe w viewport 800px. Element zostaje opacity:0 forever. Fix: `<RevealOnScroll priority>` (pattern z Fazy G4) — renderuje plain div bez .reveal class, bez opacity animation. Verified mainOpacity=1, content widoczny od razu w SSR. **Lesson dla K-4 strona 2-3**: każda rozbudowana service page MUSI mieć `priority`.<br><br>**6. K-4 strona 2 /oferta/leczenie-kanalowe copy expansion** (`53aa32d`): 280→2000 słów w stylu peer-reviewed Marcina (style analysis z 3 nowych artykułów Magazyn Stomat dostarczonych 2026-05-21 — art4 powtórne, art5 resorpcja, art4 poprawione). Endodoncja to dyscyplina Marcina nr 1. Nowe sekcje: Mikroskop ZEISS Extaro (4 advantages rozbudowane) + Lasery PIPS/SWEEPS (mechanizm krok po kroku + Saydjari 2016 99% E. faecalis) + Workflow 7 kroków (z konkretnymi sprzętami: Reciproc R25/R40/R50, NaOCl 5,25%, EDTA 17%, MTA, AH+, ciepła gutaperka) + Re-Endo deep dive (typowy case + 70-85% skuteczność z literatury) + Authority (Curriculum Endodontyczne PTE + ESE membership + ESE Quality Guidelines + LA&HA wykłady) + "Kiedy zęba nie da się uratować" (uczciwy cross-link do implantologii — reverse direction). FAQ 4 → 9. 76 keys PL + 105 translations.<br><br>**7. K-3+ Training Gallery** (`6c00fc5`): Marcin podrzucił folder `~/Desktop/zdjecia ze szkolen/` (21 zdjęć z FB). Strategia social proof przez association: subtelne wzmianki **dr Michał Nawrocki** (pierwsza osoba w PL z M.Sc. RWTH Aachen, mentor Marcina) i **prof. Kinga Grzech-Leśniak** (Prezes PTSL, ekspert laseroterapii) jako kursanci. Wybór 6 zdjęć: (1) Marcin + dr Nawrocki z certyfikatem (wellCAMdent) — feature, (2) Marcin + prof. Grzech-Leśniak z certyfikatem (LA&HA Symposium Poland 2022) — feature, (3) Marcin keynote za mównicą Fotona/LA&HA, (4) hands-on warsztat mikroskop, (5) group action shot, (6) ukończenie szkolenia z certyfikatami Fotona. Sharp resize 1100px WebP q82 = 89-145 KB każde, total 720 KB. Nowy komponent `TrainingGallery.tsx` (215 LOC) z 6-card grid, gold border na 2 feature, hover lift + glow, aspect-ratio per orientation. Render na /o-nas między PublicationsList a CzelejBook. i18n × 4 locale (16 keys + 48 translations).<br><br>**Verification status (4 locale × każda zmiana)**: wszystko 200 OK, build clean, zero new console errors. K-4 strona 1 + 2 mają `<RevealOnScroll priority>` jako standard po hotfix. Magazyn Stomat URLs + Nawrocki/Grzech-Leśniak captions zachowane we wszystkich translacjach (AI translate preserve proper nouns).<br><br>**Następna sesja**: K-4 strona 3 /oferta/stomatologia-estetyczna copy expansion (~1h, ostatnia z batch 1) + docs update + KOMENDA section 0 finalizacja. Po K-4 batch 1 done → K-5 batch 2 (ortodoncja + chirurgia + protetyka) jako osobna sesja → K-6 cennik refactor → K-7/K-8 case studies.<br><br>**Z S10 nadal pending manual Marcin (krytyczne!)**: wgrywka migracji 132, smoke anon REST, smoke functional, sitemap audit produkcji.
 
 <!-- Poprzednia: 2026-05-20 NIGHT+4 (S10-4 sitemap hygiene + CI gate → Sprint S10 COMPLETE, commit bb8adb3). --> `src/app/sitemap.ts`: `/sklep` → PL-only, `/privacy-policy` → EN-only, defensywny `SAFE_SLUG = /^[a-z0-9-]+$/` filter na KB+news slugi → 4 dead artykuły z polskimi/niemieckimi diacritics (`lęk`, `świeżości`, `błyszczacy`, `natürliches`) auto-skipowane. Nowy CI script `scripts/audit-sitemap-indexability.mjs` (HTTP 200 + no `<meta robots noindex>` + no `X-Robots-Tag: noindex`), npm script `audit:sitemap`. Wynik: sitemap **740 → 736 URLs, 0 failures** (vs audyt SEO `4 × 404 + 6 × noindex`). **🎉 SPRINT S10 SECURITY HOTFIX COMPLETE** (S10-1 RLS mig 132, S10-2 patient auth, S10-3 P1 paczka, S10-4 sitemap). Wszystkie 2 P0 + 4 P1 + 1 quick win SEO z audytu 2026-05-18 zamknięte. Z opcjonalnych P2/P3 pending (post-K follow-up): tokeny w logach, CSP enforce, PII fail-closed, Prodentis HTTP fallback, Telegram HTML escape, /api/health reconnaissance. **Następna sesja: 🎯 K-3 Person schema enrichment + CV timeline na /o-nas** — najważniejsza sesja Fazy K (~3h AI + 30 min Marcin). SEO-07 z audytu SEO mapuje 1:1.
 
@@ -2524,6 +2524,223 @@ NODE_ENV=production
 ---
 
 ## 📝 Recent Changes
+
+### 2026-05-21 NIGHT — 🎯 MEGA SESJA part 2: Audit follow-up (Batch SEO-1+2) + K-4 strona 3 + K-5 batch 2 (4 commity)
+
+Marcin podrzucił audyt SEO 2026-05-21 (`~/Desktop/AUDIT-mikrostomart-pl-2026-05-21.md`) tuż po deploy K-3. Audyt wymienił 5 issues (P0..P3); P0 (`/nowosielski` CSR blog) Marcin wybrał odłożyć (decyzja Ścieżka B — migracja na nowosielski.pl). Pozostałe 4 issues + K-4 strona 3 + cały K-5 batch 2 zrealizowane w jednej dużej sesji wieczorną.
+
+#### Commity (chronologicznie, wszystkie zmergowane na origin/main fast-forward)
+
+- `42772c9` — feat(seo): **Batch SEO-1 — Physician schema enrichment** (audit Issue 3 P2)
+- `299951f` — feat(seo): **Batch SEO-2 — dedykowane /zespol/* + PerformerCard + MedicalProcedure.performer** (audit Issue 2 P1 + Issue 4 P2)
+- `c67ee32` — feat(seo,content): **K-4 strona 3 /oferta/stomatologia-estetyczna copy expansion** (280→2200+ słów)
+- `e6475e4` — feat(seo,content): **K-5 batch 2 — ortodoncja + chirurgia + protetyka copy expansion** (3 strony × ~1500-2000 słów)
+
+#### Batch SEO-1 (`42772c9`, ~1h)
+
+Audyt P2 Issue 3: schema Marcina to `Person` zamiast `Physician`, brak `knowsLanguage`, brak `worksFor` z pełnym Dentist, brak `author Book` dla Czelej. K-3 zrobione 2026-05-21 EVENING dodało już `alumniOf/award/memberOf/hasCredential/sameAs` (9 URLs). Batch SEO-1 dopełnia braki:
+
+**Marcin Person → Physician**:
+- `@type: Person` → **`Physician`** (medical subtype, lepiej rozpoznawane przez Google Rich Results dla medical content)
+- + `honorificPrefix: "lek. dent."` + `honorificSuffix: "M.Sc."`
+- + `knowsLanguage: ["pl","en","de"]` (RWTH Aachen + LA&HA international workshops)
+- + `availableLanguage: ["pl","en","de"]`
+- + `medicalSpecialty: ["Endodontics","Implantology","CosmeticDentistry","LaserDentistry"]`
+- + `author: [{ @type: "Book", name: "Własny gabinet — poradnik dla lekarzy dentystów", publisher: { Wydawnictwo Czelej, url: https://czelej.com.pl }, datePublished: "2024", inLanguage: "pl" }]` (semantyczne powiązanie Marcin↔książka, vs. samego linku w sameAs)
+- `worksFor` rozszerzony z `{@id: brand.schemaId}` → pełny obiekt `{@type:"Dentist", @id, name, url}` (Knowledge Graph entity linking)
+- `knowsAbout` +2 wartości (Stomatologia laserowa, Laser dentistry)
+
+**Elżbieta Person** (zachowane `@type: Person` — higienistka nie jest lekarzem):
+- + `honorificPrefix: "hig. stom."`
+- `worksFor` rozszerzony jak u Marcina
+
+**Dentist schema** (`src/app/layout.tsx`):
+- + `availableLanguage: ["pl","en","de"]` (DACH/EN dental tourism signal — klinika obsługuje pacjentów 3-języcznie)
+
+**Verification**: 4 locale × /o-nas → 200, Physician @type widoczny w każdym, schema valid via Google Rich Results Test.
+
+#### Batch SEO-2 (`299951f`, ~3h)
+
+Audyt P1 Issue 2: `/zespol/marcin-nowosielski` to alias `/o-nas` z canonical na `/o-nas` — brak dedykowanej strony tylko o Marcinie/Eli. Audyt P2 Issue 4: brak performer card visible na service pages + MedicalProcedure.performer to MedicalOrganization (klinika), nie Physician (Marcin).
+
+**Wariant 1C audytu** wybrany przez Marcina (hybrid):
+- `/o-nas` zostaje narracją "rodzinna klinika" (Ela + Marcin krótkie bio + linki "Pełne bio →")
+- Dedykowane `/zespol/marcin-nowosielski` + `/zespol/elzbieta-nowosielska` — pełne bio, dedykowane
+
+**Wariant 2A audytu** wybrany przez Marcina:
+- Visible "performer card" (foto 120×120 + bio summary + link "Pełne bio →") na każdej `/oferta/*`
+
+**Nowe pliki**:
+- `src/lib/personSchemas.ts` (196 LOC) — factory `getMarcinSchema(locale)` + `getElaSchema(locale)`. Single source of truth, reuse'owalny dla potencjalnego author schema na /baza-wiedzy/[slug]. @id stabilny (`#marcin-nowosielski` / `#elzbieta-nowosielska`) — Knowledge Graph łączy entity przez @id niezależnie od URL.
+- `src/app/[locale]/zespol/marcin-nowosielski/{page,layout}.tsx` (276 + 33 LOC) — full bio: hero + portrait + bio narrative + AkredytacjeSection + CvTimeline + PublicationsList + TrainingGallery + CzelejBook + Języki (PL/EN/DE z metadata) + Media (YouTube/IG/TikTok/FB) + CTA
+- `src/app/[locale]/zespol/elzbieta-nowosielska/{page,layout}.tsx` (216 + 33 LOC) — bio Eli: hero + bio + 4 specialties (higienizacja, profilaktyka, edukacja, periodontologia) + CTA do higienizacji
+- `src/components/PerformerCard.tsx` (154 LOC) — reuse'owalny komponent visible "Lekarz wykonujący ten zabieg" (foto + bio summary + link)
+
+**Zmiany w istniejących plikach**:
+- `/o-nas/layout.tsx`: usunięte Person/Physician schemas (213 → 43 LOC) — przeniesione do dedykowanych /zespol/*
+- `/o-nas/page.tsx`: usunięte 5 K-3 komponentów (AkredytacjeSection, CvTimeline, PublicationsList, TrainingGallery, CzelejBook); dodane 2 linki "Pełne bio →" pod Ela + Marcin bio
+- `src/lib/serviceSchemas.ts`: `MedicalProcedure.performer` z `{MedicalOrganization}` → `[MedicalOrganization, Physician]` array (Marcin @id #marcin-nowosielski)
+- 6 service page'ów `/oferta/*`: import PerformerCard + render przed CTA (`implantologia`, `leczenie-kanalowe`, `stomatologia-estetyczna`, `ortodoncja`, `chirurgia`, `protetyka`)
+- `next.config.ts`: redirect `/zespol/*` zwężony do `/zespol` (legacy index) + `/zespol/<numeric-slug>` (Joomla legacy) — nowe URL `/zespol/marcin-nowosielski` + `/zespol/elzbieta-nowosielska` nie są łapane przez redirect
+- `src/middleware.ts`: usunięto `'/zespol'` z `NON_LOCALE_PATHS` (było bypass'em i18n)
+- `src/app/sitemap.ts`: +2 paths × 4 locale = 8 nowych URL
+- `src/lib/seoTranslations.ts`: +2 PAGE_SEO entries × 4 locale (per-locale title/description/keywords)
+- `src/lib/seo.ts`: +3 BREADCRUMB_LABELS keys × 4 locale (zespol/marcin-nowosielski/elzbieta-nowosielska)
+
+**i18n × 4 locale** (102 + 18 translacji AI):
+- `pages.json` namespace `zespolMarcin` (16 keys) + `zespolEla` (16 keys) + `oNas.viewMoreMarcin/viewMoreEla` → 34 PL native + 102 AI-translated (3 locale)
+- `common.json` namespace `performerCard` (6 keys) → 6 PL native + 18 AI-translated
+
+**Verification (Claude_Preview headless)**:
+- 4 locale × `/zespol/marcin-nowosielski` → 200, Physician @type z 15 pól
+- 4 locale × `/zespol/elzbieta-nowosielska` → 200, Person @type
+- 4 locale × `/o-nas` → 200, 2 linki "Pełne bio →" zlokalizowane, zero Person/Physician schemas (przeniesione)
+- Legacy redirects: `/zespol` → 308 `/o-nas`, `/zespol/12-marcin-nowosielski` → 308 `/o-nas`
+- 24/24 (6 services × 4 locale): PerformerCard visible + MedicalProcedure.performer Physician obecny
+- 32/32 routes total → 200 OK, zero console errors, build clean
+
+#### K-4 strona 3 — /oferta/stomatologia-estetyczna (`c67ee32`, ~1.5h)
+
+Style analysis z 2 artykułów nowosielski.pl recovery: 009 (case study estetyczny zęba 24 z laserami Er:YAG/Nd:YAG + szlif bezstopniowy + 3D korona) + 010 (6-krok protokół zachowawczy pod mikroskopem). Page expanded 75 → 290 LOC, namespace 34 → 131 PL keys (+97 nowych), AI translate 97 × 3 locale = 291 translacji.
+
+**10 nowych sekcji**:
+1. **Filozofia projektowania** — Marcin's voice "nie robimy bilbordów" (Hollywood vs Naturalny smile)
+2. **Digital Smile Design workflow 4 kroki**: Fotografia DSLR + Vita 3D-Master colorimeter → Skan 3D + analiza twarzy → Mockup + composite trial w jamie ustnej → Akceptacja przed nieodwracalnym szlifem
+3. **Materiały premium — 4 cards comparison** (z badge "Najpopularniejsze" na licówkach porcelanowych): Bonding kompozytowy / Licówki kompozytowe / Licówki porcelanowe E.max (lithium disilicate, Empress) / Korony pełnoceramiczne (E.max press / cyrkon)
+4. **Decision tree — 5 scenariuszy klinicznych**: diastema (1-3 mm) → bonding / przebarwienia → wybielanie najpierw / korekta 6+ zębów → licówki kompozytowe vs porcelanowe / post-RCT → korona E.max / tetracykliny → grube porcelanowe (0.7-1 mm)
+5. **Workflow zabiegu 6 kroków**: The Wand → koferdam → mikroskop ZEISS 4-25× → wytrawianie/adhezja/warstwowa odbudowa → modelowanie + polerowanie → kontrola fotograficzna + follow-up
+6. **Wybielanie — 2 ścieżki**: in-office (H2O2 35-40%, 60-90 min, 6-8 odcieni) vs nakładkowe domowe (karbamid 10-22%, 2-4 tyg)
+7. **Marcin's expertise** (z art 009): Er:YAG wydłużenie korony klinicznej 30s bez krwawienia (vs. gingiwektomia skalpelem + 2 wizyty), Nd:YAG fotobio-aktywacja zębiny, LLLT post-op = większość Pacjentów bez leków przeciwbólowych
+8. **Trwałość + pielęgnacja 5 tipów**: higiena domowa (sonic + nitka + irygator), higienizacja co 6m, bruksizm (szyna), wybory żywieniowe, sport kontaktowy
+9. **Cross-link** do `/oferta/protetyka` (full mouth rehab) + `/oferta/leczenie-kanalowe` (RCT przed odbudową)
+10. **FAQ 4 → 9 pytań**: licówki niszczą zęby (mit z lat 90), choroby dziąseł, wybielanie a szkliwo, kawa 48h po wybielaniu, bonding vs licówka decyzja
+
+#### K-5 batch 2 — ortodoncja + chirurgia + protetyka (`e6475e4`, ~3h)
+
+**Wszystkie 6 service pages /oferta/* są teraz KOMPLETNIE rozbudowane** (K-4: implantologia/leczenie-kanalowe/stomatologia-estetyczna; K-5: ortodoncja/chirurgia/protetyka). Każda 1500-2200+ słów PL + dedykowana ekspertiza Marcina + cross-linking + FAQ 9 pytań + PerformerCard + MedicalProcedure.performer Physician.
+
+**Ortodoncja** (30→90 keys, +60 nowych, 72→185 LOC):
+- Filozofia: kiedy ortodoncja ma sens (estetyka vs funkcja, atrycja, TMJ)
+- Clear Correct workflow rozbudowane 4 kroki + porównanie 3 metod (Clear Correct vs Invisalign vs aparat stały, badge "Najpopularniejsze")
+- Czas leczenia 4 scenariusze (lekka nierówność 4-6 mies / średnie stłoczenie 8-12 mies / duża wada 18-24 mies / re-align 3-6 mies)
+- Retencja po leczeniu — drucik lingwalny + szyna na noc + kontrole co 12 mies
+- Profilaktyka u dzieci — ekspander 7-9 lat, aparaty czynnościowe, miniśruby
+- Benefits 5 → 7 (symulacja 3D, brak widoczności w pracy z klientami)
+- **Marcin uczciwość**: nie jestem ortodontą, Clear Correct dla prostych/średnich wad, kierujemy skomplikowane do ortodonty. Plus bonding/licówki post-orto + mikroskopowe usunięcie kleju attachmentów Er:YAG.
+- Cross-link: /oferta/stomatologia-estetyczna + /oferta/chirurgia
+- FAQ 4→9: kawa w nakładkach, sport, ból, przerwanie leczenia, granice metody
+
+**Chirurgia** (26→91 keys, +65 nowych, 67→195 LOC):
+- Zakres + filozofia: co robimy / co kierujemy do szpitala (chirurgia ortognatyczna, onkologiczna)
+- Services 4 → 6 (+ apicoektomia + frenektomia)
+- Ósemki workflow 4 kroki: CBCT → The Wand + sedacja podtlenkiem azotu → ekstrakcja+PRF + szwy resorbowalne → LLLT post-op
+- **PRF rozbudowane**: protokół 10-20 ml krwi → wirówka 12 min → membrana → czynniki wzrostu (PDGF, VEGF, TGF-beta); 4 wskazania (ósemki + implant + augmentacja + pacjenci wysokiego ryzyka)
+- **Apicoektomia** (mikrochirurgia endodontyczna) — z RWTH dyplomu, laser Er:YAG, 70-85% skuteczność z literatury
+- 3 technologie wspomagające: Ozonoterapia (dezynfekcja), Laser Er:YAG do nacięć (bez krwawienia, bez szwów), LLLT (biostymulacja po zabiegu)
+- Post-op care 5 zaleceń: zimne okłady, bez płukania 48h, ibuprofen, bez palenia 72h, bez alkoholu 48h
+- Marcin: **Oral Surgery Academy + RWTH Aachen M.Sc. + LA&HA wykłady** międzynarodowe
+- Cross-link: /oferta/implantologia (implant po ekstrakcji) + /oferta/leczenie-kanalowe (Re-Endo przed apicoektomią)
+- FAQ 4→9: skomplikowanie ósemek, ból, jazda po sedacji, gojenie, unikanie ekstrakcji profilaktycznej
+
+**Protetyka** (29→106 keys, +77 nowych, 100→215 LOC):
+- Hierarchia leczenia: zachowawcze → endodoncja → protetyka (ostatni etap)
+- Typy 4 → 6 (+ Onlay/Overlay + Korony tymczasowe 3D-print z mojego artykułu Magazyn Stomat 2020)
+- **Materiały premium 4 cards**: E.max (badge "Najpopularniejsze") / zirconia translucent / Empress / metaloceramika PFM
+- **Digital workflow 5 kroków**: 3Shape Trios skan → CAD lab → frezowanie 5-axis CNC → charakteryzacja+glaze → próba+cementowanie
+- Decision tree 5 scenariuszy: pojedynczy brak / 2-3 obok / RCT+osłabiony → onlay / proteza szkieletowa / All-on-4
+- Trwałość 5 tipów: nitka/irygator wokół koron, higienizacja co 6m, bruksizm (szyna), twarde pokarmy, sport kontaktowy
+- **Marcin's expertise**: mikroskop ZEISS dla preparacji 4-25×, **Er:YAG do retrakcji dziąsła** zamiast tradycyjnej nitki retrakcyjnej (z mojego dyplomu RWTH), szlif bezstopniowy + 3D korona tymczasowa w 1 sesji (z mojego artykułu Magazyn Stomat 2020)
+- Cross-link triple destinations: /oferta/implantologia + /oferta/leczenie-kanalowe + /oferta/stomatologia-estetyczna
+- FAQ 4→9: szlifowanie dla mostu, ceny per materiał, dziąsło i korona, wtórna próchnica, wymiana starej korony
+
+**Wszystkie 3 strony**: `<RevealOnScroll priority>` page-level (K-4 hotfix lesson z `7ee833d` 2026-05-21 EVENING), PerformerCard widoczny, MedicalProcedure.performer Physician obecny, i18n × 4 locale (PL native + AI translate EN/DE/UA przez GPT-4o-mini).
+
+**Verification K-4 strona 3 + K-5 batch 2**:
+- 12/12 paths (3 strony K-5 + 1 strona K-4 × 4 locale) + sanity 6 routes (homepage / o-nas / zespol/marcin / 3 strony K-4) → wszystkie 200 OK
+- Zero raw keys w H2, opacityZero false (RevealOnScroll priority działa)
+- Markery contentu: 3Shape Trios + zirconia (protetyka), PRF (chirurgia), Clear Correct (ortodoncja), E.max + DSD (estetyczna)
+- Zero console errors, build clean
+
+#### Krytyczne lessons learned
+
+1. **Cudzysłowy w JSON i18n**: użycie typograficznego otwarcia `„X` z zamknięciem standard `"` (U+0022) **łamie JSON parser**. Fix: typograficzna para `„X"` (U+201E + U+201D) ALBO unikaj cudzysłowów w treści (przeformatować zdanie) ALBO escape `\"X\"`. Naprawione 3 miejsca dziś: estetyczna (intro3 sztucznie zrobiony), chirurgia (LA&HA quote keynote), protetyka (decisionIntro). **Action**: przed AI translate ZAWSZE python3 -c "json.load" — wyłapać duplikaty lub niepoprawne escapes wcześnie.
+
+2. **`Edit` z `old_string` zawierającym istniejący klucz PRZED nowymi**: nowy `new_string` musi POWTÓRZYĆ ten istniejący klucz, inaczej zostaje usunięty. Bug znaleziony w K-4 strona 3 (`estetyczna.servicesTitle` przypadkowo wykasowany w PL — AI translate widział brak w EN/DE/UA i dodał, PL został source). **Action**: zawsze read namespace count przed i po Edit.
+
+3. **`npx tsx` w background task wymaga explicit `cd` w command string**. Bez `cd` background task CWD = root user directory → script not found. **Action**: Bash command z `run_in_background:true` zawsze poprzedź `cd /Users/.../mikrostomart && ...`.
+
+4. **`<RevealOnScroll priority>` jest BEZWZGLĘDNIE wymagany na każdej service page** po expansion 280→1500+ słów (lesson z K-4 hotfix `7ee833d` 2026-05-21 EVENING). Sub-section reveals (per sekcja) mogą zostać bez priority — małe sekcje są mniejsze od viewport, observer wykrywa je correctly.
+
+#### Co Marcin musi zrobić ręcznie
+
+**Brak migracji DB ani env var w dzisiejszych 4 commitach.** Vercel auto-deployuje (~2 min od push).
+
+**Z S10 nadal pending manual (krytyczne!)**:
+1. Wgrać migrację 132 (RLS lockdown) na OBU Supabase: `~/Desktop/migracje_supabase/migracja_132_rls_lockdown_anon_data_leak.txt`
+2. Smoke anon REST × 5 tabel (care_enrollments, care_tasks, care_audit_log, fcm_tokens, ai_conversations) — expected `[]` lub 401/403
+3. Functional smoke: rejestracja, login pending, push toggle, zgody, sugestie, Googlebot bot bypass
+4. `AUDIT_BASE_URL=https://www.mikrostomart.pl npm run audit:sitemap` — expected 0 failures
+
+#### Następna sesja: **K-6 — Cennik SEO-friendly hybrid** (~2-2.5h)
+
+**Marcin's decyzja 2026-05-21 NIGHT**: cennik MA POZOSTAĆ w formie inteligentnego asystenta AI (zatwierdzona filozofia premium D1=B z K-0). DODAĆ tylko SEO-friendly content dla Googlebota — żeby strona rankowała na zapytania "cennik dentysta Opole", "cena implant Opole", "ile kosztuje X w Opolu".
+
+**Architektura hybrid**:
+```
+/cennik [hybrid render]
+├── Server Component (SSR — Googlebot widzi)
+│   ├── Hero (premium positioning)
+│   ├── Kategorie usług grid 6-8 cards — każda:
+│   │     • Nazwa kategorii + link do /oferta/[slug]
+│   │     • 2-3 zdania opisu
+│   │     • "od X zł" widełki (premium signal — nie konkretne ceny per zabieg)
+│   │     • CTA "Zapytaj o konkretną wycenę →" (scroll do #asystent-ai)
+│   ├── FAQ cenowe (8-10 Q&A z FAQPage schema)
+│   │     "Ile kosztuje pierwsza wizyta?" / "Czy są raty?" / "Kiedy zadatek?"
+│   │     "Co wpływa na koszt?" / "Czy wycena online jest możliwa?"
+│   └── Schema.org:
+│         • Service entities z PriceSpecification (range "PLN")
+│         • OfferCatalog
+│         • FAQPage
+└── Client Component (<CennikChat />, anchor id="asystent-ai") — chat AI bez zmian
+      Sticky w sekcji "Skonsultuj swoją wycenę z AI"
+```
+
+**Co Googlebot zyska**: 6-8 kategorii w SSR HTML + 8-10 FAQ + Schema PriceSpecification dla rich snippets z "od X zł" + Internal linking do /oferta/* (każda strona z K-4+K-5 ma 1500-2200 słów).
+
+**Co użytkownik zyska**: Szybka informacja kategorii (skanowanie) + Chat AI dla deep-dive (5-10% userów którzy chcą szczegółów) + Schema gwiazdki/breadcrumbs w SERP = wyższy CTR.
+
+**Implementacja**: refactor `/cennik/page.tsx` na server component (default export). Wydzielić chat do client component `<CennikChat />`. Layout.tsx dodaje Service + OfferCatalog + FAQPage schemas. Kategorie hardcoded w `src/data/cennik-categories.ts` (8 entries × 4 locale stringów = 32 cards content). FAQ z 8-10 pytań w pages.json `cennik` namespace.
+
+**Estymacja**: ~2-2.5h AI. Brak decyzji Marcina przed sesją (architektura zatwierdzona w tej rozmowie).
+
+#### Po K-6
+
+- **K-7/K-8 Case studies** — wymaga decyzji **D4 RODO consent** od Marcina (jakie case studies, jacy pacjenci, video vs static photos, konsent RODO formularz)
+- **K-MEASURE** po 6 tygodniach — PSI delta + GSC ranking dla "dentysta opole" / "Zahnarzt Opole" + Rich Results Test + foreign markets impressions
+
+#### Pliki dotknięte (cumulative 4 commity)
+
+**Nowe (5 plików)**:
+- `src/lib/personSchemas.ts` (Batch SEO-2)
+- `src/components/PerformerCard.tsx` (Batch SEO-2)
+- `src/app/[locale]/zespol/marcin-nowosielski/{page,layout}.tsx` (Batch SEO-2)
+- `src/app/[locale]/zespol/elzbieta-nowosielska/{page,layout}.tsx` (Batch SEO-2)
+
+**Modyfikowane (significant)**:
+- `src/app/[locale]/o-nas/{layout,page}.tsx` (Batch SEO-2 — przeniesienie schemas + skrócenie page)
+- `src/app/[locale]/oferta/{stomatologia-estetyczna,ortodoncja,chirurgia,protetyka}/page.tsx` (K-4 strona 3 + K-5 batch 2)
+- `src/app/layout.tsx` (Batch SEO-1 — Dentist availableLanguage)
+- `src/lib/serviceSchemas.ts` (Batch SEO-2 — MedicalProcedure.performer Physician)
+- `src/lib/seo.ts` + `src/lib/seoTranslations.ts` (Batch SEO-2 — BREADCRUMB_LABELS + PAGE_SEO entries)
+- `next.config.ts` + `src/middleware.ts` (Batch SEO-2 — /zespol/* routing fix)
+- `src/app/sitemap.ts` (Batch SEO-2 — +2 paths)
+- `messages/{pl,en,de,ua}/{common,pages}.json` (Batch SEO-2 + K-4 strona 3 + K-5 batch 2 — łącznie ~600 PL keys + ~1800 AI translacji)
+- 6 service page'ów `/oferta/*/page.tsx` (Batch SEO-2 PerformerCard insert)
+
+Total cumulative dzisiaj: **30 + 7 + 9 = 46 plików zmienionych**, **~3700 LOC dodanych**, **~270 PL keys + ~810 AI translacji**.
+
+---
 
 ### 2026-05-21 EVENING — 🎯 MEGA SESJA: K-3+K-4 batch 1 (2/3) + Training Gallery + UX fixes (8 commitów)
 
