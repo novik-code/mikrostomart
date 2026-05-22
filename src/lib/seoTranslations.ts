@@ -717,4 +717,32 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'стоматолог Ополе, стоматологічна клініка Ополе центр, Mikrostomart Ополе, україномовний стоматолог Ополе',
         },
     },
+
+    // ───────── /gwarancje — L-4 multi-locale warranty hub ─────────
+    // Wszystkie locale indexable (unlike L-1/L-2 PL-only geo pages). Warranty
+    // terms to trust signal dla foreign dental tourism — DE/EN szukają gwarancji
+    // przed wyborem zagranicznego dentysty. DE locale ma rozszerzoną sekcję
+    // Kostenerstattung (UE 2011/24).
+    '/gwarancje': {
+        pl: {
+            title: 'Gwarancje na leczenie stomatologiczne | Mikrostomart Opole',
+            description: '5 lat gwarancji na implant, 2 lata na koronę E.max, 1 rok re-endodoncji. Akceptujemy ubezpieczenia prywatne PL + zagraniczne. Rachunki w PL/EN/DE.',
+            keywords: 'gwarancja stomatolog opole, gwarancja implant opole, gwarancja korona opole, mikrostomart gwarancje, warunki leczenia opole',
+        },
+        en: {
+            title: 'Dental Treatment Warranties | Mikrostomart Opole, Poland',
+            description: '5-year warranty on implants, 2-year on E.max crowns, 1-year free re-treatment. Accept private insurance + international policies. PL/EN/DE invoices.',
+            keywords: 'dental warranty Poland, implant warranty Opole, dental insurance Poland, GDPR compliant dentist Opole, Mikrostomart warranty terms',
+        },
+        de: {
+            title: 'Garantien Zahnbehandlung | Mikrostomart Opole, Polen',
+            description: '5 Jahre Garantie auf Implantate, 2 Jahre auf E.max Kronen, 1 Jahr kostenlose Wiederbehandlung. Kostenerstattung gesetzliche/private Krankenversicherung.',
+            keywords: 'Zahnbehandlung Garantie Polen, Implantat Garantie Opole, Kostenerstattung Zahnarzt Polen, Mikrostomart Garantien',
+        },
+        ua: {
+            title: 'Гарантії стоматологічного лікування | Mikrostomart Ополе',
+            description: '5 років гарантії на імплант, 2 роки на коронку E.max, 1 рік повторного лікування. Приймаємо приватне страхування + закордонні поліси.',
+            keywords: 'гарантія стоматолог Ополе, гарантія імплант Ополе, страхування стоматолог Польща, Mikrostomart гарантії',
+        },
+    },
 };

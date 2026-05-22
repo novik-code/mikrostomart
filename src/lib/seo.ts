@@ -255,6 +255,7 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         'implanty-opole': 'Implanty zębów w Opolu',
         'leczenie-kanalowe-opole-mikroskop': 'Leczenie kanałowe w Opolu pod mikroskopem',
         'dentysta-opole-centrum': 'Dentysta Opole — centrum miasta',
+        gwarancje: 'Gwarancje i warunki leczenia',
     },
     en: {
         home: 'Home',
@@ -289,6 +290,7 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         'implanty-opole': 'Dental Implants in Opole',
         'leczenie-kanalowe-opole-mikroskop': 'Microscopic Root Canal Treatment in Opole',
         'dentysta-opole-centrum': 'Dentist in Opole — City Centre',
+        gwarancje: 'Warranties & Patient Guarantees',
     },
     de: {
         home: 'Startseite',
@@ -323,6 +325,7 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         'implanty-opole': 'Zahnimplantate in Opole',
         'leczenie-kanalowe-opole-mikroskop': 'Mikroskopische Wurzelkanalbehandlung in Opole',
         'dentysta-opole-centrum': 'Zahnarzt Opole — Stadtzentrum',
+        gwarancje: 'Garantien & Behandlungsbedingungen',
     },
     ua: {
         home: 'Головна',
@@ -357,6 +360,7 @@ const BREADCRUMB_LABELS: Record<string, Record<string, string>> = {
         'implanty-opole': 'Імпланти зубів в Ополе',
         'leczenie-kanalowe-opole-mikroskop': 'Лікування каналів в Ополе під мікроскопом',
         'dentysta-opole-centrum': 'Стоматолог в Ополе — центр міста',
+        gwarancje: 'Гарантії та умови лікування',
     },
 };
 

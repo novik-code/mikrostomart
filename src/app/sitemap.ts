@@ -123,6 +123,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         // Każda osoba = osobny URL z własnym Person/Physician schema.
         '/zespol/marcin-nowosielski',
         '/zespol/elzbieta-nowosielska',
+        // L-4 (2026-05-21): warranty hub — multi-locale indexable (trust signal
+        // dla foreign dental tourism, locale-aware Kostenerstattung dla DE).
+        '/gwarancje',
     ];
     const mainRoutes = mainPaths.flatMap((path) =>
         multiLocaleEntries(path, {
