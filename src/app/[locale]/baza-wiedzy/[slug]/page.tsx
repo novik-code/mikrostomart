@@ -308,7 +308,7 @@ export default async function ArticlePage({
                     </header>
                 </RevealOnScroll>
 
-                <RevealOnScroll animation="fade-up">
+                <RevealOnScroll animation="fade-up" priority>
                     <div className="article-content" style={{
                         color: "var(--color-text-muted)",
                         lineHeight: "1.8",
