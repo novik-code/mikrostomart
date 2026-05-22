@@ -75,6 +75,7 @@ export default async function Layout({
             "priceSpecification": {
                 "@type": "PriceSpecification",
                 "minPrice": cat.priceFrom,
+                ...(cat.priceTo ? { "maxPrice": cat.priceTo } : {}),
                 "priceCurrency": "PLN",
             },
             "availability": "https://schema.org/InStock",

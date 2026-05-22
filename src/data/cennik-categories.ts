@@ -22,6 +22,7 @@ export interface CennikCategory {
     icon: string;
     href: string | null; // null = scroll do #asystent-ai
     priceFrom: number; // PLN, dla Service.offers.priceSpecification.minPrice
+    priceTo?: number; // optional upper bound, dla zakresu "X-Y zł" (np. implant 6000-8000)
     badge?: 'popular' | 'new';
 }
 
@@ -53,7 +54,8 @@ export const CENNIK_CATEGORIES: CennikCategory[] = [
         i18nKey: 'catImplantologia',
         icon: '🦴',
         href: '/oferta/implantologia',
-        priceFrom: 4800,
+        priceFrom: 6000,
+        priceTo: 8000, // standardowy pakiet implant + korona (chirurgia + protetyka)
         badge: 'popular',
     },
     {

@@ -309,7 +309,7 @@
         "catImplantologia": {
             "title": "Implantologia cyfrowa",
             "desc": "Implant + korona ceramiczna pod kontrolą szablonu chirurgicznego (guided surgery). All-on-4, regeneracja kości, PRF. RWTH Aachen + Oral Surgery Academy.",
-            "priceLabel": "od 4800 zł"
+            "priceLabel": "6000-8000 zł"
         },
         "catEstetyczna": {
             "title": "Stomatologia estetyczna",
@@ -1253,7 +1253,7 @@
         "heroTagline": "Implantologia w Opolu",
         "heroTitle": "Implanty zębów w Opolu",
         "heroAccent": "od 2016 roku",
-        "heroLead": "Mikrostomart prowadzi implantologię cyfrową od dekady — pod kontrolą szablonu chirurgicznego (guided surgery), z protokołem PRF, mikroskopem ZEISS i materiałami premium klasy światowej. Pierwsza konsultacja od 250 zł, implant z koroną ostateczną od 4800 zł.",
+        "heroLead": "Mikrostomart prowadzi implantologię cyfrową od dekady — pod kontrolą szablonu chirurgicznego (guided surgery), z protokołem PRF, mikroskopem ZEISS i materiałami premium klasy światowej. Pierwsza konsultacja od 250 zł, standardowy implant z koroną ostateczną w cenie 6000-8000 zł (procedury chirurgiczne + protetyczne).",
         "heroCta": "Umów konsultację implantologiczną",
         "heroCtaSecondary": "Zapytaj o wycenę",
 
@@ -1297,7 +1297,7 @@
 
         "faqHeading": "Najczęściej zadawane pytania o implanty w Opolu",
         "faqQ1": "Ile kosztuje implant zęba w Opolu w Mikrostomart?",
-        "faqA1": "Standardowy implant z koroną ostateczną od 4800 zł (implant 2800 zł + korona ceramiczna od 2000 zł). Cena zawiera planowanie cyfrowe, szablon chirurgiczny, PRF z krwi pacjenta i wszystkie wizyty kontrolne przez pierwszy rok. Augmentacja kości lub sinus lift wyceniane osobno (od 1500 zł). Po pierwszej wizycie z CBCT (650 zł) otrzymujesz pisemny plan leczenia z dokładną kalkulacją.",
+        "faqA1": "Standardowy implant z koroną ostateczną w cenie 6000-8000 zł — pakiet obejmuje procedury chirurgiczne (wszczepienie implantu pod kontrolą szablonu i mikroskopu ZEISS, z PRF z krwi pacjenta) oraz procedury protetyczne (korona na implancie z porcelany lub cyrkonu). Cena zawiera planowanie cyfrowe, szablon chirurgiczny i wszystkie wizyty kontrolne przez pierwszy rok. CBCT, augmentacja kości lub sinus lift wyceniane indywidualnie po pierwszej konsultacji. Po wizycie otrzymujesz pisemny plan leczenia z dokładną kalkulacją.",
         "faqQ2": "Czy implant w Opolu można rozłożyć na raty?",
         "faqA2": "Tak — większe zabiegi implantologiczne (All-on-4, full mouth) można rozłożyć na raty 0% przez Mediraty (do 12 miesięcy) lub na ratach wewnętrznych u nas (do 6 miesięcy, bez dodatkowych kosztów dla stałych pacjentów). Szczegóły omawiamy po pierwszej wizycie wraz z planem leczenia.",
         "faqQ3": "Czy NFZ refunduje implanty zębów?",
@@ -1421,7 +1421,7 @@
         "service1": "Konsultacje + diagnostyka (RTG, CBCT) — od 250 zł",
         "service2": "Stomatologia zachowawcza (plomby, bonding) — od 400 zł",
         "service3": "Endodoncja mikroskopowa (kanały pod ZEISS) — od 800 zł",
-        "service4": "Implantologia cyfrowa (implant + korona) — od 4800 zł",
+        "service4": "Implantologia cyfrowa (implant + korona) — 6000-8000 zł",
         "service5": "Stomatologia estetyczna (licówki, wybielanie) — od 500 zł",
         "service6": "Ortodoncja Clear Correct (nakładki) — od 8000 zł",
         "service7": "Higienizacja + profilaktyka — od 380 zł",

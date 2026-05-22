@@ -84,7 +84,8 @@ export default async function Layout({
             "@type": "Offer",
             "priceSpecification": {
                 "@type": "PriceSpecification",
-                "minPrice": 4800,
+                "minPrice": 6000,
+                "maxPrice": 8000,
                 "priceCurrency": "PLN",
             },
             "availability": "https://schema.org/InStock",

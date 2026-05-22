@@ -268,7 +268,7 @@
         "catImplantologia": {
             "title": "Digital Implantology",
             "desc": "Implant + ceramic crown under the guidance of a surgical template (guided surgery). All-on-4, bone regeneration, PRF. RWTH Aachen + Oral Surgery Academy.",
-            "priceLabel": "from 4800 PLN"
+            "priceLabel": "6000-8000 PLN"
         },
         "catEstetyczna": {
             "title": "Aesthetic Dentistry",
@@ -1238,7 +1238,7 @@
         "heroTagline": "Implantology in Opole",
         "heroTitle": "Dental Implants in Opole",
         "heroAccent": "since 2016",
-        "heroLead": "Mikrostomart has been conducting digital implantology for a decade — under the guidance of a surgical template (guided surgery), with the PRF protocol, ZEISS microscope, and world-class premium materials. First consultation from 250 PLN, implant with final crown from 4800 PLN.",
+        "heroLead": "Mikrostomart has been conducting digital implantology for a decade — under the guidance of a surgical template (guided surgery), with the PRF protocol, ZEISS microscope, and world-class premium materials. First consultation from 250 PLN, standard implant with final crown 6000-8000 PLN (surgical + prosthetic procedures).",
         "heroCta": "Schedule an implant consultation",
         "heroCtaSecondary": "Request a quote",
         "whyHeading": "Why choose a dental implant at Mikrostomart Opole",
@@ -1276,7 +1276,7 @@
         "reviewsIntro": "Selected reviews from Google Maps — patients after implant procedures. Full list available on our Google Maps profile (overall rating 5.0 / 5).",
         "faqHeading": "Frequently asked questions about implants in Opole",
         "faqQ1": "How much does a dental implant cost in Opole at Mikrostomart?",
-        "faqA1": "Standard implant with final crown from 4800 PLN (implant 2800 PLN + ceramic crown from 2000 PLN). The price includes digital planning, surgical template, PRF from the patient's blood, and all follow-up visits for the first year. Bone augmentation or sinus lift priced separately (from 1500 PLN). After the first visit with CBCT (650 PLN), you receive a written treatment plan with a detailed calculation.",
+        "faqA1": "Standard implant with final crown 6000-8000 PLN — the package covers surgical procedures (implant placement under template control and ZEISS microscope, with PRF from the patient's blood) and prosthetic procedures (crown on the implant in porcelain or zirconia). The price includes digital planning, surgical template, and all follow-up visits during the first year. CBCT, bone augmentation, and potential sinus lift are priced individually after the first consultation. After the visit, you receive a written treatment plan with a detailed calculation.",
         "faqQ2": "Can the implant in Opole be paid in installments?",
         "faqA2": "Yes — larger implant procedures (All-on-4, full mouth) can be paid in 0% installments through Mediraty (up to 12 months) or internal installments with us (up to 6 months, no additional costs for regular patients). Details are discussed after the first visit along with the treatment plan.",
         "faqQ3": "Does the National Health Fund reimburse dental implants?",
@@ -1388,7 +1388,7 @@
         "service1": "Consultations + diagnostics (X-ray, CBCT) — from 250 PLN",
         "service2": "Conservative dentistry (fillings, bonding) — from 400 PLN",
         "service3": "Microscopic endodontics (canals under ZEISS) — from 800 PLN",
-        "service4": "Digital implantology (implant + crown) — from 4800 PLN",
+        "service4": "Digital implantology (implant + crown) — 6000-8000 PLN",
         "service5": "Cosmetic dentistry (veneers, whitening) — from 500 PLN",
         "service6": "Clear Correct orthodontics (aligners) — from 8000 PLN",
         "service7": "Hygienization + prevention — from 380 PLN",

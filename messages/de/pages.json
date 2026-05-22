@@ -268,7 +268,7 @@
     "catImplantologia": {
       "title": "Digitale Implantologie",
       "desc": "Implantat + keramische Krone unter Kontrolle einer chirurgischen Schablone (guided surgery). All-on-4, Knochenregeneration, PRF. RWTH Aachen + Oral Surgery Academy.",
-      "priceLabel": "ab 4800 PLN"
+      "priceLabel": "6000-8000 PLN"
     },
     "catEstetyczna": {
       "title": "Ästhetische Zahnmedizin",
@@ -1238,7 +1238,7 @@
     "heroTagline": "Implantologie in Opole",
     "heroTitle": "Zahnimplantate in Opole",
     "heroAccent": "seit 2016",
-    "heroLead": "Mikrostomart führt seit einem Jahrzehnt digitale Implantologie durch — unter Verwendung von chirurgischen Schablonen (guided surgery), mit PRF-Protokoll, ZEISS-Mikroskop und hochwertigen Materialien der Spitzenklasse. Erste Konsultation ab 250 PLN, Implantat mit endgültiger Krone ab 4800 PLN.",
+    "heroLead": "Mikrostomart führt seit einem Jahrzehnt digitale Implantologie durch — unter Verwendung von chirurgischen Schablonen (guided surgery), mit PRF-Protokoll, ZEISS-Mikroskop und hochwertigen Materialien der Spitzenklasse. Erste Konsultation ab 250 PLN, Standardimplantat mit endgültiger Krone 6000-8000 PLN (chirurgische + prothetische Verfahren).",
     "heroCta": "Vereinbaren Sie eine implantologische Konsultation",
     "heroCtaSecondary": "Fragen Sie nach einem Kostenvoranschlag",
     "whyHeading": "Warum ein Zahnimplantat bei Mikrostomart Opole",
@@ -1276,7 +1276,7 @@
     "reviewsIntro": "Ausgewählte Bewertungen von Google Maps — Patienten nach implantologischen Eingriffen. Eine vollständige Liste finden Sie in unserem Google Maps-Profil (Gesamtbewertung 5,0 / 5).",
     "faqHeading": "Häufig gestellte Fragen zu Implantaten in Opole",
     "faqQ1": "Wie viel kostet ein Zahnimplantat in Opole bei Mikrostomart?",
-    "faqA1": "Standardimplantat mit endgültiger Krone ab 4800 PLN (Implantat 2800 PLN + keramische Krone ab 2000 PLN). Der Preis beinhaltet digitale Planung, chirurgische Schablone, PRF aus dem Blut des Patienten und alle Kontrollbesuche im ersten Jahr. Knochenaugmentation oder Sinuslift werden separat berechnet (ab 1500 PLN). Nach dem ersten Besuch mit CBCT (650 PLN) erhalten Sie einen schriftlichen Behandlungsplan mit genauer Kalkulation.",
+    "faqA1": "Standardimplantat mit endgültiger Krone 6000-8000 PLN — das Paket umfasst chirurgische Verfahren (Implantatsetzung unter Schablonenkontrolle und ZEISS-Mikroskop, mit PRF aus dem Blut des Patienten) sowie prothetische Verfahren (Krone auf dem Implantat aus Vollkeramik E.max oder Zirkonoxid). Der Preis beinhaltet digitale Planung, chirurgische Schablone und alle Kontrollbesuche im ersten Jahr. CBCT, Knochenaugmentation oder Sinuslift werden individuell nach der Erstberatung kalkuliert. Nach dem Besuch erhalten Sie einen schriftlichen Behandlungsplan mit genauer Kalkulation.",
     "faqQ2": "Kann man das Implantat in Opole in Raten bezahlen?",
     "faqA2": "Ja — größere implantologische Eingriffe (All-on-4, Full Mouth) können in 0%-Raten über Mediraty (bis zu 12 Monate) oder in internen Raten bei uns (bis zu 6 Monate, ohne zusätzliche Kosten für Stammkunden) aufgeteilt werden. Details besprechen wir nach dem ersten Besuch zusammen mit dem Behandlungsplan.",
     "faqQ3": "Erstattet die NFZ Zahnimplantate?",
@@ -1388,7 +1388,7 @@
     "service1": "Beratungen + Diagnostik (Röntgen, CBCT) — ab 250 PLN",
     "service2": "Konservierende Zahnheilkunde (Füllungen, Bonding) — ab 400 PLN",
     "service3": "Mikroskopische Endodontie (Kanäle unter ZEISS) — ab 800 PLN",
-    "service4": "Digitale Implantologie (Implantat + Krone) — ab 4800 PLN",
+    "service4": "Digitale Implantologie (Implantat + Krone) — 6000-8000 PLN",
     "service5": "Ästhetische Zahnheilkunde (Veneers, Bleaching) — ab 500 PLN",
     "service6": "Kieferorthopädie Clear Correct (Schienen) — ab 8000 PLN",
     "service7": "Hygienisierung + Prävention — ab 380 PLN",

@@ -38,4 +38,4 @@ export const routeMtimes: Record<string, string> = {
 };
 
 /** Fallback for routes not in the map (e.g. newly added pages before next regen). */
-export const buildTime: string = "2026-05-22T12:28:57.516Z";
+export const buildTime: string = "2026-05-22T13:01:17.287Z";
