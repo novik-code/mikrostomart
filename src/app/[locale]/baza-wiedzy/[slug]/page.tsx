@@ -338,18 +338,42 @@ export default async function ArticlePage({
                                 );
                             }
 
+                            // Inline parser — supports **bold** + [text](url) (L-5 2026-05-22)
+                            const INLINE_SPLIT_RE = /(\*\*.*?\*\*|\[[^\]]+\]\([^)]+\))/g;
+                            const LINK_RE = /^\[([^\]]+)\]\(([^)]+)\)$/;
+                            const renderInline = (text: string, keyPrefix: string) =>
+                                text.split(INLINE_SPLIT_RE).map((part, i) => {
+                                    if (part.startsWith('**') && part.endsWith('**')) {
+                                        return (
+                                            <strong key={`${keyPrefix}-${i}`} style={{ color: "var(--color-primary)" }}>
+                                                {part.slice(2, -2)}
+                                            </strong>
+                                        );
+                                    }
+                                    const linkMatch = part.match(LINK_RE);
+                                    if (linkMatch) {
+                                        const [, label, href] = linkMatch;
+                                        const isExternal = /^https?:\/\//.test(href);
+                                        return (
+                                            <a
+                                                key={`${keyPrefix}-${i}`}
+                                                href={href}
+                                                style={{ color: "var(--color-primary)", textDecoration: "underline" }}
+                                                {...(isExternal ? { rel: "noopener noreferrer", target: "_blank" } : {})}
+                                            >
+                                                {label}
+                                            </a>
+                                        );
+                                    }
+                                    return part;
+                                });
+
                             // List items
                             if (line.startsWith('* ')) {
                                 const content = line.replace('* ', '');
-                                const parts = content.split(/(\*\*.*?\*\*)/g);
                                 return (
                                     <li key={index} style={{ marginLeft: "1.5rem", marginBottom: "0.5rem" }}>
-                                        {parts.map((part: string, i: number) => {
-                                            if (part.startsWith('**') && part.endsWith('**')) {
-                                                return <strong key={i} style={{ color: "var(--color-primary)" }}>{part.slice(2, -2)}</strong>;
-                                            }
-                                            return part;
-                                        })}
+                                        {renderInline(content, `li-${index}`)}
                                     </li>
                                 );
                             }
@@ -357,16 +381,10 @@ export default async function ArticlePage({
                             // Empty lines
                             if (line.trim() === '') return <br key={index} />;
 
-                            // Paragraphs with inline bold support
-                            const parts = line.split(/(\*\*.*?\*\*)/g);
+                            // Paragraphs with inline bold + link support
                             return (
                                 <p key={index} style={{ marginBottom: "1rem" }}>
-                                    {parts.map((part: string, i: number) => {
-                                        if (part.startsWith('**') && part.endsWith('**')) {
-                                            return <strong key={i} style={{ color: "var(--color-primary)" }}>{part.slice(2, -2)}</strong>;
-                                        }
-                                        return part;
-                                    })}
+                                    {renderInline(line, `p-${index}`)}
                                 </p>
                             );
                         })}
