@@ -59,6 +59,27 @@ export async function GET() {
             ? allRatings.reduce((a, b) => a + b, 0) / allRatings.length
             : 5.0;
 
+        // 2026-05-23 (GSC fix follow-up): fetch authoritative aggregate from
+        // google_business_meta (singleton row, mig 135). UI carousel używa
+        // tych liczb (280/4.5) zamiast naszego limited cached count/avg.
+        // Schema markup już używa tego źródła przez getAggregateRating().
+        let googleBusinessAggregate: { count: number; rating: number } | null = null;
+        try {
+            const { data: metaRow } = await supabase
+                .from('google_business_meta')
+                .select('user_rating_count, rating')
+                .eq('id', 1)
+                .single();
+            if (metaRow && typeof metaRow.user_rating_count === 'number' && typeof metaRow.rating === 'number') {
+                googleBusinessAggregate = {
+                    count: metaRow.user_rating_count,
+                    rating: metaRow.rating,
+                };
+            }
+        } catch {
+            // Silent — UI will fall back to legacy rating/totalReviews
+        }
+
         return NextResponse.json({
             success: true,
             reviews: shuffled.map(r => ({
@@ -70,8 +91,11 @@ export async function GET() {
                 publishTime: r.publish_time || '',
                 googleMapsUri: r.google_maps_uri || '',
             })),
+            // Legacy fields — backward compat, fallback gdy googleBusinessAggregate null
             rating: Math.round(avgRating * 10) / 10,
             totalReviews: shuffled.length,
+            // Authoritative aggregate (preferred by GoogleReviews.tsx)
+            googleBusinessAggregate,
         });
 
     } catch (error) {

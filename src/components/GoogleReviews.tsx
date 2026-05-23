@@ -54,8 +54,17 @@ export default function GoogleReviews() {
                 const data = await res.json();
                 if (data.success && data.reviews?.length > 0) {
                     setLiveReviews(data.reviews);
-                    setOverallRating(data.rating || 5.0);
-                    setTotalReviews(data.totalReviews || data.reviews.length);
+                    // 2026-05-23: prefer authoritative aggregate z Google
+                    // Places API (google_business_meta, np. 280/4.5).
+                    // Fallback do legacy fields (computed z naszego cached
+                    // google_reviews tabeli, np. 24/5.0) gdy meta nie zwróciła.
+                    if (data.googleBusinessAggregate) {
+                        setOverallRating(data.googleBusinessAggregate.rating);
+                        setTotalReviews(data.googleBusinessAggregate.count);
+                    } else {
+                        setOverallRating(data.rating || 5.0);
+                        setTotalReviews(data.totalReviews || data.reviews.length);
+                    }
                 }
             } catch {
                 // Silently fall back to static reviews
