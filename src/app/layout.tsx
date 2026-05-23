@@ -18,7 +18,7 @@ import {
 } from "@/components/AdminClientLayer";
 import { isDemoMode } from "@/lib/demoMode";
 import { brand, brandI18nParams, demoSanitize, loadBrandFromDB } from "@/lib/brandConfig";
-import { fetchReviewSchemas, getAggregateRating, getAvailableServices, getOgLocale, hreflangCode, type AggregateRating } from "@/lib/seo";
+import { getAggregateRating, getAvailableServices, getOgLocale, hreflangCode, type AggregateRating } from "@/lib/seo";
 import { formatPhoneForSchema } from "@/lib/phoneFormat";
 import "./globals.css";
 
@@ -286,12 +286,18 @@ export default async function RootLayout({
     const locale = await getLocale();
     const rawMessages = await getMessages();
 
-    // Fetch aggregate rating for Dentist schema (Faza G2).
-    // Returns null in demo mode, on error, or when google_reviews table is empty.
+    // Fetch aggregate rating for Dentist schema (Faza G2 + GSC fix 2026-05-23).
+    // Returns null in demo mode, on error, or when google_business_meta empty
+    // (przed mig 135 wgrania albo cron run). Reads from google_business_meta
+    // singleton (authoritative GBP data 280/4.5) — nie liczy z naszego cached
+    // google_reviews tabeli (limited ~24 by Places API).
     const aggregateRating = isDemoMode ? null : await getAggregateRating();
-    // J-4: fetch top 10 positive reviews for embedding in Dentist.review[].
-    // Same demo guard — demo deployment never serves prod reviews.
-    const reviews = isDemoMode ? [] : await fetchReviewSchemas(10);
+
+    // 2026-05-23 (GSC fix): embedded review[] removed from Dentist schema —
+    // self-serving violation. Reviews dla użytkowników nadal widoczne w UI
+    // (GoogleReviews.tsx carousel), tylko bez schema markup. SchemaOrg signature
+    // zachowana z reviews=[] dla backward compat z `void reviews` guard.
+    const reviews: Array<Record<string, unknown>> = [];
 
     // Recursively replace brand tokens ({brandName}, {cityShort}, etc.) in all translation strings.
     // next-intl v4 removed defaultTranslationValues from the provider, so we pre-bake them here.

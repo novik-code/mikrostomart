@@ -2525,6 +2525,102 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-23 — 🚨 GSC CRITICAL FIX: Schema aggregateRating match Google's truth (278→280/4.5)
+
+**Po raporcie GSC** 22 critical errors "Weryfikacja obejmuje wiele ocen zbiorczych" — schema markup mówił 5.0★/23 reviews, a Google Business Profile **280/4.5★**. Plus pricing fix 4800→6000-8000 PLN po Marcin zauważył błąd faktyczny. Plus preemptive cleanup. **6 commitów** na main, **2 migracje DB** (135 + 136), **0 manual taski pending**.
+
+#### Commity (chronologicznie)
+
+- `8795a29` — fix(seo): correct implant pricing 4800 → 6000-8000 PLN (factual error fix)
+- `cecd035` — fix(seo): GSC 22 critical errors — schema aggregate match Google's truth (278/4.5 vs 23/5.0)
+- `e3f0e62` — fix(seo): mig 136 — public read policy dla google_business_meta (hotfix mig 135)
+- `f21abb3` — feat(ui): GoogleReviews carousel pokazuje Google's truth (280/4.5) zamiast cached (24/5.0)
+- `7e41868` — fix(seo): preemptive — usunąć Review schemas z L-1/L-2a/L-2b (self-serving prevention)
+- + cleanup commit (dead `fetchReviewSchemas` call + docs)
+
+#### Diagnoza GSC errors
+
+| Source | Wartość | Status |
+|---|---|---|
+| Schema markup | `aggregateRating: 5.0★ / reviewCount: 23` | ❌ Nasza tabela google_reviews ma ~23 unique reviews (limit Places API) |
+| **Google Business Profile** (authoritative) | **4.5★ / 278+ reviews** | ✓ Real truth |
+| **Rozjazd** | -92% reviewCount, +11% rating | Google flag jako "multiple aggregate ratings" |
+
+**Pierwsza hipoteza** (self-serving reviews violation) była częściowo prawdziwa, ale **główny error** = numerical mismatch ze schema vs GBP. Embedded `review[]` z autorami było drugim problemem (collateral self-serving). Oba naprawione równocześnie.
+
+#### Plus implant pricing — drugi factual error
+
+Marcin zauważył że schema/UI/L-5 article mówiły "implant od 4800 PLN" z zmyślonymi breakdownami (implant 2800 + korona 2000, augmentacja 1500 itp). Rzeczywista cena: **6000-8000 PLN pakiet** (procedury chirurgiczne + protetyczne). Fix wcześniej dziś (commit `8795a29`).
+
+#### Wariant D (Marcin's choice) — implementacja
+
+**Migracja 135** — nowa singleton tabela `google_business_meta`:
+- Columns: `id INT PK (CHECK id=1)`, `user_rating_count INT`, `rating NUMERIC(2,1)`, `updated_at TIMESTAMPTZ`
+- Seed default 278/4.5 (z Marcin GBP verification)
+- RLS enabled, początkowo only service_role
+
+**Migracja 136** — hotfix dla anon read access:
+- `getAggregateRating()` używa `supabaseClient` z anon key
+- Mig 135 miała `FOR ALL TO service_role` → anon SELECT blocked → schema bez aggregateRating mimo że row istnieje
+- 136 dodaje `FOR SELECT USING (true)` public_read policy
+
+**Cron `/api/google-reviews`** — już pobierał `userRatingCount` + `rating` z Places API w field mask, ale **ignorował wartości** (mapował tylko reviews array). Teraz upsert do `google_business_meta` po każdym fetch (1× per hour).
+
+**`getAggregateRating()` w `src/lib/seo.ts`** — czyta z `google_business_meta` singleton row zamiast computing z limited google_reviews cache. Graceful fallback null gdy row not exists.
+
+**`src/app/layout.tsx` SchemaOrg** — usunięte `dentistSchema.review = reviews`. Reviews zostają widoczne w UI carousel (`GoogleReviews.tsx`), tylko bez schema markup.
+
+**`GoogleReviews.tsx` UI** — wcześniej pokazywał `5.0 (24 opinii w Google)` (z naszej cache). Po fix priority `googleBusinessAggregate` field z API → **`4.5 (280 opinii w Google)`** = match GBP / Google Maps. Carousel z 24 wybranymi reviews bez zmian.
+
+**Preemptive L-1/L-2a/L-2b cleanup** — 3 geo pages (`/implanty-opole`, `/leczenie-kanalowe-opole-mikroskop`, `/dentysta-opole-centrum`) używały tej samej `fetchReviewSchemas(5)` z `itemReviewed.Service`. Reviews o usługach LocalBusiness są też self-serving (Service to sub-entity). Realne ryzyko 60-80% że Google flagnie je w 1-3 tygodni — preemptive usunięte przed Google indeksowaniem agresywnym po sitemap re-submit.
+
+#### Verification
+
+- `npm run build` clean (all 6 commits)
+- Production curl test: `aggregateRating: {ratingValue: 4.5, reviewCount: 280}` ✓, NO `review[]` ✓
+- API endpoint test: `googleBusinessAggregate: {count: 280, rating: 4.5}` zwraca poprawnie
+- Sitemap audit (`AUDIT_BASE_URL=https://www.mikrostomart.pl npm run audit:sitemap`): **760/760 OK, 0 failures** ✓
+- Comprehensive grep dla `fetchReviewSchemas|Review[]|aggregateRating`: tylko core files (seo.ts definicje, homepage Dentist aggregateRating). Zero self-serving Reviews na innych stronach.
+
+#### Pliki dotknięte (cumulative)
+
+**Nowe**:
+- `supabase_migrations/135_google_business_meta.sql` + `.txt` na pulpicie
+- `supabase_migrations/136_google_business_meta_public_read.sql` + `.txt`
+
+**Modified**:
+- `src/app/api/google-reviews/route.ts` — store authoritative aggregate + return `googleBusinessAggregate` field
+- `src/app/layout.tsx` — usunięty `review[]` z Dentist + cleanup unused `fetchReviewSchemas` import
+- `src/lib/seo.ts` — `getAggregateRating()` reads `google_business_meta`
+- `src/components/GoogleReviews.tsx` — priority `googleBusinessAggregate` over legacy fields
+- 3× L-1/L-2a/L-2b layouts — usunięte Review schemas + comments
+- Plus implant pricing fix (commit `8795a29`): `messages/{4 locale}/pages.json`, `seoTranslations.ts`, `implanty-opole/layout.tsx` (Service minPrice 6000 + maxPrice 8000), `cennik/layout.tsx`, `cennik-categories.ts` (CennikCategory interface +priceTo), `supabase_migrations/134_l5_implant_pricing_fix.sql`
+
+#### Status
+
+✅ **Wszystkie migracje wgrane przez Marcina na bieżąco** (132, 133, 134, 135, 136). Brak pending manual tasks security/migrations.
+
+#### Co czeka
+
+- **GSC re-crawl 2-7 dni** — Google zweryfikuje że schema matchuje GBP → 22 errors → 0
+- **L-5 medical review** — Marcin manual (30-40 min) po wgrywce mig 134 (live URL z poprawnymi cenami)
+- **L-9 FAQ DE/UA quality verify** — Marcin opcjonalnie sprawdza native speaker DE/UA
+- **CBCT 400-500 PLN / korony 1200-2800 PLN w pages.json** — niezakwestionowane, mogą być z prawdziwego cennika klinikowego, do verify przez Marcina
+
+#### Lessons learned
+
+1. **GSC validation ≠ Rich Results Test validation**. Rich Results Test sprawdza składnię JSON-LD (nasz schema był OK syntactycznie). GSC sprawdza dodatkowo **policy violations** + **consistency** z Google's authoritative data. To 2 niezależne layery.
+
+2. **Self-serving reviews policy applies do Service też**, nie tylko LocalBusiness. Sub-entities (Services, Products) na własnej stronie są też "self-serving" w oczach Google.
+
+3. **Schema aggregateRating MUSI matchować Google's truth**. Liczenie z naszej limited cache (Places API hard cap ~5 reviews per fetch) = -90% rozjazd = flag. Trzeba pobierać `userRatingCount` + `rating` field i serwować je.
+
+4. **Mig 132 RLS pattern (TO service_role)** dla sec-sensitive tables jak `care_enrollments` — DOBRE dla PII. ALE dla public-by-design data jak GBP aggregate — wymaga osobnej `public_read` policy. Lesson: zawsze sprawdzić czy klient queryący ma odpowiednie permissions po nowej migracji RLS.
+
+5. **Preemptive fix vs reactive**: lepiej naprawić L-1/L-2 reviews TERAZ (10 min, zero ryzyka) niż czekać aż GSC flagnie 15-60 nowych errors za 1-3 tyg → wymuszony fire-fighting + GSC reputation damage.
+
+---
+
 ### 2026-05-22 LATE+1 — 🌐 L-9: DE/UA FAQ re-translate cat0-cat9 (43 Q × 2 locale, deeper contextualization)
 
 **L-9 = foreign FAQ wyrównanie do PL** (z planu PLAN_PREMIUM_SEO.md linia 324-327). LOW risk, niezależne od L-5 verdict. 2h pracy.
