@@ -5,7 +5,6 @@ import {
     localizedBreadcrumb,
     breadcrumbHref,
     hreflangCode,
-    fetchReviewSchemas,
 } from '@/lib/seo';
 import { PAGE_SEO } from '@/lib/seoTranslations';
 import { brand } from '@/lib/brandConfig';
@@ -94,20 +93,13 @@ export default async function Layout({
         })),
     };
 
-    const reviews = await fetchReviewSchemas(5);
+    // 2026-05-23: Reviews schema usunięte (self-serving violation, GSC fix).
 
     return (
         <>
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }} />
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
-            {reviews.length > 0 && reviews.map((r, i) => (
-                <script
-                    key={`review-${i}`}
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify({ ...r, itemReviewed: { "@type": "Service", "@id": `${pageUrl}#service` } }) }}
-                />
-            ))}
             {children}
         </>
     );

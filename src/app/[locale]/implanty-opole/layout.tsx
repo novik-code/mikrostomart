@@ -5,7 +5,6 @@ import {
     localizedBreadcrumb,
     breadcrumbHref,
     hreflangCode,
-    fetchReviewSchemas,
 } from '@/lib/seo';
 import { PAGE_SEO } from '@/lib/seoTranslations';
 import { brand } from '@/lib/brandConfig';
@@ -23,7 +22,11 @@ import { brand } from '@/lib/brandConfig';
  *   provider Dentist via @id; serviceType "Implantology")
  * - MedicalProcedure: dental implant placement (procedureType SurgicalProcedure)
  * - FAQPage: 6 geo-targeted Q&A (NFZ, ceny, czas leczenia, ból, gwarancja, raty)
- * - Reviews: max 5 z google_reviews (fetchReviewSchemas pattern z H8)
+ *
+ * 2026-05-23 (GSC fix follow-up): usunięte fetchReviewSchemas + per-page Reviews.
+ * Reviews o własnym Service (sub-entity LocalBusiness) traktowane przez Google
+ * jako self-serving — ten sam violation co usunięty z homepage Dentist schema.
+ * Preemptive cleanup przed Google indeksowaniem agresywnym po sitemap re-submit.
  */
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
@@ -127,8 +130,9 @@ export default async function Layout({
         })),
     };
 
-    // Reviews z google_reviews table (max 5, rating ≥4★)
-    const reviews = await fetchReviewSchemas(5);
+    // 2026-05-23: Reviews schema usunięte (self-serving violation). Reviews
+    // o usługach klinki wyświetlane są tylko w UI komponencie GoogleReviews
+    // na homepage — bez schema markup żadne miejsce strony.
 
     return (
         <>
@@ -136,13 +140,6 @@ export default async function Layout({
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }} />
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(procedureSchema) }} />
             <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />
-            {reviews.length > 0 && reviews.map((r, i) => (
-                <script
-                    key={`review-${i}`}
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify({ ...r, itemReviewed: { "@type": "Service", "@id": `${pageUrl}#service` } }) }}
-                />
-            ))}
             {children}
         </>
     );
