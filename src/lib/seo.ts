@@ -712,39 +712,45 @@ export async function fetchBlogPostItems(locale: string): Promise<ListItem[]> {
 
 /**
  * Fetch aggregate rating from Google Reviews stored in Supabase.
- * Returns null on error or empty cache (caller should skip aggregateRating in schema).
+ * Returns null on error or empty meta (caller should skip aggregateRating in schema).
  *
  * Used in root layout's Dentist schema to enable rich SERP stars.
  *
- * Counts ALL reviews 1-5★ — Google's "Review snippet" guidelines forbid filtering
- * out negatives ("manipulated rating" penalty). Pre-2026-05-10 implementation used
- * `.gte('rating', 4)` which inflated the rating; rolled back to honest aggregate.
- * If average drops below 3.5★ the schema is omitted entirely (low/0-rating rich
- * results actively hurt CTR).
+ * 2026-05-23 (GSC fix wariant D): czyta z google_business_meta (singleton row,
+ * mig 135) populated przez /api/google-reviews cron z Google Places API
+ * `userRatingCount` + `rating`. Wcześniej (G2, 2026-05-09) liczyło z naszej
+ * google_reviews tabeli — niespójne z GSC bo nasza tabela ma ~23 reviews,
+ * Google Business Profile ma 278. Powodowało "Weryfikacja obejmuje wiele
+ * ocen zbiorczych" critical errors w Google Search Console.
+ *
+ * Jeśli row nie istnieje (przed wgraniem mig 135 lub przed pierwszym cron run)
+ * — zwracamy null → schema bez aggregateRating (no rich stars, ale brak też
+ * GSC errors). Po cron run uzupełnia się sam.
  *
  * Cached for 1 hour via Next.js Data Cache (revalidate tag).
  */
 export async function getAggregateRating(): Promise<AggregateRating | null> {
     try {
         const { data, error } = await supabase
-            .from('google_reviews')
-            .select('rating');
+            .from('google_business_meta')
+            .select('user_rating_count, rating')
+            .eq('id', 1)
+            .single();
 
-        if (error || !data || data.length === 0) {
+        if (error || !data) {
             return null;
         }
 
-        const ratings = data.map((r) => r.rating).filter((r) => typeof r === 'number');
-        if (ratings.length === 0) return null;
+        const reviewCount = typeof data.user_rating_count === 'number' ? data.user_rating_count : 0;
+        const ratingValue = typeof data.rating === 'number' ? data.rating : 0;
 
-        const sum = ratings.reduce((acc, r) => acc + r, 0);
-        const avg = sum / ratings.length;
-
-        if (avg < 3.5) return null;
+        // Skip schema if no reviews yet or rating too low (low/0-rating rich
+        // results hurt CTR; Google sometimes flags <3.5 as manipulated)
+        if (reviewCount === 0 || ratingValue < 3.5) return null;
 
         return {
-            ratingValue: Math.round(avg * 10) / 10,
-            reviewCount: ratings.length,
+            ratingValue,
+            reviewCount,
         };
     } catch {
         return null;

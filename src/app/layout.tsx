@@ -224,16 +224,23 @@ function SchemaOrg({ aggregateRating, reviews, locale }: { aggregateRating: Aggr
         };
     }
 
-    // J-4: embed top positive reviews inside the Dentist entity. Google's
-    // Review snippet guidelines forbid pages without aggregate ratings from
-    // showing individual review stars in SERP — but reviews attached to a
-    // LocalBusiness/Dentist entity surface in the Knowledge Panel + "People
-    // also reviewed" carousel even when aggregate is absent. The aggregate
-    // we set above also benefits because Google validates the math against
-    // these entries.
-    if (reviews && reviews.length > 0) {
-        dentistSchema.review = reviews;
-    }
+    // J-4 REVERTED (2026-05-23, GSC fix wariant D):
+    // Embedded review[] removed from Dentist schema. GSC raport zgłosił 22
+    // critical errors "Weryfikacja obejmuje wiele ocen zbiorczych" — Google
+    // wykrywał konflikt między naszą schema (5.0★ / 23 reviews) a Google
+    // Business Profile (4.5★ / 278 reviews). Plus embedded reviews z autorami
+    // o własnym LocalBusiness łamią self-serving reviews policy.
+    //
+    // Reviews zostają widoczne w UI (GoogleReviews.tsx carousel na homepage)
+    // — to OK, Google policy dotyczy tylko schema markup.
+    //
+    // aggregateRating ZACHOWANY ale teraz czyta z google_business_meta
+    // (mig 135) wypełnianej przez cron z Google Places API authoritative
+    // userRatingCount + rating. Zgodność schema ↔ GBP data → GSC happy.
+    //
+    // `reviews` prop nadal w signature dla backward compat (callers w
+    // generateMetadata mogą przekazywać) — unused tutaj.
+    void reviews;
 
     return (
         <>

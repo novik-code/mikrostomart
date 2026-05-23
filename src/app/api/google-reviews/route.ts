@@ -90,6 +90,13 @@ export async function GET() {
 async function fetchAndStoreReviews(supabase: any) {
     const apiKey = process.env.GOOGLE_PLACES_API_KEY!;
     let allReviews: any[] = [];
+    // 2026-05-23 (GSC fix wariant D): capture authoritative aggregate from
+    // Google Places API New for google_business_meta singleton. Earlier we
+    // already had `userRatingCount` in field mask but ignored the values —
+    // now we store them, and schema's aggregateRating reads from this row
+    // instead of computing avg/count from limited (~23) google_reviews cache.
+    let authoritativeRating: number | null = null;
+    let authoritativeCount: number | null = null;
 
     // Try Places API (New) first
     try {
@@ -105,6 +112,11 @@ async function fetchAndStoreReviews(supabase: any) {
 
         if (response.ok) {
             const data = await response.json();
+            // Capture aggregate first — even if reviews array is empty,
+            // these fields are usually present.
+            if (typeof data.rating === 'number') authoritativeRating = data.rating;
+            if (typeof data.userRatingCount === 'number') authoritativeCount = data.userRatingCount;
+
             const reviews = (data.reviews || []).map((review: any) => ({
                 google_author_name: review.authorAttribution?.displayName || 'Anonim',
                 author_photo_url: review.authorAttribution?.photoUri || null,
@@ -115,7 +127,7 @@ async function fetchAndStoreReviews(supabase: any) {
                 google_maps_uri: review.googleMapsUri || '',
             }));
             allReviews.push(...reviews);
-            console.log(`[Google Reviews] New API: ${reviews.length} reviews`);
+            console.log(`[Google Reviews] New API: ${reviews.length} reviews, aggregate ${authoritativeCount}/${authoritativeRating}`);
         } else {
             console.error(`[Google Reviews] New API error: ${response.status}`);
         }
@@ -130,6 +142,15 @@ async function fetchAndStoreReviews(supabase: any) {
         const response = await fetch(legacyUrl);
         if (response.ok) {
             const data = await response.json();
+            if (data.status === 'OK' && data.result) {
+                // Capture aggregate if new API didn't return it
+                if (authoritativeRating === null && typeof data.result.rating === 'number') {
+                    authoritativeRating = data.result.rating;
+                }
+                if (authoritativeCount === null && typeof data.result.user_ratings_total === 'number') {
+                    authoritativeCount = data.result.user_ratings_total;
+                }
+            }
             if (data.status === 'OK' && data.result?.reviews) {
                 const reviews = data.result.reviews.map((review: any) => ({
                     google_author_name: review.author_name || 'Anonim',
@@ -190,6 +211,29 @@ async function fetchAndStoreReviews(supabase: any) {
         }
 
         console.log(`[Google Reviews] Upserted ${upsertedCount}/${positiveReviews.length} positive reviews into DB`);
+    }
+
+    // 2026-05-23 (GSC fix wariant D): upsert authoritative aggregate to
+    // google_business_meta singleton (id=1). Read by getAggregateRating()
+    // for Dentist schema markup. Only update if we got fresh data from
+    // either API call — never overwrite with nulls.
+    if (authoritativeCount !== null && authoritativeRating !== null) {
+        const { error: metaError } = await supabase
+            .from('google_business_meta')
+            .upsert({
+                id: 1,
+                user_rating_count: authoritativeCount,
+                rating: authoritativeRating,
+                updated_at: new Date().toISOString(),
+            }, { onConflict: 'id' });
+
+        if (metaError) {
+            console.error('[Google Reviews] google_business_meta upsert error:', metaError);
+        } else {
+            console.log(`[Google Reviews] Updated google_business_meta: ${authoritativeCount} reviews, ${authoritativeRating}★`);
+        }
+    } else {
+        console.warn('[Google Reviews] No authoritative aggregate received — google_business_meta not updated');
     }
 }
 
