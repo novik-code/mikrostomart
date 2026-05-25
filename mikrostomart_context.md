@@ -2525,6 +2525,73 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-05-25 — 📋 GSC verification status + strategic plan dalszych działań SEO
+
+**Update bez code changes** — verifikacja stanu po GSC fix sprint + comprehensive strategic planning na kolejne 1-3 miesiące.
+
+#### GSC verification status (od 23.05 do 25.05)
+
+| Snapshot | Errors | Status |
+|---|---|---|
+| 22.05 (przed fixami) | 22 | Critical |
+| 23.05 LATE (po push 7 commitów) | 22 → ? | Marcin kliknął "Sprawdź poprawkę" |
+| 24.05 (Google re-crawl #1) | **2** | Spadek 22→2 (-91%) + komunikat "URL ponownie zindeksowany — sprawdź za kilka dni" |
+| 25.05 (Rich Results Test) | **0 errors** | 3 valid items: Firmy lokalne + Organizacja + 1 Fragment opinii (aggregateRating only) |
+
+**Conclusion**: schema PRODUKCJI jest TERAZ kompletnie czysta. GSC raport ma 1-cycle cache lag — pozostałe 2 errors są historyczne snapshoty, znikną w 3-7 dni gdy GSC pipeline catch-up.
+
+**Comparison przed/po**:
+- Total schema items: 13 → 3 (-77%, lean)
+- Review fragments: 11 (10× embedded review + aggregateRating) → 1 (tylko aggregate) (-91%)
+- Errors: 22 → 0 (verified via Rich Results Test independent check)
+
+#### Strategic plan stworzony
+
+**Output**: `~/Desktop/bałagan/PLAN_SEO_DALSZE_DZIAŁANIA_2026-05-25.md` (comprehensive 9 sekcji, ~12KB)
+
+**Sekcje**:
+1. Executive summary
+2. Co zostało zrobione (Faza J/K/L summary table)
+3. Horyzont krótki 1-2 tyg (L-5 medical review + L-10 + GSC monitor)
+4. Horyzont średni 3-6 tyg (L-6/7/8 content batches + K-MEASURE)
+5. Horyzont długi 3-5 mies (Faza M Content Engine + K-7/K-8 + nowosielski.pl)
+6. Świeże pomysły SEO post-GSC (GBP optimization, local citations, backlink outreach, schema expansion, long-tail audit, competitor analysis)
+7. Defensive ongoing (weekly/biweekly/quarterly checks)
+8. Krytyczne decyzje Marcina pending (L-5 verdict, D4 RODO, nowosielski.pl integration, GBP, świeże pomysły)
+9. Rekomendowany next step (4 opcje A/B/C/D)
+
+**Rekomendowany next step**: **L-10 cross-linking + hreflang audit** (Opcja A) — niezależne od L-5 verdict, polish foreign URL ecosystem przed L-6/L-7/L-8.
+
+#### Bonus pomysły poza pierwotnym planem (Sekcja 6 nowego pliku)
+
+| Pomysł | Effort | Wartość |
+|---|---|---|
+| **GBP optimization** (zdjęcia, posty, FAQ w Business Profile) | 2h Marcin + 30min/tydz | Wysokie ROI, GBP teraz autorytatywne źródło aggregateRating |
+| **Local citations** (znanylekarz.pl, opolskie katalogi) | 1h Marcin | Lokalny SEO boost |
+| **Backlink outreach** (Wydawnictwo Czelej, Magazyn Stom, LA&HA proceedings) | 2h Marcin | High-authority dental industry links |
+| **Schema expansion** (EventSchema LA&HA, BookSchema Czelej, ScholarlyArticle) | 2h AI | Person Marcin entity reinforcement |
+| **Long-tail content audit** (GSC export → article ideas) | 1.5h AI + 5min Marcin | Foundation dla Fazy M content plan |
+| **Competitor analysis** (top 5 konkurencji Opole) | 2h AI | Quick wins identification |
+
+#### Status manual tasków Marcina
+
+✅ **Wszystkie migracje wgrane na bieżąco** (132, 133, 134, 135, 136) na OBU Supabase
+✅ Sitemap audit: 760/760 OK
+✅ Schema verified clean via Rich Results Test
+⏳ L-5 medical review (blokuje L-6/L-7/L-8)
+⏳ CBCT/korony ceny verify (5 min)
+⏳ GSC daily monitor (1 min/dzień przez 3-7 dni do auto-resolve)
+
+#### Brak zmian w kodzie — tylko docs
+
+- `~/Desktop/bałagan/PLAN_SEO_DALSZE_DZIAŁANIA_2026-05-25.md` [NEW]
+- `~/Desktop/bałagan/PLAN_DALSZE_PRACE_2026-05-22.md.bak-2026-05-25` [BACKUP]
+- `mikrostomart_context.md` Recent Changes (ten wpis)
+- `~/Desktop/KOMENDA_STARTOWA_MIKROSTOMART.md` sekcja 0
+- Memory `project_premium_seo_plan.md` status update
+
+---
+
 ### 2026-05-23 — 🚨 GSC CRITICAL FIX: Schema aggregateRating match Google's truth (278→280/4.5)
 
 **Po raporcie GSC** 22 critical errors "Weryfikacja obejmuje wiele ocen zbiorczych" — schema markup mówił 5.0★/23 reviews, a Google Business Profile **280/4.5★**. Plus pricing fix 4800→6000-8000 PLN po Marcin zauważył błąd faktyczny. Plus preemptive cleanup. **6 commitów** na main, **2 migracje DB** (135 + 136), **0 manual taski pending**.
