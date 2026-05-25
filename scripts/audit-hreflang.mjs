@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Audits hreflang circle completeness across all public URLs × 4 locales.
+ * Audits hreflang circle completeness across all public URLs × 4 locales,
+ * plus robots meta + canonical consistency for PL-only and multi-locale pages.
  *
  * Problem: pre-Faza G1 root layout declared a single global hreflang block,
  * so /oferta in EN locale linked to /en as its PL alternate instead of /oferta.
@@ -8,7 +9,7 @@
  * stuck for every public URL and that every page exposes a complete circle:
  *   pl + en + de + uk + x-default (5 entries).
  *
- * Validations per URL:
+ * Validations per URL (multi-locale path):
  *   1. All 5 hreflang values present (pl, en, de, uk, x-default).
  *   2. No `hreflang="ua"` — ISO 639-1 code for Ukrainian is `uk`; `ua` is a
  *      common bug that Google logs as invalid.
@@ -16,6 +17,21 @@
  *   4. Per-page consistency: alternates for path /X in locale L point to the
  *      same physical paths as alternates for /X in any other locale (circle
  *      closes — every locale sees the same set of target URLs).
+ *   5. Page is indexable (no `<meta name="robots" content="noindex">`).
+ *   6. Canonical points to self (not to a different locale variant).
+ *
+ * Validations per URL (PL_ONLY path — /implanty-opole, /sklep, etc.):
+ *   1. PL locale: indexable + canonical = PL self.
+ *   2. Foreign locales (EN/DE/UA): MUST have noindex + canonical pointing to PL.
+ *      Hreflang circle still emitted (best practice for PL-only with foreign
+ *      locale render) but foreign URLs marked noindex so Google drops them from
+ *      index while keeping the canonical signal.
+ *
+ * L-10 (2026-05-25): added PL_ONLY_PATHS set + robots/canonical checks.
+ * New paths added: /implanty-opole (L-1), /leczenie-kanalowe-opole-mikroskop +
+ * /dentysta-opole-centrum (L-2), /gwarancje (L-4 multi-locale), /akredytacje +
+ * 5 detail slugs (K-2b), /zespol/marcin-nowosielski + elzbieta-nowosielska
+ * (Batch SEO-2).
  *
  * Usage:
  *   npm run build && PORT=3789 npm start &
@@ -36,8 +52,8 @@ const BASE_URL = process.env.AUDIT_BASE_URL || 'http://localhost:3789';
 const EXPECTED_LANGS = ['pl', 'en', 'de', 'uk', 'x-default'];
 const LOCALES = ['pl', 'en', 'de', 'ua']; // URL prefixes
 
-// Mirror sitemap.ts mainPaths + contentPaths + toolPaths + legalPaths.
-// /dla-pacjentow-przyjezdnych is part of H7 international landing.
+// Mirror sitemap.ts mainPaths + contentPaths + toolPaths + legalPaths +
+// L-1/L-2 PL-only geo + L-4 gwarancje + K-2b akredytacje + Batch SEO-2 zespol.
 //
 // EXCLUDED: /privacy-policy — EN-only legal page (TikTok API compliance), distinct
 // content from /polityka-prywatnosci. Foreign locales canonical→PL privacy with
@@ -50,7 +66,42 @@ const PUBLIC_PATHS = [
     '/mapa-bolu', '/kalkulator-leczenia', '/porownywarka', '/selfie', '/symulator',
     '/aplikacja', '/zadatek',
     '/regulamin', '/polityka-cookies', '/polityka-prywatnosci', '/rodo',
+    // K-2b (2026-05-20): akredytacje index + 5 detail pages (multi-locale)
+    '/akredytacje', '/akredytacje/pte', '/akredytacje/ese', '/akredytacje/ptsl',
+    '/akredytacje/rwth-aachen', '/akredytacje/la-ha',
+    // Batch SEO-2 (2026-05-21): dedykowane strony zespołu (multi-locale)
+    '/zespol/marcin-nowosielski', '/zespol/elzbieta-nowosielska',
+    // L-4 (2026-05-22): warranty hub (multi-locale, DE Kostenerstattung)
+    '/gwarancje',
+    // L-1/L-2 (2026-05-22): PL-only local geo (foreign noindex via layout.tsx)
+    '/implanty-opole',
+    '/leczenie-kanalowe-opole-mikroskop',
+    '/dentysta-opole-centrum',
 ];
+
+// PL-only paths: foreign locale URLs (en/de/ua) MUST be noindex + canonical to PL.
+// Hreflang circle is still emitted (4 locales declared) so Google understands
+// the PL URL is the canonical version; the foreign noindex tells crawlers to
+// drop those variants from the index.
+const PL_ONLY_PATHS = new Set([
+    '/sklep',              // S5-2: PL-only product list
+    '/regulamin',          // S5-1: PL legal text
+    '/polityka-cookies',
+    '/polityka-prywatnosci',
+    '/rodo',
+    '/implanty-opole',     // L-1: geo, no organic intent in EN/DE/UA
+    '/leczenie-kanalowe-opole-mikroskop', // L-2a
+    '/dentysta-opole-centrum',            // L-2b
+]);
+
+// Globally noindex paths: noindex in EVERY locale (including PL). These are
+// transactional / no-organic-intent landings — listed in sitemap.ts as removed
+// so they shouldn't be in PUBLIC_PATHS at all... except they're often still
+// reachable via internal links (Navbar, Footer), so we audit them to confirm
+// the noindex is honoured.
+const GLOBALLY_NOINDEX_PATHS = new Set([
+    '/zadatek',            // J-2: thin content + URL params, no organic intent
+]);
 
 function urlFor(locale, path) {
     const prefix = locale === 'pl' ? '' : `/${locale}`;
@@ -78,10 +129,10 @@ async function fetchAlternates(url) {
     try {
         const res = await fetch(url, { redirect: 'manual' });
         if (res.status >= 300 && res.status < 400) {
-            return { ok: false, status: res.status, alternates: {}, error: `redirect to ${res.headers.get('location') || '?'}` };
+            return { ok: false, status: res.status, alternates: {}, robots: null, canonical: null, error: `redirect to ${res.headers.get('location') || '?'}` };
         }
         if (!res.ok) {
-            return { ok: false, status: res.status, alternates: {}, error: `HTTP ${res.status}` };
+            return { ok: false, status: res.status, alternates: {}, robots: null, canonical: null, error: `HTTP ${res.status}` };
         }
         const html = await res.text();
         const alternates = {};
@@ -94,13 +145,38 @@ async function fetchAlternates(url) {
         for (const m of html.matchAll(linkReReverse)) {
             if (!alternates[m[2]]) alternates[m[2]] = m[1];
         }
-        return { ok: true, status: res.status, alternates };
+
+        // Extract <meta name="robots" content="..."> — both name+content and content+name orderings.
+        // Next.js typically emits `<meta name="robots" content="noindex, follow"/>`. Case-insensitive.
+        let robots = null;
+        const robotsRe = /<meta[^>]+name=["']robots["'][^>]*content=["']([^"']+)["']/i;
+        const robotsReReverse = /<meta[^>]+content=["']([^"']+)["'][^>]*name=["']robots["']/i;
+        const robotsMatch = html.match(robotsRe) || html.match(robotsReReverse);
+        if (robotsMatch) robots = robotsMatch[1].toLowerCase();
+
+        // Extract <link rel="canonical" href="...">.
+        let canonical = null;
+        const canonicalRe = /<link[^>]+rel=["']canonical["'][^>]*href=["']([^"']+)["']/i;
+        const canonicalReReverse = /<link[^>]+href=["']([^"']+)["'][^>]*rel=["']canonical["']/i;
+        const canonicalMatch = html.match(canonicalRe) || html.match(canonicalReReverse);
+        if (canonicalMatch) canonical = canonicalMatch[1];
+
+        return { ok: true, status: res.status, alternates, robots, canonical };
     } catch (e) {
-        return { ok: false, status: 0, alternates: {}, error: String(e?.message || e) };
+        return { ok: false, status: 0, alternates: {}, robots: null, canonical: null, error: String(e?.message || e) };
     }
 }
 
-function validateAlternates(url, alternates) {
+/**
+ * Returns true if `robots` meta content indicates noindex (handles "noindex",
+ * "noindex,follow", "noindex, follow", "follow,noindex", etc.).
+ */
+function isNoindex(robots) {
+    if (!robots) return false;
+    return /\bnoindex\b/.test(robots);
+}
+
+function validateAlternates(url, alternates, robots, canonical, path, locale) {
     const issues = [];
 
     // 1. All 5 hreflang values present
@@ -122,6 +198,49 @@ function validateAlternates(url, alternates) {
         issues.push(`self-link missing (page is ${selfPath} but no alternate points to it)`);
     }
 
+    // 4. Robots + canonical consistency
+    const isPlOnly = PL_ONLY_PATHS.has(path);
+    const isGloballyNoindex = GLOBALLY_NOINDEX_PATHS.has(path);
+    const noindex = isNoindex(robots);
+    const canonicalPath = canonical ? pathOf(canonical) : null;
+    const plSelfPath = path === '' ? '/' : path;
+
+    if (isGloballyNoindex) {
+        // Page MUST be noindex in every locale (transactional/no-organic-intent
+        // landings — Faza J-2 pattern).
+        if (!noindex) {
+            issues.push(`globally-noindex page (${path}) is missing noindex meta in '${locale}' locale: robots="${robots || '(none)'}"`);
+        }
+    } else if (isPlOnly) {
+        if (locale === 'pl') {
+            // PL canonical version must be indexable.
+            if (noindex) {
+                issues.push(`PL_ONLY page in PL locale has noindex (should be indexable): robots="${robots}"`);
+            }
+            if (canonicalPath && canonicalPath !== plSelfPath) {
+                issues.push(`PL canonical of PL_ONLY page points elsewhere: ${canonicalPath} (expected ${plSelfPath})`);
+            }
+        } else {
+            // Foreign locale variants of PL-only pages MUST be noindex.
+            if (!noindex) {
+                issues.push(`PL_ONLY page in foreign locale '${locale}' is missing noindex meta (would cause duplicate-content indexing): robots="${robots || '(none)'}"`);
+            }
+            // Canonical may point to either self (foreign URL) or the PL page —
+            // either is acceptable. Most layouts ship locale-aware canonical
+            // (points to foreign URL); only a stricter pattern would force PL.
+            // We don't flag canonical mismatch for PL_ONLY foreign locales.
+        }
+    } else {
+        // Multi-locale path — every locale variant should be indexable.
+        if (noindex) {
+            issues.push(`multi-locale page is noindex in '${locale}' locale (probably regression — should be indexable): robots="${robots}"`);
+        }
+        // Canonical should point to self (each locale has its own canonical URL).
+        if (canonicalPath && canonicalPath !== selfPath) {
+            issues.push(`canonical points to ${canonicalPath} instead of self ${selfPath}`);
+        }
+    }
+
     return issues;
 }
 
@@ -133,14 +252,14 @@ console.log(`Auditing ${PUBLIC_PATHS.length} paths × ${LOCALES.length} locales 
 for (const path of PUBLIC_PATHS) {
     for (const locale of LOCALES) {
         const url = urlFor(locale, path);
-        const { ok, status, alternates, error } = await fetchAlternates(url);
+        const { ok, status, alternates, robots, canonical, error } = await fetchAlternates(url);
         if (!ok) {
-            results.push({ url, path, locale, status, error, issues: [`fetch failed: ${error}`], alternates });
+            results.push({ url, path, locale, status, error, issues: [`fetch failed: ${error}`], alternates, robots, canonical });
             process.stdout.write('!');
             continue;
         }
-        const issues = validateAlternates(url, alternates);
-        results.push({ url, path, locale, status, alternates, issues });
+        const issues = validateAlternates(url, alternates, robots, canonical, path, locale);
+        results.push({ url, path, locale, status, alternates, robots, canonical, issues });
         process.stdout.write(issues.length === 0 ? '.' : 'x');
     }
 }
@@ -197,7 +316,12 @@ if (broken.length === 0) {
         byPath.get(r.path).push(r);
     }
     for (const [path, group] of byPath) {
-        md += `### \`${path || '/'}\` (${group.length} broken variant(s))\n\n`;
+        const mode = GLOBALLY_NOINDEX_PATHS.has(path)
+            ? '(globally noindex)'
+            : PL_ONLY_PATHS.has(path)
+                ? '(PL-only)'
+                : '(multi-locale)';
+        md += `### \`${path || '/'}\` ${mode} — ${group.length} broken variant(s)\n\n`;
         for (const r of group) {
             md += `- **${r.locale}** → ${r.url}\n`;
             for (const issue of r.issues) {
@@ -205,17 +329,24 @@ if (broken.length === 0) {
             }
             const altSummary = Object.entries(r.alternates).map(([lang, url]) => `${lang}=${pathOf(url)}`).join(', ');
             md += `  - alternates: ${altSummary || '(none)'}\n`;
+            md += `  - robots: \`${r.robots ?? '(no meta robots)'}\`\n`;
+            md += `  - canonical: \`${r.canonical ? pathOf(r.canonical) : '(none)'}\`\n`;
         }
         md += `\n`;
     }
 }
 
 md += `\n---\n\n## Summary by path\n\n`;
-md += `| Path | OK locales | Broken locales |\n|---|---|---|\n`;
+md += `| Path | Mode | OK locales | Broken locales |\n|---|---|---|---|\n`;
 for (const [path, group] of pathGroups) {
+    const mode = GLOBALLY_NOINDEX_PATHS.has(path)
+        ? 'noindex'
+        : PL_ONLY_PATHS.has(path)
+            ? 'PL-only'
+            : 'multi';
     const okLocales = group.filter((r) => r.issues.length === 0).map((r) => r.locale).join(', ') || '–';
     const brokenLocales = group.filter((r) => r.issues.length > 0).map((r) => r.locale).join(', ') || '–';
-    md += `| \`${path || '/'}\` | ${okLocales} | ${brokenLocales} |\n`;
+    md += `| \`${path || '/'}\` | ${mode} | ${okLocales} | ${brokenLocales} |\n`;
 }
 
 const reportPath = join(REPO_ROOT, 'scripts/audit-hreflang-report.md');

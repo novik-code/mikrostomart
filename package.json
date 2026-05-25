@@ -15,6 +15,7 @@
     "lint:baseline": "node scripts/lint-baseline.mjs --update",
     "lint:ci": "node scripts/lint-baseline.mjs",
     "audit:sitemap": "node scripts/audit-sitemap-indexability.mjs",
+    "audit:hreflang": "node scripts/audit-hreflang.mjs",
     "test": "vitest run"
   },
   "dependencies": {
