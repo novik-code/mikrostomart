@@ -352,6 +352,15 @@ export async function sendEmail(params: {
     html: string;
     inReplyTo?: string;
     references?: string[];
+    /** Optional attachments (added 2026-05-26). nodemailer + MailComposer obsługują
+     * je natively — pole `attachments` w mailOptions trafia bez modyfikacji do
+     * RFC 822 raw, więc IMAP APPEND do Sent folder też je zachowuje. */
+    attachments?: Array<{
+        filename: string;
+        /** Buffer (server-side decoded base64) lub string content */
+        content: Buffer | string;
+        contentType?: string;
+    }>;
 }): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
         const transporter = nodemailer.createTransport(SMTP_CONFIG);
@@ -366,6 +375,7 @@ export async function sendEmail(params: {
         if (params.cc) mailOptions.cc = params.cc;
         if (params.inReplyTo) mailOptions.inReplyTo = params.inReplyTo;
         if (params.references?.length) mailOptions.references = params.references.join(' ');
+        if (params.attachments?.length) mailOptions.attachments = params.attachments;
 
         const info = await transporter.sendMail(mailOptions);
 

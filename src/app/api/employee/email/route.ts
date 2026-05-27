@@ -121,13 +121,92 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { to, cc, subject, html, inReplyTo, references } = body;
+        const { to, cc, subject, html, inReplyTo, references, attachments: rawAttachments } = body;
 
         if (!to || !subject) {
             return NextResponse.json(
                 { error: 'Missing required fields: to, subject' },
                 { status: 400 }
             );
+        }
+
+        // ─── Attachments validation + decode (added 2026-05-26) ────────
+        // Client sends `attachments: [{ filename, contentBase64, contentType }]`.
+        // Limits: max 5 files, 10 MB per file, 25 MB total (większość SMTP serwerów
+        // ma cap 25 MB, base64 zwiększa rozmiar o ~33% więc 25 MB raw = ~33 MB
+        // base64 podczas transferu — server-side decode wraca do raw bytes).
+        const MAX_ATTACHMENT_COUNT = 5;
+        const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB per file
+        const MAX_TOTAL_ATTACHMENTS_BYTES = 25 * 1024 * 1024; // 25 MB total
+
+        let decodedAttachments: Array<{ filename: string; content: Buffer; contentType?: string }> | undefined;
+
+        if (Array.isArray(rawAttachments) && rawAttachments.length > 0) {
+            if (rawAttachments.length > MAX_ATTACHMENT_COUNT) {
+                return NextResponse.json(
+                    { error: `Maksymalnie ${MAX_ATTACHMENT_COUNT} załączników (wysłano ${rawAttachments.length})` },
+                    { status: 400 }
+                );
+            }
+
+            let totalBytes = 0;
+            decodedAttachments = [];
+
+            for (let i = 0; i < rawAttachments.length; i++) {
+                const att = rawAttachments[i];
+                if (!att || typeof att !== 'object') {
+                    return NextResponse.json(
+                        { error: `Załącznik #${i + 1}: niepoprawny format` },
+                        { status: 400 }
+                    );
+                }
+                const { filename, contentBase64, contentType } = att;
+                if (!filename || typeof filename !== 'string') {
+                    return NextResponse.json(
+                        { error: `Załącznik #${i + 1}: brak nazwy pliku` },
+                        { status: 400 }
+                    );
+                }
+                if (!contentBase64 || typeof contentBase64 !== 'string') {
+                    return NextResponse.json(
+                        { error: `Załącznik "${filename}": brak treści` },
+                        { status: 400 }
+                    );
+                }
+
+                // Decode base64 → Buffer. Akceptuje data URI prefix ("data:...;base64,") lub raw base64.
+                const base64Data = contentBase64.includes(',') ? contentBase64.split(',', 2)[1] : contentBase64;
+                let buffer: Buffer;
+                try {
+                    buffer = Buffer.from(base64Data, 'base64');
+                } catch {
+                    return NextResponse.json(
+                        { error: `Załącznik "${filename}": niepoprawne kodowanie base64` },
+                        { status: 400 }
+                    );
+                }
+
+                if (buffer.length > MAX_ATTACHMENT_SIZE_BYTES) {
+                    return NextResponse.json(
+                        { error: `Załącznik "${filename}" przekracza limit 10 MB (rzeczywisty: ${(buffer.length / 1024 / 1024).toFixed(1)} MB)` },
+                        { status: 400 }
+                    );
+                }
+
+                totalBytes += buffer.length;
+                if (totalBytes > MAX_TOTAL_ATTACHMENTS_BYTES) {
+                    return NextResponse.json(
+                        { error: `Suma załączników przekracza limit 25 MB` },
+                        { status: 400 }
+                    );
+                }
+
+                decodedAttachments.push({
+                    filename,
+                    content: buffer,
+                    contentType: typeof contentType === 'string' && contentType ? contentType : undefined,
+                });
+            }
         }
 
         const result = await sendEmail({
@@ -137,6 +216,7 @@ export async function POST(req: NextRequest) {
             html: html || '<p></p>',
             inReplyTo,
             references,
+            attachments: decodedAttachments,
         });
 
         if (result.success) {

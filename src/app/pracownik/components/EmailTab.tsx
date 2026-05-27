@@ -339,6 +339,15 @@ export default function EmailTab() {
     const [composeAiFeedbackResult, setComposeAiFeedbackResult] = useState<string | null>(null);
     const [composeAiFeedbackNote, setComposeAiFeedbackNote] = useState('');
 
+    // Compose attachments (added 2026-05-26) — sessionowe tylko, nie persistują
+    // w email_compose_drafts. User wybiera pliki → trzymamy base64 w state →
+    // wysyłka w body POST → backend decode + nodemailer attachments. Limity
+    // zgodne z backendem: max 5 plików, 10 MB/plik, 25 MB total.
+    type ComposeAttachment = { filename: string; contentBase64: string; contentType: string; size: number };
+    const [composeAttachments, setComposeAttachments] = useState<ComposeAttachment[]>([]);
+    const [attachmentError, setAttachmentError] = useState<string | null>(null);
+    const attachmentInputRef = useRef<HTMLInputElement | null>(null);
+
     // Unread count
     const [unreadCount, setUnreadCount] = useState(0);
 
@@ -838,6 +847,13 @@ export default function EmailTab() {
                     html: composeBody.replace(/\n/g, '<br>'),
                     inReplyTo: composeInReplyTo || undefined,
                     references: composeReferences.length ? composeReferences : undefined,
+                    attachments: composeAttachments.length > 0
+                        ? composeAttachments.map(a => ({
+                            filename: a.filename,
+                            contentBase64: a.contentBase64,
+                            contentType: a.contentType,
+                        }))
+                        : undefined,
                 }),
             });
             const data = await res.json();
@@ -876,6 +892,80 @@ export default function EmailTab() {
         setComposeAiFeedbackResult(null);
         setComposeAiFeedbackNote('');
         setComposeDraftId(null);
+        // Clear attachments (sessionowe, nie persistują w drafts)
+        setComposeAttachments([]);
+        setAttachmentError(null);
+        if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+    };
+
+    // ─── Attachments handlers (added 2026-05-26) ────────────────
+    // Pliki są wczytywane jako base64 do state. Wysyłka w body POST.
+    // Limity zgodne z backendem: max 5 plików, 10 MB/plik, 25 MB total.
+    const MAX_ATTACHMENT_COUNT = 5;
+    const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
+    const MAX_TOTAL_ATTACHMENTS_BYTES = 25 * 1024 * 1024;
+
+    const handleAttachFiles = async (files: FileList | null) => {
+        if (!files || files.length === 0) return;
+        setAttachmentError(null);
+
+        const filesArr = Array.from(files);
+        const currentTotalBytes = composeAttachments.reduce((sum, a) => sum + a.size, 0);
+
+        if (composeAttachments.length + filesArr.length > MAX_ATTACHMENT_COUNT) {
+            setAttachmentError(`Maksymalnie ${MAX_ATTACHMENT_COUNT} załączników. Obecnie masz ${composeAttachments.length}, próbujesz dodać ${filesArr.length}.`);
+            return;
+        }
+
+        const newAttachments: ComposeAttachment[] = [];
+        let runningTotal = currentTotalBytes;
+
+        for (const file of filesArr) {
+            if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+                setAttachmentError(`Plik "${file.name}" przekracza limit 10 MB (rzeczywisty: ${(file.size / 1024 / 1024).toFixed(1)} MB)`);
+                return;
+            }
+            runningTotal += file.size;
+            if (runningTotal > MAX_TOTAL_ATTACHMENTS_BYTES) {
+                setAttachmentError(`Suma załączników przekroczyłaby 25 MB`);
+                return;
+            }
+
+            // Odczyt pliku jako base64 (FileReader.readAsDataURL daje "data:<mime>;base64,<data>")
+            const base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const result = reader.result as string;
+                    // Usuń prefix "data:...;base64," — backend akceptuje obie formy ale czysty base64 mniejszy
+                    const idx = result.indexOf(',');
+                    resolve(idx >= 0 ? result.substring(idx + 1) : result);
+                };
+                reader.onerror = () => reject(reader.error);
+                reader.readAsDataURL(file);
+            });
+
+            newAttachments.push({
+                filename: file.name,
+                contentBase64: base64,
+                contentType: file.type || 'application/octet-stream',
+                size: file.size,
+            });
+        }
+
+        setComposeAttachments(prev => [...prev, ...newAttachments]);
+        // Reset input żeby user mógł dodać ten sam plik ponownie po usunięciu
+        if (attachmentInputRef.current) attachmentInputRef.current.value = '';
+    };
+
+    const removeAttachment = (index: number) => {
+        setComposeAttachments(prev => prev.filter((_, i) => i !== index));
+        setAttachmentError(null);
+    };
+
+    const formatFileSize = (bytes: number): string => {
+        if (bytes < 1024) return `${bytes} B`;
+        if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+        return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
     };
 
     // ─── Compose Drafts (Robocze) ────────────────────────────
@@ -2292,6 +2382,112 @@ export default function EmailTab() {
                                     lineHeight: 1.6,
                                 }}
                             />
+
+                            {/* Attachments section (added 2026-05-26) */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                {/* Hidden file input + Paperclip button */}
+                                <input
+                                    ref={attachmentInputRef}
+                                    type="file"
+                                    multiple
+                                    onChange={e => handleAttachFiles(e.target.files)}
+                                    style={{ display: 'none' }}
+                                />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <button
+                                        type="button"
+                                        onClick={() => attachmentInputRef.current?.click()}
+                                        disabled={composeAttachments.length >= MAX_ATTACHMENT_COUNT}
+                                        style={{
+                                            background: composeAttachments.length >= MAX_ATTACHMENT_COUNT ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.05)',
+                                            border: '1px solid rgba(255,255,255,0.15)',
+                                            borderRadius: '0.4rem',
+                                            padding: '0.4rem 0.7rem',
+                                            color: composeAttachments.length >= MAX_ATTACHMENT_COUNT ? 'rgba(255,255,255,0.3)' : '#fff',
+                                            fontSize: '0.78rem',
+                                            cursor: composeAttachments.length >= MAX_ATTACHMENT_COUNT ? 'not-allowed' : 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem',
+                                        }}
+                                        title={composeAttachments.length >= MAX_ATTACHMENT_COUNT ? `Maksymalnie ${MAX_ATTACHMENT_COUNT} załączników` : 'Dodaj załącznik (max 10 MB / plik, 25 MB total)'}
+                                    >
+                                        <Paperclip size={14} />
+                                        Załącznik
+                                        {composeAttachments.length > 0 && (
+                                            <span style={{ color: 'var(--color-primary, #dcb14a)', fontWeight: 600 }}>
+                                                ({composeAttachments.length}/{MAX_ATTACHMENT_COUNT})
+                                            </span>
+                                        )}
+                                    </button>
+                                    {composeAttachments.length > 0 && (
+                                        <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>
+                                            łącznie: {formatFileSize(composeAttachments.reduce((s, a) => s + a.size, 0))} / 25 MB
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* Attachment error */}
+                                {attachmentError && (
+                                    <div style={{
+                                        padding: '0.4rem 0.6rem',
+                                        background: 'rgba(239,68,68,0.1)',
+                                        border: '1px solid rgba(239,68,68,0.2)',
+                                        borderRadius: '0.35rem',
+                                        color: '#ef4444',
+                                        fontSize: '0.78rem',
+                                    }}>
+                                        ⚠️ {attachmentError}
+                                    </div>
+                                )}
+
+                                {/* List of attachments */}
+                                {composeAttachments.length > 0 && (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                                        {composeAttachments.map((att, idx) => (
+                                            <div
+                                                key={idx}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    padding: '0.4rem 0.6rem',
+                                                    background: 'rgba(255,255,255,0.04)',
+                                                    border: '1px solid rgba(255,255,255,0.08)',
+                                                    borderRadius: '0.35rem',
+                                                    fontSize: '0.78rem',
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1 }}>
+                                                    <Paperclip size={13} style={{ color: 'rgba(255,255,255,0.4)', flexShrink: 0 }} />
+                                                    <span style={{ color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                        {att.filename}
+                                                    </span>
+                                                    <span style={{ color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>
+                                                        ({formatFileSize(att.size)})
+                                                    </span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeAttachment(idx)}
+                                                    style={{
+                                                        background: 'transparent',
+                                                        border: 'none',
+                                                        color: 'rgba(255,255,255,0.4)',
+                                                        cursor: 'pointer',
+                                                        padding: '0.2rem',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                    }}
+                                                    title="Usuń załącznik"
+                                                >
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Send result */}
                             {sendResult && (
