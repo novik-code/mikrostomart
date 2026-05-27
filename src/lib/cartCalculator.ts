@@ -52,6 +52,20 @@ export class CartValidationError extends Error {
 const MAX_LINE_ITEMS = 50;
 const MAX_QUANTITY_PER_LINE = 100;
 
+/**
+ * System products — używane przez dedykowane flows (np. /zadatek), nie listowane
+ * w /sklep retail. Admin może je ukrywać przez `is_visible=false` w panelu
+ * (żeby nie pojawiały się w listingu /sklep), ale CART CHECKOUT musi je nadal
+ * akceptować — w przeciwnym razie /zadatek flow się rozjeżdża.
+ *
+ * Production blocker fix 2026-05-26: produkt `deposit-payment` był ukryty w
+ * admin panelu (`isVisible: false` — poprawne UX dla /sklep), co powodowało że
+ * /api/cart/calculate-total rzucał "Product not available: deposit-payment"
+ * dla wszystkich pacjentów próbujących wpłacić zadatek przez /zadatek.
+ * Whitelist bypass'uje is_visible filter dla tych product IDs.
+ */
+const SYSTEM_PRODUCT_IDS = new Set<string>(['deposit-payment']);
+
 function getSupabase() {
     return createClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -97,7 +111,10 @@ export async function calculateCartTotal(items: CartItemInput[]): Promise<CartCa
         if (!product) {
             throw new CartValidationError(`Product not found: ${item.productId}`, item.productId);
         }
-        if (product.is_visible === false) {
+        // is_visible=false ukrywa produkt z listingu /sklep, ale system products
+        // (np. deposit-payment używany w /zadatek) muszą być nadal dostępne dla
+        // checkout — w przeciwnym wypadku /zadatek flow się rozjeżdża.
+        if (product.is_visible === false && !SYSTEM_PRODUCT_IDS.has(item.productId)) {
             throw new CartValidationError(`Product not available: ${item.productId}`, item.productId);
         }
 
