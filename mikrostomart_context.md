@@ -1350,7 +1350,8 @@ Features:
     - Auto email labels: classifyEmail assigns Powiadomienia, Strona, Chat, Pozostałe, Ważne
     - Gmail-style horizontal category tabs with unread counts
     - Compose window with SMTP sending (reply, reply-all, new email)
-    - Compose drafts auto-saved to Supabase (`email_compose_drafts`)
+    - **Attachments — RECEIVE + SEND** (send added 2026-05-26): odbiór (download z wyświetlanej wiadomości via `?action=attachment`) + **wysyłka** (📎 Paperclip w compose → multi-file → base64 → nodemailer attachments, max 5 plików / 10 MB / 25 MB total, sessionowe nie persistują w drafts)
+    - Compose drafts auto-saved to Supabase (`email_compose_drafts`) — uwaga: drafts NIE zapisują attachmentów (sessionowe)
     - Read/unread toggle, manual label reassignment, load-more pagination
     - **AI Draft Assistant**: Cron generates AI reply drafts (GPT-4o-mini) hourly
     - **Regeneruj button**: Iterative refinement — rate, tag, add notes, regenerate improved version
@@ -1650,7 +1651,7 @@ Features:
 | `/employee/calendar/auth` | GET | Google OAuth flow initiation |
 | `/employee/calendar/auth/callback` | GET | Google OAuth callback handler |
 | `/employee/assistant/memory` | GET, POST, DELETE | AI assistant conversation memory CRUD |
-| `/employee/email` | GET, POST | **NEW** — IMAP email client (GET: fetch emails, POST: SMTP send). Admin only. |
+| `/employee/email` | GET, POST | **NEW** — IMAP email client. GET: fetch emails / `?action=attachment` download. POST: SMTP send **z opcjonalnymi załącznikami** (`attachments: [{filename, contentBase64, contentType}]`, max 5 plików / 10 MB każdy / 25 MB total — added 2026-05-26). Admin only. |
 | `/employee/email-drafts` | GET, PUT | **NEW** — AI email drafts CRUD. GET: list by status/email_uid. PUT: approve/reject/send/return_for_learning + rating/tags. |
 | `/employee/email-generate-reply` | POST | **NEW** — On-demand AI reply generation. Accepts `inline_feedback` for iterative Regeneruj refinement. |
 | `/employee/email-ai-config` | GET, POST, PUT, DELETE | **NEW** — AI sender rules, instructions, feedback stats CRUD. |
@@ -2616,6 +2617,53 @@ Pozostałe do Wave 4+: 010 (zachowawcze pod mikroskopem), 019 (zabiegi higien), 
 #### Brak migracji innych ani env var
 
 Migracje 155-158 INSERT + 154 UPDATE (fix). Brak env var.
+
+---
+
+### 2026-05-26 #4 — 📎 Email client: wysyłanie załączników (strefa pracownika)
+
+**Marcin zgłosił** że Gmail-style email client w strefie pracownika nie ma funkcji dodawania załączników do wysyłanych wiadomości. Analiza git history (`EmailTab.tsx` od marca 2026, commit `5d204c5` rebuild) wykazała: funkcja **odbierania** załączników działa od początku (parser IMAP, download, ikona Paperclip), ale **wysyłka** załączników **nigdy nie była zaimplementowana**. To nie był bug — funkcji nie było.
+
+#### Commit
+- `73dabe4` — feat(email): dodaj możliwość wysyłania załączników w email clientcie strefy pracownika
+
+#### Diagnoza (stan przed)
+
+- **Odbiór attachmentów DZIAŁAŁ**: `imapService.ts:getAttachment()`, endpoint `GET /api/employee/email?action=attachment`, UI `downloadAttachment()` w EmailTab, ikona Paperclip przy mailach z `hasAttachments`
+- **Wysyłka attachmentów NIE ISTNIAŁA**: `sendEmail()` w imapService nie miał pola `attachments`, POST `/api/employee/email` nie parsował, frontend `handleSend()` wysyłał tylko `{to, cc, subject, html, inReplyTo, references}`
+
+#### Implementacja (3 pliki, ~290 LOC)
+
+**1. `src/lib/imapService.ts:sendEmail()`** — dodany optional param `attachments?: Array<{filename, content: Buffer|string, contentType?}>`. nodemailer + MailComposer obsługują natively — pole trafia do `mailOptions`, raw RFC 822 do IMAP APPEND (Sent folder) zachowuje attachmenty automatycznie.
+
+**2. `src/app/api/employee/email/route.ts` POST** — przyjmuje `attachments: [{filename, contentBase64, contentType}]` z JSON body. Walidacja:
+- Max 5 załączników
+- Max 10 MB na plik
+- Max 25 MB total (większość SMTP serwerów cap 25 MB)
+Decode base64 → Buffer (akceptuje data URI prefix lub raw) → pass do `sendEmail()`. Czytelne błędy PL per file.
+
+**3. `src/app/pracownik/components/EmailTab.tsx`**:
+- `ComposeAttachment` state + `attachmentInputRef`
+- `handleAttachFiles()` — FileReader.readAsDataURL → base64 + walidacja pre-flight (count/size/total)
+- `removeAttachment()` + `formatFileSize()` helpers
+- UI compose modal: hidden file input (multiple) + 📎 Paperclip button (label dynamiczny "Załącznik (2/5)") + lista plików z rozmiarem + X usuwania + łączna waga "X MB / 25 MB" + disabled state przy 5/5
+- `handleSend()` wysyła `attachments` w body POST
+- `resetCompose()` clear listy
+
+#### Decyzje architektoniczne
+
+- **Załączniki SESSIONOWE** — NIE persistują w `email_compose_drafts` (jak Gmail, pragmatyczne, nie wymaga Supabase Storage bucket). Po zamknięciu compose attachmenty znikają, draft tekstowy zostaje.
+- **Brak whitelist MIME types** — user decyduje co załącza (klient mailowy nie powinien narzucać). PDF/DOCX/ZIP/JPG/etc działają.
+- **Limity 5×10MB / 25MB total** — większość SMTP serwerów cap 25 MB; base64 overhead +33% więc limit serwera jest twardy.
+- **Reset input.value** po dodaniu — user może ponownie wybrać ten sam plik po usunięciu (Chrome cache'uje onChange).
+
+#### Co działa po deploy
+
+📎 Paperclip button w compose → multi-file selection → lista z rozmiarem + X → wysyłka → attachment u recipienta + zachowany w Sent folder. Działa też przy Reply/Forward (zachowuje istniejące referencje). Build clean.
+
+#### Brak migracji DB ani env var
+
+Czysto code (imapService + email route + EmailTab). Vercel auto-deploy.
 
 ---
 
@@ -14108,7 +14156,7 @@ OpenAI gpt-image-1 regenerates the entire masked area from scratch (+ forces 102
 - [x] **Patient documents** — download signed consents & e-karta PDFs from patient portal
 - [x] **Centralized email service** — emailService.ts with 4 branded email templates
 - [x] **Employee Zone component split** — 6300→778 LOC page.tsx, 5 extracted components, 2 hooks, central type re-exports
-- [x] **Gmail-style Email Client** — Full IMAP/SMTP client in Employee Zone (admin-only), auto-labeling, compose drafts
+- [x] **Gmail-style Email Client** — Full IMAP/SMTP client in Employee Zone (admin-only), auto-labeling, compose drafts, **attachments receive + send** (send added 2026-05-26: 📎 compose, max 5×10MB/25MB total, nodemailer attachments)
 - [x] **AI Email Draft Assistant** — Hourly cron generates AI replies, training system (sender rules, instructions, feedback), on-demand reply generation
 - [x] **Regeneruj iterative refinement** — Rate + tag + notes → regenerate improved AI draft
 - [x] **SMS Settings Admin Controls** — Toggle SMS automation types on/off
