@@ -414,6 +414,8 @@ export default function MetamorphosisGallery({ initialIndex = 0 }: { initialInde
                             key={currentItem.id}
                             beforeImage={currentItem.before}
                             afterImage={currentItem.after}
+                            beforeAlt={`Metamorfoza uśmiechu — ${currentItem.title}: stan przed leczeniem | Mikrostomart Opole`}
+                            afterAlt={`Metamorfoza uśmiechu — ${currentItem.title}: efekt po leczeniu | Mikrostomart Opole`}
                             onHoverStart={() => setActiveTooltip(currentIndex % 2 === 0 ? 'right' : 'left')}
                         />
                     </div>

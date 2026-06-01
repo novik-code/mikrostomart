@@ -371,7 +371,7 @@ export default function YouTubeFeed() {
                                             overflow: 'hidden'
                                         }}>
                                             {social.badge === 'logo' ? (
-                                                <Image src="/logo-transparent.png" alt="Clinic" width={32} height={32} style={{ width: '80%', height: 'auto', opacity: 0.9 }} />
+                                                <Image src="/logo-transparent.png" alt="Mikrostomart — gabinet stomatologiczny Opole" width={32} height={32} style={{ width: '80%', height: 'auto', opacity: 0.9 }} />
                                             ) : (
                                                 <UserRound size={12} color={social.color} />
                                             )}

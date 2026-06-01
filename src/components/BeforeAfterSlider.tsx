@@ -8,12 +8,14 @@ interface BeforeAfterSliderProps {
     beforeImage: string;
     afterImage: string;
     maskImage?: string | null; // NEW: Precision Binary Mask (White=Teeth, Black=Transparent)
+    beforeAlt?: string; // SEO/a11y: opisowy alt dla zdjęcia "przed" (Google Images)
+    afterAlt?: string;  // SEO/a11y: opisowy alt dla zdjęcia "po"
     onHoverStart?: () => void;
     onHoverEnd?: () => void;
     onInteraction?: () => void;
 }
 
-export default function BeforeAfterSlider({ beforeImage, afterImage, maskImage, onHoverStart, onHoverEnd, onInteraction }: BeforeAfterSliderProps) {
+export default function BeforeAfterSlider({ beforeImage, afterImage, maskImage, beforeAlt, afterAlt, onHoverStart, onHoverEnd, onInteraction }: BeforeAfterSliderProps) {
     const t = useTranslations('beforeAfter');
     const [sliderPosition, setSliderPosition] = useState(50);
     const [isResizing, setIsResizing] = useState(false);
@@ -97,7 +99,7 @@ export default function BeforeAfterSlider({ beforeImage, afterImage, maskImage, 
                     {maskImage && (
                         <img
                             src={beforeImage}
-                            alt="Safety Background"
+                            alt={beforeAlt || t('before')}
                             style={{
                                 position: 'absolute', top: 0, left: 0,
                                 width: '100%', height: '100%',
@@ -109,7 +111,7 @@ export default function BeforeAfterSlider({ beforeImage, afterImage, maskImage, 
                     {/* 2. Foreground: AI Result */}
                     <img
                         src={afterImage}
-                        alt="After"
+                        alt={afterAlt || t('after')}
                         style={{
                             width: '100%',
                             height: '100%',
@@ -160,7 +162,7 @@ export default function BeforeAfterSlider({ beforeImage, afterImage, maskImage, 
                 }}>
                     <img
                         src={beforeImage}
-                        alt="Before"
+                        alt={beforeAlt || t('before')}
                         style={{
                             width: '100%',
                             height: '100%',

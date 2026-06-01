@@ -199,7 +199,7 @@ export default function OfferCarousel() {
                                     <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
                                         <Image
                                             src={offer.image}
-                                            alt={offer.title}
+                                            alt={`${offer.title} — Mikrostomart, stomatologia Opole`}
                                             fill
                                             sizes="(max-width: 768px) 100vw, 50vw"
                                             style={{ objectFit: 'cover' }}

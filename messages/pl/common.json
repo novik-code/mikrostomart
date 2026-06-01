@@ -47,7 +47,8 @@
         "prevLabel": "Poprzedni slajd",
         "nextLabel": "Następny slajd",
         "goToSlide": "Przejdź do slajdu {idx} z {total}",
-        "slideOf": "Slajd {idx} z {total}"
+        "slideOf": "Slajd {idx} z {total}",
+        "seoH1": "Stomatolog Opole — Mikrostomart: mikroskopowa stomatologia, implanty i endodoncja"
     },
     "heroSlides": {
         "emotional": {

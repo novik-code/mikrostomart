@@ -19,7 +19,9 @@
 //   Marcin zaakceptował: "moze rzeczywiscie lepiej to usunac" (2026-05-21).
 //
 // 5 slidów z różnymi SEO angles, każdy ma własny CTA do relewantnej landing page.
-// Slide 1 = <h1> (Google preferuje 1 per page), pozostałe = <h2>.
+// H1: jeden keyword-rich (geo) w SSR-only hidden block (heroSlideshow.seoH1).
+// Wszystkie slajdy (SSR + widoczny carousel) = <h2> — Google preferuje 1 h1/page,
+// a fraza główna nie powinna polegać na zmiennym tekście slajdów (2026-06-01 Pakiet A SEO).
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { LazyMotion, domAnimation, m, AnimatePresence } from "framer-motion";
@@ -124,8 +126,6 @@ export default function HeroSlideshow() {
         return () => clearInterval(timer);
     }, [page, isPaused, isInView]);
 
-    const isPrimary = activeIndex === 0;
-
     return (
         <LazyMotion features={domAnimation} strict>
         <section
@@ -151,16 +151,17 @@ export default function HeroSlideshow() {
                 Aktywny slide renderuje się w widocznym carousel niżej, ale Googlebot
                 widzi te 5 sekcji bez czekania na hydration. Hidden via clip-path. */}
             <div style={{ clipPath: "inset(50%)", height: 1, width: 1, position: "absolute", overflow: "hidden", whiteSpace: "nowrap" }} aria-hidden="true">
-                {SLIDES.map((s, idx) => {
-                    const Heading = idx === 0 ? "h1" : "h2";
-                    return (
-                        <div key={s.id}>
-                            <p>{s.tagline}</p>
-                            <Heading>{s.title1} {s.title2}</Heading>
-                            <p>{s.description}</p>
-                        </div>
-                    );
-                })}
+                {/* Jedyny <h1> strony — keyword-rich (geo "Stomatolog Opole" / locale-aware).
+                    Widoczny carousel używa <h2> (slajdy zmieniają tekst, fraza główna nie
+                    powinna na nich polegać). 5 slidów = 5 narracji SEO jako <h2>. */}
+                <h1>{tNav("seoH1")}</h1>
+                {SLIDES.map((s) => (
+                    <div key={s.id}>
+                        <p>{s.tagline}</p>
+                        <h2>{s.title1} {s.title2}</h2>
+                        <p>{s.description}</p>
+                    </div>
+                ))}
             </div>
 
             <div className="relative z-20 w-full max-w-4xl px-4 md:px-12 h-full flex flex-col justify-center">
@@ -221,35 +222,19 @@ export default function HeroSlideshow() {
                                 {slide.tagline}
                             </p>
 
-                            {isPrimary ? (
-                                <h1
-                                    style={{
-                                        fontSize: "clamp(2rem, 4vw, 3.2rem)",
-                                        marginBottom: "1.5rem",
-                                        lineHeight: 1.15,
-                                        fontFamily: "serif",
-                                        color: "white",
-                                        fontWeight: 400,
-                                    }}
-                                >
-                                    {slide.title1} <br />
-                                    <span style={{ fontStyle: "italic", color: "var(--color-primary-light)" }}>{slide.title2}</span>
-                                </h1>
-                            ) : (
-                                <h2
-                                    style={{
-                                        fontSize: "clamp(2rem, 4vw, 3.2rem)",
-                                        marginBottom: "1.5rem",
-                                        lineHeight: 1.15,
-                                        fontFamily: "serif",
-                                        color: "white",
-                                        fontWeight: 400,
-                                    }}
-                                >
-                                    {slide.title1} <br />
-                                    <span style={{ fontStyle: "italic", color: "var(--color-primary-light)" }}>{slide.title2}</span>
-                                </h2>
-                            )}
+                            <h2
+                                style={{
+                                    fontSize: "clamp(2rem, 4vw, 3.2rem)",
+                                    marginBottom: "1.5rem",
+                                    lineHeight: 1.15,
+                                    fontFamily: "serif",
+                                    color: "white",
+                                    fontWeight: 400,
+                                }}
+                            >
+                                {slide.title1} <br />
+                                <span style={{ fontStyle: "italic", color: "var(--color-primary-light)" }}>{slide.title2}</span>
+                            </h2>
 
                             <p
                                 style={{
