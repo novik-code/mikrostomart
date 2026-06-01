@@ -18,6 +18,10 @@ const PRIVATE_PATHS = [
     '/s/',
     '/opieka/',
     '/wizyta/', // S5-2 will add noindex metadata; preemptively block crawl here
+    // Audyt SEO 2026-06 (P3): koszyk + płatność to thin transactional pages bez
+    // organic intent — wykluczamy z crawl (koszyk ma noindex w layout, /platnosc nie).
+    '/koszyk',
+    '/platnosc',
 ];
 
 const LOCALE_PREFIXES = ['', '/en', '/de', '/ua'];

@@ -345,5 +345,59 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             };
         });
 
-    return [...mainRoutes, ...contentRoutes, ...metamorfozyRoutes, ...shopRoute, ...implantyOpoleRoute, ...localGeoRoutes, ...intlGeoRoutes, ...toolRoutes, ...legalRoutes, ...newsRoutes, ...kbRoutes];
+    // ── Dynamic: /nowosielski blog posts — per-locale in DB (like KB articles) ──
+    // Audyt SEO 2026-06 (P1): listing /nowosielski był crawl-orphaned (CSR-only +
+    // brak w sitemap), a strony szczegółowe /nowosielski/[slug] są poprawnie SSR'owane
+    // ale Google nie miał jak ich odkryć. Blog mikrostomart.pl/nowosielski ZOSTAJE
+    // (nowosielski.pl to osobna domena) → jego artykuły mają być indeksowane.
+    // Każdy wiersz = jeden locale + slug; tłumaczenia łączone przez group_id (hreflang).
+    const { data: blogRowsRaw } = await supabase
+        .from('blog_posts')
+        .select('slug, date, locale, group_id, image, is_published');
+
+    const blogRows = (blogRowsRaw || []).filter((b: any) => {
+        if (!b.is_published) return false;
+        if (!isSafeSlug(b.slug)) {
+            console.warn(`[sitemap] Skipping blog post with unsafe slug: "${b.slug}" (locale=${b.locale})`);
+            return false;
+        }
+        return true;
+    });
+
+    const groupedBlog = new Map<string, any[]>();
+    for (const b of blogRows) {
+        if (!b.group_id) continue;
+        const list = groupedBlog.get(b.group_id) || [];
+        list.push(b);
+        groupedBlog.set(b.group_id, list);
+    }
+
+    const blogRoutes: MetadataRoute.Sitemap = blogRows
+        .filter((b: any) => b.locale && b.slug)
+        .map((post: any) => {
+            const url = `${BASE_URL}${localePath(post.locale, `/nowosielski/${post.slug}`)}`;
+
+            const groupRows = post.group_id ? groupedBlog.get(post.group_id) || [post] : [post];
+            const languages: Record<string, string> = {};
+            for (const row of groupRows) {
+                if (!row.locale || !row.slug) continue;
+                const hreflang = HREFLANG_MAP[row.locale] || row.locale;
+                languages[hreflang] = `${BASE_URL}${localePath(row.locale, `/nowosielski/${row.slug}`)}`;
+            }
+            const plRow = groupRows.find((r: any) => r.locale === 'pl');
+            if (plRow?.slug) {
+                languages['x-default'] = `${BASE_URL}/nowosielski/${plRow.slug}`;
+            }
+
+            return {
+                url,
+                lastModified: post.date ? new Date(post.date) : new Date(buildTime),
+                changeFrequency: 'monthly' as const,
+                priority: 0.7,
+                alternates: { languages },
+                ...(post.image ? { images: [absImg(post.image)] } : {}),
+            };
+        });
+
+    return [...mainRoutes, ...contentRoutes, ...metamorfozyRoutes, ...shopRoute, ...implantyOpoleRoute, ...localGeoRoutes, ...intlGeoRoutes, ...toolRoutes, ...legalRoutes, ...newsRoutes, ...kbRoutes, ...blogRoutes];
 }

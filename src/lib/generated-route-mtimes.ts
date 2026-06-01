@@ -4,7 +4,7 @@
 // signal instead of "every page changed right now" on each sitemap regeneration.
 
 export const routeMtimes: Record<string, string> = {
-    "": "2026-05-18T18:24:28+02:00",
+    "": "2026-06-01T11:03:26+02:00",
     "/o-nas": "2026-05-21T12:58:54+02:00",
     "/oferta": "2026-05-10T07:51:40+02:00",
     "/oferta/implantologia": "2026-05-21T12:58:54+02:00",
@@ -18,7 +18,7 @@ export const routeMtimes: Record<string, string> = {
     "/rezerwacja": "2026-05-10T07:51:40+02:00",
     "/dla-pacjentow-przyjezdnych": "2026-05-21T22:14:07+02:00",
     "/aktualnosci": "2026-05-14T14:40:59+02:00",
-    "/baza-wiedzy": "2026-05-10T07:51:40+02:00",
+    "/baza-wiedzy": "2026-06-01T09:38:54+02:00",
     "/metamorfozy": "2026-05-10T07:51:40+02:00",
     "/sklep": "2026-05-12T10:09:39+02:00",
     "/faq": "2026-05-10T07:51:40+02:00",
@@ -34,8 +34,22 @@ export const routeMtimes: Record<string, string> = {
     "/polityka-cookies": "2026-05-12T09:32:15+02:00",
     "/polityka-prywatnosci": "2026-05-17T21:43:41+02:00",
     "/rodo": "2026-05-12T09:32:15+02:00",
-    "/privacy-policy": "2026-05-21T22:14:07+02:00"
+    "/privacy-policy": "2026-05-21T22:14:07+02:00",
+    "/akredytacje": "2026-05-20T12:51:37+02:00",
+    "/akredytacje/pte": "2026-05-20T12:51:37+02:00",
+    "/akredytacje/ese": "2026-05-20T12:51:37+02:00",
+    "/akredytacje/ptsl": "2026-05-20T12:51:37+02:00",
+    "/akredytacje/rwth-aachen": "2026-05-20T12:51:37+02:00",
+    "/akredytacje/la-ha": "2026-05-20T12:51:37+02:00",
+    "/zespol/marcin-nowosielski": "2026-05-21T20:52:46+02:00",
+    "/zespol/elzbieta-nowosielska": "2026-05-21T12:58:54+02:00",
+    "/gwarancje": "2026-05-22T04:33:40+02:00",
+    "/implanty-opole": "2026-06-01T09:38:54+02:00",
+    "/leczenie-kanalowe-opole-mikroskop": "2026-06-01T09:38:54+02:00",
+    "/dentysta-opole-centrum": "2026-06-01T09:38:54+02:00",
+    "/zahnarzt-opole": "2026-06-01T11:03:26+02:00",
+    "/dentist-opole": "2026-06-01T11:03:26+02:00"
 };
 
 /** Fallback for routes not in the map (e.g. newly added pages before next regen). */
-export const buildTime: string = "2026-05-29T13:39:55.286Z";
+export const buildTime: string = "2026-06-01T17:32:23.954Z";

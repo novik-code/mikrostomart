@@ -208,6 +208,16 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
         ? (localizedArticle.tags as string[]).join(', ')
         : null;
 
+    // Audyt SEO 2026-06: autor jako Physician @id (konsoliduje z węzłem Marcina z
+    // personSchemas.ts) zamiast inline Person → /o-nas. Naprawia reciprocal link
+    // (Knowledge Graph) + stale URL (dedykowana strona to /zespol/marcin-nowosielski).
+    const physicianRef = {
+        "@type": "Physician",
+        "@id": `${brand.appUrl}/#marcin-nowosielski`,
+        "name": "Marcin Nowosielski",
+        "url": `${brand.appUrl}/zespol/marcin-nowosielski`,
+    };
+
     const articleSchema: Record<string, unknown> = {
         "@context": "https://schema.org",
         "@type": "NewsArticle",
@@ -216,11 +226,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
         "image": schemaImageUrl(localizedArticle.image),
         "datePublished": localizedArticle.date,
         "dateModified": localizedArticle.updated_at || localizedArticle.date,
-        "author": {
-            "@type": "Person",
-            "name": "Marcin Nowosielski",
-            "url": `${brand.appUrl}/o-nas`,
-        },
+        "author": physicianRef,
         "publisher": {
             "@type": "Organization",
             "name": brand.name,

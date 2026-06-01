@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabaseClient';
 import { brand, brandI18nParams } from '@/lib/brandConfig';
 import RevealOnScroll from '@/components/RevealOnScroll';
+import ArticleByline from '@/components/ArticleByline';
 // H3 BUG FIX (2026-05-10): server components NIE mogą używać Link z
 // @/i18n/navigation. Manualny <a> z locale prefix.
 import Image from 'next/image';
@@ -293,6 +294,11 @@ export default async function ArticlePage({
                         }}>
                             {article.title}
                         </h1>
+                        <ArticleByline
+                            locale={locale}
+                            datePublished={article.date}
+                            dateModified={article.updated_at}
+                        />
                         <div style={{ position: "relative", width: "100%", height: "400px", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
                             <Image
                                 src={article.image}

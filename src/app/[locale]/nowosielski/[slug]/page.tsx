@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import RevealOnScroll from '@/components/RevealOnScroll';
+import ArticleByline from '@/components/ArticleByline';
 import { getTranslations } from 'next-intl/server';
 import { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
@@ -195,20 +196,26 @@ export default async function BlogPost({
         ? (post.tags as string[]).join(', ')
         : null;
 
+    // Audyt SEO 2026-06: physicianRef reuse dla author + reviewedBy (E-E-A-T medical).
+    const physicianRef = {
+        "@type": "Physician",
+        "@id": `${brand.appUrl}/#marcin-nowosielski`,
+        "name": "Marcin Nowosielski",
+        "url": `${brand.appUrl}/zespol/marcin-nowosielski`,
+    };
+    const datePublished = post.created_at || post.published_at || post.date;
+    const dateModified = post.updated_at || post.created_at || post.published_at || post.date;
+
     const articleSchema: Record<string, unknown> = {
         "@context": "https://schema.org",
         "@type": "BlogPosting",
         "headline": post.title,
         "description": post.excerpt || post.title,
         "image": schemaImageUrl(post.image),
-        "datePublished": post.created_at || post.published_at || post.date,
-        "dateModified": post.updated_at || post.created_at || post.published_at || post.date,
-        "author": {
-            "@type": "Physician",
-            "@id": `${brand.appUrl}/#marcin-nowosielski`,
-            "name": "Marcin Nowosielski",
-            "url": `${brand.appUrl}/zespol/marcin-nowosielski`,
-        },
+        "datePublished": datePublished,
+        "dateModified": dateModified,
+        "author": physicianRef,
+        "reviewedBy": physicianRef,
         "publisher": {
             "@type": "Organization",
             "name": brand.name,
@@ -276,6 +283,12 @@ export default async function BlogPost({
                         }}>
                             {post.title}
                         </h1>
+
+                        <ArticleByline
+                            locale={locale}
+                            datePublished={datePublished}
+                            dateModified={dateModified}
+                        />
 
                         <div style={{ position: "relative", width: "100%", height: "400px", borderRadius: "var(--radius-md)", overflow: "hidden", marginBottom: '2rem' }}>
                             {post.image && (

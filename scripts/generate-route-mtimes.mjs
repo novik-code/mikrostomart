@@ -61,6 +61,25 @@ const ROUTE_FILES = {
     '/polityka-prywatnosci': ['src/app/[locale]/polityka-prywatnosci/page.tsx', 'src/app/[locale]/polityka-prywatnosci/layout.tsx'],
     '/rodo': ['src/app/[locale]/rodo/page.tsx', 'src/app/[locale]/rodo/layout.tsx'],
     '/privacy-policy': ['src/app/[locale]/privacy-policy/page.tsx', 'src/app/[locale]/privacy-policy/layout.tsx'],
+    // Audyt SEO 2026-06: poniższe 14 ścieżek były w sitemap.ts ale brakowało ich
+    // w ROUTE_FILES → spadały do `buildTime = new Date()` i każdy deploy stemplował
+    // je jako „zmienione teraz" (regresja freshness J-1). Dodane tu = realny mtime.
+    '/akredytacje': ['src/app/[locale]/akredytacje/page.tsx', 'src/app/[locale]/akredytacje/layout.tsx'],
+    // akredytacje/[slug] są data-driven — content żyje w src/data/akredytacje.ts,
+    // więc mtime liczymy z modułu danych + dynamicznych plików trasy [slug].
+    '/akredytacje/pte': ['src/data/akredytacje.ts', 'src/app/[locale]/akredytacje/[slug]/page.tsx', 'src/app/[locale]/akredytacje/[slug]/layout.tsx'],
+    '/akredytacje/ese': ['src/data/akredytacje.ts', 'src/app/[locale]/akredytacje/[slug]/page.tsx', 'src/app/[locale]/akredytacje/[slug]/layout.tsx'],
+    '/akredytacje/ptsl': ['src/data/akredytacje.ts', 'src/app/[locale]/akredytacje/[slug]/page.tsx', 'src/app/[locale]/akredytacje/[slug]/layout.tsx'],
+    '/akredytacje/rwth-aachen': ['src/data/akredytacje.ts', 'src/app/[locale]/akredytacje/[slug]/page.tsx', 'src/app/[locale]/akredytacje/[slug]/layout.tsx'],
+    '/akredytacje/la-ha': ['src/data/akredytacje.ts', 'src/app/[locale]/akredytacje/[slug]/page.tsx', 'src/app/[locale]/akredytacje/[slug]/layout.tsx'],
+    '/zespol/marcin-nowosielski': ['src/app/[locale]/zespol/marcin-nowosielski/page.tsx', 'src/app/[locale]/zespol/marcin-nowosielski/layout.tsx'],
+    '/zespol/elzbieta-nowosielska': ['src/app/[locale]/zespol/elzbieta-nowosielska/page.tsx', 'src/app/[locale]/zespol/elzbieta-nowosielska/layout.tsx'],
+    '/gwarancje': ['src/app/[locale]/gwarancje/page.tsx', 'src/app/[locale]/gwarancje/layout.tsx'],
+    '/implanty-opole': ['src/app/[locale]/implanty-opole/page.tsx', 'src/app/[locale]/implanty-opole/layout.tsx'],
+    '/leczenie-kanalowe-opole-mikroskop': ['src/app/[locale]/leczenie-kanalowe-opole-mikroskop/page.tsx', 'src/app/[locale]/leczenie-kanalowe-opole-mikroskop/layout.tsx'],
+    '/dentysta-opole-centrum': ['src/app/[locale]/dentysta-opole-centrum/page.tsx', 'src/app/[locale]/dentysta-opole-centrum/layout.tsx'],
+    '/zahnarzt-opole': ['src/app/[locale]/zahnarzt-opole/page.tsx', 'src/app/[locale]/zahnarzt-opole/layout.tsx'],
+    '/dentist-opole': ['src/app/[locale]/dentist-opole/page.tsx', 'src/app/[locale]/dentist-opole/layout.tsx'],
 };
 
 function gitMtime(relativeFile) {

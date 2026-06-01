@@ -449,22 +449,22 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
     '/zespol/marcin-nowosielski': {
         pl: {
             title: 'lek. dent. Marcin Nowosielski M.Sc. RWTH | Mikrostomart Opole',
-            description: 'lek. dent. Marcin Nowosielski, M.Sc. in Lasers in Dentistry RWTH Aachen (2021, z wyróżnieniem) — drugi w Polsce z tym tytułem. Autor książki "Własny gabinet" (Czelej 2024). Implantologia, mikroskopowe leczenie kanałowe, stomatologia laserowa.',
+            description: 'Stomatolog Opole — lek. dent. Marcin Nowosielski, M.Sc. RWTH Aachen (2021, drugi w Polsce). Implantologia, endodoncja mikroskopowa, stomatologia laserowa.',
             keywords: 'marcin nowosielski stomatolog opole, marcin nowosielski rwth aachen, implantolog opole, endodonta mikroskopowy opole, marcin nowosielski książka czelej, marcin nowosielski m.sc., stomatologia laserowa opole',
         },
         en: {
             title: 'Marcin Nowosielski DDS, M.Sc. RWTH Aachen | Mikrostomart Opole, Poland',
-            description: 'Marcin Nowosielski, dentist with M.Sc. in Lasers in Dentistry from RWTH Aachen (with distinction, 2021) — second dentist in Poland with this title. Author of "Własny gabinet" (Czelej 2024). Implantology, microscopic endodontics, laser dentistry.',
+            description: 'Dentist in Opole, Poland — Marcin Nowosielski, M.Sc. RWTH Aachen (2021, 2nd in Poland). Implantology, microscopic endodontics, laser dentistry.',
             keywords: 'marcin nowosielski dentist, marcin nowosielski rwth aachen, implantologist opole poland, microscopic endodontist opole, marcin nowosielski book, marcin nowosielski m.sc.',
         },
         de: {
             title: 'Marcin Nowosielski M.Sc. RWTH Aachen | Zahnarzt Opole, Polen',
-            description: 'Marcin Nowosielski, Zahnarzt mit M.Sc. in Lasers in Dentistry der RWTH Aachen (mit Auszeichnung, 2021) — zweiter Zahnarzt in Polen mit diesem Titel. Autor des Buches "Własny gabinet" (Czelej 2024). Implantologie, mikroskopische Endodontie, Laserzahnmedizin.',
+            description: 'Zahnarzt Opole — Marcin Nowosielski, M.Sc. RWTH Aachen (2021, 2. in Polen). Implantologie, mikroskopische Endodontie, Laserzahnmedizin.',
             keywords: 'Marcin Nowosielski Zahnarzt, Marcin Nowosielski RWTH Aachen, Implantologe Opole Polen, mikroskopische Endodontie Opole, Marcin Nowosielski Buch, Marcin Nowosielski M.Sc.',
         },
         ua: {
             title: 'Марцін Новосельський M.Sc. RWTH Aachen | Mikrostomart Ополе, Польща',
-            description: 'Марцін Новосельський, лікар-стоматолог з M.Sc. in Lasers in Dentistry RWTH Aachen (з відзнакою, 2021) — другий у Польщі стоматолог із цим званням. Автор книги "Власний кабінет" (Czelej 2024). Імплантологія, мікроскопічна ендодонтія, лазерна стоматологія.',
+            description: 'Стоматолог Ополе — Марцін Новосельський, M.Sc. RWTH Aachen (2021, другий у Польщі). Імплантологія, мікроскопічна ендодонтія, лазерна стоматологія.',
             keywords: 'марцін новосельський стоматолог, марцін новосельський rwth aachen, імплантолог ополе польща, мікроскопічна ендодонтія ополе, марцін новосельський книга',
         },
     },
@@ -734,7 +734,7 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
         },
         de: {
             title: 'Zahnarzt Opole, Polen — Mikrostomart | Implantate, Wurzelkanal, Ästhetik',
-            description: 'Zahnarzt in Opole, Polen — für deutschsprachige Patienten. Implantate, mikroskopische Wurzelkanalbehandlung, Ästhetik. Deutschsprachiger Service, Parkplatz, Rechnungen zur Kostenerstattung. Nur ~1,5 Std. von Sachsen. Tel. +48 570 270 470.',
+            description: 'Zahnarzt in Opole für deutschsprachige Patienten: Zahnimplantate, mikroskopische Wurzelkanalbehandlung, Ästhetik. Service auf Deutsch, nahe Sachsen.',
             keywords: 'Zahnarzt Opole, Zahnarzt Polen, Zahnimplantate Opole, Wurzelkanalbehandlung Polen, Zahnbehandlung Polen, deutschsprachiger Zahnarzt Opole, Zahnarzt Opole Deutsch',
         },
         ua: {
@@ -755,7 +755,7 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
         },
         en: {
             title: 'Dentist in Opole, Poland — Mikrostomart | English-Speaking Dental Clinic',
-            description: 'English-speaking dentist in Opole, Poland. Dental implants, microscope root canal treatment, cosmetic dentistry. On-site parking, invoices for insurance reimbursement. Easy access from Wrocław & Katowice airports. Call +48 570 270 470.',
+            description: 'English-speaking dentist in Opole, Poland: dental implants, microscope root canal treatment, cosmetic dentistry. Parking, near Wrocław airport.',
             keywords: 'dentist Opole, English-speaking dentist Opole, dentist Poland, dental implants Poland, root canal Poland, dental clinic Opole, dental tourism Poland',
         },
         de: {
