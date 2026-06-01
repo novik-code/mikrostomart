@@ -77,6 +77,9 @@ const PUBLIC_PATHS = [
     '/implanty-opole',
     '/leczenie-kanalowe-opole-mikroskop',
     '/dentysta-opole-centrum',
+    // Pakiet C (2026-06-01): dedykowane geo-landingi DE/EN (indexed only target locale)
+    '/zahnarzt-opole',
+    '/dentist-opole',
 ];
 
 // PL-only paths: foreign locale URLs (en/de/ua) MUST be noindex + canonical to PL.
@@ -101,6 +104,14 @@ const PL_ONLY_PATHS = new Set([
 // the noindex is honoured.
 const GLOBALLY_NOINDEX_PATHS = new Set([
     '/zadatek',            // J-2: thin content + URL params, no organic intent
+]);
+
+// Pakiet C (2026-06-01): single-locale-indexed paths. Indeksowane TYLKO w
+// wskazanym locale; pozostałe locale MUSZĄ być noindex (odwrotność PL_ONLY).
+// Dedykowane geo-landingi pod konkretny rynek z keyword-rich slug.
+const LOCALE_ONLY_PATHS = new Map([
+    ['/zahnarzt-opole', 'de'], // DE dental tourism
+    ['/dentist-opole', 'en'],  // EN international dental tourism
 ]);
 
 function urlFor(locale, path) {
@@ -201,6 +212,7 @@ function validateAlternates(url, alternates, robots, canonical, path, locale) {
     // 4. Robots + canonical consistency
     const isPlOnly = PL_ONLY_PATHS.has(path);
     const isGloballyNoindex = GLOBALLY_NOINDEX_PATHS.has(path);
+    const localeOnly = LOCALE_ONLY_PATHS.get(path);
     const noindex = isNoindex(robots);
     const canonicalPath = canonical ? pathOf(canonical) : null;
     const plSelfPath = path === '' ? '/' : path;
@@ -229,6 +241,21 @@ function validateAlternates(url, alternates, robots, canonical, path, locale) {
             // either is acceptable. Most layouts ship locale-aware canonical
             // (points to foreign URL); only a stricter pattern would force PL.
             // We don't flag canonical mismatch for PL_ONLY foreign locales.
+        }
+    } else if (localeOnly) {
+        if (locale === localeOnly) {
+            // Indexed locale variant must be indexable + canonical to self.
+            if (noindex) {
+                issues.push(`LOCALE_ONLY page (${path}) in its indexed locale '${locale}' has noindex (should be indexable): robots="${robots}"`);
+            }
+            if (canonicalPath && canonicalPath !== selfPath) {
+                issues.push(`canonical of LOCALE_ONLY indexed page points to ${canonicalPath} instead of self ${selfPath}`);
+            }
+        } else {
+            // Non-target locales MUST be noindex (avoid duplicate-content indexing).
+            if (!noindex) {
+                issues.push(`LOCALE_ONLY page (${path}, indexed in '${localeOnly}') missing noindex in '${locale}' locale: robots="${robots || '(none)'}"`);
+            }
         }
     } else {
         // Multi-locale path — every locale variant should be indexable.

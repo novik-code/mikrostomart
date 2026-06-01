@@ -183,6 +183,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
     ];
 
+    // Pakiet C (2026-06-01): dedykowane geo-landingi DE/EN — indeksowane TYLKO w
+    // target locale (DE/EN), pozostałe locale noindex (layout.tsx). Emitujemy URL
+    // tylko dla indeksowanego locale + hreflang alternates (buildAlternates).
+    const intlGeoRoutes: MetadataRoute.Sitemap = [
+        {
+            url: `${BASE_URL}/de/zahnarzt-opole`,
+            lastModified: lastModForPath('/zahnarzt-opole'),
+            changeFrequency: 'monthly' as const,
+            priority: 0.9, // DE dental tourism, high commercial intent
+            alternates: { languages: buildAlternates('/zahnarzt-opole') },
+        },
+        {
+            url: `${BASE_URL}/en/dentist-opole`,
+            lastModified: lastModForPath('/dentist-opole'),
+            changeFrequency: 'monthly' as const,
+            priority: 0.9, // EN international dental tourism
+            alternates: { languages: buildAlternates('/dentist-opole') },
+        },
+    ];
+
     // ── Interactive tools (medium priority) — multi-locale ──
     // S5-1 (2026-05-15): /zadatek removed — page is noindex globally (Faza J-2)
     // because it has no organic search intent (one-purpose payment landing).
@@ -310,5 +330,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             };
         });
 
-    return [...mainRoutes, ...contentRoutes, ...shopRoute, ...implantyOpoleRoute, ...localGeoRoutes, ...toolRoutes, ...legalRoutes, ...newsRoutes, ...kbRoutes];
+    return [...mainRoutes, ...contentRoutes, ...shopRoute, ...implantyOpoleRoute, ...localGeoRoutes, ...intlGeoRoutes, ...toolRoutes, ...legalRoutes, ...newsRoutes, ...kbRoutes];
 }

@@ -718,6 +718,58 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
         },
     },
 
+    // ───────── /zahnarzt-opole — C (DE-indexed; PL/EN/UA noindex) ─────────
+    // Dedykowany geo-landing pod niemiecki rynek (DACH dental tourism). Indeksowany
+    // tylko w DE; pozostałe locale noindex (robots w layout.tsx). areaServed DACH.
+    '/zahnarzt-opole': {
+        pl: {
+            title: 'Zahnarzt Opole — Mikrostomart | Dentysta dla pacjentów z Niemiec',
+            description: 'Klinika stomatologiczna w Opolu dla niemieckojęzycznych pacjentów. Implanty, endodoncja pod mikroskopem, estetyka. Obsługa po niemiecku, parking, rachunki do refundacji.',
+            keywords: 'zahnarzt opole, dentysta dla niemców opole, mikrostomart',
+        },
+        en: {
+            title: 'Zahnarzt Opole — Mikrostomart | Dental Clinic for German Patients',
+            description: 'Dental clinic in Opole, Poland for German-speaking patients. Implants, microscope endodontics, aesthetics. German-speaking service, parking, invoices for reimbursement.',
+            keywords: 'Zahnarzt Opole, German dentist Opole, Mikrostomart',
+        },
+        de: {
+            title: 'Zahnarzt Opole, Polen — Mikrostomart | Implantate, Wurzelkanal, Ästhetik',
+            description: 'Zahnarzt in Opole, Polen — für deutschsprachige Patienten. Implantate, mikroskopische Wurzelkanalbehandlung, Ästhetik. Deutschsprachiger Service, Parkplatz, Rechnungen zur Kostenerstattung. Nur ~1,5 Std. von Sachsen. Tel. +48 570 270 470.',
+            keywords: 'Zahnarzt Opole, Zahnarzt Polen, Zahnimplantate Opole, Wurzelkanalbehandlung Polen, Zahnbehandlung Polen, deutschsprachiger Zahnarzt Opole, Zahnarzt Opole Deutsch',
+        },
+        ua: {
+            title: 'Zahnarzt Opole — Mikrostomart | Стоматолог для пацієнтів з Німеччини',
+            description: 'Стоматологічна клініка в Ополе для німецькомовних пацієнтів. Імпланти, ендодонтія під мікроскопом, естетика. Обслуговування німецькою, паркінг.',
+            keywords: 'Zahnarzt Opole, стоматолог Ополе, Mikrostomart',
+        },
+    },
+
+    // ───────── /dentist-opole — C (EN-indexed; PL/DE/UA noindex) ─────────
+    // Dedykowany geo-landing pod anglojęzyczny rynek (international dental tourism).
+    // Indeksowany tylko w EN; pozostałe locale noindex. areaServed Opole/Poland/EU.
+    '/dentist-opole': {
+        pl: {
+            title: 'Dentist Opole — Mikrostomart | Dentysta dla pacjentów zagranicznych',
+            description: 'Klinika stomatologiczna w Opolu dla pacjentów anglojęzycznych. Implanty, endodoncja pod mikroskopem, estetyka. Obsługa po angielsku, parking, rachunki do refundacji.',
+            keywords: 'dentist opole, english dentist opole, mikrostomart',
+        },
+        en: {
+            title: 'Dentist in Opole, Poland — Mikrostomart | English-Speaking Dental Clinic',
+            description: 'English-speaking dentist in Opole, Poland. Dental implants, microscope root canal treatment, cosmetic dentistry. On-site parking, invoices for insurance reimbursement. Easy access from Wrocław & Katowice airports. Call +48 570 270 470.',
+            keywords: 'dentist Opole, English-speaking dentist Opole, dentist Poland, dental implants Poland, root canal Poland, dental clinic Opole, dental tourism Poland',
+        },
+        de: {
+            title: 'Dentist Opole — Mikrostomart | Englischsprachige Zahnklinik',
+            description: 'Englischsprachiger Zahnarzt in Opole, Polen. Implantate, mikroskopische Wurzelkanalbehandlung, Ästhetik. Parkplatz, Rechnungen zur Kostenerstattung.',
+            keywords: 'dentist Opole, English dentist Opole, Mikrostomart',
+        },
+        ua: {
+            title: 'Dentist Opole — Mikrostomart | Англомовна стоматологічна клініка',
+            description: 'Англомовний стоматолог в Ополе, Польща. Імпланти, ендодонтія під мікроскопом, естетика. Паркінг, рахунки для відшкодування.',
+            keywords: 'dentist Opole, english dentist Opole, стоматолог Ополе, Mikrostomart',
+        },
+    },
+
     // ───────── /gwarancje — L-4 multi-locale warranty hub ─────────
     // Wszystkie locale indexable (unlike L-1/L-2 PL-only geo pages). Warranty
     // terms to trust signal dla foreign dental tourism — DE/EN szukają gwarancji
