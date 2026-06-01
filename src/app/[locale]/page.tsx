@@ -3,6 +3,7 @@ import { setRequestLocale } from "next-intl/server";
 import { isDemoMode } from "@/lib/demoMode";
 import { brand } from "@/lib/brandConfig";
 import { getOgLocale } from "@/lib/seo";
+import { fetchYouTubeVideosForSchema, buildVideoObjectSchema } from "@/lib/youtubeSchema";
 import HomeClient from "./HomeClient";
 
 // Per-locale SEO metadata for the homepage. The interactive content lives in HomeClient
@@ -99,5 +100,21 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 export default async function Page({ params }: { params: Promise<{ locale: string }> }) {
     const { locale } = await params;
     setRequestLocale(locale);
-    return <HomeClient />;
+
+    // VideoObject schema dla feedu YouTube (real uploadDate z YouTube API, cache 24h,
+    // graceful — brak schematu jeśli API niedostępne). Patrz @/lib/youtubeSchema.
+    const ytVideos = await fetchYouTubeVideosForSchema();
+    const videoSchema = ytVideos.length ? buildVideoObjectSchema(ytVideos) : null;
+
+    return (
+        <>
+            {videoSchema && (
+                <script
+                    type="application/ld+json"
+                    dangerouslySetInnerHTML={{ __html: JSON.stringify(videoSchema) }}
+                />
+            )}
+            <HomeClient />
+        </>
+    );
 }

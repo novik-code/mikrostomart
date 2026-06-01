@@ -4,6 +4,7 @@ import { brand } from '@/lib/brandConfig';
 import { isDemoMode } from '@/lib/demoMode';
 import { routing } from '@/i18n/routing';
 import { routeMtimes, buildTime } from '@/lib/generated-route-mtimes';
+import { METAMORPHOSES } from '@/data/metamorphoses';
 
 // Faza G3 (2026-05-09): cache sitemap przez 1 godzinę.
 // Bez tego każdy ping Googlebota / każde wejście /sitemap.xml triggerowało DB query
@@ -55,10 +56,15 @@ function buildAlternates(path: string): Record<string, string> {
     return langs;
 }
 
+// Absolutize image path for image sitemap (image:loc must be absolute URL).
+const absImg = (img: string): string => (img.startsWith('http') ? img : `${BASE_URL}${img}`);
+
 // Generate sitemap entries for a path across all locales.
+// Pakiet image-sitemap (2026-06-01): opcjonalne `images` → Next renderuje
+// <image:image><image:loc> (Next 14.2+) dla Google Images discovery.
 function multiLocaleEntries(
     path: string,
-    options: { changeFrequency: 'daily' | 'weekly' | 'monthly' | 'yearly'; priority: number }
+    options: { changeFrequency: 'daily' | 'weekly' | 'monthly' | 'yearly'; priority: number; images?: string[] }
 ): MetadataRoute.Sitemap {
     const lastModified = lastModForPath(path);
     return routing.locales.map((locale) => ({
@@ -67,6 +73,7 @@ function multiLocaleEntries(
         changeFrequency: options.changeFrequency,
         priority: options.priority,
         alternates: { languages: buildAlternates(path) },
+        ...(options.images && options.images.length ? { images: options.images } : {}),
     }));
 }
 
@@ -78,7 +85,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Knowledge Base articles — multi-locale (each article × 4 rows in DB linked by group_id)
     const { data: kbArticlesRaw } = await supabase
         .from('articles')
-        .select('slug, published_date, locale, group_id');
+        .select('slug, published_date, locale, group_id, image_url');
 
     // S10-4 (audyt SEO SEO-01): defensywny filter slug pattern. 4 KB articles w DB
     // miały slugi z polskimi/niemieckimi diacritics (`lęk`, `świeżości`, `błyszczacy`,
@@ -142,13 +149,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const contentPaths = [
         '/aktualnosci',
         '/baza-wiedzy',
-        '/metamorfozy',
         '/faq',
         '/nowosielski',
     ];
     const contentRoutes = contentPaths.flatMap((path) =>
         multiLocaleEntries(path, { changeFrequency: 'weekly', priority: 0.8 })
     );
+
+    // /metamorfozy — multi-locale + image sitemap. 16 metamorfoz × 2 (before/after)
+    // = 32 obrazów do Google Images (high visual intent: "metamorfoza zębów", "implant Opole").
+    const metamorphosisImages = METAMORPHOSES.flatMap((m) => [absImg(m.before), absImg(m.after)]);
+    const metamorfozyRoutes = multiLocaleEntries('/metamorfozy', {
+        changeFrequency: 'weekly', priority: 0.8, images: metamorphosisImages,
+    });
 
     // /sklep — PL only (foreign locales są noindex via layout.tsx)
     const shopRoute: MetadataRoute.Sitemap = [{
@@ -254,7 +267,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // URL per locale + alternates.languages pointing to all 4 versions.
     const { data: newsRowsRaw } = await supabase
         .from('news')
-        .select('slug, date, title_en, title_de, title_ua');
+        .select('slug, date, image, title_en, title_de, title_ua');
 
     // S10-4: same defensywny filter dla news slugs (na wszelki wypadek — news
     // slug pattern jest historycznie URL-safe ale prewencja regresji).
@@ -280,14 +293,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         if (post.title_ua) languages.uk = `${BASE_URL}/ua/aktualnosci/${post.slug}`;
 
         const lastModified = new Date(post.date);
+        const img = post.image ? { images: [absImg(post.image)] } : {};
 
         // Emit one entry per available locale (skip locales without translation)
         const entries: MetadataRoute.Sitemap = [
-            { url: `${BASE_URL}/aktualnosci/${post.slug}`, lastModified, changeFrequency: 'monthly' as const, priority: 0.7, alternates: { languages } },
+            { url: `${BASE_URL}/aktualnosci/${post.slug}`, lastModified, changeFrequency: 'monthly' as const, priority: 0.7, alternates: { languages }, ...img },
         ];
-        if (post.title_en) entries.push({ url: `${BASE_URL}/en/aktualnosci/${post.slug}`, lastModified, changeFrequency: 'monthly' as const, priority: 0.7, alternates: { languages } });
-        if (post.title_de) entries.push({ url: `${BASE_URL}/de/aktualnosci/${post.slug}`, lastModified, changeFrequency: 'monthly' as const, priority: 0.7, alternates: { languages } });
-        if (post.title_ua) entries.push({ url: `${BASE_URL}/ua/aktualnosci/${post.slug}`, lastModified, changeFrequency: 'monthly' as const, priority: 0.7, alternates: { languages } });
+        if (post.title_en) entries.push({ url: `${BASE_URL}/en/aktualnosci/${post.slug}`, lastModified, changeFrequency: 'monthly' as const, priority: 0.7, alternates: { languages }, ...img });
+        if (post.title_de) entries.push({ url: `${BASE_URL}/de/aktualnosci/${post.slug}`, lastModified, changeFrequency: 'monthly' as const, priority: 0.7, alternates: { languages }, ...img });
+        if (post.title_ua) entries.push({ url: `${BASE_URL}/ua/aktualnosci/${post.slug}`, lastModified, changeFrequency: 'monthly' as const, priority: 0.7, alternates: { languages }, ...img });
 
         return entries;
     });
@@ -327,8 +341,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 changeFrequency: 'monthly' as const,
                 priority: 0.7,
                 alternates: { languages },
+                ...(post.image_url ? { images: [absImg(post.image_url)] } : {}),
             };
         });
 
-    return [...mainRoutes, ...contentRoutes, ...shopRoute, ...implantyOpoleRoute, ...localGeoRoutes, ...intlGeoRoutes, ...toolRoutes, ...legalRoutes, ...newsRoutes, ...kbRoutes];
+    return [...mainRoutes, ...contentRoutes, ...metamorfozyRoutes, ...shopRoute, ...implantyOpoleRoute, ...localGeoRoutes, ...intlGeoRoutes, ...toolRoutes, ...legalRoutes, ...newsRoutes, ...kbRoutes];
 }

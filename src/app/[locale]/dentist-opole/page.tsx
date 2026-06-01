@@ -16,6 +16,23 @@ export default async function DentistOpolePage({ params }: { params: Promise<{ l
     setRequestLocale(locale);
     const t = await getTranslations({ locale, namespace: 'dentistOpole' });
 
+    // Sekcja EN-market (getting here / insurance) — strona indeksowana w EN, więc
+    // treść EN jest priorytetem; pozostałe locale (noindex) dostają fallback EN.
+    type IntlSection = { heading: string; intro: string; items: { title: string; desc: string }[] };
+    const intlContent: Record<string, IntlSection> = {
+        en: {
+            heading: 'For international & dental-tourism patients',
+            intro: 'High-quality dental care in southern Poland at a fraction of UK/Western-European prices. Here is how easy it is to reach us:',
+            items: [
+                { title: 'Getting here', desc: 'Opole is ~1 h from Wrocław airport and ~1.5 h from Katowice airport — both served by direct flights from London, Manchester, Dublin and other hubs. Free parking right at the clinic.' },
+                { title: 'Insurance reimbursement', desc: 'We issue detailed itemised invoices (in English) for reimbursement by private insurers and, for EU patients, under EU Directive 2011/24 on cross-border healthcare.' },
+                { title: 'English-speaking care', desc: 'Consultation, treatment planning and aftercare in English. English-language WhatsApp contact for questions before and after your visit.' },
+                { title: 'Warranty & documentation', desc: 'Full treatment records, X-rays (CBCT/RVG) and warranty documents to take home — so your dentist back home can follow up seamlessly.' },
+            ],
+        },
+    };
+    const intl = intlContent[locale] || intlContent.en;
+
     return (
         <main>
             {/* Hero */}
@@ -134,6 +151,26 @@ export default async function DentistOpolePage({ params }: { params: Promise<{ l
                             placeUrl={brand.googlePlaceId ? `https://www.google.com/maps/place/?q=place_id:${brand.googlePlaceId}` : brand.mapEmbedUrl}
                             title={t('locationHeading')}
                         />
+                    </div>
+                </div>
+            </section>
+
+            {/* For international patients (EN-market) */}
+            <section style={{ padding: 'var(--spacing-xl) 0' }}>
+                <div className="container" style={{ maxWidth: '1100px' }}>
+                    <RevealOnScroll>
+                        <h2 style={{ fontSize: 'clamp(1.6rem, 3.5vw, 2.2rem)', textAlign: 'center', color: 'var(--color-primary)', marginBottom: 'var(--spacing-sm)' }}>{intl.heading}</h2>
+                        <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', fontSize: '1rem', marginBottom: 'var(--spacing-lg)', maxWidth: '760px', marginLeft: 'auto', marginRight: 'auto' }}>{intl.intro}</p>
+                    </RevealOnScroll>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--spacing-md)' }}>
+                        {intl.items.map((item, i) => (
+                            <RevealOnScroll key={i}>
+                                <article style={{ background: 'var(--color-surface)', border: '1px solid var(--color-surface-hover)', borderRadius: '4px', padding: 'var(--spacing-md)', height: '100%' }}>
+                                    <h3 style={{ fontSize: '1.1rem', color: 'var(--color-text-main)', marginBottom: 'var(--spacing-sm)', fontWeight: 600 }}>{item.title}</h3>
+                                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem', lineHeight: 1.6 }}>{item.desc}</p>
+                                </article>
+                            </RevealOnScroll>
+                        ))}
                     </div>
                 </div>
             </section>

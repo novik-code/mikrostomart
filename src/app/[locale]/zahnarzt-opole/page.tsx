@@ -16,6 +16,23 @@ export default async function ZahnarztOpolePage({ params }: { params: Promise<{ 
     setRequestLocale(locale);
     const t = await getTranslations({ locale, namespace: 'zahnarztOpole' });
 
+    // Sekcja DE-market (Anreise/Kostenerstattung) — strona indeksowana w DE, więc
+    // treść DE jest priorytetem; pozostałe locale (noindex) dostają fallback DE.
+    type IntlSection = { heading: string; intro: string; items: { title: string; desc: string }[] };
+    const intlContent: Record<string, IntlSection> = {
+        de: {
+            heading: 'Für Patienten aus Deutschland, Österreich und der Schweiz',
+            intro: 'Zahnbehandlung in Polen — nah, hochwertig und deutlich günstiger als in der DACH-Region. So einfach ist der Weg zu uns:',
+            items: [
+                { title: 'Anreise', desc: 'Opole liegt nur ~1,5 Std. von Sachsen/Brandenburg und ~2 Std. von Berlin. Flughäfen Wrocław (~1 Std.) und Katowice (~1,5 Std.). Kostenloser Parkplatz direkt an der Klinik.' },
+                { title: 'Kostenerstattung', desc: 'Wir stellen detaillierte Rechnungen (auf Deutsch) aus — zur Erstattung durch gesetzliche und private Krankenkassen gemäß EU-Richtlinie 2011/24 über grenzüberschreitende Gesundheitsversorgung.' },
+                { title: 'Behandlung auf Deutsch', desc: 'Beratung, Aufklärung und Nachsorge auf Deutsch. WhatsApp-Kontakt auf Deutsch für Fragen vor und nach der Behandlung.' },
+                { title: 'Garantie & Dokumentation', desc: 'Vollständige Behandlungsdokumentation, Röntgenbilder (DVT/RVG) und Garantieunterlagen zum Mitnehmen — für die Weiterbehandlung bei Ihrem Zahnarzt zu Hause.' },
+            ],
+        },
+    };
+    const intl = intlContent[locale] || intlContent.de;
+
     return (
         <main>
             {/* Hero */}
@@ -134,6 +151,26 @@ export default async function ZahnarztOpolePage({ params }: { params: Promise<{ 
                             placeUrl={brand.googlePlaceId ? `https://www.google.com/maps/place/?q=place_id:${brand.googlePlaceId}` : brand.mapEmbedUrl}
                             title={t('locationHeading')}
                         />
+                    </div>
+                </div>
+            </section>
+
+            {/* Dla pacjentów zagranicznych (DE-market) */}
+            <section style={{ padding: 'var(--spacing-xl) 0' }}>
+                <div className="container" style={{ maxWidth: '1100px' }}>
+                    <RevealOnScroll>
+                        <h2 style={{ fontSize: 'clamp(1.6rem, 3.5vw, 2.2rem)', textAlign: 'center', color: 'var(--color-primary)', marginBottom: 'var(--spacing-sm)' }}>{intl.heading}</h2>
+                        <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', fontSize: '1rem', marginBottom: 'var(--spacing-lg)', maxWidth: '760px', marginLeft: 'auto', marginRight: 'auto' }}>{intl.intro}</p>
+                    </RevealOnScroll>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--spacing-md)' }}>
+                        {intl.items.map((item, i) => (
+                            <RevealOnScroll key={i}>
+                                <article style={{ background: 'var(--color-surface)', border: '1px solid var(--color-surface-hover)', borderRadius: '4px', padding: 'var(--spacing-md)', height: '100%' }}>
+                                    <h3 style={{ fontSize: '1.1rem', color: 'var(--color-text-main)', marginBottom: 'var(--spacing-sm)', fontWeight: 600 }}>{item.title}</h3>
+                                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.95rem', lineHeight: 1.6 }}>{item.desc}</p>
+                                </article>
+                            </RevealOnScroll>
+                        ))}
                     </div>
                 </div>
             </section>
