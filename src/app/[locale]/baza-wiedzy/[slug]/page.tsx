@@ -205,19 +205,30 @@ export default async function ArticlePage({
         ? (article.tags as string[]).join(', ')
         : null;
 
+    // Physician @id reference — konsoliduje autora/recenzenta z pełnym węzłem
+    // Physician Marcina (personSchemas.ts: `${brand.appUrl}/#marcin-nowosielski`),
+    // emitowanym na /zespol/marcin-nowosielski + homepage → Google Knowledge Graph.
+    const physicianRef = {
+        "@type": "Physician",
+        "@id": `${brand.appUrl}/#marcin-nowosielski`,
+        "name": "Marcin Nowosielski",
+        "url": `${brand.appUrl}/zespol/marcin-nowosielski`,
+    };
+
+    // MedicalWebPage (zamiast Article) — treść medyczna z sygnałem recenzji lekarskiej
+    // (reviewedBy + lastReviewed). Brak embedded Review/aggregateRating (self-serving, GSC).
     const articleSchema: Record<string, unknown> = {
         "@context": "https://schema.org",
-        "@type": "Article",
+        "@type": "MedicalWebPage",
         "headline": article.title,
+        "name": article.title,
         "description": article.excerpt,
         "image": schemaImageUrl(article.image),
         "datePublished": article.date,
         "dateModified": article.updated_at || article.date,
-        "author": {
-            "@type": "Person",
-            "name": "Marcin Nowosielski",
-            "url": `${brand.appUrl}/o-nas`,
-        },
+        "lastReviewed": article.updated_at || article.date,
+        "author": physicianRef,
+        "reviewedBy": physicianRef,
         "publisher": {
             "@type": "Organization",
             "name": brand.name,

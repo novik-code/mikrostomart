@@ -139,7 +139,9 @@ function SchemaOrg({ aggregateRating, reviews, locale }: { aggregateRating: Aggr
             "latitude": parseFloat(brand.geoPosition.split(';')[0]),
             "longitude": parseFloat(brand.geoPosition.split(';')[1]),
         },
-        "hasMap": `https://www.google.com/maps/search/?api=1&query=${brand.mapQuery}`,
+        "hasMap": brand.googlePlaceId
+            ? `https://www.google.com/maps/place/?q=place_id:${brand.googlePlaceId}`
+            : `https://www.google.com/maps/search/?api=1&query=${brand.mapQuery}`,
         // H8 (2026-05-10): full sameAs array — Google entity disambiguation.
         // Każdy URL musi prowadzić do tej samej entity (klinika/marka).
         "sameAs": [

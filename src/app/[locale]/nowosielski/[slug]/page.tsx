@@ -204,9 +204,10 @@ export default async function BlogPost({
         "datePublished": post.created_at || post.published_at || post.date,
         "dateModified": post.updated_at || post.created_at || post.published_at || post.date,
         "author": {
-            "@type": "Person",
+            "@type": "Physician",
+            "@id": `${brand.appUrl}/#marcin-nowosielski`,
             "name": "Marcin Nowosielski",
-            "url": `${brand.appUrl}/o-nas`,
+            "url": `${brand.appUrl}/zespol/marcin-nowosielski`,
         },
         "publisher": {
             "@type": "Organization",

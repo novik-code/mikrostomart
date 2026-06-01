@@ -3,6 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { brand, brandI18nParams } from '@/lib/brandConfig';
 import RevealOnScroll from '@/components/RevealOnScroll';
 import GoogleReviews from '@/components/GoogleReviews';
+import LazyMapEmbed from '@/components/LazyMapEmbed';
 
 /**
  * /implanty-opole — L-1 local geo page (Faza L, 2026-05-21 NIGHT+1).
@@ -300,6 +301,14 @@ export default async function ImplantyOpolePage({ params }: { params: Promise<{ 
                                 </article>
                             </RevealOnScroll>
                         ))}
+                    </div>
+
+                    <div style={{ marginTop: 'var(--spacing-lg)' }}>
+                        <LazyMapEmbed
+                            src={brand.mapEmbedUrl}
+                            placeUrl={brand.googlePlaceId ? `https://www.google.com/maps/place/?q=place_id:${brand.googlePlaceId}` : brand.mapEmbedUrl}
+                            title={t('locationHeading')}
+                        />
                     </div>
                 </div>
             </section>

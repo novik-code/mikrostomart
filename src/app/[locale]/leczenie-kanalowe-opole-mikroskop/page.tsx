@@ -1,8 +1,9 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { brandI18nParams } from '@/lib/brandConfig';
+import { brand, brandI18nParams } from '@/lib/brandConfig';
 import RevealOnScroll from '@/components/RevealOnScroll';
 import GoogleReviews from '@/components/GoogleReviews';
+import LazyMapEmbed from '@/components/LazyMapEmbed';
 
 /**
  * /leczenie-kanalowe-opole-mikroskop — L-2a local geo page (Faza L, 2026-05-21).
@@ -122,6 +123,14 @@ export default async function LeczenieKanaloweOpolePage({ params }: { params: Pr
                                 </article>
                             </RevealOnScroll>
                         ))}
+                    </div>
+
+                    <div style={{ marginTop: 'var(--spacing-lg)' }}>
+                        <LazyMapEmbed
+                            src={brand.mapEmbedUrl}
+                            placeUrl={brand.googlePlaceId ? `https://www.google.com/maps/place/?q=place_id:${brand.googlePlaceId}` : brand.mapEmbedUrl}
+                            title={t('locationHeading')}
+                        />
                     </div>
                 </div>
             </section>

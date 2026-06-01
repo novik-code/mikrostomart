@@ -1,8 +1,9 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { brandI18nParams } from '@/lib/brandConfig';
+import { brand, brandI18nParams } from '@/lib/brandConfig';
 import RevealOnScroll from '@/components/RevealOnScroll';
 import GoogleReviews from '@/components/GoogleReviews';
+import LazyMapEmbed from '@/components/LazyMapEmbed';
 
 /**
  * /dentysta-opole-centrum — L-2b broad-scope local geo page (Faza L, 2026-05-21).
@@ -129,6 +130,14 @@ export default async function DentystaOpoleCentrumPage({ params }: { params: Pro
                                 </article>
                             </RevealOnScroll>
                         ))}
+                    </div>
+
+                    <div style={{ marginTop: 'var(--spacing-lg)' }}>
+                        <LazyMapEmbed
+                            src={brand.mapEmbedUrl}
+                            placeUrl={brand.googlePlaceId ? `https://www.google.com/maps/place/?q=place_id:${brand.googlePlaceId}` : brand.mapEmbedUrl}
+                            title={t('locationHeading')}
+                        />
                     </div>
                 </div>
             </section>
