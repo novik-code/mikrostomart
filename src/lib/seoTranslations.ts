@@ -62,6 +62,28 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
     },
 
     // ───────── /oferta/leczenie-kanalowe ─────────
+    '/oferta/laser': {
+        pl: {
+            title: 'Stomatologia laserowa Opole | Laser Fotona | Mikrostomart',
+            description: 'Laserowe leczenie zębów w Opolu — laser Fotona LightWalker (Er:YAG, Nd:YAG). Mniej bólu, często bez wiertła, szybsze gojenie. M.Sc. RWTH Aachen. Umów wizytę.',
+            keywords: 'stomatologia laserowa opole, laserowe leczenie zębów opole, laser dentystyczny opole, leczenie laserem opole, laser fotona opole',
+        },
+        en: {
+            title: 'Laser Dentistry Opole, Poland | Mikrostomart',
+            description: 'Laser dental treatment in Opole, Poland — Fotona LightWalker (Er:YAG, Nd:YAG). Less pain, often no drill, faster healing. M.Sc. RWTH Aachen. Book a visit.',
+            keywords: 'laser dentistry Opole, laser dental treatment Poland, dental laser Opole, Fotona laser dentist Opole',
+        },
+        de: {
+            title: 'Laserzahnheilkunde Opole, Polen | Mikrostomart',
+            description: 'Laserbehandlung der Zähne in Opole, Polen — Fotona LightWalker (Er:YAG, Nd:YAG). Weniger Schmerzen, oft ohne Bohrer, schnellere Heilung. M.Sc. RWTH Aachen.',
+            keywords: 'Laserzahnheilkunde Opole, Laserbehandlung Zähne Polen, Dentallaser Opole, Fotona Laser Zahnarzt Opole',
+        },
+        ua: {
+            title: 'Лазерна стоматологія Ополе, Польща | Mikrostomart',
+            description: 'Лазерне лікування зубів в Ополе, Польща — Fotona LightWalker (Er:YAG, Nd:YAG). Менше болю, часто без бормашини, швидше загоєння. M.Sc. RWTH Aachen.',
+            keywords: 'лазерна стоматологія Ополе, лазерне лікування зубів Польща, стоматологічний лазер Ополе, Fotona лазер Ополе',
+        },
+    },
     '/oferta/leczenie-kanalowe': {
         pl: {
             title: 'Leczenie kanałowe pod mikroskopem Opole | Mikrostomart',

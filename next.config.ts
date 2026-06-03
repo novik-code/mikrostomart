@@ -147,7 +147,7 @@ const nextConfig: NextConfig = {
       },
       {
         source: '/oferta/laserowe-leczenie-zebow',
-        destination: '/oferta',
+        destination: '/oferta/laser',
         permanent: true,
       },
       {

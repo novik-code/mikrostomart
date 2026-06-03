@@ -59,7 +59,7 @@ const LOCALES = ['pl', 'en', 'de', 'ua']; // URL prefixes
 // content from /polityka-prywatnosci. Foreign locales canonical→PL privacy with
 // noindex; hreflang circle is intentionally not declared (single-locale page).
 const PUBLIC_PATHS = [
-    '', '/o-nas', '/oferta', '/oferta/implantologia', '/oferta/leczenie-kanalowe',
+    '', '/o-nas', '/oferta', '/oferta/implantologia', '/oferta/laser', '/oferta/leczenie-kanalowe',
     '/oferta/stomatologia-estetyczna', '/oferta/ortodoncja', '/oferta/chirurgia', '/oferta/protetyka',
     '/cennik', '/kontakt', '/rezerwacja', '/dla-pacjentow-przyjezdnych',
     '/aktualnosci', '/baza-wiedzy', '/metamorfozy', '/sklep', '/faq', '/nowosielski',

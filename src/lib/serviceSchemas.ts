@@ -183,6 +183,82 @@ export const SERVICE_SCHEMAS: Record<string, ServiceSchemaMap> = {
     },
 
     // ═════════════════ /oferta/leczenie-kanalowe ═════════════════
+    // ═════════════════ /oferta/laser ═════════════════
+    '/oferta/laser': {
+        pl: {
+            faq: [
+                { q: 'Czy leczenie laserem boli?', a: 'Zazwyczaj jest mniej bolesne niż metody klasyczne. Wiele zabiegów laserowych można wykonać przy minimalnym znieczuleniu lub bez niego, a brak wibracji wiertła zwiększa komfort.' },
+                { q: 'Czy laser dentystyczny jest bezpieczny?', a: 'Tak. To sprawdzona, certyfikowana technologia stosowana w stomatologii od lat. Zabiegi prowadzi dyplomowany specjalista laseroterapii (M.Sc. in Lasers in Dentistry, RWTH Aachen).' },
+                { q: 'Czy laserem da się leczyć próchnicę bez wiertła?', a: 'W wielu przypadkach tak — laser erbowy Er:YAG opracowuje tkankę próchnicową bezdotykowo, bez wibracji i dźwięku turbiny. To komfortowe zwłaszcza u dzieci i osób z dentofobią.' },
+                { q: 'Na czym polega laserowe leczenie kanałowe?', a: 'Płyny płuczące aktywujemy laserem (SWEEPS), wytwarzając falę uderzeniową wypłukującą bakterie z bocznych kanalików, a następnie dezynfekujemy kanały laserem Nd:YAG (eliminacja nawet 99% drobnoustrojów).' },
+                { q: 'Czy laser pomaga uratować implant z zapaleniem (periimplantitis)?', a: 'W wielu przypadkach tak — laserowe odkażenie powierzchni implantu to jedna z najskuteczniejszych metod zatrzymania zapalenia okołoimplantowego. Kluczowe jest wczesne zgłoszenie.' },
+            ],
+            procedure: {
+                name: 'Stomatologia laserowa Opole (Fotona LightWalker)',
+                procedureType: 'TherapeuticProcedure',
+                bodyLocation: 'Mouth',
+                description: 'Laseroterapia stomatologiczna laserem Fotona LightWalker (Er:YAG 2940 nm + Nd:YAG 1064 nm): laserowe leczenie kanałowe, opracowanie ubytków bez wiertła, chirurgia dziąseł bez skalpela, leczenie paradontozy, periimplantitis oraz biostymulacja (LLLT).',
+                howPerformed: 'Dobór długości fali do zabiegu: Er:YAG do tkanek twardych i aktywacji irygacji (SWEEPS/PIPS), Nd:YAG do głębokiej dezynfekcji, hemostazy i biostymulacji. Zabieg zwykle przy minimalnym znieczuleniu lub bez.',
+                preparation: 'Konsultacja, diagnostyka i kwalifikacja do leczenia laserowego.',
+                followup: 'Szybsze, bezkrwawe gojenie dzięki biostymulacji; zakres kontroli zależny od rodzaju wykonanego zabiegu.',
+            },
+        },
+        en: {
+            faq: [
+                { q: 'Does laser treatment hurt?', a: 'It is usually less painful than conventional methods. Many laser procedures can be performed with minimal anesthesia or none at all, and the absence of drill vibration adds to the comfort.' },
+                { q: 'Is the dental laser safe?', a: 'Yes. It is a proven, certified technology used in dentistry for years. Procedures are led by a qualified laser therapy specialist (M.Sc. in Lasers in Dentistry, RWTH Aachen).' },
+                { q: 'Can the laser treat cavities without the drill?', a: 'In many cases, yes — the Er:YAG erbium laser prepares decayed tissue without contact, without vibration or turbine noise. This is especially comfortable for children and people with dental phobia.' },
+                { q: 'How does laser root canal treatment work?', a: 'We activate the irrigating fluids with the laser (SWEEPS), creating a shockwave that flushes bacteria out of the lateral canals, then disinfect the canals with the Nd:YAG laser (eliminating up to 99% of microorganisms).' },
+                { q: 'Can the laser help save an implant with inflammation (peri-implantitis)?', a: 'In many cases, yes — laser decontamination of the implant surface is one of the most effective ways to stop peri-implant inflammation. Coming in early is crucial.' },
+            ],
+            procedure: {
+                name: 'Laser dentistry in Opole, Poland (Fotona LightWalker)',
+                procedureType: 'TherapeuticProcedure',
+                bodyLocation: 'Mouth',
+                description: 'Dental laser therapy with the Fotona LightWalker (Er:YAG 2940 nm + Nd:YAG 1064 nm): laser root canal treatment, drill-free cavity preparation, scalpel-free gum surgery, periodontal treatment, peri-implantitis and biostimulation (LLLT).',
+                howPerformed: 'The wavelength is matched to the procedure: Er:YAG for hard tissues and irrigation activation (SWEEPS/PIPS), Nd:YAG for deep disinfection, haemostasis and biostimulation. The procedure is usually performed with minimal anesthesia or none.',
+                preparation: 'Consultation, diagnostics and qualification for laser treatment.',
+                followup: 'Faster, bloodless healing thanks to biostimulation; follow-up depends on the type of procedure performed.',
+            },
+        },
+        de: {
+            faq: [
+                { q: 'Tut die Laserbehandlung weh?', a: 'Sie ist in der Regel weniger schmerzhaft als klassische Methoden. Viele Lasereingriffe lassen sich mit minimaler oder ganz ohne Betäubung durchführen, und das Fehlen von Bohrervibration erhöht den Komfort.' },
+                { q: 'Ist der Dentallaser sicher?', a: 'Ja. Es ist eine bewährte, zertifizierte Technologie, die seit Jahren in der Zahnheilkunde eingesetzt wird. Die Eingriffe leitet ein diplomierter Spezialist für Lasertherapie (M.Sc. in Lasers in Dentistry, RWTH Aachen).' },
+                { q: 'Kann man mit dem Laser Karies ohne Bohrer behandeln?', a: 'In vielen Fällen ja — der Er:YAG-Erbium-Laser bearbeitet kariöses Gewebe berührungslos, ohne Vibration und Turbinengeräusch. Besonders komfortabel für Kinder und Menschen mit Zahnarztangst.' },
+                { q: 'Wie läuft die laserunterstützte Wurzelkanalbehandlung ab?', a: 'Wir aktivieren die Spülflüssigkeiten mit dem Laser (SWEEPS), wodurch eine Stoßwelle Bakterien aus den Seitenkanälchen ausspült, und desinfizieren anschließend die Kanäle mit dem Nd:YAG-Laser (Eliminierung von bis zu 99 % der Mikroorganismen).' },
+                { q: 'Kann der Laser helfen, ein Implantat mit Entzündung (Periimplantitis) zu retten?', a: 'In vielen Fällen ja — die Laser-Dekontamination der Implantatoberfläche ist eine der wirksamsten Methoden, eine periimplantäre Entzündung zu stoppen. Entscheidend ist, sich früh vorzustellen.' },
+            ],
+            procedure: {
+                name: 'Laserzahnheilkunde in Opole, Polen (Fotona LightWalker)',
+                procedureType: 'TherapeuticProcedure',
+                bodyLocation: 'Mouth',
+                description: 'Dentale Lasertherapie mit dem Fotona LightWalker (Er:YAG 2940 nm + Nd:YAG 1064 nm): laserunterstützte Wurzelkanalbehandlung, bohrerfreie Kariesbehandlung, skalpellfreie Zahnfleischchirurgie, Parodontitisbehandlung, Periimplantitis und Biostimulation (LLLT).',
+                howPerformed: 'Die Wellenlänge wird an den Eingriff angepasst: Er:YAG für Hartgewebe und Spülaktivierung (SWEEPS/PIPS), Nd:YAG für tiefe Desinfektion, Hämostase und Biostimulation. Der Eingriff erfolgt meist mit minimaler oder ohne Betäubung.',
+                preparation: 'Beratung, Diagnostik und Eignungsprüfung für die Laserbehandlung.',
+                followup: 'Schnellere, blutarme Heilung dank Biostimulation; die Kontrolle hängt von der Art des Eingriffs ab.',
+            },
+        },
+        ua: {
+            faq: [
+                { q: 'Чи боляче лікувати лазером?', a: 'Зазвичай це менш болісно, ніж класичні методи. Багато лазерних процедур можна виконати з мінімальним знеболенням або зовсім без нього, а відсутність вібрації бормашини підвищує комфорт.' },
+                { q: 'Чи безпечний стоматологічний лазер?', a: 'Так. Це перевірена, сертифікована технологія, яку застосовують у стоматології багато років. Процедури проводить дипломований спеціаліст із лазеротерапії (M.Sc. in Lasers in Dentistry, RWTH Aachen).' },
+                { q: 'Чи можна лазером лікувати карієс без бормашини?', a: 'У багатьох випадках так — ербієвий лазер Er:YAG обробляє уражену тканину безконтактно, без вібрації та звуку турбіни. Це комфортно особливо для дітей і людей із дентофобією.' },
+                { q: 'Як відбувається лазерне лікування каналів?', a: 'Промивні розчини активуємо лазером (SWEEPS), створюючи ударну хвилю, яка вимиває бактерії з бічних канальців, а потім знезаражуємо канали лазером Nd:YAG (елімінація до 99% мікроорганізмів).' },
+                { q: 'Чи допоможе лазер врятувати імплант із запаленням (периімплантит)?', a: 'У багатьох випадках так — лазерне знезараження поверхні імпланта є одним із найефективніших методів зупинити периімплантне запалення. Ключове — звернутися рано.' },
+            ],
+            procedure: {
+                name: 'Лазерна стоматологія Ополе (Fotona LightWalker)',
+                procedureType: 'TherapeuticProcedure',
+                bodyLocation: 'Mouth',
+                description: 'Стоматологічна лазеротерапія лазером Fotona LightWalker (Er:YAG 2940 нм + Nd:YAG 1064 нм): лазерне лікування каналів, обробка карієсу без бормашини, хірургія ясен без скальпеля, лікування пародонтозу, периімплантит та біостимуляція (LLLT).',
+                howPerformed: 'Довжину хвилі підбирають до процедури: Er:YAG для твердих тканин та активації іригації (SWEEPS/PIPS), Nd:YAG для глибокої дезінфекції, гемостазу та біостимуляції. Процедура зазвичай при мінімальному знеболенні або без нього.',
+                preparation: 'Консультація, діагностика та кваліфікація до лазерного лікування.',
+                followup: 'Швидше, безкровне загоєння завдяки біостимуляції; контроль залежить від виду виконаної процедури.',
+            },
+        },
+    },
+
     '/oferta/leczenie-kanalowe': {
         pl: {
             faq: [
