@@ -35,6 +35,7 @@ const ROUTE_FILES = {
     '/oferta': ['src/app/[locale]/oferta/page.tsx', 'src/app/[locale]/oferta/layout.tsx'],
     '/oferta/implantologia': ['src/app/[locale]/oferta/implantologia/page.tsx', 'src/app/[locale]/oferta/implantologia/layout.tsx'],
     '/oferta/laser': ['src/app/[locale]/oferta/laser/page.tsx', 'src/app/[locale]/oferta/laser/layout.tsx'],
+    '/oferta/periodontologia': ['src/app/[locale]/oferta/periodontologia/page.tsx', 'src/app/[locale]/oferta/periodontologia/layout.tsx'],
     '/oferta/leczenie-kanalowe': ['src/app/[locale]/oferta/leczenie-kanalowe/page.tsx', 'src/app/[locale]/oferta/leczenie-kanalowe/layout.tsx'],
     '/oferta/stomatologia-estetyczna': ['src/app/[locale]/oferta/stomatologia-estetyczna/page.tsx', 'src/app/[locale]/oferta/stomatologia-estetyczna/layout.tsx'],
     '/oferta/ortodoncja': ['src/app/[locale]/oferta/ortodoncja/page.tsx', 'src/app/[locale]/oferta/ortodoncja/layout.tsx'],

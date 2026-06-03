@@ -183,6 +183,82 @@ export const SERVICE_SCHEMAS: Record<string, ServiceSchemaMap> = {
     },
 
     // ═════════════════ /oferta/leczenie-kanalowe ═════════════════
+    // ═════════════════ /oferta/periodontologia ═════════════════
+    '/oferta/periodontologia': {
+        pl: {
+            faq: [
+                { q: 'Czy paradontozę da się wyleczyć?', a: 'Paradontoza to choroba przewlekła — nie znika całkowicie, ale można ją skutecznie zatrzymać i utrzymać pod kontrolą. Kluczowe są wczesne leczenie i regularna faza podtrzymująca.' },
+                { q: 'Czy leczenie dziąseł boli?', a: 'Zabiegi wykonujemy w znieczuleniu, a dekontaminacja laserowa (Nd:YAG) jest dodatkowo mało inwazyjna i bezkrwawa. Większość pacjentów dobrze znosi leczenie.' },
+                { q: 'Czy krwawiące dziąsła to już paradontoza?', a: 'Krwawienie to najczęstszy wczesny sygnał zapalenia dziąseł — nieleczone może przejść w paradontozę. Warto wykonać badanie sondowania, zanim choroba zaatakuje kość.' },
+                { q: 'Czy rozchwiane zęby można uratować?', a: 'Często tak, jeśli zareagujemy odpowiednio wcześnie. Po zatrzymaniu choroby zęby mogą się ustabilizować; w wybranych przypadkach stosujemy szynowanie.' },
+                { q: 'Jak często trzeba przychodzić na wizyty kontrolne?', a: 'W fazie podtrzymującej zwykle co 3–4 miesiące. Częstotliwość dobieramy indywidualnie, zależnie od zaawansowania choroby i higieny domowej.' },
+            ],
+            procedure: {
+                name: 'Leczenie paradontozy (periodontologia) Opole',
+                procedureType: 'TherapeuticProcedure',
+                bodyLocation: 'Gums',
+                description: 'Leczenie chorób przyzębia: diagnostyka (sondowanie kieszonek dziąsłowych), skaling poddziąsłowy i root planing, laserowa dekontaminacja kieszonek (Nd:YAG) oraz faza podtrzymująca.',
+                howPerformed: 'Po sondowaniu i ocenie poziomu kości usuwamy płytkę i kamień nad- i poddziąsłowy, oczyszczamy powierzchnię korzeni, a chore kieszonki odkażamy laserem Nd:YAG. Zabiegi w znieczuleniu.',
+                preparation: 'Badanie periodontologiczne (sondowanie), w razie potrzeby RTG/CBCT, wywiad (palenie, cukrzyca, leki).',
+                followup: 'Faza podtrzymująca — wizyty kontrolne i higienizacja zwykle co 3–4 miesiące.',
+            },
+        },
+        en: {
+            faq: [
+                { q: 'Can gum disease be cured?', a: 'Periodontitis is a chronic disease — it does not disappear completely, but it can be effectively stopped and kept under control. Early treatment and a regular maintenance phase are key.' },
+                { q: 'Does gum treatment hurt?', a: 'Procedures are performed under anesthesia, and laser decontamination (Nd:YAG) is additionally minimally invasive and bloodless. Most patients tolerate the treatment well.' },
+                { q: 'Are bleeding gums already periodontitis?', a: 'Bleeding is the most common early sign of gum inflammation — left untreated it can progress to periodontitis. It is worth having a probing examination before the disease attacks the bone.' },
+                { q: 'Can loose teeth be saved?', a: 'Often yes, if we act early enough. Once the disease is stopped, teeth can stabilise; in selected cases we use splinting.' },
+                { q: 'How often are check-up visits needed?', a: 'In the maintenance phase, usually every 3–4 months. We set the frequency individually, depending on the severity of the disease and home hygiene.' },
+            ],
+            procedure: {
+                name: 'Periodontal (gum disease) treatment in Opole, Poland',
+                procedureType: 'TherapeuticProcedure',
+                bodyLocation: 'Gums',
+                description: 'Treatment of periodontal disease: diagnostics (probing of gum pockets), subgingival scaling and root planing, laser decontamination of the pockets (Nd:YAG) and a maintenance phase.',
+                howPerformed: 'After probing and bone-level assessment we remove supra- and subgingival plaque and tartar, clean the root surfaces, and disinfect diseased pockets with the Nd:YAG laser. Procedures under anesthesia.',
+                preparation: 'Periodontal examination (probing), X-ray/CBCT if needed, medical interview (smoking, diabetes, medications).',
+                followup: 'Maintenance phase — check-ups and hygiene visits usually every 3–4 months.',
+            },
+        },
+        de: {
+            faq: [
+                { q: 'Kann Parodontitis geheilt werden?', a: 'Parodontitis ist eine chronische Erkrankung — sie verschwindet nicht vollständig, lässt sich aber wirksam stoppen und unter Kontrolle halten. Frühzeitige Behandlung und eine regelmäßige Erhaltungsphase sind entscheidend.' },
+                { q: 'Tut die Zahnfleischbehandlung weh?', a: 'Die Eingriffe erfolgen unter Betäubung, und die Laser-Dekontamination (Nd:YAG) ist zusätzlich minimalinvasiv und blutarm. Die meisten Patienten vertragen die Behandlung gut.' },
+                { q: 'Ist blutendes Zahnfleisch bereits Parodontitis?', a: 'Blutung ist das häufigste frühe Zeichen einer Zahnfleischentzündung — unbehandelt kann sie in eine Parodontitis übergehen. Eine Sondierungsuntersuchung lohnt sich, bevor die Erkrankung den Knochen angreift.' },
+                { q: 'Können lockere Zähne gerettet werden?', a: 'Oft ja, wenn wir früh genug handeln. Nach dem Stoppen der Erkrankung können sich Zähne stabilisieren; in ausgewählten Fällen verwenden wir eine Schienung.' },
+                { q: 'Wie oft sind Kontrolltermine nötig?', a: 'In der Erhaltungsphase meist alle 3–4 Monate. Die Häufigkeit legen wir individuell fest, je nach Schweregrad der Erkrankung und häuslicher Hygiene.' },
+            ],
+            procedure: {
+                name: 'Parodontitis-Behandlung (Parodontologie) in Opole, Polen',
+                procedureType: 'TherapeuticProcedure',
+                bodyLocation: 'Gums',
+                description: 'Behandlung von Parodontalerkrankungen: Diagnostik (Sondierung der Zahnfleischtaschen), subgingivales Scaling und Root Planing, Laser-Dekontamination der Taschen (Nd:YAG) sowie eine Erhaltungsphase.',
+                howPerformed: 'Nach Sondierung und Beurteilung des Knochenniveaus entfernen wir supra- und subgingivale Plaque und Zahnstein, reinigen die Wurzeloberflächen und desinfizieren erkrankte Taschen mit dem Nd:YAG-Laser. Eingriffe unter Betäubung.',
+                preparation: 'Parodontale Untersuchung (Sondierung), bei Bedarf Röntgen/DVT, Anamnese (Rauchen, Diabetes, Medikamente).',
+                followup: 'Erhaltungsphase — Kontrolltermine und Hygienebehandlungen meist alle 3–4 Monate.',
+            },
+        },
+        ua: {
+            faq: [
+                { q: 'Чи можна вилікувати пародонтоз?', a: 'Пародонтоз — хронічна хвороба, він не зникає повністю, але його можна ефективно зупинити та тримати під контролем. Ключові — раннє лікування та регулярна підтримуюча фаза.' },
+                { q: 'Чи боляче лікувати ясна?', a: 'Процедури виконуємо під знеболенням, а лазерна деконтамінація (Nd:YAG) додатково малоінвазивна та безкровна. Більшість пацієнтів добре переносять лікування.' },
+                { q: 'Чи кровоточивість ясен — це вже пародонтоз?', a: 'Кровоточивість — найчастіший ранній сигнал запалення ясен; без лікування може перейти в пародонтоз. Варто пройти зондування, перш ніж хвороба атакує кістку.' },
+                { q: 'Чи можна врятувати рухливі зуби?', a: 'Часто так, якщо відреагувати достатньо рано. Після зупинки хвороби зуби можуть стабілізуватися; в окремих випадках застосовуємо шинування.' },
+                { q: 'Як часто потрібні контрольні візити?', a: 'У підтримуючій фазі зазвичай кожні 3–4 місяці. Частоту підбираємо індивідуально, залежно від тяжкості хвороби та домашньої гігієни.' },
+            ],
+            procedure: {
+                name: 'Лікування пародонтозу (пародонтологія) Ополе',
+                procedureType: 'TherapeuticProcedure',
+                bodyLocation: 'Gums',
+                description: 'Лікування захворювань пародонту: діагностика (зондування ясенних кишень), піддесенний скейлінг і root planing, лазерна деконтамінація кишень (Nd:YAG) та підтримуюча фаза.',
+                howPerformed: 'Після зондування та оцінки рівня кістки видаляємо над- і піддесенний наліт та камінь, очищаємо поверхні коренів і знезаражуємо уражені кишені лазером Nd:YAG. Процедури під знеболенням.',
+                preparation: 'Пародонтологічне обстеження (зондування), за потреби РТГ/КТ, анамнез (куріння, діабет, ліки).',
+                followup: 'Підтримуюча фаза — контрольні візити та гігієна зазвичай кожні 3–4 місяці.',
+            },
+        },
+    },
+
     // ═════════════════ /oferta/laser ═════════════════
     '/oferta/laser': {
         pl: {

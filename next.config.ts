@@ -151,11 +151,6 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       {
-        source: '/oferta/periodontologia',
-        destination: '/oferta',
-        permanent: true,
-      },
-      {
         source: '/oferta/stomatologia-dziecieca',
         destination: '/oferta',
         permanent: true,

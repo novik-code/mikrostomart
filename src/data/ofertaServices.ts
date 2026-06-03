@@ -22,4 +22,5 @@ export const OFERTA_SERVICES: OfertaServiceItem[] = [
     { slug: 'ortodoncja', key: 'ortodoncja' },
     { slug: 'chirurgia', key: 'chirurgia' },
     { slug: 'protetyka', key: 'protetyka' },
+    { slug: 'periodontologia', key: 'periodontologia' },
 ];

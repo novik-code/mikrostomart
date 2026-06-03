@@ -112,6 +112,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         '/oferta',
         '/oferta/implantologia',
         '/oferta/laser',
+        '/oferta/periodontologia',
         '/oferta/leczenie-kanalowe',
         '/oferta/stomatologia-estetyczna',
         '/oferta/ortodoncja',

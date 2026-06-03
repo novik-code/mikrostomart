@@ -2526,6 +2526,28 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-06-02 #4 — 🦷 Nowa strona oferty `/oferta/periodontologia` (B — 2/4)
+
+**Druga z 4 brakujących stron oferty** (po laser). Leczenie paradontozy / chorób dziąseł — wzorzec Faza K, w pełni wpięta w siatkę usług (Opcja A).
+
+#### Commit
+- `<TBD po push>` — feat(seo): nowa strona oferty /oferta/periodontologia (B 2/4, 4 locale)
+
+#### Co powstało
+- **`oferta/periodontologia/{page,layout}.tsx`** [NEW] — sekcje: hero → intro (paradontoza = podstępna, #1 przyczyna utraty zębów) → 4 objawy ostrzegawcze → diagnostyka (sondowanie kieszonek — seed ze starego art. 306) → 4 etapy leczenia (diagnoza → skaling/SRP → laserowa dekontaminacja Nd:YAG → faza podtrzymująca) → cross-link do `/oferta/laser` → zdrowie ogólne (serce/cukrzyca/ciąża) → authority M.Sc. RWTH → 6 FAQ → PerformerCard → CTA.
+- **i18n namespace `periodontologia` ×4 locale** (44 klucze, ręcznie PL+EN+DE+UA, string-insercja).
+- Schema FAQPage+MedicalProcedure(Gums)+Service+BreadcrumbList ×4 (serviceSchemas).
+- **Auto w siatce `/oferta`**: dopisane do `OFERTA_SERVICES` + `ofertaServices` i18n (periodontologiaName/Desc ×4) → siatka ma teraz **8 usług**.
+- SEO: PAGE_SEO + BREADCRUMB_LABELS + sitemap + Footer + footer.seoNav.periodontologia ×4 + audit-hreflang + route-mtimes.
+- **next.config.ts**: usunięty redirect `/oferta/periodontologia`→`/oferta` (stary slug = nowy slug → realna strona serwuje się bezpośrednio).
+
+#### Weryfikacja
+- Build clean (221 stron, +4). Preview: 4 locale → 200 (redirect nie przechwytuje), h1 locale-aware, wszystkie 4 schematy, 0 raw keys. Siatka `/oferta` = 8 linków usług. **audit:hreflang 184/184 OK** (było 180).
+
+#### Brak migracji/env var. **Next B (3/4, 4/4)**: stomatologia dziecięca → zachowawcza (analogicznie, redirecty starych slugów do usunięcia).
+
+---
+
 ### 2026-06-02 #3 — 🔗 Siatka usług na /oferta (discoverability fix — Opcja A) + cross-link endo↔laser
 
 **Marcin zauważył słabość:** strony usług `/oferta/*` (w tym nowy `/oferta/laser`) były dostępne tylko z Footera + sitemap, ale landing `/oferta` linkował wyłącznie do `/rezerwacja` (karuzela marketingowa) — **zero linków do stron szczegółowych usług**. Słabe UX + słabe internal-linking SEO (footer links deprecjonowane przez Google).

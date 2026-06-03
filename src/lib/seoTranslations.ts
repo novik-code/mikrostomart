@@ -62,6 +62,28 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
     },
 
     // ───────── /oferta/leczenie-kanalowe ─────────
+    '/oferta/periodontologia': {
+        pl: {
+            title: 'Periodontologia Opole — leczenie paradontozy | Mikrostomart',
+            description: 'Leczenie paradontozy i chorób dziąseł w Opolu — sondowanie, skaling poddziąsłowy, laserowa dekontaminacja kieszonek (Nd:YAG). Zatrzymaj chorobę dziąseł. Umów wizytę.',
+            keywords: 'periodontologia opole, leczenie paradontozy opole, leczenie dziąseł opole, paradontoza opole, krwawiące dziąsła opole',
+        },
+        en: {
+            title: 'Periodontology Opole, Poland — Gum Disease Treatment | Mikrostomart',
+            description: 'Treatment of gum disease and periodontitis in Opole, Poland — probing, subgingival scaling, laser pocket decontamination (Nd:YAG). Stop gum disease. Book a visit.',
+            keywords: 'periodontology Opole, gum disease treatment Poland, periodontitis Opole, gum treatment Opole, bleeding gums Opole',
+        },
+        de: {
+            title: 'Parodontologie Opole, Polen — Parodontitis-Behandlung | Mikrostomart',
+            description: 'Behandlung von Parodontitis und Zahnfleischerkrankungen in Opole, Polen — Sondierung, subgingivales Scaling, Laser-Dekontamination (Nd:YAG). Termin vereinbaren.',
+            keywords: 'Parodontologie Opole, Parodontitis Behandlung Polen, Zahnfleischbehandlung Opole, Parodontose Opole',
+        },
+        ua: {
+            title: 'Пародонтологія Ополе, Польща — лікування пародонтозу | Mikrostomart',
+            description: 'Лікування пародонтозу та хвороб ясен в Ополе, Польща — зондування, піддесенний скейлінг, лазерна деконтамінація кишень (Nd:YAG). Запишіться на візит.',
+            keywords: 'пародонтологія Ополе, лікування пародонтозу Польща, лікування ясен Ополе, пародонтоз Ополе',
+        },
+    },
     '/oferta/laser': {
         pl: {
             title: 'Stomatologia laserowa Opole | Laser Fotona | Mikrostomart',
