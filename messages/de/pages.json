@@ -1,4 +1,23 @@
 {
+  "ofertaServices": {
+    "gridTitle": "Entdecken Sie unsere Leistungen",
+    "gridSubtitle": "Wählen Sie einen Bereich, um mehr über Behandlung, Technologie und unseren Ansatz zu erfahren.",
+    "cardCta": "Mehr erfahren",
+    "implantologiaName": "Implantologie",
+    "implantologiaDesc": "Wiederherstellung fehlender Zähne auf Implantaten — vom Einzelzahn bis All-on-4/6.",
+    "laserName": "Laserzahnheilkunde",
+    "laserDesc": "Fotona-LightWalker-Laser — weniger Schmerzen, oft ohne Bohrer, schnellere Heilung.",
+    "leczenieKanaloweName": "Wurzelkanalbehandlung",
+    "leczenieKanaloweDesc": "Mikroskopische und laserunterstützte Endodontie — wir retten verloren geglaubte Zähne.",
+    "estetycznaName": "Ästhetische Zahnmedizin",
+    "estetycznaDesc": "Veneers, Bonding, Bleaching und Smile Design (DSD).",
+    "ortodoncjaName": "Kieferorthopädie",
+    "ortodoncjaDesc": "Clear-Correct-Schienen — diskrete Zahnkorrektur.",
+    "chirurgiaName": "Mund-Kiefer-Chirurgie",
+    "chirurgiaDesc": "Extraktionen, Weisheitszähne, PRF und laserunterstützte Mikrochirurgie.",
+    "protetykaName": "Zahnprothetik",
+    "protetykaDesc": "Kronen, Brücken und Implantatversorgungen — Zirkon und E.max-Keramik."
+  },
   "laser": {
     "tagline": "LASERZAHNHEILKUNDE · OPOLE",
     "title": "Laserzahnheilkunde",
@@ -777,6 +796,7 @@
     "laserMechanism4": "Die klassische Spülung mit einer Spritze erreicht die Lösung auf etwa 1 mm von der Nadelspitze. Die Aktivierung von PIPS/SWEEPS verteilt die Lösung über die gesamte Länge des Kanals und dringt in die seitlichen Verzweigungen ein — von denen es im Durchschnitt mehrere in einem Zahn gibt.",
     "laserNdYagTitle": "Desinfektion mit Nd:YAG-Laser (1064 nm)",
     "laserNdYagDesc": "Nach der Aktivierung von NaOCl/EDTA desinfizieren wir zusätzlich das Wurzelgewebe mit dem Nd:YAG-Laser. Diese Wellenlänge dringt etwa 1 mm in das Dentin ein und wird in den Bakterienzellen absorbiert — wodurch Infektionsreservoirs beseitigt werden, die von keiner Spüllösung erreicht werden. Laut klinischen Studien (Saydjari 2016) eliminiert das Protokoll 99% Enterococcus faecalis — die Bakterien, die am häufigsten für Rückfälle von apikalen Entzündungen verantwortlich sind.",
+    "laserMoreCta": "Mehr über unsere Laserzahnheilkunde",
     "processIntro": "Die Standard-Wurzelkanalbehandlung in {brandName} dauert in einer Sitzung 90-150 Minuten. In komplizierten Fällen (akute Entzündung mit Abszess, Re-Endo mit vorheriger Kronen-Wurzel-Füllung) können wir die Behandlung auf 2 Besuche aufteilen.",
     "step5Title": "Spülung + Laseraktivierung SWEEPS",
     "step5Text": "5-15 ml 5,25% NaOCl + 5-10 ml 17% EDTA pro Kanal, aktiviert mit dem Er:YAG-Laser im SWEEPS-Modus (typische Parameter: 20 mJ, 15 Hz, konische Spitze 0,6 mm, 25 µs). Hier findet die eigentliche Desinfektion statt — siehe Abschnitt „Was bringt die Laseraktivierung“ oben.",

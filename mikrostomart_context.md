@@ -2526,6 +2526,26 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-06-02 #3 — 🔗 Siatka usług na /oferta (discoverability fix — Opcja A) + cross-link endo↔laser
+
+**Marcin zauważył słabość:** strony usług `/oferta/*` (w tym nowy `/oferta/laser`) były dostępne tylko z Footera + sitemap, ale landing `/oferta` linkował wyłącznie do `/rezerwacja` (karuzela marketingowa) — **zero linków do stron szczegółowych usług**. Słabe UX + słabe internal-linking SEO (footer links deprecjonowane przez Google).
+
+#### Commit
+- `<TBD po push>` — feat(seo): siatka usług na /oferta (discoverability) + cross-link endo→laser
+
+#### Co zrobione (Opcja A)
+- **`src/data/ofertaServices.ts`** [NEW] — data-driven lista 7 stron usług (slug + key). **Dodanie nowej strony usługi = 1 wpis tu + 2 klucze i18n → auto-pojawia się w siatce** (rozwiązuje footer-only dla wszystkich obecnych i przyszłych stron B).
+- **OfertaClient.tsx** — nowa siatka „Poznaj nasze usługi" (kafelki auto-fit, link do `/oferta/[slug]`, RevealOnScroll priority) pod karuzelą, przed CTA. Karuzela marketingowa zostaje (dalej → rezerwacja).
+- **i18n namespace `ofertaServices` ×4 locale** (17 kluczy: gridTitle/gridSubtitle/cardCta + 7×Name/Desc, ręcznie PL+EN+DE+UA, string-insercja).
+- **Cross-link reciprocal**: `/oferta/leczenie-kanalowe` → `/oferta/laser` (laser już linkował do endo; dodany klucz `leczeniekanalowe.laserMoreCta` ×4 + Link w sekcji laserowej).
+
+#### Weryfikacja
+- Build clean (217 stron). Preview: `/oferta` ×4 locale → siatka z **7/7 linkami do usług w treści**, gridTitle obecny, 0 raw keys. Cross-link endo→laser renderuje się.
+
+#### Brak migracji/env var. Następne strony oferty (perio/dziecięca/zachowawcza) automatycznie wejdą do siatki po dopisaniu do OFERTA_SERVICES.
+
+---
+
 ### 2026-06-02 #2 — 🦷 Nowa strona oferty `/oferta/laser` (B — recovery starej strony Joomla)
 
 **Krok B planu recovery starej strony mikrostomart.pl.** Po triage'u (A — `~/Desktop/MIKROSTOMART_OLD_RECOVERY/CLASSIFICATION.md`) okazało się, że stara strona miała 10 stron oferty, nowa ma 6 — brakowały m.in. **laser (sygnatura Marcina M.Sc. RWTH), periodontologia, stomatologia dziecięca, zachowawcza**. B startuje od najważniejszej: dedykowana strona stomatologii laserowej.

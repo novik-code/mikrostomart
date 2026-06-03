@@ -93,6 +93,13 @@ export default function LeczenieCanalowePage() {
                         </h3>
                         <p style={{ margin: 0, lineHeight: 1.7 }}>{t('laserNdYagDesc')}</p>
                     </div>
+
+                    <Link
+                        href="/oferta/laser"
+                        style={{ display: "inline-block", marginTop: "1.5rem", color: "var(--color-primary)", fontWeight: 600, textDecoration: "none" }}
+                    >
+                        {t('laserMoreCta')} →
+                    </Link>
                 </div>
 
                 {/* Process — 7 kroków */}

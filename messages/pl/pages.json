@@ -1,4 +1,23 @@
 {
+    "ofertaServices": {
+        "gridTitle": "Poznaj nasze usługi",
+        "gridSubtitle": "Wybierz dziedzinę, aby dowiedzieć się więcej o leczeniu, technologii i naszym podejściu.",
+        "cardCta": "Dowiedz się więcej",
+        "implantologiaName": "Implantologia",
+        "implantologiaDesc": "Odbudowa brakujących zębów na implantach — od pojedynczego zęba po All-on-4/6.",
+        "laserName": "Stomatologia laserowa",
+        "laserDesc": "Laser Fotona LightWalker — mniej bólu, często bez wiertła, szybsze gojenie.",
+        "leczenieKanaloweName": "Leczenie kanałowe",
+        "leczenieKanaloweDesc": "Endodoncja mikroskopowa i laserowa — ratujemy zęby uznane za stracone.",
+        "estetycznaName": "Stomatologia estetyczna",
+        "estetycznaDesc": "Licówki, bonding, wybielanie i projektowanie uśmiechu (DSD).",
+        "ortodoncjaName": "Ortodoncja",
+        "ortodoncjaDesc": "Nakładki Clear Correct — dyskretne prostowanie zębów.",
+        "chirurgiaName": "Chirurgia stomatologiczna",
+        "chirurgiaDesc": "Ekstrakcje, ósemki, PRF i mikrochirurgia wspomagana laserem.",
+        "protetykaName": "Protetyka",
+        "protetykaDesc": "Korony, mosty i odbudowy na implantach — cyrkon i ceramika E.max."
+    },
     "laser": {
         "tagline": "STOMATOLOGIA LASEROWA · OPOLE",
         "title": "Stomatologia laserowa",
@@ -795,6 +814,7 @@
         "laserMechanism4": "Klasyczna irygacja strzykawką dociera roztworem na ~1 mm od końcówki igły. Aktywacja PIPS/SWEEPS rozprowadza roztwór na całej długości kanału i wnika do bocznych odgałęzień — których jest średnio kilkanaście w jednym zębie.",
         "laserNdYagTitle": "Dezynfekcja laserem Nd:YAG (1064 nm)",
         "laserNdYagDesc": "Po aktywacji NaOCl/EDTA dodatkowo dezynfekujemy zębinę korzeniową laserem Nd:YAG. Ta długość fali penetruje na głębokość około 1 mm w głąb zębiny i absorbuje się w komórkach bakteryjnych — likwidując rezerwuary infekcji, do których nie dotrze żaden roztwór płuczący. Według badań klinicznych (Saydjari 2016) protokół eliminuje 99% Enterococcus faecalis — bakterii najczęściej odpowiedzialnej za nawroty zapaleń okołowierzchołkowych.",
+        "laserMoreCta": "Więcej o naszej stomatologii laserowej",
         "processTitle": "Jak przebiega leczenie kanałowe — krok po kroku",
         "processIntro": "Standardowe leczenie kanałowe w {brandName} jednoseansowe trwa 90-150 minut. W skomplikowanych przypadkach (zaostrzone zapalenie z ropniem, Re-Endo z poprzednim wkładem koronowo-korzeniowym) możemy podzielić leczenie na 2 wizyty.",
         "step1Title": "Diagnostyka i opcje terapeutyczne",

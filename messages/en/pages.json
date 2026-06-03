@@ -1,4 +1,23 @@
 {
+    "ofertaServices": {
+        "gridTitle": "Explore our services",
+        "gridSubtitle": "Choose an area to learn more about the treatment, technology and our approach.",
+        "cardCta": "Learn more",
+        "implantologiaName": "Implantology",
+        "implantologiaDesc": "Restoring missing teeth on implants — from a single tooth to All-on-4/6.",
+        "laserName": "Laser Dentistry",
+        "laserDesc": "Fotona LightWalker laser — less pain, often no drill, faster healing.",
+        "leczenieKanaloweName": "Root Canal Treatment",
+        "leczenieKanaloweDesc": "Microscopic and laser endodontics — we save teeth considered lost.",
+        "estetycznaName": "Aesthetic Dentistry",
+        "estetycznaDesc": "Veneers, bonding, whitening and smile design (DSD).",
+        "ortodoncjaName": "Orthodontics",
+        "ortodoncjaDesc": "Clear Correct aligners — discreet teeth straightening.",
+        "chirurgiaName": "Oral Surgery",
+        "chirurgiaDesc": "Extractions, wisdom teeth, PRF and laser-assisted microsurgery.",
+        "protetykaName": "Prosthodontics",
+        "protetykaDesc": "Crowns, bridges and implant restorations — zirconia and E.max ceramics."
+    },
     "laser": {
         "tagline": "LASER DENTISTRY · OPOLE",
         "title": "Laser Dentistry",
@@ -777,6 +796,7 @@
         "laserMechanism4": "Classic syringe irrigation reaches the solution about 1 mm from the tip of the needle. PIPS/SWEEPS activation distributes the solution along the entire length of the canal and penetrates into lateral branches — of which there are typically several in one tooth.",
         "laserNdYagTitle": "Disinfection with Nd:YAG laser (1064 nm)",
         "laserNdYagDesc": "After activating NaOCl/EDTA, we additionally disinfect the root dentin with the Nd:YAG laser. This wavelength penetrates to a depth of about 1 mm into the dentin and is absorbed by bacterial cells — eliminating reservoirs of infection that no irrigating solution can reach. According to clinical studies (Saydjari 2016), the protocol eliminates 99% of Enterococcus faecalis — the bacteria most commonly responsible for recurrences of periapical inflammation.",
+        "laserMoreCta": "More about our laser dentistry",
         "processIntro": "Standard root canal treatment at {brandName} lasts 90-150 minutes in a single session. In complicated cases (acute inflammation with an abscess, Re-Endo with a previous crown-root post), we may divide the treatment into 2 visits.",
         "step5Title": "Irrigation + laser activation SWEEPS",
         "step5Text": "5-15 ml of 5.25% NaOCl + 5-10 ml of 17% EDTA per canal, activated by the Er:YAG laser in SWEEPS mode (typical parameters: 20 mJ, 15 Hz, conical tip 0.6 mm, 25 µs). This is where the real disinfection occurs — see the section 'What does laser activation provide' above.",
