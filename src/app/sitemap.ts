@@ -191,6 +191,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // L-2 (2026-05-21 NIGHT+1): 2 dodatkowe PL-only local geo pages
     const localGeoRoutes: MetadataRoute.Sitemap = [
         {
+            url: `${BASE_URL}/all-on-4-opole`,
+            lastModified: lastModForPath('/all-on-4-opole'),
+            changeFrequency: 'monthly' as const,
+            priority: 0.9, // Faza 2B: All-on-X geo, high commercial intent (premium money page)
+        },
+        {
             url: `${BASE_URL}/leczenie-kanalowe-opole-mikroskop`,
             lastModified: lastModForPath('/leczenie-kanalowe-opole-mikroskop'),
             changeFrequency: 'monthly' as const,

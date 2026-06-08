@@ -749,6 +749,30 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
         },
     },
 
+    // ───────── /all-on-4-opole — Faza 2B local geo page (PL-only, foreign noindex) ─────────
+    '/all-on-4-opole': {
+        pl: {
+            title: 'All-on-4 Opole — stałe zęby na implantach | Mikrostomart',
+            description: 'All-on-4 i All-on-6 w Opolu — stałe zęby na implantach, nowe zęby w jeden dzień, od 30 000 zł. Implantolog M.Sc. RWTH Aachen, raty. Umów konsultację.',
+            keywords: 'all-on-4 opole, all-on-6 opole, stałe zęby na implantach opole, implanty na cały łuk opole, nowe zęby w jeden dzień opole, all-on-4 cena opole',
+        },
+        en: {
+            title: 'All-on-4 Opole — Fixed Teeth on Implants | Mikrostomart',
+            description: 'All-on-4 and All-on-6 in Opole, Poland — fixed teeth on implants, new teeth in one day, from 30,000 PLN. Implantologist M.Sc. RWTH Aachen.',
+            keywords: 'All-on-4 Opole, All-on-6 Opole, fixed teeth on implants Opole, full arch implants Poland, new teeth in one day Opole',
+        },
+        de: {
+            title: 'All-on-4 Opole — feste Zähne auf Implantaten | Mikrostomart',
+            description: 'All-on-4 und All-on-6 in Opole — feste Zähne auf Implantaten, neue Zähne an einem Tag, ab 30.000 PLN. Implantologe M.Sc. RWTH Aachen.',
+            keywords: 'All-on-4 Opole, All-on-6 Opole, feste Zähne auf Implantaten Opole, Vollbogen-Implantate Polen, neue Zähne an einem Tag',
+        },
+        ua: {
+            title: 'All-on-4 Ополе — незнімні зуби на імплантах | Mikrostomart',
+            description: 'All-on-4 та All-on-6 в Ополе — незнімні зуби на імплантах, нові зуби за один день, від 30 000 злотих. Імплантолог M.Sc. RWTH Aachen.',
+            keywords: 'All-on-4 Ополе, All-on-6 Ополе, незнімні зуби на імплантах Ополе, імпланти на весь ряд Польща, нові зуби за один день',
+        },
+    },
+
     // ───────── /implanty-opole — L-1 local geo page (PL-only, foreign noindex) ─────────
     // Faza L-1 (2026-05-21 NIGHT+1): dedykowany landing dla zapytań geo-targeted
     // ("implant Opole", "implanty zębów Opole cena", "implantolog Opole").

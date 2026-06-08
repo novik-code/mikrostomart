@@ -76,6 +76,7 @@ const PUBLIC_PATHS = [
     '/gwarancje',
     // L-1/L-2 (2026-05-22): PL-only local geo (foreign noindex via layout.tsx)
     '/implanty-opole',
+    '/all-on-4-opole',
     '/leczenie-kanalowe-opole-mikroskop',
     '/dentysta-opole-centrum',
     // Pakiet C (2026-06-01): dedykowane geo-landingi DE/EN (indexed only target locale)
@@ -94,6 +95,7 @@ const PL_ONLY_PATHS = new Set([
     '/polityka-prywatnosci',
     '/rodo',
     '/implanty-opole',     // L-1: geo, no organic intent in EN/DE/UA
+    '/all-on-4-opole',     // 2B: All-on-X geo (PL-only)
     '/leczenie-kanalowe-opole-mikroskop', // L-2a
     '/dentysta-opole-centrum',            // L-2b
 ]);

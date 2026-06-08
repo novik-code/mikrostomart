@@ -81,6 +81,7 @@ const ROUTE_FILES = {
     '/zespol/elzbieta-nowosielska': ['src/app/[locale]/zespol/elzbieta-nowosielska/page.tsx', 'src/app/[locale]/zespol/elzbieta-nowosielska/layout.tsx'],
     '/gwarancje': ['src/app/[locale]/gwarancje/page.tsx', 'src/app/[locale]/gwarancje/layout.tsx'],
     '/implanty-opole': ['src/app/[locale]/implanty-opole/page.tsx', 'src/app/[locale]/implanty-opole/layout.tsx'],
+    '/all-on-4-opole': ['src/app/[locale]/all-on-4-opole/page.tsx', 'src/app/[locale]/all-on-4-opole/layout.tsx'],
     '/leczenie-kanalowe-opole-mikroskop': ['src/app/[locale]/leczenie-kanalowe-opole-mikroskop/page.tsx', 'src/app/[locale]/leczenie-kanalowe-opole-mikroskop/layout.tsx'],
     '/dentysta-opole-centrum': ['src/app/[locale]/dentysta-opole-centrum/page.tsx', 'src/app/[locale]/dentysta-opole-centrum/layout.tsx'],
     '/zahnarzt-opole': ['src/app/[locale]/zahnarzt-opole/page.tsx', 'src/app/[locale]/zahnarzt-opole/layout.tsx'],
