@@ -16,6 +16,7 @@ export interface OfertaServiceItem {
 
 export const OFERTA_SERVICES: OfertaServiceItem[] = [
     { slug: 'implantologia', key: 'implantologia' },
+    { slug: 'all-on-4', key: 'allon4' },
     { slug: 'laser', key: 'laser' },
     { slug: 'leczenie-kanalowe', key: 'leczenieKanalowe' },
     { slug: 'stomatologia-estetyczna', key: 'estetyczna' },

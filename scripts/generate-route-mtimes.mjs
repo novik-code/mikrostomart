@@ -34,6 +34,7 @@ const ROUTE_FILES = {
     '/o-nas': ['src/app/[locale]/o-nas/page.tsx', 'src/app/[locale]/o-nas/layout.tsx'],
     '/oferta': ['src/app/[locale]/oferta/page.tsx', 'src/app/[locale]/oferta/layout.tsx'],
     '/oferta/implantologia': ['src/app/[locale]/oferta/implantologia/page.tsx', 'src/app/[locale]/oferta/implantologia/layout.tsx'],
+    '/oferta/all-on-4': ['src/app/[locale]/oferta/all-on-4/page.tsx', 'src/app/[locale]/oferta/all-on-4/layout.tsx'],
     '/oferta/laser': ['src/app/[locale]/oferta/laser/page.tsx', 'src/app/[locale]/oferta/laser/layout.tsx'],
     '/oferta/periodontologia': ['src/app/[locale]/oferta/periodontologia/page.tsx', 'src/app/[locale]/oferta/periodontologia/layout.tsx'],
     '/oferta/stomatologia-dziecieca': ['src/app/[locale]/oferta/stomatologia-dziecieca/page.tsx', 'src/app/[locale]/oferta/stomatologia-dziecieca/layout.tsx'],

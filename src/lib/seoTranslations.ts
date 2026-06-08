@@ -37,6 +37,30 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
         },
     },
 
+    // ───────── /oferta/all-on-4 (Faza 2A — premium money page) ─────────
+    '/oferta/all-on-4': {
+        pl: {
+            title: 'All-on-4 / All-on-6 Opole — implanty | Mikrostomart',
+            description: 'Stała odbudowa zębów na implantach All-on-4 i All-on-6 w Opolu — nowe zęby w jeden dzień, most cyrkonowy, od 30 000 zł. M.Sc. RWTH Aachen.',
+            keywords: 'all-on-4 opole, all-on-6 opole, implanty all on 4 opole, stałe zęby na implantach opole, nowe zęby w jeden dzień opole, all-on-4 cena opole',
+        },
+        en: {
+            title: 'All-on-4 / All-on-6 Opole, Poland | Mikrostomart',
+            description: 'Fixed full-arch teeth on implants — All-on-4 and All-on-6 in Opole, Poland. New teeth in one day, zirconia bridge, from 30,000 PLN. M.Sc. RWTH Aachen.',
+            keywords: 'All-on-4 Opole, All-on-4 Poland, All-on-6 Poland, full arch implants Poland, fixed teeth on implants Opole, All-on-4 cost Poland',
+        },
+        de: {
+            title: 'All-on-4 / All-on-6 Opole, Polen | Mikrostomart',
+            description: 'Festsitzende Zähne auf Implantaten — All-on-4 und All-on-6 in Opole, Polen. Neue Zähne an einem Tag, Zirkonbrücke, ab 30.000 PLN. M.Sc. RWTH Aachen.',
+            keywords: 'All-on-4 Opole, All-on-4 Polen, All-on-6 Polen, festsitzende Zähne Implantate Polen, Zähne an einem Tag Polen, All-on-4 Kosten',
+        },
+        ua: {
+            title: 'All-on-4 / All-on-6 Ополе, Польща | Mikrostomart',
+            description: 'Незнімні зуби на імплантах — All-on-4 та All-on-6 в Ополе, Польща. Нові зуби за один день, цирконієвий міст, від 30 000 злотих. M.Sc. RWTH Aachen.',
+            keywords: 'All-on-4 Ополе, All-on-4 Польща, All-on-6 Польща, незнімні зуби на імплантах, зуби за один день Польща, All-on-4 ціна',
+        },
+    },
+
     // ───────── /oferta/implantologia ─────────
     '/oferta/implantologia': {
         pl: {

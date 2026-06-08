@@ -114,6 +114,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         '/o-nas',
         '/oferta',
         '/oferta/implantologia',
+        '/oferta/all-on-4',
         '/oferta/laser',
         '/oferta/periodontologia',
         '/oferta/stomatologia-dziecieca',

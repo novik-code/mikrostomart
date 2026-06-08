@@ -34,6 +34,81 @@ export interface ServicePageSchemaContent {
 export type ServiceSchemaMap = Partial<Record<string, ServicePageSchemaContent>>;
 
 export const SERVICE_SCHEMAS: Record<string, ServiceSchemaMap> = {
+    '/oferta/all-on-4': {
+        pl: {
+            faq: [
+                { q: 'Czym jest All-on-4 i All-on-6?', a: 'To stałe odbudowy całego łuku zębowego oparte na 4 (All-on-4) lub 6 (All-on-6) implantach. Implanty tylne wszczepia się pod kątem, omijając zanik kości i zatokę — dzięki temu często unikamy przeszczepów kości. Na implantach mocujemy stały most, którego pacjent nie zdejmuje.' },
+                { q: 'Czy dostanę zęby w jeden dzień?', a: 'W większości przypadków tak. Gdy stabilizacja pierwotna implantów jest wystarczająca (obciążenie natychmiastowe), most tymczasowy zakładamy w ciągu 24-48 godzin od zabiegu — pacjent wychodzi z gabinetu z nowymi, stałymi zębami. Ostateczny most z cyrkonu wykonujemy po wygojeniu (zwykle 3-6 miesięcy).' },
+                { q: 'All-on-4 czy All-on-6 — co wybrać?', a: 'Decyzję podejmujemy po tomografii CBCT i analizie kości. All-on-6 (6 implantów) daje lepszy rozkład sił i większą rezerwę — polecany przy wystarczającej ilości kości, bruksizmie lub planowaniu długoterminowym. All-on-4 jest rozwiązaniem przy mniejszej ilości kości i bardziej przystępnym budżecie. W skrajnym zaniku szczęki stosujemy implanty zygomatyczne.' },
+                { q: 'Ile kosztuje All-on-4 w Opolu?', a: 'All-on-4 zaczyna się od ok. 30 000-40 000 zł za łuk, All-on-6 to ok. 45 000-55 000 zł — cena zależy od liczby implantów, materiału mostu i ewentualnych zabiegów dodatkowych. Oferujemy raty/finansowanie. Dokładną wycenę podajemy po konsultacji i tomografii CBCT.' },
+                { q: 'Jak długo wytrzymują implanty All-on-4?', a: 'Przy prawidłowej higienie i regularnych kontrolach implanty służą wiele lat. Udzielamy gwarancji na implanty, a stały most z cyrkonu jest bardzo trwały i odporny na ścieranie. Kluczem do trwałości jest higienizacja i okresowe wizyty kontrolne.' },
+            ],
+            procedure: {
+                name: 'All-on-4 / All-on-6 Opole — stała odbudowa zębów na implantach',
+                procedureType: 'SurgicalProcedure',
+                bodyLocation: 'Mouth',
+                description: 'Stała odbudowa całego łuku zębowego na 4 (All-on-4) lub 6 (All-on-6) implantach, z mostem przykręcanym z cyrkonu. Rozwiązanie dla pacjentów z bezzębiem, rozległymi brakami lub uzębieniem do całkowitej wymiany. W skrajnym zaniku kości — implanty zygomatyczne.',
+                howPerformed: 'Cyfrowe planowanie na podstawie CBCT i skanu wewnątrzustnego, wszczepienie implantów (tylne pod kątem dla ominięcia zaniku kości i zatoki), most tymczasowy w 24-48 h przy obciążeniu natychmiastowym, most ostateczny z cyrkonu po wygojeniu (3-6 miesięcy). M.Sc. RWTH Aachen, PRF.',
+                preparation: 'Konsultacja implantologiczna, tomografia CBCT, ocena kości i stanu ogólnego, cyfrowy plan leczenia.',
+                followup: 'Wizyty kontrolne po zabiegu, wymiana mostu tymczasowego na ostateczny, regularna higienizacja i kontrole zapewniające trwałość rekonstrukcji.',
+            },
+        },
+        en: {
+            faq: [
+                { q: 'What are All-on-4 and All-on-6?', a: 'These are fixed full-arch restorations supported by 4 (All-on-4) or 6 (All-on-6) implants. The rear implants are placed at an angle, bypassing bone loss and the sinus — which often lets us avoid bone grafting. A fixed bridge is mounted on the implants and is not removed by the patient.' },
+                { q: 'Will I get teeth in a single day?', a: 'In most cases, yes. When the primary stability of the implants is sufficient (immediate loading), we fit a temporary bridge within 24-48 hours of surgery — the patient leaves with new, fixed teeth. The final zirconia bridge is made after healing (usually 3-6 months).' },
+                { q: 'All-on-4 or All-on-6 — which to choose?', a: 'We decide after a CBCT scan and bone analysis. All-on-6 (6 implants) gives better force distribution and more reserve — recommended with sufficient bone, bruxism or long-term planning. All-on-4 suits cases with less bone and a more accessible budget. In extreme jaw atrophy we use zygomatic implants.' },
+                { q: 'How much does All-on-4 cost in Opole, Poland?', a: 'All-on-4 starts at around 30,000-40,000 PLN per arch, All-on-6 is around 45,000-55,000 PLN — the price depends on the number of implants, the bridge material and any additional procedures. We offer instalments/financing. We give an exact quote after a consultation and CBCT scan.' },
+                { q: 'How long do All-on-4 implants last?', a: 'With proper hygiene and regular check-ups, implants last for many years. We provide a warranty on the implants, and the fixed zirconia bridge is highly durable and wear-resistant. Hygiene appointments and periodic check-ups are key to longevity.' },
+            ],
+            procedure: {
+                name: 'All-on-4 / All-on-6 in Opole, Poland — fixed full-arch implant restoration',
+                procedureType: 'SurgicalProcedure',
+                bodyLocation: 'Mouth',
+                description: 'Fixed restoration of an entire dental arch on 4 (All-on-4) or 6 (All-on-6) implants with a screw-retained zirconia bridge. A solution for edentulous patients, extensive tooth loss or a full dentition to be replaced. In extreme bone atrophy — zygomatic implants.',
+                howPerformed: 'Digital planning based on CBCT and intraoral scan, implant placement (rear implants angled to bypass bone loss and the sinus), temporary bridge within 24-48 h under immediate loading, final zirconia bridge after healing (3-6 months). M.Sc. RWTH Aachen, PRF.',
+                preparation: 'Implantology consultation, CBCT scan, bone and general-health assessment, digital treatment plan.',
+                followup: 'Post-operative check-ups, replacement of the temporary bridge with the final one, regular hygiene and check-ups ensuring the durability of the reconstruction.',
+            },
+        },
+        de: {
+            faq: [
+                { q: 'Was sind All-on-4 und All-on-6?', a: 'Das sind festsitzende Vollbogen-Versorgungen auf 4 (All-on-4) oder 6 (All-on-6) Implantaten. Die hinteren Implantate werden anguliert gesetzt und umgehen Knochenabbau und Kieferhöhle — dadurch lässt sich ein Knochenaufbau oft vermeiden. Auf den Implantaten wird eine feste Brücke befestigt, die der Patient nicht herausnimmt.' },
+                { q: 'Bekomme ich die Zähne an einem Tag?', a: 'In den meisten Fällen ja. Bei ausreichender Primärstabilität der Implantate (Sofortbelastung) setzen wir eine provisorische Brücke innerhalb von 24-48 Stunden nach dem Eingriff ein — der Patient geht mit neuen, festen Zähnen nach Hause. Die endgültige Zirkonbrücke fertigen wir nach der Heilung (meist 3-6 Monate).' },
+                { q: 'All-on-4 oder All-on-6 — was wählen?', a: 'Die Entscheidung treffen wir nach einer CBCT-Aufnahme und Knochenanalyse. All-on-6 (6 Implantate) bietet eine bessere Lastverteilung und mehr Reserve — empfohlen bei ausreichendem Knochen, Bruxismus oder langfristiger Planung. All-on-4 eignet sich bei weniger Knochen und zugänglicherem Budget. Bei extremer Kieferatrophie verwenden wir Zygoma-Implantate.' },
+                { q: 'Was kostet All-on-4 in Opole, Polen?', a: 'All-on-4 beginnt bei etwa 30.000-40.000 PLN pro Kiefer, All-on-6 liegt bei etwa 45.000-55.000 PLN — der Preis hängt von der Implantatzahl, dem Brückenmaterial und etwaigen Zusatzeingriffen ab. Wir bieten Ratenzahlung/Finanzierung. Ein genaues Angebot erstellen wir nach Beratung und CBCT.' },
+                { q: 'Wie lange halten All-on-4-Implantate?', a: 'Bei richtiger Hygiene und regelmäßigen Kontrollen halten Implantate viele Jahre. Wir gewähren eine Garantie auf die Implantate, und die festsitzende Zirkonbrücke ist sehr langlebig und abriebfest. Mundhygiene-Termine und regelmäßige Kontrollen sind der Schlüssel zur Langlebigkeit.' },
+            ],
+            procedure: {
+                name: 'All-on-4 / All-on-6 in Opole, Polen — festsitzende Vollbogen-Implantatversorgung',
+                procedureType: 'SurgicalProcedure',
+                bodyLocation: 'Mouth',
+                description: 'Festsitzende Versorgung eines kompletten Zahnbogens auf 4 (All-on-4) oder 6 (All-on-6) Implantaten mit verschraubter Zirkonbrücke. Lösung für zahnlose Patienten, ausgedehnte Lücken oder ein komplett zu ersetzendes Gebiss. Bei extremer Knochenatrophie — Zygoma-Implantate.',
+                howPerformed: 'Digitale Planung auf Basis von CBCT und Intraoralscan, Implantatsetzung (hintere Implantate anguliert zur Umgehung von Knochenabbau und Kieferhöhle), provisorische Brücke innerhalb von 24-48 h bei Sofortbelastung, endgültige Zirkonbrücke nach der Heilung (3-6 Monate). M.Sc. RWTH Aachen, PRF.',
+                preparation: 'Implantologische Beratung, CBCT, Knochen- und Allgemeinzustandsbewertung, digitaler Behandlungsplan.',
+                followup: 'Postoperative Kontrollen, Austausch der provisorischen gegen die endgültige Brücke, regelmäßige Mundhygiene und Kontrollen für die Haltbarkeit der Rekonstruktion.',
+            },
+        },
+        ua: {
+            faq: [
+                { q: 'Що таке All-on-4 і All-on-6?', a: 'Це незнімні відновлення всієї зубної дуги на 4 (All-on-4) або 6 (All-on-6) імплантах. Задні імпланти встановлюють під кутом, оминаючи атрофію кістки та пазуху — завдяки чому часто вдається уникнути кісткової пластики. На імплантах фіксується незнімний міст, який пацієнт не знімає.' },
+                { q: 'Чи отримаю зуби за один день?', a: 'У більшості випадків так. За достатньої первинної стабільності імплантів (негайне навантаження) тимчасовий міст встановлюємо протягом 24-48 годин після операції — пацієнт виходить із новими незнімними зубами. Остаточний цирконієвий міст виготовляємо після загоєння (зазвичай 3-6 місяців).' },
+                { q: 'All-on-4 чи All-on-6 — що обрати?', a: 'Рішення приймаємо після КТ (CBCT) та аналізу кістки. All-on-6 (6 імплантів) дає кращий розподіл навантаження та більший запас — рекомендований за достатньої кістки, бруксизму чи довгострокового планування. All-on-4 підходить за меншої кількості кістки та доступнішого бюджету. За екстремальної атрофії застосовуємо вилицеві (зигоматичні) імпланти.' },
+                { q: 'Скільки коштує All-on-4 в Ополе, Польща?', a: 'All-on-4 починається приблизно від 30 000-40 000 злотих за дугу, All-on-6 — близько 45 000-55 000 злотих; ціна залежить від кількості імплантів, матеріалу мосту та додаткових процедур. Пропонуємо розстрочку/фінансування. Точну вартість надаємо після консультації та КТ.' },
+                { q: 'Скільки служать імпланти All-on-4?', a: 'За належної гігієни та регулярних оглядів імпланти служать багато років. Надаємо гарантію на імпланти, а незнімний цирконієвий міст дуже міцний та стійкий до стирання. Гігієнічні візити та періодичні огляди — ключ до довговічності.' },
+            ],
+            procedure: {
+                name: 'All-on-4 / All-on-6 Ополе — незнімне відновлення зубів на імплантах',
+                procedureType: 'SurgicalProcedure',
+                bodyLocation: 'Mouth',
+                description: 'Незнімне відновлення всієї зубної дуги на 4 (All-on-4) або 6 (All-on-6) імплантах із прикрученим цирконієвим мостом. Рішення для пацієнтів із адентією, значними втратами зубів або повним заміщенням. За екстремальної атрофії — вилицеві імпланти.',
+                howPerformed: 'Цифрове планування на основі CBCT та внутрішньоротового скану, встановлення імплантів (задні під кутом для оминання атрофії та пазухи), тимчасовий міст за 24-48 год при негайному навантаженні, остаточний цирконієвий міст після загоєння (3-6 місяців). M.Sc. RWTH Aachen, PRF.',
+                preparation: 'Імплантологічна консультація, КТ (CBCT), оцінка кістки та загального стану, цифровий план лікування.',
+                followup: 'Післяопераційні огляди, заміна тимчасового мосту на остаточний, регулярна гігієна та контроль для довговічності реконструкції.',
+            },
+        },
+    },
+
     // ═════════════════ /oferta/implantologia ═════════════════
     '/oferta/implantologia': {
         pl: {
