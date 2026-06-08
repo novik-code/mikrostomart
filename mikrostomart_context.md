@@ -1,13 +1,13 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-08 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ KOMPLETNA** (1A `03ae220` schema/NAP/local; 1B `a4b15b6` hreflang scoping + geo orphans + mapa; 1C `e443139` meta ≤60/≤160 + news E-E-A-T byline/reviewedBy + mapa-bólu JPG 2.2MB→webp 57KB). Build clean, test 109/109, migracje do `160`. **Faza 2A ✅** (`2a5d072` — strona usługi `/oferta/all-on-4`: H1 geo, FAQPage/MedicalProcedure/Service+Offer 30-55k PLN, siatka /oferta=11, audit:hreflang 196/196; dostęp usera: siatka+Footer). Następna: **Faza 2B** (geo `/all-on-4-opole`).
+> **Last Updated:** 2026-06-08 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ KOMPLETNA** (1A `03ae220` schema/NAP/local; 1B `a4b15b6` hreflang scoping + geo orphans + mapa; 1C `e443139` meta ≤60/≤160 + news E-E-A-T byline/reviewedBy + mapa-bólu JPG 2.2MB→webp 57KB). Build clean, test 109/109, migracje do `160`. **Faza 2A ✅** (`2a5d072` /oferta/all-on-4, siatka /oferta=11) **+ 2B ✅** (`689e983` — geo `/all-on-4-opole`: PL-only indexable + foreign noindex, Service+Offer 30-55k + MedicalProcedure + FAQPage + LazyMapEmbed, hreflang scoped, audit:hreflang 200/200). Następna: **Faza 2C** (metamorfozy content).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
 > 🧱 **Dług techniczny / otwarte pozycje** (referencja do oceny, NIE backlog): weryfikacja synchronizacji migracji DB na produkcji (RLS `132`, treści `137`–`160` — status nieznany dla AI); `src/app/[locale]/admin/page.tsx` monolit ~2,4k LOC; `withAuth` niewdrożony do wszystkich tras; Performance/CWV (`Navbar`→LazyMotion, `HomeClient`→`next/dynamic` → Faza 4; `mapa-bolu` webp ✅ 1C); SEO P3 (drobne schema + CAPS-title newsów = ręczna korekta w DB). Pełniejszy inwentarz: „🎯 Implementation Status”; skrócony dług: `KOMENDA_STARTOWA_MIKROSTOMART.md §0`.
 
 > **Version:** Production + Demo (Dual Vercel Deployment)
-> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1 ✅ (1A+1B+1C) + Faza 2A ✅ (/oferta/all-on-4), następna 2B** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
+> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1 ✅ (1A+1B+1C) + Faza 2A+2B ✅ (all-on-4 strona+geo), następna 2C** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
 
 ---
 
@@ -2469,6 +2469,30 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-08 #10 — 🦷 SEO Faza 2B: geo-landing /all-on-4-opole (All-on-X local pack)
+
+**Faza 2B** — geo-landing pod local pack (PL-only indexable, foreign noindex). Wzorzec implanty-opole, komplementarny do strony usługi /oferta/all-on-4 (2A). Treść kliniczna = te same fakty co recenzowane 2A + nowa część lokalna (Opole/A4/parking).
+
+#### Commit
+- `689e983` — feat(seo): Faza 2B — geo-landing /all-on-4-opole (All-on-X local pack)
+
+#### Co powstało
+- **`all-on-4-opole/{page,layout}.tsx`** [NEW] — wzorzec implanty-opole: PL-only indexable, foreign noindex + canonical self, hreflang scoped `['pl']` (1B). Hero geo → 3 USP → procedura 5 kroków (link → /oferta/all-on-4) → Lokalizacja Opole (4 cards + `LazyMapEmbed`) → lekarz Marcin → Reviews (UI only) → 6 FAQ geo → CTA.
+- **Schema:** BreadcrumbList + Service (areaServed Opole/woj./Poland) + **Offer/PriceSpec 30000-55000 PLN** + MedicalProcedure (SurgicalProcedure/Mouth, performer Physician @id) + FAQPage. **BEZ Reviews** (self-serving, GSC fix 2026-05-23 — świadome odstępstwo od „5× Review" w planie 2B).
+- **i18n namespace `allon4Opole` ×4** (~50 kluczy geo-focus). PAGE_SEO ×4 (≤60/≤160), BREADCRUMB_LABELS ×4, sitemap `localGeoRoutes` (PL-only, single URL bez alternates), audit-hreflang PUBLIC_PATHS + PL_ONLY_PATHS, Footer +link + footer.seoNav.allOn4Opole ×4, route-mtimes.
+
+#### Pliki (18)
+`all-on-4-opole/{page,layout}.tsx` [NEW] + seoTranslations.ts + seo.ts + sitemap.ts + Footer.tsx + audit-hreflang.mjs + generate-route-mtimes.mjs + messages/{pl,en,de,ua}/{pages,common}.json. Auto: sw.js, generated-route-mtimes.
+
+#### Weryfikacja (preview prod :3001)
+- PL → 200 indexable + canonical self; EN/DE/UA → noindex,follow + canonical self; 1× H1 geo; Service+Offer(minPrice 30000) + SurgicalProcedure + FAQPage + BreadcrumbList; brak Review schema; **hreflang scoped PL-only** (pl + x-default → /all-on-4-opole); 0 raw keys; LazyMapEmbed. **audit:hreflang 200/200**, build clean, test 109/109, 0 błędów konsoli.
+
+#### Brak migracji / env. Deploy: produkcja + demo.
+
+#### Next: Faza 2C (`feat/metamorfozy-content`) — `/metamorfozy` z pustej galerii w content money page (H1 „Metamorfozy uśmiechu Opole", sekcje DSD/ścieżki licówki-bonding-korony-implanty-All-on-X/koszt/kwalifikacja, opisy case, FAQPage + ImageObject[]/ImageGallery z `metamorphoses.ts`). Potem 2D geo premium + cienkie strony.
+
+---
 
 ### 2026-06-08 #9 — 🦷 SEO Faza 2A: strona usługi /oferta/all-on-4 (All-on-X premium money page)
 
