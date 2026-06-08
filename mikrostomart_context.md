@@ -1,13 +1,13 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-08 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ KOMPLETNA** (1A `03ae220` schema/NAP/local; 1B `a4b15b6` hreflang scoping + geo orphans + mapa; 1C `e443139` meta ≤60/≤160 + news E-E-A-T byline/reviewedBy + mapa-bólu JPG 2.2MB→webp 57KB). Build 223, test 109/109, audit:hreflang 192/192, migracje do `160`. Następna: **Faza 2** (premium money pages: All-on-X strona+geo, metamorfozy content).
+> **Last Updated:** 2026-06-08 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ KOMPLETNA** (1A `03ae220` schema/NAP/local; 1B `a4b15b6` hreflang scoping + geo orphans + mapa; 1C `e443139` meta ≤60/≤160 + news E-E-A-T byline/reviewedBy + mapa-bólu JPG 2.2MB→webp 57KB). Build clean, test 109/109, migracje do `160`. **Faza 2A ✅** (`2a5d072` — strona usługi `/oferta/all-on-4`: H1 geo, FAQPage/MedicalProcedure/Service+Offer 30-55k PLN, siatka /oferta=11, audit:hreflang 196/196; dostęp usera: siatka+Footer). Następna: **Faza 2B** (geo `/all-on-4-opole`).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
 > 🧱 **Dług techniczny / otwarte pozycje** (referencja do oceny, NIE backlog): weryfikacja synchronizacji migracji DB na produkcji (RLS `132`, treści `137`–`160` — status nieznany dla AI); `src/app/[locale]/admin/page.tsx` monolit ~2,4k LOC; `withAuth` niewdrożony do wszystkich tras; Performance/CWV (`Navbar`→LazyMotion, `HomeClient`→`next/dynamic` → Faza 4; `mapa-bolu` webp ✅ 1C); SEO P3 (drobne schema + CAPS-title newsów = ręczna korekta w DB). Pełniejszy inwentarz: „🎯 Implementation Status”; skrócony dług: `KOMENDA_STARTOWA_MIKROSTOMART.md §0`.
 
 > **Version:** Production + Demo (Dual Vercel Deployment)
-> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1 ✅ KOMPLETNA (1A+1B+1C), następna Faza 2** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
+> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1 ✅ (1A+1B+1C) + Faza 2A ✅ (/oferta/all-on-4), następna 2B** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
 
 ---
 
@@ -2469,6 +2469,31 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-08 #9 — 🦷 SEO Faza 2A: strona usługi /oferta/all-on-4 (All-on-X premium money page)
+
+**Faza 2 START — premium money pages.** Pierwsza dedykowana strona usługi All-on-X (wzorzec Faza K + #5). Treść AI + medical review Marcina (zygoma TAK, raty TAK, ceny 30-40k/45-55k potwierdzone przez Marcina przed generowaniem). Dostęp usera: siatka `/oferta` (11 usług) + Footer (Marcin: Navbar niepotrzebny).
+
+#### Commit
+- `2a5d072` — feat(seo): Faza 2A — strona usługi /oferta/all-on-4 (All-on-X premium money page)
+
+#### Co powstało
+- **`oferta/all-on-4/{page,layout}.tsx`** [NEW] — server-friendly client page (RevealOnScroll priority): H1 geo „All-on-4 i All-on-6 — stałe zęby na implantach w Opolu" → kwalifikacja → „nowe zęby w 1 dzień" (5 kroków: konsultacja+CBCT → cyfrowy plan → wszczepienie 4/6 + PRF → most tymczasowy 24-48h → ostateczny cyrkon 3-6 mies) → All-on-4 vs All-on-6 vs **zygoma** → cyrkon przykręcany → obciążenie natychmiastowe → authority M.Sc. RWTH → koszt+raty → gwarancja → cross-link implanto/protetyka → 7 FAQ → PerformerCard → CTA.
+- **Schema:** serviceSchemas.ts +`/oferta/all-on-4` ×4 (FAQPage 5 Q/A + MedicalProcedure SurgicalProcedure/Mouth, performer Physician @id). Layout dodaje **Service + Offer/PriceSpecification** (minPrice 30000 / maxPrice 55000 PLN) — All-on-X ma konkretne widełki, więc Offer (inaczej niż generyczny Service z buildServicePageSchemas, który celowo bez offers).
+- **i18n namespace `allon4` ×4** (PL+EN+DE+UA, ręcznie ~62 klucze, string-insercja per-locale indent PL/EN=4 DE/UA=2). `ofertaServices` +1 wpis (siatka `/oferta` = **11 usług**) + allon4Name/Desc ×4.
+- **Integracje:** PAGE_SEO ×4 (title ≤60, desc ≤160), BREADCRUMB_LABELS `allon4` ×4, sitemap mainPaths, Footer +link (kolumna Usługi) + footer.seoNav.allon4 ×4, audit-hreflang PUBLIC_PATHS, route-mtimes. next.config: brak starego slug (bez redirectu).
+
+#### Pliki (20)
+`oferta/all-on-4/{page,layout}.tsx` [NEW] + serviceSchemas.ts + ofertaServices.ts + seoTranslations.ts + seo.ts + sitemap.ts + Footer.tsx + audit-hreflang.mjs + generate-route-mtimes.mjs + messages/{pl,en,de,ua}/{pages,common}.json. Auto: sw.js, generated-route-mtimes.
+
+#### Weryfikacja (preview prod :3001)
+- 4 locale → 200, 1× H1 geo (locale-aware), tytuł ≤60, FAQPage + MedicalProcedure(SurgicalProcedure) + Service + Offer(minPrice 30000) + BreadcrumbList, PerformerCard (link Marcin), **0 raw keys**. Siatka `/oferta` = 11 usług (all-on-4 obecny). **audit:hreflang 196/196** (+4 all-on-4). Build clean, test 109/109, **0 błędów konsoli**, screenshot OK.
+
+#### Brak migracji / env. Deploy: produkcja + demo.
+
+#### Next: Faza 2B (`feat/all-on-4-opole-geo`) — geo-landing `/all-on-4-opole` (PL-only indexable, foreign noindex+canonical PL; kopia wzorca implanty-opole): Service minPrice + MedicalProcedure + FAQPage + 5× Review + LazyMapEmbed + sekcja „Lokalizacja Opole"; cross-link → `/oferta/all-on-4`. Potem 2C metamorfozy content, 2D geo premium + cienkie strony.
+
+---
 
 ### 2026-06-08 #8 — 🔎 SEO Faza 1C: meta length + news E-E-A-T byline + mapa-bólu webp (FAZA 1 KOMPLETNA)
 
