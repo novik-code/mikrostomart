@@ -233,7 +233,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
             "url": brand.appUrl,
             "logo": {
                 "@type": "ImageObject",
-                "url": brand.schemaImage,
+                "url": brand.schemaLogo,
             },
         },
         "mainEntityOfPage": {

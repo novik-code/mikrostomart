@@ -222,7 +222,7 @@ export default async function BlogPost({
             "url": brand.appUrl,
             "logo": {
                 "@type": "ImageObject",
-                "url": brand.schemaImage,
+                "url": brand.schemaLogo,
             },
         },
         "mainEntityOfPage": {

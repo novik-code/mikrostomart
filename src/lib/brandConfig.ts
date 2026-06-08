@@ -61,6 +61,7 @@ export interface BrandConfig {
     schemaId: string;
     schemaUrl: string;
     schemaImage: string;
+    schemaLogo: string;             // Organization/publisher logo (NOT the interior photo) — Article rich result + Knowledge Panel
 
     // === Geo ===
     geoRegion: string;
@@ -109,7 +110,7 @@ const PROD_BRAND: BrandConfig = {
 
     // Address
     streetAddress: 'ul. Centralna 33a',
-    city: 'Opole/Chmielowice',
+    city: 'Opole',
     cityShort: 'Opole',
     postalCode: '45-940',
     region: 'opolskie',
@@ -155,7 +156,10 @@ const PROD_BRAND: BrandConfig = {
     // H8: real practice photo (interior of the clinic) — Google Local Pack/Knowledge
     // Panel preferuje real photo over logo. Logo zostaje w `manifest.json`/Navbar.
     schemaImage: 'https://www.mikrostomart.pl/interior/IMG_1400.webp',
-    schemaId: 'https://www.mikrostomart.pl',
+    // Organization logo for Article rich result + Knowledge Panel (square PWA icon — self-contained/legible on any bg).
+    schemaLogo: 'https://www.mikrostomart.pl/icon-512x512.png',
+    // Stable fragment @id: rozdziela encję LocalBusiness (Dentist) od WebSite (#website) i od samej strony.
+    schemaId: 'https://www.mikrostomart.pl/#dentist',
     schemaUrl: 'https://www.mikrostomart.pl',
 
     // Geo
@@ -244,7 +248,8 @@ const DEMO_BRAND: BrandConfig = {
     schemaAlternateName: 'DensFlow Demo Clinic',
     schemaDescription: 'Wersja demonstracyjna systemu DensFlow do zarządzania gabinetem stomatologicznym. Rezerwacje, panel pacjenta, panel pracownika, panel admina.',
     schemaImage: 'https://demo.densflow.ai/logo-transparent.png',
-    schemaId: 'https://demo.densflow.ai',
+    schemaLogo: 'https://demo.densflow.ai/logo-transparent.png',
+    schemaId: 'https://demo.densflow.ai/#dentist',
     schemaUrl: 'https://demo.densflow.ai',
 
     // Geo
@@ -321,6 +326,7 @@ export async function loadBrandFromDB(): Promise<BrandConfig> {
         delete dbBrand.schemaUrl;
         delete dbBrand.schemaId;
         delete dbBrand.schemaImage;
+        delete dbBrand.schemaLogo;
         return { ...DEFAULT_BRAND, ...dbBrand };
     } catch {
         // SAFETY: on any error, return hardcoded defaults

@@ -83,7 +83,7 @@ export function getMarcinSchema(locale: string, urlPath = '/zespol/marcin-nowosi
         "inLanguage": inLanguage,
         "knowsLanguage": ["pl", "en", "de"],
         "availableLanguage": ["pl", "en", "de"],
-        "medicalSpecialty": ["Endodontics", "Implantology", "CosmeticDentistry", "LaserDentistry"],
+        "medicalSpecialty": "Dentistry",  // enum MedicalSpecialty wymaga "Dentistry"; premium specjalizacje są w knowsAbout poniżej
         "worksFor": {
             "@type": "Dentist",
             "@id": brand.schemaId,

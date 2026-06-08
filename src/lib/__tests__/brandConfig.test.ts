@@ -28,7 +28,7 @@ describe('brandConfig — safety contract', () => {
             'titleDefault', 'titleTemplate', 'description', 'keywords',
             'ogSiteName', 'ogImageAlt', 'facebookUrl',
             'schemaName', 'schemaAlternateName', 'schemaDescription',
-            'schemaId', 'schemaUrl', 'schemaImage',
+            'schemaId', 'schemaUrl', 'schemaImage', 'schemaLogo',
             'geoRegion', 'geoPlacename', 'geoPosition', 'icbm',
         ];
 

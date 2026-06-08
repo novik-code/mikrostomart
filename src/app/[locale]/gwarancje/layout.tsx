@@ -69,7 +69,7 @@ export default async function Layout({
         "inLanguage": inLanguage,
         "isPartOf": {
             "@type": "WebSite",
-            "@id": `${brand.appUrl}#website`,
+            "@id": `${brand.appUrl}/#website`,
         },
         "publisher": {
             "@type": "Dentist",

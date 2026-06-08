@@ -116,6 +116,11 @@ function SchemaOrg({ aggregateRating, reviews, locale }: { aggregateRating: Aggr
         "@id": brand.schemaId,
         "url": brand.schemaUrl,
         "inLanguage": hreflangCode(locale),
+        "foundingDate": "2016",
+        "founder": [
+            { "@type": "Physician", "@id": `${brand.appUrl}/#marcin-nowosielski`, "name": "Marcin Nowosielski" },
+            { "@type": "Person", "@id": `${brand.appUrl}/#elzbieta-nowosielska`, "name": "Elżbieta Nowosielska" },
+        ],
         "telephone": isDemoMode ? undefined : formatPhoneForSchema(brand.phone1),
         // J-5 (2026-05-12): premium positioning signal. Mikrostomart targets
         // dental tourism (DE/EN/UA) where premium expectations are baseline —
@@ -151,12 +156,15 @@ function SchemaOrg({ aggregateRating, reviews, locale }: { aggregateRating: Aggr
             brand.youtubeUrl,
             brand.googleBusinessUrl,
         ].filter(Boolean),
-        "medicalSpecialty": [
-            "Dentistry",
-            "Endodontics",
-            "Prosthodontics",
-            "Orthodontics",
-            "DentalHygiene"
+        // medicalSpecialty wymaga wartości z enuma schema.org MedicalSpecialty
+        // (tylko "Dentistry" jest poprawne). Premium specjalizacje niosą sygnał
+        // przez knowsAbout (wolny tekst) + availableService.
+        "medicalSpecialty": "Dentistry",
+        "knowsAbout": [
+            "Implantologia", "All-on-4", "All-on-6", "Endodoncja mikroskopowa",
+            "Stomatologia estetyczna", "Licówki", "Metamorfoza uśmiechu", "Stomatologia laserowa",
+            "Implantology", "All-on-X dental implants", "Microscopic endodontics",
+            "Cosmetic dentistry", "Veneers", "Smile makeover", "Laser dentistry",
         ],
         // Batch SEO-1 (2026-05-21): availableLanguage na klinice — strategiczne
         // dla DACH/EN dental tourism (Mikrostomart obsługuje pacjentów PL/EN/DE).
@@ -183,6 +191,8 @@ function SchemaOrg({ aggregateRating, reviews, locale }: { aggregateRating: Aggr
             { "@type": "City", "name": "Opole" },
             { "@type": "Country", "name": "Poland" },
             { "@type": "Place", "name": "European Union" },
+            { "@type": "Country", "name": "United Kingdom" },
+            { "@type": "Country", "name": "Ireland" },
         ] : locale === 'ua' ? [
             { "@type": "City", "name": "Opole" },
             { "@type": "Country", "name": "Poland" },
@@ -204,15 +214,10 @@ function SchemaOrg({ aggregateRating, reviews, locale }: { aggregateRating: Aggr
                 "dayOfWeek": "Friday",
                 "opens": "09:00",
                 "closes": "16:00"
-            },
-            {
-                // Saturday is open on selected dates only ("wybrane terminy"),
-                // so we deliberately omit a fixed Sat row to avoid misleading hours.
-                "@type": "OpeningHoursSpecification",
-                "dayOfWeek": "Sunday",
-                "opens": "00:00",
-                "closes": "00:00"
             }
+            // Saturday: open on selected dates only ("wybrane terminy") → row omitted.
+            // Sunday: closed → row omitted. (schema.org: pominięcie dnia = zamknięte;
+            // "00:00-00:00" było dwuznaczne — mogło być czytane jako "otwarte 24h".)
         ],
     };
 
@@ -263,14 +268,16 @@ function SchemaOrg({ aggregateRating, reviews, locale }: { aggregateRating: Aggr
                     __html: JSON.stringify({
                         "@context": "https://schema.org",
                         "@type": "WebSite",
+                        "@id": `${brand.appUrl}/#website`,
                         "name": brand.name,
                         "url": brand.schemaUrl,
                         "inLanguage": ["pl", "en", "de", "uk"],
                         "publisher": {
                             "@type": "MedicalOrganization",
+                            "@id": `${brand.appUrl}/#dentist`,
                             "name": brand.schemaName,
                             "url": brand.schemaUrl,
-                            "logo": brand.schemaImage,
+                            "logo": brand.schemaLogo,
                         },
                     })
                 }}
