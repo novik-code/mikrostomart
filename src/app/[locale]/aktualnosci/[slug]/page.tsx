@@ -1,5 +1,6 @@
 
 import RevealOnScroll from '@/components/RevealOnScroll';
+import ArticleByline from '@/components/ArticleByline';
 import Link from 'next/link';
 import Image from 'next/image';
 import { permanentRedirect } from 'next/navigation';
@@ -227,6 +228,8 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
         "datePublished": localizedArticle.date,
         "dateModified": localizedArticle.updated_at || localizedArticle.date,
         "author": physicianRef,
+        "reviewedBy": physicianRef,
+        "lastReviewed": localizedArticle.updated_at || localizedArticle.date,
         "publisher": {
             "@type": "Organization",
             "name": brand.name,
@@ -304,6 +307,11 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
                         }}>
                             {localizedArticle.title}
                         </h1>
+                        <ArticleByline
+                            locale={locale}
+                            datePublished={localizedArticle.date}
+                            dateModified={localizedArticle.updated_at || localizedArticle.date}
+                        />
                         <div style={{ position: "relative", width: "100%", height: "400px", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
                             <Image
                                 src={localizedArticle.image || '/images/placeholder.jpg'}

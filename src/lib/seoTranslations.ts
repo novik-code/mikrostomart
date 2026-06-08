@@ -65,21 +65,21 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
     '/oferta/periodontologia': {
         pl: {
             title: 'Periodontologia Opole — leczenie paradontozy | Mikrostomart',
-            description: 'Leczenie paradontozy i chorób dziąseł w Opolu — sondowanie, skaling poddziąsłowy, laserowa dekontaminacja kieszonek (Nd:YAG). Zatrzymaj chorobę dziąseł. Umów wizytę.',
+            description: 'Leczenie paradontozy i chorób dziąseł w Opolu — sondowanie, skaling poddziąsłowy, laserowa dekontaminacja kieszonek (Nd:YAG). Zatrzymaj chorobę dziąseł.',
             keywords: 'periodontologia opole, leczenie paradontozy opole, leczenie dziąseł opole, paradontoza opole, krwawiące dziąsła opole',
         },
         en: {
-            title: 'Periodontology Opole, Poland — Gum Disease Treatment | Mikrostomart',
-            description: 'Treatment of gum disease and periodontitis in Opole, Poland — probing, subgingival scaling, laser pocket decontamination (Nd:YAG). Stop gum disease. Book a visit.',
+            title: 'Periodontology Opole — Gum Disease Treatment | Mikrostomart',
+            description: 'Treatment of gum disease and periodontitis in Opole — probing, subgingival scaling, laser pocket decontamination (Nd:YAG). Stop gum disease today.',
             keywords: 'periodontology Opole, gum disease treatment Poland, periodontitis Opole, gum treatment Opole, bleeding gums Opole',
         },
         de: {
-            title: 'Parodontologie Opole, Polen — Parodontitis-Behandlung | Mikrostomart',
+            title: 'Parodontitis-Behandlung Opole | Mikrostomart',
             description: 'Behandlung von Parodontitis und Zahnfleischerkrankungen in Opole, Polen — Sondierung, subgingivales Scaling, Laser-Dekontamination (Nd:YAG). Termin vereinbaren.',
             keywords: 'Parodontologie Opole, Parodontitis Behandlung Polen, Zahnfleischbehandlung Opole, Parodontose Opole',
         },
         ua: {
-            title: 'Пародонтологія Ополе, Польща — лікування пародонтозу | Mikrostomart',
+            title: 'Пародонтологія Ополе — лікування пародонтозу | Mikrostomart',
             description: 'Лікування пародонтозу та хвороб ясен в Ополе, Польща — зондування, піддесенний скейлінг, лазерна деконтамінація кишень (Nd:YAG). Запишіться на візит.',
             keywords: 'пародонтологія Ополе, лікування пародонтозу Польща, лікування ясен Ополе, пародонтоз Ополе',
         },
@@ -176,7 +176,7 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
     // ───────── /oferta/stomatologia-estetyczna ─────────
     '/oferta/stomatologia-estetyczna': {
         pl: {
-            title: 'Stomatologia estetyczna Opole | Licówki, wybielanie - Mikrostomart',
+            title: 'Stomatologia estetyczna Opole — licówki | Mikrostomart',
             description: 'Stomatologia estetyczna w Opolu: licówki porcelanowe, bonding, wybielanie zębów, projektowanie uśmiechu DSD. Zobacz metamorfozy.',
             keywords: 'stomatologia estetyczna opole, licówki opole, wybielanie zębów opole, bonding opole, projektowanie uśmiechu opole, dsd opole',
         },
@@ -186,7 +186,7 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'aesthetic dentistry Opole, porcelain veneers Opole, teeth whitening Opole, bonding Opole, smile design Opole',
         },
         de: {
-            title: 'Ästhetische Zahnmedizin Opole | Veneers, Bleaching - Mikrostomart',
+            title: 'Ästhetische Zahnmedizin Opole — Veneers | Mikrostomart',
             description: 'Ästhetische Zahnmedizin in Opole, Polen: Porzellan-Veneers, Bonding, Zahnaufhellung, Digital Smile Design. Sehen Sie Patientenmetamorphosen.',
             keywords: 'ästhetische Zahnmedizin Opole, Veneers Opole, Zahnaufhellung Opole, Bonding Opole, Smile Design Opole',
         },
@@ -224,7 +224,7 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
     // ───────── /oferta/chirurgia ─────────
     '/oferta/chirurgia': {
         pl: {
-            title: 'Chirurgia stomatologiczna Opole | Ekstrakcje, ósemki - Mikrostomart',
+            title: 'Chirurgia stomatologiczna Opole — ósemki, PRF | Mikrostomart',
             description: 'Chirurgia stomatologiczna w Opolu: ekstrakcje, usuwanie ósemek, technologia PRF, regeneracja kości. Doświadczeni chirurdzy.',
             keywords: 'chirurgia stomatologiczna opole, ekstrakcja zęba opole, usuwanie ósemek opole, prf opole, chirurg stomatolog opole',
         },
@@ -234,7 +234,7 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'oral surgery Opole, tooth extraction Opole, wisdom teeth Opole, PRF Opole, dental surgeon Opole',
         },
         de: {
-            title: 'Mund-Kiefer-Chirurgie Opole | Extraktion, Weisheitszähne - Mikrostomart',
+            title: 'Kieferchirurgie Opole — Weisheitszähne, PRF | Mikrostomart',
             description: 'Mund- und Kieferchirurgie in Opole, Polen: Extraktionen, Weisheitszahn-Entfernung, PRF-Technologie, Knochenregeneration.',
             keywords: 'Mundchirurgie Opole, Zahnextraktion Opole, Weisheitszähne Opole, PRF Opole, Kieferchirurg Opole',
         },
@@ -541,7 +541,7 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'marcin nowosielski stomatolog opole, marcin nowosielski rwth aachen, implantolog opole, endodonta mikroskopowy opole, marcin nowosielski książka czelej, marcin nowosielski m.sc., stomatologia laserowa opole',
         },
         en: {
-            title: 'Marcin Nowosielski DDS, M.Sc. RWTH Aachen | Mikrostomart Opole, Poland',
+            title: 'Marcin Nowosielski, M.Sc. RWTH Aachen | Mikrostomart Opole',
             description: 'Dentist in Opole, Poland — Marcin Nowosielski, M.Sc. RWTH Aachen (2021, 2nd in Poland). Implantology, microscopic endodontics, laser dentistry.',
             keywords: 'marcin nowosielski dentist, marcin nowosielski rwth aachen, implantologist opole poland, microscopic endodontist opole, marcin nowosielski book, marcin nowosielski m.sc.',
         },
@@ -551,7 +551,7 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'Marcin Nowosielski Zahnarzt, Marcin Nowosielski RWTH Aachen, Implantologe Opole Polen, mikroskopische Endodontie Opole, Marcin Nowosielski Buch, Marcin Nowosielski M.Sc.',
         },
         ua: {
-            title: 'Марцін Новосельський M.Sc. RWTH Aachen | Mikrostomart Ополе, Польща',
+            title: 'Марцін Новосельський, M.Sc. RWTH | Mikrostomart Ополе',
             description: 'Стоматолог Ополе — Марцін Новосельський, M.Sc. RWTH Aachen (2021, другий у Польщі). Імплантологія, мікроскопічна ендодонтія, лазерна стоматологія.',
             keywords: 'марцін новосельський стоматолог, марцін новосельський rwth aachen, імплантолог ополе польща, мікроскопічна ендодонтія ополе, марцін новосельський книга',
         },
@@ -561,22 +561,22 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
     '/zespol/elzbieta-nowosielska': {
         pl: {
             title: 'hig. stom. Elżbieta Nowosielska | Mikrostomart Opole',
-            description: 'hig. stom. Elżbieta Nowosielska — współwłaścicielka kliniki Mikrostomart w Opolu. Specjalizuje się w profesjonalnej higienizacji, profilaktyce stomatologicznej i edukacji pacjentów.',
+            description: 'hig. stom. Elżbieta Nowosielska — współwłaścicielka Mikrostomart w Opolu. Profesjonalna higienizacja, profilaktyka stomatologiczna i edukacja pacjentów.',
             keywords: 'elżbieta nowosielska higienistka, higienistka stomatologiczna opole, higienizacja zębów opole, profilaktyka stomatologiczna opole, mikrostomart elżbieta',
         },
         en: {
-            title: 'Elżbieta Nowosielska — Dental Hygienist | Mikrostomart Opole, Poland',
-            description: 'Elżbieta Nowosielska — dental hygienist, co-owner of Mikrostomart dental clinic in Opole, Poland. Specialises in professional hygiene, prevention, and patient education.',
+            title: 'Elżbieta Nowosielska — Dental Hygienist | Mikrostomart Opole',
+            description: 'Elżbieta Nowosielska — dental hygienist, co-owner of Mikrostomart in Opole, Poland. Professional hygiene, prevention and patient education.',
             keywords: 'elżbieta nowosielska hygienist, dental hygienist opole poland, professional teeth cleaning opole, dental prevention opole',
         },
         de: {
-            title: 'Elżbieta Nowosielska — Dentalhygienikerin | Mikrostomart Opole, Polen',
-            description: 'Elżbieta Nowosielska — Dentalhygienikerin, Mitinhaberin der Zahnklinik Mikrostomart in Opole, Polen. Schwerpunkte: professionelle Mundhygiene, Prävention und Patientenedukation.',
+            title: 'Elżbieta Nowosielska — Dentalhygiene | Mikrostomart Opole',
+            description: 'Elżbieta Nowosielska — Dentalhygienikerin, Mitinhaberin von Mikrostomart in Opole, Polen. Professionelle Mundhygiene, Prävention und Patientenaufklärung.',
             keywords: 'Elżbieta Nowosielska Dentalhygienikerin, Dentalhygienikerin Opole, professionelle Zahnreinigung Opole, Zahnprävention Opole',
         },
         ua: {
-            title: 'Ельжбета Новосельська — стоматологічний гігієніст | Mikrostomart Ополе',
-            description: 'Ельжбета Новосельська — стоматологічний гігієніст, співвласниця клініки Mikrostomart в Ополе, Польща. Спеціалізується на професійній гігієні, профілактиці та едукації пацієнтів.',
+            title: 'Ельжбета Новосельська — гігієніст | Mikrostomart Ополе',
+            description: 'Ельжбета Новосельська — стоматологічний гігієніст, співвласниця Mikrostomart в Ополе. Професійна гігієна, профілактика та едукація пацієнтів.',
             keywords: 'ельжбета новосельська гігієніст, стоматологічний гігієніст ополе, професійна гігієна ополе, стоматологічна профілактика ополе',
         },
     },
@@ -613,17 +613,17 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'dentysta dla pacjentów spoza opola, leczenie stomatologiczne dla przyjezdnych, dentysta z parkingiem opole, klinika z hotelami opole',
         },
         en: {
-            title: 'Dentist in Opole, Poland — For International Patients | Mikrostomart',
+            title: 'Dentist in Opole for International Patients | Mikrostomart',
             description: 'Mikrostomart welcomes patients from across Poland and from Germany, Czech, Austria and Ukraine. Parking, hotels, languages, German insurance reimbursement.',
             keywords: 'dentist Opole Poland for international patients, dental tourism Poland, English speaking dentist Opole, German speaking dentist Poland',
         },
         de: {
             title: 'Zahnarzt in Opole, Polen — für deutsche Patienten | Mikrostomart',
-            description: 'Mikrostomart betreut Patienten aus ganz Polen sowie aus Deutschland, Tschechien, Österreich und der Ukraine. Parkplätze, Hotels, Sprachen, Krankenkassen-Erstattung.',
+            description: 'Mikrostomart in Opole betreut Patienten aus Deutschland, Tschechien, Österreich und der Ukraine. Parkplätze, Hotels, Krankenkassen-Erstattung.',
             keywords: 'Zahnarzt Opole für deutsche Patienten, Zahnarzt Polen Krankenkasse, deutschsprachiger Zahnarzt Polen, Zahnbehandlung Polen Erstattung',
         },
         ua: {
-            title: 'Стоматолог в Ополе, Польща — для українських пацієнтів | Mikrostomart',
+            title: 'Стоматолог в Ополе для українців | Mikrostomart',
             description: 'Mikrostomart приймає пацієнтів з усієї Польщі, а також з Німеччини, Чехії, Австрії та України. Паркінг, готелі, мови обслуговування.',
             keywords: 'стоматолог Ополе для українців, україномовний стоматолог Польща, стоматологія Польща для іноземців, стоматолог Польща переклад',
         },
@@ -681,7 +681,7 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
     '/symulator': {
         pl: {
             title: 'Symulator uśmiechu AI | Zobacz nowy uśmiech - Mikrostomart',
-            description: 'Symulator uśmiechu AI Mikrostomart: prześlij selfie i zobacz jak będzie wyglądał Twój uśmiech po licówkach lub wybielaniu. 4 style: Hollywood, Natural, Soft, Strong.',
+            description: 'Symulator uśmiechu AI: prześlij selfie i zobacz swój uśmiech po licówkach lub wybielaniu. 4 style: Hollywood, Natural, Soft, Strong. Mikrostomart Opole.',
             keywords: 'symulator uśmiechu opole, ai uśmiech, podgląd licówek, podgląd wybielania, projektowanie uśmiechu opole',
         },
         en: {
@@ -733,8 +733,8 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
     // pages dla foreign markets pojawią się w L-2/L-3 (np. /zahnarzt-opole).
     '/implanty-opole': {
         pl: {
-            title: 'Implanty zębów Opole — implantolog M.Sc. RWTH Aachen | Mikrostomart',
-            description: 'Implanty zębów w Opolu 6000-8000 zł (chirurgia + korona). Implantologia cyfrowa pod kontrolą szablonu chirurgicznego, M.Sc. RWTH Aachen, PRF. Mikrostomart — gabinet w centrum Opola od 2016.',
+            title: 'Implanty zębów Opole — implantolog M.Sc. RWTH | Mikrostomart',
+            description: 'Implanty zębów w Opolu 6000-8000 zł (chirurgia + korona). Implantologia cyfrowa, szablon chirurgiczny, PRF, M.Sc. RWTH Aachen. Mikrostomart Opole.',
             keywords: 'implanty opole, implanty zębów opole, implantolog opole, implant zębowy opole cena, implantologia opole, all-on-4 opole, mikrostomart implanty',
         },
         en: {
@@ -760,7 +760,7 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
     '/leczenie-kanalowe-opole-mikroskop': {
         pl: {
             title: 'Leczenie kanałowe Opole mikroskop ZEISS | Endodonta Mikrostomart',
-            description: 'Endodoncja mikroskopowa w Opolu pod mikroskopem ZEISS Extaro od 800 zł. Lasery PIPS/SWEEPS, re-endodoncja trudnych przypadków, Curriculum PTE + ESE. Specjalność dr Nowosielskiego.',
+            description: 'Endodoncja mikroskopowa w Opolu (ZEISS Extaro) od 800 zł. Lasery PIPS/SWEEPS, re-endodoncja trudnych przypadków. Specjalność dr. Nowosielskiego (PTE/ESE).',
             keywords: 'leczenie kanałowe opole, leczenie kanałowe pod mikroskopem opole, endodoncja opole, endodonta opole, leczenie kanałowe opole cena, mikroskop zeiss opole',
         },
         en: {
@@ -785,8 +785,8 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
     // Komplementarne do /implanty-opole + /leczenie-kanalowe-opole-mikroskop (specific specialties).
     '/dentysta-opole-centrum': {
         pl: {
-            title: 'Dentysta Opole centrum — Mikrostomart | Stomatolog ul. Centralna 33a',
-            description: 'Dentysta w centrum Opola od 2016 roku. Pełen zakres usług: konsultacje (od 250 zł), endodoncja, implanty, ortodoncja, higienizacja. Parking pod gabinetem, PKP 15 min.',
+            title: 'Dentysta Opole centrum — Stomatolog | Mikrostomart',
+            description: 'Dentysta w centrum Opola od 2016. Konsultacje od 250 zł, endodoncja, implanty, ortodoncja, higienizacja. Parking pod gabinetem, PKP 15 min.',
             keywords: 'dentysta opole, dentysta opole centrum, stomatolog opole, dentysta centralna opole, mikrostomart opole, gabinet stomatologiczny opole',
         },
         en: {
@@ -821,7 +821,7 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'Zahnarzt Opole, German dentist Opole, Mikrostomart',
         },
         de: {
-            title: 'Zahnarzt Opole, Polen — Mikrostomart | Implantate, Wurzelkanal, Ästhetik',
+            title: 'Zahnarzt Opole, Polen — Implantate & Ästhetik | Mikrostomart',
             description: 'Zahnarzt in Opole für deutschsprachige Patienten: Zahnimplantate, mikroskopische Wurzelkanalbehandlung, Ästhetik. Service auf Deutsch, nahe Sachsen.',
             keywords: 'Zahnarzt Opole, Zahnarzt Polen, Zahnimplantate Opole, Wurzelkanalbehandlung Polen, Zahnbehandlung Polen, deutschsprachiger Zahnarzt Opole, Zahnarzt Opole Deutsch',
         },
@@ -842,7 +842,7 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'dentist opole, english dentist opole, mikrostomart',
         },
         en: {
-            title: 'Dentist in Opole, Poland — Mikrostomart | English-Speaking Dental Clinic',
+            title: 'Dentist in Opole, Poland — English-Speaking | Mikrostomart',
             description: 'English-speaking dentist in Opole, Poland: dental implants, microscope root canal treatment, cosmetic dentistry. Parking, near Wrocław airport.',
             keywords: 'dentist Opole, English-speaking dentist Opole, dentist Poland, dental implants Poland, root canal Poland, dental clinic Opole, dental tourism Poland',
         },

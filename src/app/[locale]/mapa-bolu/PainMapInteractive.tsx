@@ -227,8 +227,12 @@ export default function PainMapInteractive() {
             </svg>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-                src="/dental-map-premium.jpg"
+                src="/dental-map-premium.webp"
                 alt={t('mapAlt')}
+                width={1400}
+                height={1400}
+                fetchPriority="high"
+                decoding="async"
                 style={{ width: '100%', height: 'auto', display: 'block', pointerEvents: 'none' }}
                 draggable={false}
             />

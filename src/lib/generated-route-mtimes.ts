@@ -20,11 +20,11 @@ export const routeMtimes: Record<string, string> = {
     "/cennik": "2026-05-22T15:02:48+02:00",
     "/kontakt": "2026-05-21T22:14:07+02:00",
     "/rezerwacja": "2026-05-10T07:51:40+02:00",
-    "/dla-pacjentow-przyjezdnych": "2026-05-21T22:14:07+02:00",
+    "/dla-pacjentow-przyjezdnych": "2026-06-08T11:13:41+02:00",
     "/aktualnosci": "2026-05-14T14:40:59+02:00",
     "/baza-wiedzy": "2026-06-01T09:38:54+02:00",
     "/metamorfozy": "2026-05-10T07:51:40+02:00",
-    "/sklep": "2026-05-12T10:09:39+02:00",
+    "/sklep": "2026-06-08T11:13:41+02:00",
     "/faq": "2026-05-10T07:51:40+02:00",
     "/nowosielski": "2026-06-01T19:59:58+02:00",
     "/mapa-bolu": "2026-05-10T07:51:40+02:00",
@@ -34,10 +34,10 @@ export const routeMtimes: Record<string, string> = {
     "/symulator": "2026-05-10T16:56:18+02:00",
     "/aplikacja": "2026-05-10T17:05:42+02:00",
     "/zadatek": "2026-05-09T15:51:16+02:00",
-    "/regulamin": "2026-05-12T09:32:15+02:00",
-    "/polityka-cookies": "2026-05-12T09:32:15+02:00",
-    "/polityka-prywatnosci": "2026-05-17T21:43:41+02:00",
-    "/rodo": "2026-05-12T09:32:15+02:00",
+    "/regulamin": "2026-06-08T11:13:41+02:00",
+    "/polityka-cookies": "2026-06-08T11:13:41+02:00",
+    "/polityka-prywatnosci": "2026-06-08T11:13:41+02:00",
+    "/rodo": "2026-06-08T11:13:41+02:00",
     "/privacy-policy": "2026-05-21T22:14:07+02:00",
     "/akredytacje": "2026-05-20T12:51:37+02:00",
     "/akredytacje/pte": "2026-05-20T12:51:37+02:00",
@@ -48,12 +48,12 @@ export const routeMtimes: Record<string, string> = {
     "/zespol/marcin-nowosielski": "2026-05-21T20:52:46+02:00",
     "/zespol/elzbieta-nowosielska": "2026-05-21T12:58:54+02:00",
     "/gwarancje": "2026-06-08T10:47:55+02:00",
-    "/implanty-opole": "2026-06-01T09:38:54+02:00",
-    "/leczenie-kanalowe-opole-mikroskop": "2026-06-01T09:38:54+02:00",
-    "/dentysta-opole-centrum": "2026-06-01T09:38:54+02:00",
-    "/zahnarzt-opole": "2026-06-01T11:03:26+02:00",
-    "/dentist-opole": "2026-06-01T11:03:26+02:00"
+    "/implanty-opole": "2026-06-08T11:13:41+02:00",
+    "/leczenie-kanalowe-opole-mikroskop": "2026-06-08T11:13:41+02:00",
+    "/dentysta-opole-centrum": "2026-06-08T11:13:41+02:00",
+    "/zahnarzt-opole": "2026-06-08T11:13:41+02:00",
+    "/dentist-opole": "2026-06-08T11:13:41+02:00"
 };
 
 /** Fallback for routes not in the map (e.g. newly added pages before next regen). */
-export const buildTime: string = "2026-06-08T09:09:41.458Z";
+export const buildTime: string = "2026-06-08T09:40:33.443Z";
