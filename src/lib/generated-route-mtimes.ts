@@ -50,6 +50,7 @@ export const routeMtimes: Record<string, string> = {
     "/zespol/elzbieta-nowosielska": "2026-05-21T12:58:54+02:00",
     "/gwarancje": "2026-06-08T10:47:55+02:00",
     "/implanty-opole": "2026-06-08T11:13:41+02:00",
+    "/all-on-4-opole": "2026-06-08T14:10:03+02:00",
     "/leczenie-kanalowe-opole-mikroskop": "2026-06-08T11:13:41+02:00",
     "/dentysta-opole-centrum": "2026-06-08T11:13:41+02:00",
     "/zahnarzt-opole": "2026-06-08T11:13:41+02:00",
@@ -57,4 +58,4 @@ export const routeMtimes: Record<string, string> = {
 };
 
 /** Fallback for routes not in the map (e.g. newly added pages before next regen). */
-export const buildTime: string = "2026-06-08T12:06:42.650Z";
+export const buildTime: string = "2026-06-08T12:27:54.532Z";

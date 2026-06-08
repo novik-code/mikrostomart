@@ -512,22 +512,22 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
     // ───────── /metamorfozy ─────────
     '/metamorfozy': {
         pl: {
-            title: 'Metamorfozy uśmiechów | Przed i po - Mikrostomart Opole',
+            title: 'Metamorfozy uśmiechu Opole — przed i po | Mikrostomart',
             description: 'Galeria metamorfoz pacjentów Mikrostomart: zdjęcia uśmiechów przed i po leczeniu. Zobacz efekty licówek, wybielania, ortodoncji, implantów.',
             keywords: 'metamorfozy uśmiechu opole, przed i po stomatologia, efekty licówek, efekty wybielania, transformacje uśmiechów',
         },
         en: {
-            title: 'Smile Metamorphoses | Before & After - Mikrostomart Opole',
+            title: 'Smile Makeover Opole — Before & After | Mikrostomart',
             description: 'Mikrostomart patient metamorphoses gallery: smiles before and after treatment. See veneer, whitening, orthodontic and implant results.',
             keywords: 'smile makeover Opole, dental before after, veneer results, whitening results, smile transformation Poland',
         },
         de: {
-            title: 'Lächeln-Metamorphosen | Vorher & Nachher - Mikrostomart',
+            title: 'Smile Makeover Opole — Vorher & Nachher | Mikrostomart',
             description: 'Mikrostomart Patientengalerie: Lächeln vor und nach der Behandlung. Sehen Sie Veneer-, Bleaching-, Kieferorthopädie- und Implantatergebnisse.',
             keywords: 'Smile Makeover Opole, Zahnarzt Vorher Nachher, Veneer Ergebnisse, Bleaching Ergebnisse, Lächeln Transformation',
         },
         ua: {
-            title: 'Метаморфози посмішок | До і після - Mikrostomart Ополе',
+            title: 'Метаморфоза посмішки Ополе — до і після | Mikrostomart',
             description: 'Галерея метаморфоз пацієнтів Mikrostomart: посмішки до і після лікування. Подивіться результати вінірів, відбілювання, ортодонтії, імплантів.',
             keywords: 'метаморфози посмішки Ополе, до і після стоматологія, результати вінірів, результати відбілювання',
         },
