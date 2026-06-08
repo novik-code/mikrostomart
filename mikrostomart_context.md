@@ -1,13 +1,13 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-08 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1A ✅** (commit `03ae220`): NAP locality „Opole", stabilne @id Dentist `/#dentist` + WebSite `/#website`, publisher.logo→icon-512, foundingDate/founder, medicalSpecialty enum + knowsAbout premium, openingHours fix, areaServed EN +UK/IE. Build 223 stron, test 109/109, migracje do `160`.
+> **Last Updated:** 2026-06-08 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1A+1B ✅** (1A `03ae220` schema/NAP/local; 1B `a4b15b6` hreflang scoping — koniec wskazywania hreflang na noindex — + geo orphan links DE/EN + mapa przyjezdni). Build 223 stron, test 109/109, audit:hreflang 192/192, migracje do `160`. Następna: Faza 1C (meta ≤60/≤160 + news byline E-E-A-T + mapa-bólu JPG→next/image).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
-> 🧱 **Dług techniczny / otwarte pozycje** (referencja do oceny, NIE backlog): weryfikacja synchronizacji migracji DB na produkcji (RLS `132`, treści `137`–`160` — status nieznany dla AI); `src/app/[locale]/admin/page.tsx` monolit ~2,4k LOC; `withAuth` niewdrożony do wszystkich tras; Performance/CWV (`mapa-bolu` 2.2 MB JPG, `Navbar`→LazyMotion, `HomeClient`→`next/dynamic`); SEO P3 (hreflang scoping single-locale, drobne schema). Pełniejszy inwentarz: „🎯 Implementation Status”; skrócony dług: `KOMENDA_STARTOWA_MIKROSTOMART.md §0`.
+> 🧱 **Dług techniczny / otwarte pozycje** (referencja do oceny, NIE backlog): weryfikacja synchronizacji migracji DB na produkcji (RLS `132`, treści `137`–`160` — status nieznany dla AI); `src/app/[locale]/admin/page.tsx` monolit ~2,4k LOC; `withAuth` niewdrożony do wszystkich tras; Performance/CWV (`mapa-bolu` 2.2 MB JPG → Faza 1C/4, `Navbar`→LazyMotion, `HomeClient`→`next/dynamic` → Faza 4); SEO P3 (drobne schema). Pełniejszy inwentarz: „🎯 Implementation Status”; skrócony dług: `KOMENDA_STARTOWA_MIKROSTOMART.md §0`.
 
 > **Version:** Production + Demo (Dual Vercel Deployment)
-> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1A ✅, następna 1B** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
+> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1A+1B ✅, następna 1C** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
 
 ---
 
@@ -2469,6 +2469,32 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-08 #7 — 🔎 SEO Faza 1B: hreflang scoping (koniec wskazywania na noindex) + geo orphan links + mapa przyjezdni
+
+**Faza 1B programu SEO Premium+Local.** Najdelikatniejsza sesja Fazy 1 (rdzeń helpera hreflang). Naprawia P1: strony jedno-locale wskazywały hreflang na własne warianty noindex (sprzeczny sygnał — Google może zignorować klaster) + geo-landingi DE/EN były orphanami (0 internal links).
+
+#### Commit
+- `a4b15b6` — fix(seo): Faza 1B — hreflang scoping (no noindex targets) + geo orphan links + map
+
+#### Co zmienione
+- **Hreflang scoping (P1):** `buildHreflangAlternates` + `pageMetadata` (seo.ts) oraz `buildAlternates` (sitemap.ts) — nowa opcja `indexableLocales`. Gdy podane → hreflang tylko dla indeksowalnych locale + x-default → primary; nigdy do noindex. Domyślnie pełen 4-locale circle (multi-locale bez zmian).
+- **Objęte:** PL-only `['pl']` (implanty-opole, leczenie-kanalowe-opole-mikroskop, dentysta-opole-centrum, sklep, rodo, regulamin, polityka-cookies, polityka-prywatnosci); geo `zahnarzt-opole ['de']`, `dentist-opole ['en']`; sitemap `intlGeoRoutes` scoped.
+- **Orphan geo (P1):** `Footer.tsx` (+`useLocale`) — link `/zahnarzt-opole` tylko w DE, `/dentist-opole` tylko w EN → internal link z każdej strony w danym locale, do indeksowalnego URL.
+- **Mapa + hub (P2):** `/dla-pacjentow-przyjezdnych` — `LazyMapEmbed` (mapEmbedUrl + place_id fallback) + kontekstowy link do geo DE/EN (inline locale Record, bez round-tripu pages.json).
+- **audit-hreflang.mjs:** walidacja przepisana pod scoped hreflang (PL_ONLY → {pl, x-default} bez en/de/uk; LOCALE_ONLY → {target, x-default}; multi → pełen circle) + komentarze + mode labels.
+
+#### Pliki
+`src/lib/seo.ts`, `src/app/sitemap.ts`, `scripts/audit-hreflang.mjs`, 10× layout (implanty-opole, leczenie-kanalowe-opole-mikroskop, dentysta-opole-centrum, sklep, zahnarzt-opole, dentist-opole, rodo, regulamin, polityka-cookies, polityka-prywatnosci), `src/components/Footer.tsx`, `src/app/[locale]/dla-pacjentow-przyjezdnych/page.tsx`. Auto: `public/sw.js`, `src/lib/generated-route-mtimes.ts`.
+
+#### Weryfikacja
+- build clean (223), test 109/109. Preview prod :3001 — `npm run audit:hreflang` **192/192 OK, 0 broken**. Surowe tagi: `/implanty-opole` = pl+x-default (oba `/implanty-opole`), `/de/zahnarzt-opole` = de+x-default (oba `/de/zahnarzt-opole`), `/oferta` = pełen circle. Footer DE→zahnarzt / EN→dentist; mapa + link geo na `/de/dla-pacjentow-przyjezdnych`.
+
+#### Brak migracji / env var. Deploy: produkcja + demo.
+
+#### Next: Faza 1C (`fix/seo-meta-eeat`) — title ≤60 / desc ≤160 (priorytet geo DE/EN + homepage) + news byline E-E-A-T + reviewedBy + mapa-bólu 2.2 MB JPG → next/image webp.
+
+---
 
 ### 2026-06-08 #6 — 🔎 SEO Premium+Local: START programu + Faza 1A (local NAP + entity @id + schema)
 
