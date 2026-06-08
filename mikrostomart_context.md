@@ -1,13 +1,13 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-08 — **backlog ZRESETOWANY (carte blanche)**. Ostatnia praca: Task B recovery starej strony Joomla KOMPLET (4 strony oferty: laser + periodontologia + dziecięca + zachowawcza + Opcja A — siatka usług data-driven). Commit `69d98dc`, build 223 strony, migracje do `160`, audit:hreflang 192/192 OK.
+> **Last Updated:** 2026-06-08 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1A ✅** (commit `03ae220`): NAP locality „Opole", stabilne @id Dentist `/#dentist` + WebSite `/#website`, publisher.logo→icon-512, foundingDate/founder, medicalSpecialty enum + knowsAbout premium, openingHours fix, areaServed EN +UK/IE. Build 223 stron, test 109/109, migracje do `160`.
 >
-> 🎯 **Tryb pracy od 2026-06-08: CARTE BLANCHE.** Marcin zresetował backlog — **nie ma zleconego planu „następnych kroków”**. Następna sesja zaczyna od **oceny projektu od zera** (stan, jakość kodu, architektura, SEO, bezpieczeństwo, UX, dług techniczny) i dopiero wtedy ustala priorytety z Marcinem. **NIE wskakuj automatycznie** w stare roadmapy (Faza K / L / M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6, recovery gaps, premium SEO plan). Adnotacje „Next:” w sekcji „📝 Recent Changes” poniżej oraz w `memory/project_*.md` są **ARCHIWALNE** (memory celowo nie zresetowane — to kontekst/inspiracja, NIE zobowiązanie).
+> 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
 > 🧱 **Dług techniczny / otwarte pozycje** (referencja do oceny, NIE backlog): weryfikacja synchronizacji migracji DB na produkcji (RLS `132`, treści `137`–`160` — status nieznany dla AI); `src/app/[locale]/admin/page.tsx` monolit ~2,4k LOC; `withAuth` niewdrożony do wszystkich tras; Performance/CWV (`mapa-bolu` 2.2 MB JPG, `Navbar`→LazyMotion, `HomeClient`→`next/dynamic`); SEO P3 (hreflang scoping single-locale, drobne schema). Pełniejszy inwentarz: „🎯 Implementation Status”; skrócony dług: `KOMENDA_STARTOWA_MIKROSTOMART.md §0`.
 
 > **Version:** Production + Demo (Dual Vercel Deployment)
-> **Status:** Aktywny development — **bez aktywnego sprintu** (carte blanche / reset backlogu 2026-06-08). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
+> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1A ✅, następna 1B** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
 
 ---
 
@@ -2469,6 +2469,38 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-08 #6 — 🔎 SEO Premium+Local: START programu + Faza 1A (local NAP + entity @id + schema)
+
+**Po 6-osiowym audycie SEO Marcin zlecił pełny program premium+local** (4 fazy; plan `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`; decyzje: pełny program fazami / All-on-X strona usługi + geo-landing / treść AI + medical review). **Faza 1A** = quick wins local + schema (znaleziska P1/P2/P3 audytu).
+
+#### Commit
+- `03ae220` — fix(seo): Faza 1A — NAP locality + entity @id + publisher logo + schema local
+
+#### Co zmienione
+- **NAP local pack (P1):** `addressLocality` 'Opole/Chmielowice' → 'Opole' (`brandConfig.city`). Zgodność z GBP/Maps.
+- **Entity graph (P1):** stabilne `@id` — Dentist `/#dentist` (`brandConfig.schemaId`) + WebSite `/#website` (layout.tsx) + fix dangling `#website` w `gwarancje`. Usuwa kolizję IRI (Dentist/WebSite/strona dzieliły ten sam @id).
+- **publisher.logo (P1):** nowe pole `brand.schemaLogo` = `/icon-512x512.png` zamiast foto wnętrza — WebSite.publisher + KB/blog/news Article (`baza-wiedzy`/`nowosielski`/`aktualnosci` [slug]). `schemaImage` (foto wnętrza) zostaje jako `image`. Chronione w `loadBrandFromDB`.
+- **Dentist enrich:** `foundingDate "2016"` + `founder` [Marcin Physician @id, Elżbieta Person @id]; `areaServed` EN +United Kingdom +Ireland.
+- **medicalSpecialty (P2):** Dentist + Physician → `"Dentistry"` (poprawny enum MedicalSpecialty); premium specjalizacje (All-on-X, endo mikroskopowa, licówki, metamorfozy, laser) → `knowsAbout` na Dentist (free-text, czytelne dla Google).
+- **openingHours (P2):** usunięty niedzielny `00:00-00:00` (dwuznaczny) — zostają Mon-Thu 09-20 + Fri 09-16.
+
+#### Pliki
+`src/lib/brandConfig.ts`, `src/app/layout.tsx`, `src/lib/personSchemas.ts`, `src/app/[locale]/gwarancje/layout.tsx`, `src/app/[locale]/{baza-wiedzy,nowosielski,aktualnosci}/[slug]/page.tsx`, `src/lib/__tests__/brandConfig.test.ts`. Auto (prebuild): `public/sw.js`, `src/lib/generated-route-mtimes.ts`.
+
+#### Weryfikacja
+- `npm run build` clean (223), `npm test` 109/109. Preview prod :3001 — JSON-LD potwierdzony na żywo: Dentist @id `/#dentist`, WebSite @id `/#website`, `addressLocality` Opole, publisher.logo `icon-512` (WebSite + artykuł KB), `foundingDate 2016` + founder, `medicalSpecialty Dentistry` + knowsAbout (All-on-4), brak Sunday, EN areaServed +UK/Ireland.
+
+#### Brak migracji / env var. Deploy: produkcja + demo.
+
+#### 🚨 Manual Marcin
+1. **Vercel:** apex `mikrostomart.pl` → www jako redirect **permanent (308)** (dziś 307) — pozostała pozycja Fazy 1.
+2. **GBP:** potwierdź że miejscowość profilu = „Opole" (zgodność z `addressLocality`).
+3. Po deployu: Rich Results Test (Dentist + Article) + GSC re-submit.
+
+#### Next: Faza 1B (`fix/seo-hreflang-orphans`) — hreflang scoping (koniec wskazywania na noindex) + dolinkowanie geo DE/EN (orphany) + mapa na `/dla-pacjentow-przyjezdnych`.
+
+---
 
 ### 2026-06-08 #5 — 🦷 Nowe strony oferty `/oferta/stomatologia-dziecieca` + `/oferta/stomatologia-zachowawcza` (B — 3/4 + 4/4 ✅ KOMPLET)
 
