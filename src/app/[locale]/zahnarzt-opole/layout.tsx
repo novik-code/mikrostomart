@@ -19,7 +19,7 @@ import { brand } from '@/lib/brandConfig';
  */
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
-    const base = pageMetadata(locale, '/zahnarzt-opole', PAGE_SEO['/zahnarzt-opole']);
+    const base = pageMetadata(locale, '/zahnarzt-opole', PAGE_SEO['/zahnarzt-opole'], { indexableLocales: ['de'] });
     return {
         ...base,
         robots: locale === 'de' ? undefined : { index: false, follow: true },

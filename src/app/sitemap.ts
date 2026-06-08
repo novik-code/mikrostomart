@@ -45,14 +45,17 @@ const HREFLANG_MAP: Record<string, string> = {
 };
 
 // Build per-URL alternates.languages object for hreflang.
-function buildAlternates(path: string): Record<string, string> {
+function buildAlternates(path: string, indexableLocales?: string[]): Record<string, string> {
+    // 1B (2026-06-08): hreflang scoping — single-locale pages (DE/EN-only geo)
+    // emitują hreflang tylko dla indeksowalnego locale + x-default, nigdy do noindex wariantów.
+    const locales = indexableLocales && indexableLocales.length ? indexableLocales : routing.locales;
     const langs: Record<string, string> = {};
-    for (const locale of routing.locales) {
+    for (const locale of locales) {
         const hreflang = HREFLANG_MAP[locale] || locale;
         langs[hreflang] = `${BASE_URL}${localePath(locale, path)}`;
     }
-    // x-default points to PL (the default locale)
-    langs['x-default'] = `${BASE_URL}${path}`;
+    const primary = locales.includes(routing.defaultLocale) ? routing.defaultLocale : locales[0];
+    langs['x-default'] = `${BASE_URL}${localePath(primary, path)}`;
     return langs;
 }
 
@@ -209,14 +212,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             lastModified: lastModForPath('/zahnarzt-opole'),
             changeFrequency: 'monthly' as const,
             priority: 0.9, // DE dental tourism, high commercial intent
-            alternates: { languages: buildAlternates('/zahnarzt-opole') },
+            alternates: { languages: buildAlternates('/zahnarzt-opole', ['de']) },
         },
         {
             url: `${BASE_URL}/en/dentist-opole`,
             lastModified: lastModForPath('/dentist-opole'),
             changeFrequency: 'monthly' as const,
             priority: 0.9, // EN international dental tourism
-            alternates: { languages: buildAlternates('/dentist-opole') },
+            alternates: { languages: buildAlternates('/dentist-opole', ['en']) },
         },
     ];
 

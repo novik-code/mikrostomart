@@ -20,7 +20,7 @@ import { brand } from '@/lib/brandConfig';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
-    const base = pageMetadata(locale, '/leczenie-kanalowe-opole-mikroskop', PAGE_SEO['/leczenie-kanalowe-opole-mikroskop']);
+    const base = pageMetadata(locale, '/leczenie-kanalowe-opole-mikroskop', PAGE_SEO['/leczenie-kanalowe-opole-mikroskop'], { indexableLocales: ['pl'] });
     return {
         ...base,
         robots: locale === 'pl' ? undefined : { index: false, follow: true },

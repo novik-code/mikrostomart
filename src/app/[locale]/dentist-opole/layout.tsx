@@ -16,7 +16,7 @@ import { brand } from '@/lib/brandConfig';
  */
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
-    const base = pageMetadata(locale, '/dentist-opole', PAGE_SEO['/dentist-opole']);
+    const base = pageMetadata(locale, '/dentist-opole', PAGE_SEO['/dentist-opole'], { indexableLocales: ['en'] });
     return {
         ...base,
         robots: locale === 'en' ? undefined : { index: false, follow: true },

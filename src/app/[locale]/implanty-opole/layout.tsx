@@ -31,7 +31,7 @@ import { brand } from '@/lib/brandConfig';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
-    const base = pageMetadata(locale, '/implanty-opole', PAGE_SEO['/implanty-opole']);
+    const base = pageMetadata(locale, '/implanty-opole', PAGE_SEO['/implanty-opole'], { indexableLocales: ['pl'] });
     // PL-only canonical sygnał — foreign locale noindex (PL slug nie ma intencji
     // organicznej w EN/DE/UA). Canonical wewnątrz `base.alternates` już wskazuje
     // na /implanty-opole (locale-aware), foreign będą canonical do PL.

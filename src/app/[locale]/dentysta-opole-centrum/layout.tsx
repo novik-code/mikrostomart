@@ -19,7 +19,7 @@ import { brand } from '@/lib/brandConfig';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
-    const base = pageMetadata(locale, '/dentysta-opole-centrum', PAGE_SEO['/dentysta-opole-centrum']);
+    const base = pageMetadata(locale, '/dentysta-opole-centrum', PAGE_SEO['/dentysta-opole-centrum'], { indexableLocales: ['pl'] });
     return {
         ...base,
         robots: locale === 'pl' ? undefined : { index: false, follow: true },

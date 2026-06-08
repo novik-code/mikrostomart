@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
             title: `Polityka Cookies | ${brand.name} ${brand.cityShort}`,
             description: `Informacje o plikach cookies używanych na stronie gabinetu stomatologicznego ${brand.name} w ${brand.cityShort}.`,
         },
-    });
+    }, { indexableLocales: ['pl'] });
     return {
         ...base,
         robots: isDefault ? undefined : { index: false, follow: true },

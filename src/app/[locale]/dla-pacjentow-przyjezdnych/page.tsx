@@ -1,14 +1,20 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import RevealOnScroll from "@/components/RevealOnScroll";
+import LazyMapEmbed from "@/components/LazyMapEmbed";
 import { brand, brandI18nParams } from "@/lib/brandConfig";
 import { formatPhoneForTel } from "@/lib/phoneFormat";
 
 export default function PrzyjezdniPage() {
     const t = useTranslations('przyjezdni');
+    const locale = useLocale();
     const phoneTel = formatPhoneForTel(brand.phone1);
+    const mapTitle = ({ pl: 'Lokalizacja gabinetu w Opolu', en: 'Our clinic in Opole', de: 'Unser Standort in Opole', ua: 'Розташування клініки в Ополе' } as Record<string, string>)[locale] ?? 'Lokalizacja gabinetu w Opolu';
+    const placeUrl = brand.googlePlaceId
+        ? `https://www.google.com/maps/place/?q=place_id:${brand.googlePlaceId}`
+        : `https://www.google.com/maps/search/?api=1&query=${brand.mapQuery}`;
 
     const usps = [
         ['usp1Title', 'usp1Desc'],
@@ -124,6 +130,37 @@ export default function PrzyjezdniPage() {
                             </article>
                         </RevealOnScroll>
                     ))}
+                </div>
+            </section>
+
+            {/* Mapa + dedykowany geo-landing (1B: lokalny sygnał mapy + fix orphan geo DE/EN) */}
+            <section className="section">
+                <div className="container" style={{ maxWidth: '900px' }}>
+                    <RevealOnScroll>
+                        <h2 style={{
+                            fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)',
+                            textAlign: 'center',
+                            marginBottom: 'var(--spacing-lg)',
+                            fontWeight: 400,
+                        }}>
+                            {mapTitle}
+                        </h2>
+                        <LazyMapEmbed src={brand.mapEmbedUrl} placeUrl={placeUrl} title={mapTitle} />
+                        {(locale === 'de' || locale === 'en') && (
+                            <p style={{ textAlign: 'center', marginTop: 'var(--spacing-lg)', fontSize: '1.02rem' }}>
+                                {locale === 'de' && (
+                                    <Link href="/zahnarzt-opole" className="hover-primary" style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>
+                                        → Zahnarzt Opole für deutschsprachige Patienten
+                                    </Link>
+                                )}
+                                {locale === 'en' && (
+                                    <Link href="/dentist-opole" className="hover-primary" style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>
+                                        → Dentist in Opole for international patients
+                                    </Link>
+                                )}
+                            </p>
+                        )}
+                    </RevealOnScroll>
                 </div>
             </section>
 

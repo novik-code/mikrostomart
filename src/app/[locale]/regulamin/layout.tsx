@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
             title: `Regulamin | ${brand.name} - Dentysta ${brand.cityShort}`,
             description: `Regulamin korzystania z serwisu i usług gabinetu stomatologicznego ${brand.name} w ${brand.cityShort}.`,
         },
-    });
+    }, { indexableLocales: ['pl'] });
     return {
         ...base,
         robots: isDefault ? undefined : { index: false, follow: true },

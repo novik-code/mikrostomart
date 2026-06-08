@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
             title: `Polityka Prywatności | ${brand.name} ${brand.cityShort}`,
             description: `Polityka prywatności gabinetu stomatologicznego ${brand.name} w ${brand.cityShort} — jak przetwarzamy Twoje dane osobowe.`,
         },
-    });
+    }, { indexableLocales: ['pl'] });
     return {
         ...base,
         robots: isDefault ? undefined : { index: false, follow: true },

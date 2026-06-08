@@ -57,13 +57,20 @@ export function localePath(locale: string, path: string): string {
  *     uk: 'https://www.mikrostomart.pl/ua/oferta',
  *     'x-default': 'https://www.mikrostomart.pl/oferta' }
  */
-export function buildHreflangAlternates(path: string): Record<string, string> {
+export function buildHreflangAlternates(path: string, indexableLocales?: string[]): Record<string, string> {
+    // 1B (2026-06-08): hreflang scoping. Strony jedno-locale (PL-only geo/legal,
+    // DE/EN-only geo) NIE powinny deklarować hreflang do swoich noindex wariantów
+    // — Google traktuje wskazywanie hreflang na noindex jako sprzeczny sygnał i może
+    // zignorować cały klaster. Gdy `indexableLocales` podane → emituj hreflang tylko
+    // dla indeksowalnych locale + x-default → primary. Domyślnie: pełen 4-locale circle.
+    const locales = indexableLocales && indexableLocales.length ? indexableLocales : routing.locales;
     const langs: Record<string, string> = {};
-    for (const locale of routing.locales) {
+    for (const locale of locales) {
         const hreflang = HREFLANG_MAP[locale] || locale;
         langs[hreflang] = `${brand.appUrl}${localePath(locale, path)}`;
     }
-    langs['x-default'] = `${brand.appUrl}${localePath(routing.defaultLocale, path)}`;
+    const primary = locales.includes(routing.defaultLocale) ? routing.defaultLocale : locales[0];
+    langs['x-default'] = `${brand.appUrl}${localePath(primary, path)}`;
     return langs;
 }
 
@@ -116,7 +123,7 @@ export function pageMetadata(
     locale: string,
     path: string,
     content: LocaleSeoMap,
-    options?: { demoOverride?: PageSeoContent; ogImage?: string; ogImageAlt?: string }
+    options?: { demoOverride?: PageSeoContent; ogImage?: string; ogImageAlt?: string; indexableLocales?: string[] }
 ): Metadata {
     const seo = (isDemoMode && options?.demoOverride)
         ? options.demoOverride
@@ -127,7 +134,7 @@ export function pageMetadata(
         return {
             alternates: {
                 canonical: buildCanonical(locale, path),
-                languages: buildHreflangAlternates(path),
+                languages: buildHreflangAlternates(path, options?.indexableLocales),
             },
         };
     }
@@ -156,7 +163,7 @@ export function pageMetadata(
         keywords: seo.keywords,
         alternates: {
             canonical: buildCanonical(locale, path),
-            languages: buildHreflangAlternates(path),
+            languages: buildHreflangAlternates(path, options?.indexableLocales),
         },
         openGraph: {
             type: 'website',

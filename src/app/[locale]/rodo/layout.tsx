@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
             title: `RODO | ${brand.name} - Dentysta ${brand.cityShort}`,
             description: `Informacje o przetwarzaniu danych osobowych (RODO) w gabinecie stomatologicznym ${brand.name} w ${brand.cityShort}.`,
         },
-    });
+    }, { indexableLocales: ['pl'] });
     return {
         ...base,
         robots: isDefault ? undefined : { index: false, follow: true },

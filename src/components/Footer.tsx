@@ -1,7 +1,7 @@
 "use client";
 
 import Image from 'next/image';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import AnimatedPhone from "@/components/AnimatedPhone";
 import AnimatedAt from "@/components/AnimatedAt";
@@ -13,6 +13,7 @@ import { formatPhoneForTel } from "@/lib/phoneFormat";
 export default function Footer() {
     const t = useTranslations('footer');
     const tn = useTranslations('footer.seoNav');
+    const locale = useLocale();
 
     return (
         <footer className="section" style={{
@@ -131,6 +132,15 @@ export default function Footer() {
                         <Link href="/o-nas" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('team')}</Link>
                         <Link href="/dentysta-opole-centrum" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('dentistOpoleCentre')}</Link>
                         <Link href="/dla-pacjentow-przyjezdnych" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('intlPatients')}</Link>
+                        {/* 1B: dedykowane geo-landingi pokazywane tylko w ich indeksowanym locale
+                            (DE→/de/zahnarzt-opole, EN→/en/dentist-opole) — daje orphanom internal link
+                            z każdej strony w danym locale, bez linkowania do noindex w innych locale. */}
+                        {locale === 'de' && (
+                            <Link href="/zahnarzt-opole" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Zahnarzt Opole</Link>
+                        )}
+                        {locale === 'en' && (
+                            <Link href="/dentist-opole" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">Dentist in Opole</Link>
+                        )}
                         <Link href="/kontakt" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{t('contact')}</Link>
                         <Link href="/rezerwacja" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('booking')}</Link>
                     </div>

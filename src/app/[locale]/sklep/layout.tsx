@@ -4,7 +4,7 @@ import { PAGE_SEO } from '@/lib/seoTranslations';
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
     const { locale } = await params;
-    const base = pageMetadata(locale, '/sklep', PAGE_SEO['/sklep']);
+    const base = pageMetadata(locale, '/sklep', PAGE_SEO['/sklep'], { indexableLocales: ['pl'] });
     // J-4: shop content is PL-only (product names, descriptions, voucher copy
     // live in Polish). Foreign locale URLs (/en/sklep, /de/sklep, /ua/sklep)
     // currently serve the same PL text — keeping them indexable would split

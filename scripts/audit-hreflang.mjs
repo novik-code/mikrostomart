@@ -22,10 +22,11 @@
  *
  * Validations per URL (PL_ONLY path — /implanty-opole, /sklep, etc.):
  *   1. PL locale: indexable + canonical = PL self.
- *   2. Foreign locales (EN/DE/UA): MUST have noindex + canonical pointing to PL.
- *      Hreflang circle still emitted (best practice for PL-only with foreign
- *      locale render) but foreign URLs marked noindex so Google drops them from
- *      index while keeping the canonical signal.
+ *   2. Foreign locales (EN/DE/UA): MUST have noindex.
+ *   3. Hreflang SCOPED (1B, 2026-06-08): only pl + x-default (→PL) declared;
+ *      foreign hreflang (en/de/uk) MUST be absent — pointing hreflang at noindex
+ *      variants is a contradictory signal Google may ignore. LOCALE_ONLY pages
+ *      mirror this: only the indexed locale + x-default (→ that locale).
  *
  * L-10 (2026-05-25): added PL_ONLY_PATHS set + robots/canonical checks.
  * New paths added: /implanty-opole (L-1), /leczenie-kanalowe-opole-mikroskop +
@@ -82,10 +83,10 @@ const PUBLIC_PATHS = [
     '/dentist-opole',
 ];
 
-// PL-only paths: foreign locale URLs (en/de/ua) MUST be noindex + canonical to PL.
-// Hreflang circle is still emitted (4 locales declared) so Google understands
-// the PL URL is the canonical version; the foreign noindex tells crawlers to
-// drop those variants from the index.
+// PL-only paths: foreign locale URLs (en/de/ua) MUST be noindex.
+// 1B (2026-06-08): hreflang is SCOPED to pl + x-default only (no en/de/uk
+// entries) — hreflang must never point at noindex variants. The PL URL is the
+// single indexable version.
 const PL_ONLY_PATHS = new Set([
     '/sklep',              // S5-2: PL-only product list
     '/regulamin',          // S5-1: PL legal text
@@ -189,82 +190,73 @@ function isNoindex(robots) {
 
 function validateAlternates(url, alternates, robots, canonical, path, locale) {
     const issues = [];
-
-    // 1. All 5 hreflang values present
-    for (const lang of EXPECTED_LANGS) {
-        if (!alternates[lang]) {
-            issues.push(`missing hreflang="${lang}"`);
-        }
-    }
-
-    // 2. No `ua` — should be `uk` (ISO 639-1)
-    if (alternates['ua']) {
-        issues.push(`uses hreflang="ua" instead of "uk" (ISO 639-1 for Ukrainian)`);
-    }
-
-    // 3. Self-link present (this URL's path appears in own alternates)
-    const selfPath = pathOf(url);
-    const altPaths = Object.values(alternates).map(pathOf);
-    if (!altPaths.includes(selfPath)) {
-        issues.push(`self-link missing (page is ${selfPath} but no alternate points to it)`);
-    }
-
-    // 4. Robots + canonical consistency
     const isPlOnly = PL_ONLY_PATHS.has(path);
     const isGloballyNoindex = GLOBALLY_NOINDEX_PATHS.has(path);
     const localeOnly = LOCALE_ONLY_PATHS.get(path);
     const noindex = isNoindex(robots);
+    const selfPath = pathOf(url);
+    const altPaths = Object.values(alternates).map(pathOf);
     const canonicalPath = canonical ? pathOf(canonical) : null;
     const plSelfPath = path === '' ? '/' : path;
 
-    if (isGloballyNoindex) {
-        // Page MUST be noindex in every locale (transactional/no-organic-intent
-        // landings — Faza J-2 pattern).
-        if (!noindex) {
-            issues.push(`globally-noindex page (${path}) is missing noindex meta in '${locale}' locale: robots="${robots || '(none)'}"`);
+    // Always: never use `ua` (ISO 639-1 for Ukrainian is `uk`).
+    if (alternates['ua']) {
+        issues.push(`uses hreflang="ua" instead of "uk" (ISO 639-1 for Ukrainian)`);
+    }
+
+    const hreflangOf = (loc) => (loc === 'ua' ? 'uk' : loc);
+    const variantPath = (loc) => {
+        const prefix = loc === 'pl' ? '' : `/${loc}`;
+        return path === '' ? (prefix || '/') : `${prefix}${path}`;
+    };
+
+    if (isPlOnly) {
+        // 1B (2026-06-08): hreflang SCOPED — PL-only pages declare only pl + x-default
+        // (→ PL). Foreign hreflang (en/de/uk) MUST be absent (would point at noindex).
+        const plPath = plSelfPath;
+        if (!alternates['pl']) issues.push(`missing hreflang="pl"`);
+        if (!alternates['x-default']) issues.push(`missing hreflang="x-default"`);
+        for (const stray of ['en', 'de', 'uk']) {
+            if (alternates[stray]) issues.push(`PL_ONLY page should not declare hreflang="${stray}" (points to noindex variant ${pathOf(alternates[stray])})`);
         }
-    } else if (isPlOnly) {
+        if (alternates['pl'] && pathOf(alternates['pl']) !== plPath) issues.push(`hreflang="pl" → ${pathOf(alternates['pl'])} (expected ${plPath})`);
+        if (alternates['x-default'] && pathOf(alternates['x-default']) !== plPath) issues.push(`hreflang="x-default" → ${pathOf(alternates['x-default'])} (expected ${plPath})`);
         if (locale === 'pl') {
-            // PL canonical version must be indexable.
-            if (noindex) {
-                issues.push(`PL_ONLY page in PL locale has noindex (should be indexable): robots="${robots}"`);
-            }
-            if (canonicalPath && canonicalPath !== plSelfPath) {
-                issues.push(`PL canonical of PL_ONLY page points elsewhere: ${canonicalPath} (expected ${plSelfPath})`);
-            }
+            if (noindex) issues.push(`PL_ONLY page in PL locale has noindex (should be indexable): robots="${robots}"`);
+            if (canonicalPath && canonicalPath !== plSelfPath) issues.push(`PL canonical of PL_ONLY page points elsewhere: ${canonicalPath} (expected ${plSelfPath})`);
         } else {
-            // Foreign locale variants of PL-only pages MUST be noindex.
-            if (!noindex) {
-                issues.push(`PL_ONLY page in foreign locale '${locale}' is missing noindex meta (would cause duplicate-content indexing): robots="${robots || '(none)'}"`);
-            }
-            // Canonical may point to either self (foreign URL) or the PL page —
-            // either is acceptable. Most layouts ship locale-aware canonical
-            // (points to foreign URL); only a stricter pattern would force PL.
-            // We don't flag canonical mismatch for PL_ONLY foreign locales.
+            if (!noindex) issues.push(`PL_ONLY page in foreign locale '${locale}' is missing noindex meta: robots="${robots || '(none)'}"`);
         }
     } else if (localeOnly) {
+        // 1B: single-locale-indexed pages declare only the target locale + x-default (→ target).
+        const tgtCode = hreflangOf(localeOnly);
+        const tgtPath = variantPath(localeOnly);
+        if (!alternates[tgtCode]) issues.push(`missing hreflang="${tgtCode}"`);
+        if (!alternates['x-default']) issues.push(`missing hreflang="x-default"`);
+        for (const stray of ['pl', 'en', 'de', 'uk'].filter((l) => l !== tgtCode)) {
+            if (alternates[stray]) issues.push(`LOCALE_ONLY page should not declare hreflang="${stray}" (points to noindex variant ${pathOf(alternates[stray])})`);
+        }
+        if (alternates[tgtCode] && pathOf(alternates[tgtCode]) !== tgtPath) issues.push(`hreflang="${tgtCode}" → ${pathOf(alternates[tgtCode])} (expected ${tgtPath})`);
+        if (alternates['x-default'] && pathOf(alternates['x-default']) !== tgtPath) issues.push(`hreflang="x-default" → ${pathOf(alternates['x-default'])} (expected ${tgtPath})`);
         if (locale === localeOnly) {
-            // Indexed locale variant must be indexable + canonical to self.
-            if (noindex) {
-                issues.push(`LOCALE_ONLY page (${path}) in its indexed locale '${locale}' has noindex (should be indexable): robots="${robots}"`);
-            }
-            if (canonicalPath && canonicalPath !== selfPath) {
-                issues.push(`canonical of LOCALE_ONLY indexed page points to ${canonicalPath} instead of self ${selfPath}`);
-            }
+            if (noindex) issues.push(`LOCALE_ONLY page (${path}) in its indexed locale '${locale}' has noindex (should be indexable): robots="${robots}"`);
+            if (canonicalPath && canonicalPath !== selfPath) issues.push(`canonical of LOCALE_ONLY indexed page points to ${canonicalPath} instead of self ${selfPath}`);
         } else {
-            // Non-target locales MUST be noindex (avoid duplicate-content indexing).
-            if (!noindex) {
-                issues.push(`LOCALE_ONLY page (${path}, indexed in '${localeOnly}') missing noindex in '${locale}' locale: robots="${robots || '(none)'}"`);
-            }
+            if (!noindex) issues.push(`LOCALE_ONLY page (${path}, indexed in '${localeOnly}') missing noindex in '${locale}' locale: robots="${robots || '(none)'}"`);
         }
     } else {
-        // Multi-locale path — every locale variant should be indexable.
-        if (noindex) {
-            issues.push(`multi-locale page is noindex in '${locale}' locale (probably regression — should be indexable): robots="${robots}"`);
+        // Multi-locale (+ globally-noindex, which keeps the full 4-locale circle).
+        for (const lang of EXPECTED_LANGS) {
+            if (!alternates[lang]) issues.push(`missing hreflang="${lang}"`);
         }
-        // Canonical should point to self (each locale has its own canonical URL).
-        if (canonicalPath && canonicalPath !== selfPath) {
-            issues.push(`canonical points to ${canonicalPath} instead of self ${selfPath}`);
+        if (!altPaths.includes(selfPath)) {
+            issues.push(`self-link missing (page is ${selfPath} but no alternate points to it)`);
+        }
+        if (isGloballyNoindex) {
+            if (!noindex) issues.push(`globally-noindex page (${path}) is missing noindex meta in '${locale}' locale: robots="${robots || '(none)'}"`);
+        } else {
+            if (noindex) issues.push(`multi-locale page is noindex in '${locale}' locale (probably regression — should be indexable): robots="${robots}"`);
+            if (canonicalPath && canonicalPath !== selfPath) issues.push(`canonical points to ${canonicalPath} instead of self ${selfPath}`);
         }
     }
 
@@ -347,7 +339,9 @@ if (broken.length === 0) {
             ? '(globally noindex)'
             : PL_ONLY_PATHS.has(path)
                 ? '(PL-only)'
-                : '(multi-locale)';
+                : LOCALE_ONLY_PATHS.has(path)
+                    ? `(locale-only: ${LOCALE_ONLY_PATHS.get(path)})`
+                    : '(multi-locale)';
         md += `### \`${path || '/'}\` ${mode} — ${group.length} broken variant(s)\n\n`;
         for (const r of group) {
             md += `- **${r.locale}** → ${r.url}\n`;
@@ -370,7 +364,9 @@ for (const [path, group] of pathGroups) {
         ? 'noindex'
         : PL_ONLY_PATHS.has(path)
             ? 'PL-only'
-            : 'multi';
+            : LOCALE_ONLY_PATHS.has(path)
+                ? `locale:${LOCALE_ONLY_PATHS.get(path)}`
+                : 'multi';
     const okLocales = group.filter((r) => r.issues.length === 0).map((r) => r.locale).join(', ') || '–';
     const brokenLocales = group.filter((r) => r.issues.length > 0).map((r) => r.locale).join(', ') || '–';
     md += `| \`${path || '/'}\` | ${mode} | ${okLocales} | ${brokenLocales} |\n`;
