@@ -150,16 +150,6 @@ const nextConfig: NextConfig = {
         destination: '/oferta/laser',
         permanent: true,
       },
-      {
-        source: '/oferta/stomatologia-dziecieca',
-        destination: '/oferta',
-        permanent: true,
-      },
-      {
-        source: '/oferta/stomatologia-zachowawcza',
-        destination: '/oferta',
-        permanent: true,
-      },
       // Old standalone pages from Joomla
       {
         source: '/bezbolesne-komputerowe-znieczulenie',

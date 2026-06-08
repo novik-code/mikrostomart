@@ -36,6 +36,8 @@ const ROUTE_FILES = {
     '/oferta/implantologia': ['src/app/[locale]/oferta/implantologia/page.tsx', 'src/app/[locale]/oferta/implantologia/layout.tsx'],
     '/oferta/laser': ['src/app/[locale]/oferta/laser/page.tsx', 'src/app/[locale]/oferta/laser/layout.tsx'],
     '/oferta/periodontologia': ['src/app/[locale]/oferta/periodontologia/page.tsx', 'src/app/[locale]/oferta/periodontologia/layout.tsx'],
+    '/oferta/stomatologia-dziecieca': ['src/app/[locale]/oferta/stomatologia-dziecieca/page.tsx', 'src/app/[locale]/oferta/stomatologia-dziecieca/layout.tsx'],
+    '/oferta/stomatologia-zachowawcza': ['src/app/[locale]/oferta/stomatologia-zachowawcza/page.tsx', 'src/app/[locale]/oferta/stomatologia-zachowawcza/layout.tsx'],
     '/oferta/leczenie-kanalowe': ['src/app/[locale]/oferta/leczenie-kanalowe/page.tsx', 'src/app/[locale]/oferta/leczenie-kanalowe/layout.tsx'],
     '/oferta/stomatologia-estetyczna': ['src/app/[locale]/oferta/stomatologia-estetyczna/page.tsx', 'src/app/[locale]/oferta/stomatologia-estetyczna/layout.tsx'],
     '/oferta/ortodoncja': ['src/app/[locale]/oferta/ortodoncja/page.tsx', 'src/app/[locale]/oferta/ortodoncja/layout.tsx'],

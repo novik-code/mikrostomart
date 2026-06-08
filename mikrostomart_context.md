@@ -2526,6 +2526,21 @@ NODE_ENV=production
 
 ## 📝 Recent Changes
 
+### 2026-06-08 #5 — 🦷 Nowe strony oferty `/oferta/stomatologia-dziecieca` + `/oferta/stomatologia-zachowawcza` (B — 3/4 + 4/4 ✅ KOMPLET)
+
+**Ostatnie 2 z 4 brakujących stron oferty** (recovery starej strony Joomla). Tym samym **Task B ZAKOŃCZONY** — wszystkie 4 brakujące strony oferty (laser, periodontologia, stomatologia dziecięca, zachowawcza) powstały i są w pełni wpięte. Wzorzec Faza K + siatka usług (Opcja A).
+
+- **page+layout ×2**: `dziecieca` (wizyty adaptacyjne, profilaktyka/lakowanie, leczenie bez wiertła, zęby mleczne, higiena, Elżbieta), `zachowawcza` (leczenie próchnicy, kompozyty, laser+ICON bez wiertła, wymiana amalgamatu, ubytki niepróchnicowe abrazja/erozja/abfrakcja).
+- **i18n ×4 nowe namespace** `dziecieca` (35 kluczy) + `zachowawcza` (28) — ręczne string-insertion (PL/EN=4, DE/UA=2 indent). Uwaga: w stronach usług `t()` renderuje czysty tekst — ZERO markdown linków w treści, cross-linki tylko przez komponent `Link`.
+- **Schema ×4**: FAQPage (5 Q/A) + MedicalProcedure (dziecieca→Mouth, zachowawcza→Tooth) + Service + BreadcrumbList. `serviceSchemas.ts` +2 wpisy (JSON.stringify — bezpieczne dla apostrofów UA).
+- **Integracje**: PAGE_SEO ×4 (desc ≤160 ✅), breadcrumb ×4, OFERTA_SERVICES +2 (siatka = **10 usług**), ofertaServices i18n (dzieciecaName/Desc + zachowawczaName/Desc ×4), Footer + footer.seoNav (pediatric+conservative ×4), sitemap +2, audit-hreflang +2, route-mtimes +2.
+- **next.config**: USUNIĘTE redirecty `/oferta/stomatologia-dziecieca→/oferta` i `/oferta/stomatologia-zachowawcza→/oferta` (stary slug == nowy slug; redirect przechwytywał realną stronę).
+- **cross-linki**: obie strony → `/oferta/laser` (leczenie bez wiertła). Siatka /oferta auto-linkuje wszystkie 10 (data-driven).
+- **Weryfikacja prod**: build 223 strony, 8/8 stron (4 locale × 2) HTTP 200, h1 OK, komplet schematów, 0 surowych kluczy. Siatka /oferta = 10 usług we wszystkich locale. **audit:hreflang 192/192 OK** (184+8). ⚠️ LEKCJA: URL prefix UA to `/ua/` (NIE `/uk/` — `uk` to tylko kod ISO hreflang); audit:hreflang wymaga serwera na porcie **3789** (PORT=3789 npm start).
+- **Seed do treści** (CLASSIFICATION.md): dziecięca art 62/63/253/255/273/310/312, zachowawcza 199/203/224/289/241(amalgamat).
+
+**Next**: Task B KOMPLET. Dalej → top 🟢 luki z CLASSIFICATION.md (kserostomia, overdentures, periimplantitis PL, ósemki, amalgamat, ubytki niepróchnicowe) jako Faza M Wave artykuły.
+
 ### 2026-06-02 #4 — 🦷 Nowa strona oferty `/oferta/periodontologia` (B — 2/4)
 
 **Druga z 4 brakujących stron oferty** (po laser). Leczenie paradontozy / chorób dziąseł — wzorzec Faza K, w pełni wpięta w siatkę usług (Opcja A).

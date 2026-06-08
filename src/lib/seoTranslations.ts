@@ -84,6 +84,50 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'пародонтологія Ополе, лікування пародонтозу Польща, лікування ясен Ополе, пародонтоз Ополе',
         },
     },
+    "/oferta/stomatologia-dziecieca": {
+        "pl": {
+            "title": "Stomatologia dziecięca Opole — dentysta dla dzieci | Mikrostomart",
+            "description": "Stomatologia dziecięca w Opolu — bez bólu i stresu. Wizyty adaptacyjne, profilaktyka, leczenie laserem bez wiertła. Zadbaj o uśmiech dziecka.",
+            "keywords": "stomatologia dziecięca opole, dentysta dla dzieci opole, stomatolog dziecięcy opole, leczenie zębów dzieci opole, pedodoncja opole"
+        },
+        "en": {
+            "title": "Pediatric Dentistry Opole, Poland — Dentist for Kids | Mikrostomart",
+            "description": "Pediatric dentistry in Opole, Poland — pain-free and stress-free. Acclimatisation visits, prevention, drill-free laser treatment. Book a visit.",
+            "keywords": "pediatric dentistry Opole, dentist for kids Poland, children dentist Opole, kids teeth treatment Opole"
+        },
+        "de": {
+            "title": "Kinderzahnheilkunde Opole, Polen — Zahnarzt für Kinder | Mikrostomart",
+            "description": "Kinderzahnheilkunde in Opole, Polen — schmerz- und stressfrei. Eingewöhnungsbesuche, Prophylaxe, bohrerfreie Laserbehandlung. Termin vereinbaren.",
+            "keywords": "Kinderzahnheilkunde Opole, Zahnarzt für Kinder Polen, Kinderzahnarzt Opole, Zahnbehandlung Kinder Opole"
+        },
+        "ua": {
+            "title": "Дитяча стоматологія Ополе — дитячий стоматолог | Mikrostomart",
+            "description": "Дитяча стоматологія в Ополе — без болю та стресу. Адаптаційні візити, профілактика, лазерне лікування без бормашини. Запишіться на візит.",
+            "keywords": "дитяча стоматологія Ополе, дитячий стоматолог Польща, лікування зубів дітей Ополе, педодонтія Ополе"
+        }
+    },
+    "/oferta/stomatologia-zachowawcza": {
+        "pl": {
+            "title": "Stomatologia zachowawcza Opole — leczenie próchnicy | Mikrostomart",
+            "description": "Stomatologia zachowawcza w Opolu — leczenie próchnicy, estetyczne wypełnienia kompozytowe, wymiana amalgamatu. Bez wiertła, laserem. Umów wizytę.",
+            "keywords": "stomatologia zachowawcza opole, leczenie próchnicy opole, wypełnienia kompozytowe opole, plomby opole, wymiana amalgamatu opole"
+        },
+        "en": {
+            "title": "Conservative Dentistry Opole, Poland — Caries Treatment | Mikrostomart",
+            "description": "Conservative dentistry in Opole, Poland — caries treatment, aesthetic composite fillings, amalgam replacement. Drill-free laser. Book a visit.",
+            "keywords": "conservative dentistry Opole, caries treatment Poland, composite fillings Opole, tooth fillings Opole"
+        },
+        "de": {
+            "title": "Konservierende Zahnheilkunde Opole, Polen — Karies | Mikrostomart",
+            "description": "Konservierende Zahnheilkunde in Opole, Polen — Kariesbehandlung, ästhetische Kompositfüllungen, Amalgam-Austausch. Bohrerfrei mit Laser.",
+            "keywords": "konservierende Zahnheilkunde Opole, Kariesbehandlung Polen, Kompositfüllungen Opole, Zahnfüllungen Opole"
+        },
+        "ua": {
+            "title": "Терапевтична стоматологія Ополе — лікування карієсу | Mikrostomart",
+            "description": "Терапевтична стоматологія в Ополе — лікування карієсу, естетичні композитні пломби, заміна амальгами. Без бормашини, лазером. Запишіться.",
+            "keywords": "терапевтична стоматологія Ополе, лікування карієсу Польща, композитні пломби Ополе, заміна амальгами Ополе"
+        }
+    },
     '/oferta/laser': {
         pl: {
             title: 'Stomatologia laserowa Opole | Laser Fotona | Mikrostomart',

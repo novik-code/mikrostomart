@@ -23,4 +23,6 @@ export const OFERTA_SERVICES: OfertaServiceItem[] = [
     { slug: 'chirurgia', key: 'chirurgia' },
     { slug: 'protetyka', key: 'protetyka' },
     { slug: 'periodontologia', key: 'periodontologia' },
+    { slug: 'stomatologia-dziecieca', key: 'dziecieca' },
+    { slug: 'stomatologia-zachowawcza', key: 'zachowawcza' },
 ];

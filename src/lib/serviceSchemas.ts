@@ -259,6 +259,278 @@ export const SERVICE_SCHEMAS: Record<string, ServiceSchemaMap> = {
         },
     },
 
+    // ═════════════════ /oferta/stomatologia-dziecieca ═════════════════
+    "/oferta/stomatologia-dziecieca": {
+        "pl": {
+            "faq": [
+                {
+                    "q": "W jakim wieku przyprowadzić dziecko na pierwszą wizytę?",
+                    "a": "Najlepiej już około 1. roku życia lub po pojawieniu się pierwszych zębów — na wizytę adaptacyjną. Im wcześniej, tym łatwiej zbudować pozytywne skojarzenia i wcześnie wychwycić ewentualne problemy."
+                },
+                {
+                    "q": "Czy trzeba leczyć zęby mleczne, skoro i tak wypadną?",
+                    "a": "Tak. Zęby mleczne utrzymują miejsce dla stałych, umożliwiają żucie i rozwój mowy, a nieleczona próchnica może uszkodzić zawiązki zębów stałych i powodować ból."
+                },
+                {
+                    "q": "Czy leczenie laserem jest bezpieczne dla dziecka?",
+                    "a": "Tak — laser dentystyczny to sprawdzona technologia, a u dzieci szczególnie ceniona, bo pozwala leczyć wiele ubytków bez wiertła, wibracji i często bez znieczulenia."
+                },
+                {
+                    "q": "Co to jest lakowanie bruzd?",
+                    "a": "To bezbolesne uszczelnienie zagłębień (bruzd) na powierzchni żującej zębów trzonowych specjalnym lakierem. Tworzy barierę chroniącą przed próchnicą w najbardziej narażonych miejscach."
+                },
+                {
+                    "q": "Moje dziecko bardzo boi się dentysty — co robić?",
+                    "a": "Zaczynamy od wizyty adaptacyjnej bez leczenia, w spokojnym tempie. Stosujemy techniki oswajania, leczenie bez wiertła i — w razie potrzeby — sedację wziewną (podtlenek azotu). Lęk da się pokonać."
+                }
+            ],
+            "procedure": {
+                "name": "Stomatologia dziecięca Opole",
+                "procedureType": "TherapeuticProcedure",
+                "bodyLocation": "Mouth",
+                "description": "Leczenie stomatologiczne dzieci: wizyty adaptacyjne, profilaktyka (lakowanie bruzd, fluoryzacja) oraz leczenie próchnicy zębów mlecznych — często laserem bez wiertła i w komputerowym znieczuleniu.",
+                "howPerformed": "Zaczynamy od wizyty adaptacyjnej i oswojenia dziecka. Stosujemy profilaktykę (lakowanie, fluoryzacja) oraz leczenie próchnicy laserem Er:YAG lub w komputerowym znieczuleniu, w przyjaznej, spokojnej atmosferze.",
+                "preparation": "Rozmowa z rodzicem i dzieckiem, ocena stanu uzębienia, w razie potrzeby RTG.",
+                "followup": "Regularne wizyty profilaktyczne i kontrolne oraz nauka higieny dostosowana do wieku."
+            }
+        },
+        "en": {
+            "faq": [
+                {
+                    "q": "At what age should I bring my child for the first visit?",
+                    "a": "Ideally around the age of one or once the first teeth appear — for an acclimatisation visit. The earlier, the easier it is to build positive associations and catch any problems early."
+                },
+                {
+                    "q": "Do baby teeth need treating if they will fall out anyway?",
+                    "a": "Yes. Baby teeth hold space for permanent ones, enable chewing and speech development, and untreated decay can damage the buds of permanent teeth and cause pain."
+                },
+                {
+                    "q": "Is laser treatment safe for a child?",
+                    "a": "Yes — the dental laser is proven technology, and it is especially valued in children because it allows many cavities to be treated without a drill, vibration and often without anaesthesia."
+                },
+                {
+                    "q": "What is fissure sealing?",
+                    "a": "It is the painless sealing of the grooves (fissures) on the chewing surface of molars with a special resin. It creates a barrier protecting against decay in the most vulnerable spots."
+                },
+                {
+                    "q": "My child is very afraid of the dentist — what should I do?",
+                    "a": "We start with an acclimatisation visit without treatment, at a calm pace. We use desensitising techniques, drill-free treatment and, if needed, inhalation sedation (nitrous oxide). Fear can be overcome."
+                }
+            ],
+            "procedure": {
+                "name": "Pediatric dentistry in Opole, Poland",
+                "procedureType": "TherapeuticProcedure",
+                "bodyLocation": "Mouth",
+                "description": "Dental treatment for children: acclimatisation visits, prevention (fissure sealing, fluoridation) and treatment of caries in baby teeth — often with a drill-free laser and computer-controlled anaesthesia.",
+                "howPerformed": "We start with an acclimatisation visit to put the child at ease. We provide prevention (sealing, fluoridation) and treat caries with the Er:YAG laser or under computer-controlled anaesthesia, in a friendly, calm atmosphere.",
+                "preparation": "A talk with the parent and child, assessment of the dentition, X-ray if needed.",
+                "followup": "Regular preventive and check-up visits, with age-appropriate hygiene instruction."
+            }
+        },
+        "de": {
+            "faq": [
+                {
+                    "q": "In welchem Alter sollte ich mein Kind zum ersten Besuch bringen?",
+                    "a": "Am besten schon um das erste Lebensjahr oder nach dem Durchbruch der ersten Zähne — für einen Eingewöhnungsbesuch. Je früher, desto leichter lassen sich positive Verbindungen aufbauen und mögliche Probleme früh erkennen."
+                },
+                {
+                    "q": "Müssen Milchzähne behandelt werden, wenn sie ohnehin ausfallen?",
+                    "a": "Ja. Milchzähne halten den Platz für die bleibenden Zähne, ermöglichen Kauen und Sprachentwicklung, und unbehandelte Karies kann die Anlagen der bleibenden Zähne schädigen und Schmerzen verursachen."
+                },
+                {
+                    "q": "Ist die Laserbehandlung für ein Kind sicher?",
+                    "a": "Ja — der Dentallaser ist eine bewährte Technologie und wird bei Kindern besonders geschätzt, weil sich damit viele Kariesstellen ohne Bohrer, Vibration und oft ohne Betäubung behandeln lassen."
+                },
+                {
+                    "q": "Was ist eine Fissurenversiegelung?",
+                    "a": "Es ist die schmerzlose Versiegelung der Vertiefungen (Fissuren) auf der Kaufläche der Backenzähne mit einem speziellen Lack. Sie bildet eine Barriere, die an den anfälligsten Stellen vor Karies schützt."
+                },
+                {
+                    "q": "Mein Kind hat große Angst vorm Zahnarzt — was tun?",
+                    "a": "Wir beginnen mit einem Eingewöhnungsbesuch ohne Behandlung, in ruhigem Tempo. Wir setzen Desensibilisierungstechniken, bohrerfreie Behandlung und bei Bedarf eine Inhalationssedierung (Lachgas) ein. Angst lässt sich überwinden."
+                }
+            ],
+            "procedure": {
+                "name": "Kinderzahnheilkunde in Opole, Polen",
+                "procedureType": "TherapeuticProcedure",
+                "bodyLocation": "Mouth",
+                "description": "Zahnärztliche Behandlung von Kindern: Eingewöhnungsbesuche, Prophylaxe (Fissurenversiegelung, Fluoridierung) und Behandlung von Karies an Milchzähnen — oft mit bohrerfreiem Laser und computergesteuerter Betäubung.",
+                "howPerformed": "Wir beginnen mit einem Eingewöhnungsbesuch, um das Kind zu beruhigen. Wir bieten Prophylaxe (Versiegelung, Fluoridierung) und behandeln Karies mit dem Er:YAG-Laser oder unter computergesteuerter Betäubung, in freundlicher, ruhiger Atmosphäre.",
+                "preparation": "Gespräch mit Elternteil und Kind, Beurteilung des Gebisses, bei Bedarf Röntgen.",
+                "followup": "Regelmäßige Vorsorge- und Kontrolltermine sowie altersgerechte Hygieneanleitung."
+            }
+        },
+        "ua": {
+            "faq": [
+                {
+                    "q": "У якому віці привести дитину на перший візит?",
+                    "a": "Найкраще вже близько 1 року або після появи перших зубів — на адаптаційний візит. Чим раніше, тим легше сформувати позитивні асоціації та рано виявити можливі проблеми."
+                },
+                {
+                    "q": "Чи потрібно лікувати молочні зуби, якщо вони все одно випадуть?",
+                    "a": "Так. Молочні зуби утримують місце для постійних, забезпечують жування та розвиток мовлення, а нелікований карієс може пошкодити зачатки постійних зубів і спричинити біль."
+                },
+                {
+                    "q": "Чи безпечне лазерне лікування для дитини?",
+                    "a": "Так — стоматологічний лазер є перевіреною технологією, а в дітей особливо цінується, бо дозволяє лікувати багато порожнин без бормашини, вібрації та часто без анестезії."
+                },
+                {
+                    "q": "Що таке герметизація фісур?",
+                    "a": "Це безболісне запечатування заглиблень (фісур) на жувальній поверхні зубів спеціальним лаком. Воно створює бар'єр, що захищає від карієсу в найбільш вразливих місцях."
+                },
+                {
+                    "q": "Моя дитина дуже боїться стоматолога — що робити?",
+                    "a": "Ми починаємо з адаптаційного візиту без лікування, у спокійному темпі. Застосовуємо техніки призвичаювання, лікування без бормашини та — за потреби — інгаляційну седацію (закис азоту). Страх можна подолати."
+                }
+            ],
+            "procedure": {
+                "name": "Дитяча стоматологія Ополе",
+                "procedureType": "TherapeuticProcedure",
+                "bodyLocation": "Mouth",
+                "description": "Стоматологічне лікування дітей: адаптаційні візити, профілактика (герметизація фісур, фторування) та лікування карієсу молочних зубів — часто лазером без бормашини та з комп'ютерною анестезією.",
+                "howPerformed": "Починаємо з адаптаційного візиту, щоб заспокоїти дитину. Проводимо профілактику (герметизація, фторування) та лікуємо карієс лазером Er:YAG або під комп'ютерною анестезією, у приємній, спокійній атмосфері.",
+                "preparation": "Розмова з батьками та дитиною, оцінка стану зубів, за потреби РТГ.",
+                "followup": "Регулярні профілактичні та контрольні візити, навчання гігієні за віком."
+            }
+        }
+    },
+
+    // ═════════════════ /oferta/stomatologia-zachowawcza ═════════════════
+    "/oferta/stomatologia-zachowawcza": {
+        "pl": {
+            "faq": [
+                {
+                    "q": "Czy leczenie próchnicy boli?",
+                    "a": "Współczesne leczenie jest komfortowe. Stosujemy znieczulenie (m.in. komputerowe The Wand), a wiele wczesnych ubytków leczymy laserem — bez wiertła i często bez znieczulenia."
+                },
+                {
+                    "q": "Czy wypełnienie będzie widoczne?",
+                    "a": "Nie. Wypełnienia kompozytowe dobieramy kolorem i przezroczystością do Twojego zęba — są praktycznie niewidoczne, także w zębach przednich."
+                },
+                {
+                    "q": "Czy warto wymieniać stare amalgamatowe plomby?",
+                    "a": "Jeśli są nieszczelne, przebarwiają ząb lub pojawia się pod nimi wtórna próchnica — tak. Wymieniamy je na estetyczne kompozyty, bezpiecznie i z dobrą izolacją pola zabiegowego."
+                },
+                {
+                    "q": "Mam ubytki przy dziąsłach, choć dbam o zęby — co to jest?",
+                    "a": "To często ubytki niepróchnicowe (abfrakcja / abrazja / erozja) — od przeciążeń zgryzowych, zbyt mocnego szczotkowania lub kwasów. Wymagają innego leczenia niż próchnica; najpierw ustalamy przyczynę."
+                },
+                {
+                    "q": "Czy każdy ubytek trzeba wiercić?",
+                    "a": "Nie. Próchnicę początkową można zatrzymać metodą ICON (bez wiercenia), a wiele ubytków opracowujemy laserem. O metodzie decydujemy po ocenie konkretnego przypadku."
+                }
+            ],
+            "procedure": {
+                "name": "Stomatologia zachowawcza Opole",
+                "procedureType": "TherapeuticProcedure",
+                "bodyLocation": "Tooth",
+                "description": "Leczenie próchnicy i odbudowa zębów estetycznymi wypełnieniami kompozytowymi, wymiana starych wypełnień amalgamatowych oraz leczenie ubytków niepróchnicowych — z użyciem powiększenia i lasera.",
+                "howPerformed": "Usuwamy wyłącznie chorą tkankę (laser Er:YAG lub minimalnie inwazyjne opracowanie), a ubytek odbudowujemy adhezyjnym kompozytem dobranym kolorem do zęba. Próchnicę początkową można zatrzymać metodą ICON bez wiercenia.",
+                "preparation": "Przegląd i diagnostyka próchnicy, w razie potrzeby RTG skrzydłowo-zgryzowe.",
+                "followup": "Regularne przeglądy kontrolne i profesjonalna higienizacja."
+            }
+        },
+        "en": {
+            "faq": [
+                {
+                    "q": "Does caries treatment hurt?",
+                    "a": "Modern treatment is comfortable. We use anaesthesia (including the computer-controlled The Wand), and many early cavities are treated with a laser — without a drill and often without anaesthesia."
+                },
+                {
+                    "q": "Will the filling be visible?",
+                    "a": "No. We match composite fillings to the colour and translucency of your tooth — they are practically invisible, including in the front teeth."
+                },
+                {
+                    "q": "Is it worth replacing old amalgam fillings?",
+                    "a": "If they have lost their seal, discolour the tooth or secondary caries appears beneath them — yes. We replace them with aesthetic composites, safely and with good isolation of the working field."
+                },
+                {
+                    "q": "I have defects near the gums even though I care for my teeth — what is this?",
+                    "a": "These are often non-carious lesions (abfraction / abrasion / erosion) — from occlusal overload, over-vigorous brushing or acids. They require different treatment than caries; first we establish the cause."
+                },
+                {
+                    "q": "Does every cavity have to be drilled?",
+                    "a": "No. Early caries can be stopped with the ICON method (without drilling), and many cavities are prepared with a laser. We decide on the method after assessing the specific case."
+                }
+            ],
+            "procedure": {
+                "name": "Conservative dentistry in Opole, Poland",
+                "procedureType": "TherapeuticProcedure",
+                "bodyLocation": "Tooth",
+                "description": "Treatment of caries and restoration of teeth with aesthetic composite fillings, replacement of old amalgam fillings and treatment of non-carious lesions — using magnification and a laser.",
+                "howPerformed": "We remove only the diseased tissue (Er:YAG laser or minimally invasive preparation) and restore the cavity with an adhesive composite matched to the tooth colour. Early caries can be stopped with the ICON method without drilling.",
+                "preparation": "Examination and caries diagnostics, bitewing X-rays if needed.",
+                "followup": "Regular check-ups and professional dental hygiene."
+            }
+        },
+        "de": {
+            "faq": [
+                {
+                    "q": "Tut die Kariesbehandlung weh?",
+                    "a": "Die moderne Behandlung ist komfortabel. Wir setzen Betäubung ein (u. a. das computergesteuerte The Wand), und viele frühe Defekte behandeln wir mit dem Laser — ohne Bohrer und oft ohne Betäubung."
+                },
+                {
+                    "q": "Wird die Füllung sichtbar sein?",
+                    "a": "Nein. Wir passen Kompositfüllungen an Farbe und Transluzenz Ihres Zahns an — sie sind praktisch unsichtbar, auch bei den Frontzähnen."
+                },
+                {
+                    "q": "Lohnt sich der Austausch alter Amalgamfüllungen?",
+                    "a": "Wenn sie undicht sind, den Zahn verfärben oder darunter Sekundärkaries auftritt — ja. Wir ersetzen sie durch ästhetische Komposite, sicher und mit guter Isolierung des Arbeitsfeldes."
+                },
+                {
+                    "q": "Ich habe Defekte am Zahnfleischrand, obwohl ich meine Zähne pflege — was ist das?",
+                    "a": "Das sind oft nicht kariöse Defekte (Abfraktion / Abrasion / Erosion) — durch Bissüberlastung, zu kräftiges Putzen oder Säuren. Sie erfordern eine andere Behandlung als Karies; zuerst klären wir die Ursache."
+                },
+                {
+                    "q": "Muss jeder Defekt gebohrt werden?",
+                    "a": "Nein. Beginnende Karies lässt sich mit der ICON-Methode (ohne Bohren) stoppen, und viele Defekte bearbeiten wir mit dem Laser. Über die Methode entscheiden wir nach Beurteilung des konkreten Falls."
+                }
+            ],
+            "procedure": {
+                "name": "Konservierende Zahnheilkunde in Opole, Polen",
+                "procedureType": "TherapeuticProcedure",
+                "bodyLocation": "Tooth",
+                "description": "Behandlung von Karies und Wiederherstellung der Zähne mit ästhetischen Kompositfüllungen, Austausch alter Amalgamfüllungen und Behandlung nicht kariöser Defekte — mit Vergrößerung und Laser.",
+                "howPerformed": "Wir entfernen nur das erkrankte Gewebe (Er:YAG-Laser oder minimalinvasive Präparation) und versorgen den Defekt mit einem adhäsiven, farblich angepassten Komposit. Beginnende Karies lässt sich mit der ICON-Methode ohne Bohren stoppen.",
+                "preparation": "Untersuchung und Kariesdiagnostik, bei Bedarf Bissflügel-Röntgen.",
+                "followup": "Regelmäßige Kontrollen und professionelle Mundhygiene."
+            }
+        },
+        "ua": {
+            "faq": [
+                {
+                    "q": "Чи боляче лікувати карієс?",
+                    "a": "Сучасне лікування є комфортним. Ми застосовуємо анестезію (зокрема комп'ютерну The Wand), а багато ранніх порожнин лікуємо лазером — без бормашини та часто без анестезії."
+                },
+                {
+                    "q": "Чи буде пломба помітною?",
+                    "a": "Ні. Композитні пломби ми добираємо за кольором і прозорістю до вашого зуба — вони практично непомітні, зокрема на передніх зубах."
+                },
+                {
+                    "q": "Чи варто замінювати старі амальгамові пломби?",
+                    "a": "Якщо вони негерметичні, забарвлюють зуб або під ними з'являється вторинний карієс — так. Ми замінюємо їх на естетичні композити, безпечно та з якісною ізоляцією робочого поля."
+                },
+                {
+                    "q": "У мене дефекти біля ясен, хоча я доглядаю за зубами — що це?",
+                    "a": "Це часто некаріозні дефекти (абфракція / абразія / ерозія) — від перевантаження прикусу, надто сильного чищення або кислот. Вони потребують іншого лікування, ніж карієс; спершу ми встановлюємо причину."
+                },
+                {
+                    "q": "Чи потрібно свердлити кожну порожнину?",
+                    "a": "Ні. Початковий карієс можна зупинити методом ICON (без свердління), а багато порожнин ми обробляємо лазером. Метод обираємо після оцінки конкретного випадку."
+                }
+            ],
+            "procedure": {
+                "name": "Терапевтична стоматологія Ополе",
+                "procedureType": "TherapeuticProcedure",
+                "bodyLocation": "Tooth",
+                "description": "Лікування карієсу та відновлення зубів естетичними композитними пломбами, заміна старих амальгамових пломб і лікування некаріозних дефектів — із застосуванням збільшення та лазера.",
+                "howPerformed": "Видаляємо лише уражену тканину (лазер Er:YAG або мінімально інвазивне препарування) та відновлюємо дефект адгезивним композитом, дібраним за кольором зуба. Початковий карієс можна зупинити методом ICON без свердління.",
+                "preparation": "Огляд та діагностика карієсу, за потреби прикусні рентгенівські знімки.",
+                "followup": "Регулярні контрольні огляди та професійна гігієна."
+            }
+        }
+    },
+
     // ═════════════════ /oferta/laser ═════════════════
     '/oferta/laser': {
         pl: {

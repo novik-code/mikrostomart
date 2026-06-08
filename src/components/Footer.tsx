@@ -149,6 +149,8 @@ export default function Footer() {
                         <Link href="/oferta/chirurgia" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('surgery')}</Link>
                         <Link href="/oferta/protetyka" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('prosthodontics')}</Link>
                         <Link href="/oferta/periodontologia" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('periodontologia')}</Link>
+                        <Link href="/oferta/stomatologia-dziecieca" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('pediatric')}</Link>
+                        <Link href="/oferta/stomatologia-zachowawcza" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('conservative')}</Link>
                         <Link href="/cennik" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('pricing')}</Link>
                         <Link href="/metamorfozy" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('metamorphoses')}</Link>
                     </div>
