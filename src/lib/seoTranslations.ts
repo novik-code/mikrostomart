@@ -749,6 +749,30 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
         },
     },
 
+    // ───────── /licowki-opole — Faza 2D premium local geo page (PL-only, foreign noindex) ─────────
+    '/licowki-opole': {
+        pl: {
+            title: 'Licówki Opole — porcelanowe E.max, DSD | Mikrostomart',
+            description: 'Licówki porcelanowe i kompozytowe w Opolu — naturalny efekt, projektowanie uśmiechu (DSD), porcelana E.max. Wycena po konsultacji. Mikrostomart.',
+            keywords: 'licówki opole, licówki porcelanowe opole, projektowanie uśmiechu opole, hollywood smile opole, licówki cena opole, licówki e.max opole',
+        },
+        en: {
+            title: 'Veneers Opole — Porcelain E.max, DSD | Mikrostomart',
+            description: 'Porcelain and composite veneers in Opole, Poland — natural result, digital smile design (DSD), E.max porcelain. Quote after consultation. Mikrostomart.',
+            keywords: 'veneers Opole, porcelain veneers Opole, smile design Opole, Hollywood smile Opole, veneers cost Poland',
+        },
+        de: {
+            title: 'Veneers Opole — Porzellan E.max, DSD | Mikrostomart',
+            description: 'Porzellan- und Komposit-Veneers in Opole — natürliches Ergebnis, Digital Smile Design (DSD), E.max-Porzellan. Angebot nach Beratung. Mikrostomart.',
+            keywords: 'Veneers Opole, Porzellan-Veneers Opole, Smile Design Opole, Hollywood Smile Opole, Veneers Kosten Polen',
+        },
+        ua: {
+            title: 'Вініри Ополе — порцеляна E.max, DSD | Mikrostomart',
+            description: 'Порцелянові та композитні вініри в Ополе — природний результат, проєктування посмішки (DSD), порцеляна E.max. Вартість після консультації.',
+            keywords: 'вініри Ополе, порцелянові вініри Ополе, проєктування посмішки Ополе, голлівудський усміх Ополе, вініри ціна',
+        },
+    },
+
     // ───────── /all-on-4-opole — Faza 2B local geo page (PL-only, foreign noindex) ─────────
     '/all-on-4-opole': {
         pl: {
