@@ -749,6 +749,30 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
         },
     },
 
+    // ───────── /metamorfoza-usmiechu-opole — Faza 2D premium local geo page (PL-only, foreign noindex) ─────────
+    '/metamorfoza-usmiechu-opole': {
+        pl: {
+            title: 'Metamorfoza uśmiechu Opole — DSD | Mikrostomart',
+            description: 'Kompleksowa metamorfoza uśmiechu w Opolu — licówki, bonding, korony, implanty, All-on-X. Projektowanie uśmiechu (DSD). Wycena po konsultacji. Mikrostomart.',
+            keywords: 'metamorfoza uśmiechu opole, projektowanie uśmiechu opole, smile makeover opole, odbudowa uśmiechu opole, nowy uśmiech opole',
+        },
+        en: {
+            title: 'Smile Makeover Opole — DSD | Mikrostomart',
+            description: 'Comprehensive smile makeover in Opole, Poland — veneers, bonding, crowns, implants, All-on-X. Digital smile design (DSD). Quote after consultation.',
+            keywords: 'smile makeover Opole, smile design Opole, smile transformation Poland, full mouth reconstruction Opole, new smile Opole',
+        },
+        de: {
+            title: 'Lächeln-Metamorphose Opole — DSD | Mikrostomart',
+            description: 'Umfassende Lächeln-Metamorphose in Opole — Veneers, Bonding, Kronen, Implantate, All-on-X. Digital Smile Design (DSD). Angebot nach Beratung.',
+            keywords: 'Lächeln-Metamorphose Opole, Smile Makeover Opole, Smile Design Opole, Lächeln-Transformation Polen, neues Lächeln Opole',
+        },
+        ua: {
+            title: 'Метаморфоза посмішки Ополе — DSD | Mikrostomart',
+            description: 'Комплексна метаморфоза посмішки в Ополе — вініри, бондинг, коронки, імпланти, All-on-X. Проєктування посмішки (DSD). Вартість після консультації.',
+            keywords: 'метаморфоза посмішки Ополе, проєктування посмішки Ополе, smile makeover Ополе, відновлення посмішки Ополе, нова посмішка Ополе',
+        },
+    },
+
     // ───────── /licowki-opole — Faza 2D premium local geo page (PL-only, foreign noindex) ─────────
     '/licowki-opole': {
         pl: {

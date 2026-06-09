@@ -203,6 +203,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: 0.9, // Faza 2D: licówki geo, premium aesthetic money keyword
         },
         {
+            url: `${BASE_URL}/metamorfoza-usmiechu-opole`,
+            lastModified: lastModForPath('/metamorfoza-usmiechu-opole'),
+            changeFrequency: 'monthly' as const,
+            priority: 0.9, // Faza 2D: smile makeover geo, premium aesthetic money keyword
+        },
+        {
             url: `${BASE_URL}/leczenie-kanalowe-opole-mikroskop`,
             lastModified: lastModForPath('/leczenie-kanalowe-opole-mikroskop'),
             changeFrequency: 'monthly' as const,

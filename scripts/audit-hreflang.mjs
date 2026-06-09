@@ -78,6 +78,7 @@ const PUBLIC_PATHS = [
     '/implanty-opole',
     '/all-on-4-opole',
     '/licowki-opole',
+    '/metamorfoza-usmiechu-opole',
     '/leczenie-kanalowe-opole-mikroskop',
     '/dentysta-opole-centrum',
     // Pakiet C (2026-06-01): dedykowane geo-landingi DE/EN (indexed only target locale)
@@ -98,6 +99,7 @@ const PL_ONLY_PATHS = new Set([
     '/implanty-opole',     // L-1: geo, no organic intent in EN/DE/UA
     '/all-on-4-opole',     // 2B: All-on-X geo (PL-only)
     '/licowki-opole',      // 2D: licówki geo (PL-only)
+    '/metamorfoza-usmiechu-opole', // 2D: smile makeover geo (PL-only)
     '/leczenie-kanalowe-opole-mikroskop', // L-2a
     '/dentysta-opole-centrum',            // L-2b
 ]);

@@ -154,6 +154,7 @@ export default function Footer() {
                         <Link href="/implanty-opole" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('implantyOpole')}</Link>
                         <Link href="/all-on-4-opole" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('allOn4Opole')}</Link>
                         <Link href="/licowki-opole" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('licowkiOpole')}</Link>
+                        <Link href="/metamorfoza-usmiechu-opole" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('metamorfozaUsmiechuOpole')}</Link>
                         <Link href="/oferta/leczenie-kanalowe" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('rootCanal')}</Link>
                         <Link href="/leczenie-kanalowe-opole-mikroskop" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('rootCanalOpoleMicroscope')}</Link>
                         <Link href="/oferta/laser" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('laser')}</Link>
