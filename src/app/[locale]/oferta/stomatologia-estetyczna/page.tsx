@@ -7,6 +7,7 @@ import PerformerCard from "@/components/PerformerCard";
 
 export default function StomatologiaEstetycznaPage() {
     const t = useTranslations('estetyczna');
+    const tm = useTranslations('metamorfozy');
 
     return (
         <main className="section container">
@@ -263,6 +264,10 @@ export default function StomatologiaEstetycznaPage() {
                             </div>
                         ))}
                     </div>
+                </div>
+
+                <div style={{ textAlign: "center", marginBottom: "2.5rem" }}>
+                    <Link href="/metamorfozy" style={{ color: "var(--color-primary)", fontWeight: 600, textDecoration: "none", fontSize: "1.05rem" }}>{tm('crossLinkCta')} →</Link>
                 </div>
 
                 <PerformerCard doctor="marcin" />
