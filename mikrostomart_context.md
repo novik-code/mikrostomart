@@ -1,13 +1,13 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-08 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ KOMPLETNA** (1A `03ae220` schema/NAP/local; 1B `a4b15b6` hreflang scoping + geo orphans + mapa; 1C `e443139` meta ≤60/≤160 + news E-E-A-T byline/reviewedBy + mapa-bólu JPG 2.2MB→webp 57KB). Build clean, test 109/109, migracje do `160`. **🎉 Faza 2 ✅ KOMPLETNA** (2A `/oferta/all-on-4` siatka /oferta=11 · 2B geo `/all-on-4-opole` · 2C `/metamorfozy` content money page · 2D: geo `/licowki-opole`+`/metamorfoza-usmiechu-opole`, reciprocal cross-linki estetyczna/implantologia→/metamorfozy, cennik +kategoria/FAQ All-on-4 + H1 „Cennik stomatologiczny Opole", 3 cienkie strony H1 geo + sekcja „podejście w Opolu"). Ostatni commit `2fb8800`; audit:hreflang 208/208; bez Offer na geo licówki/metamorfoza (brak ustalonej ceny). Następna: **Faza 3** (treść/E-E-A-T/linkowanie).
+> **Last Updated:** 2026-06-09 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🔗 Faza 3 W TOKU: 3A ✅** (`1fedc78` — silnik linkowania wewnętrznego: blog `/nowosielski` keyword-linker [render-time mapa keyword→`/oferta/*`+geo, HTML-aware, geo PL-only] + blok „Zobacz też" na KB/blog/news; `src/lib/internalLinks.ts` + `RelatedArticles.tsx`). Build clean (217), **test 123/123** (+14 internalLinks), migracje do `160`. Ostatni commit `1fedc78`; audit:hreflang 208/208. **Następna: Faza 3B** (`fix/kb-foreign-fallback` — foreign-locale KB/blog PL-body → noindex/canonical→PL).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
 > 🧱 **Dług techniczny / otwarte pozycje** (referencja do oceny, NIE backlog): weryfikacja synchronizacji migracji DB na produkcji (RLS `132`, treści `137`–`160` — status nieznany dla AI); `src/app/[locale]/admin/page.tsx` monolit ~2,4k LOC; `withAuth` niewdrożony do wszystkich tras; Performance/CWV (`Navbar`→LazyMotion, `HomeClient`→`next/dynamic` → Faza 4; `mapa-bolu` webp ✅ 1C); SEO P3 (drobne schema + CAPS-title newsów = ręczna korekta w DB). Pełniejszy inwentarz: „🎯 Implementation Status”; skrócony dług: `KOMENDA_STARTOWA_MIKROSTOMART.md §0`.
 
 > **Version:** Production + Demo (Dual Vercel Deployment)
-> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1 ✅ + Faza 2 ✅ KOMPLETNA (2A+2B+2C+2D), następna Faza 3** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
+> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1 ✅ + Faza 2 ✅ KOMPLETNE; Faza 3 W TOKU (3A ✅ silnik linkowania wewnętrznego), następna 3B** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
 
 ---
 
@@ -2469,6 +2469,32 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-09 — 🔗 SEO Faza 3A: silnik linkowania wewnętrznego (blog keyword-linker + related)
+
+**Start Fazy 3** (treść/E-E-A-T/linkowanie). Sesja 3A = najwyższy ROI: przepływ link-equity z treści (blog/KB/news) → strony usług `/oferta/*` + geo. Blog `/nowosielski` miał dotąd **0 in-body links**.
+
+#### Commit
+- `1fedc78` — feat(seo): Faza 3A — silnik linkowania wewnętrznego (blog keyword-linker + related)
+
+#### Co powstało
+- **`src/lib/internalLinks.ts`** [NEW] — mapa keyword→URL per-locale (PL bogata ~17 reguł; EN/DE/UA core ~8). `linkifyHtml(html, locale)` — HTML-aware first-occurrence linker: NIE linkuje wewnątrz istniejących `<a>` ani nagłówków, **1 link na temat** (dedup po `id`), twardy cap (5), granice słów Unicode-aware (`\p{L}`), zachowuje oryginalną wielkość liter. Działa **PO sanitize** (dodajemy tylko zaufane `<a>` z naszej mapy — bez user-inputu). **Geo-landingi PL-only** (foreign = noindex, nie linkujemy do noindex — lekcja Faza 1B + news #160). `relatedServiceLink(text, locale)` — najlepsza usługa `/oferta/*` (non-geo) dla bloku „Zobacz też".
+- **`src/lib/__tests__/internalLinks.test.ts`** [NEW] — 14 testów (granice słów, geo scoping pl-vs-en, skip `<a>`/nagłówków, cap, dedup tematu, preserve case).
+- **`src/components/RelatedArticles.tsx`** [NEW] — server-rendered blok „Zobacz też" (KB/blog/news): powiązane po wspólnych tagach + fallback najnowsze tej samej kategorii (top-up) + 1 link do powiązanej usługi (domyka thin-KB). `<a href>` z manual locale prefix (lekcja H3, nie next-intl Link). Labels inline ×4 locale (wzorzec `ArticleByline`, bez round-tripu i18n). **Lekcja:** tabela KB `articles` **NIE ma kolumny `tags`** (tylko `blog_posts`/`news` mają, mig 131) → KB related = recent + service link (select bez `tags`, inaczej cała kwerenda się wywala).
+- **Wpięte:** `nowosielski/[slug]` (`linkifyHtml(decode(sanitize(content)), locale)` + `RelatedArticles kind="blog"`); `baza-wiedzy/[slug]` + `aktualnosci/[slug]` (`RelatedArticles kind="kb"/"news"`).
+
+#### Weryfikacja (preview prod :3001, żywe dane)
+- **Blog autolinks** (np. `implanty-cyrkonowe`): „implantami"→`/oferta/implantologia`, „Cyrkon"→`/oferta/protetyka`; (`endodoncja-laserowo`): „endodoncja"→`/oferta/leczenie-kanalowe`, „Laser Er:YAG"→`/oferta/laser`, „implanty"→`/oferta/implantologia`. Artykuł o cenach = 0 autolinków (brak fraz = brak false-positive — pożądane przy exact-matchingu na skalę render-time).
+- **„Zobacz też"** renderuje na blog (3 powiązane + service link „Implantologia") / KB (3 recent, po fix) / news (3). 0 błędów konsoli (DOM eval + screenshot).
+- Build clean (217), **test 123/123** (+14). DOM eval potwierdził `data-autolink` + aside + service link.
+
+#### Decyzje implementacyjne
+- **Render-time mapa** (nie batch UPDATE w DB) — zero migracji, odwracalne, działa na wszystkich istniejących + przyszłych artykułach automatycznie.
+- **Exact-matching** (nie stemming) = zero false-positives, bezpieczne bez review każdego artykułu; dodane najczęstsze formy odmienione PL (dopełniacz/biernik) do reguł. KB/news markdown body NIE linkowane (skupienie na blogu HTML + service link w related = domknięcie thin-KB).
+
+#### Brak migracji / env. Deploy: produkcja + demo. **Następna sesja: Faza 3B** (`fix/kb-foreign-fallback`) — foreign-locale KB/blog serwujący PL body → noindex/canonical→PL (P1 duplicate/mismatch).
+
+---
 
 ### 2026-06-08 #15 — 🦷 SEO Faza 2D (cz.4, finał): cennik +All-on-4/geo H1 + rozbudowa 3 cienkich stron (FAZA 2 KOMPLETNA)
 
