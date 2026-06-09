@@ -112,14 +112,19 @@ export async function generateMetadata({
         languages['x-default'] = postUrl(locale, slug);
     }
 
-    const canonical = locale === routing.defaultLocale
+    // 3B (2026-06-09): foreign-locale URL bez własnego tłumaczenia serwuje PL body
+    // (fallback `.eq('locale','pl')`). noindex + canonical → PL oryginał — eliminuje
+    // duplicate/mismatch. Prawdziwe tłumaczenia (post.locale === locale) zostają indexable.
+    const fellBackToPl = post.locale !== locale;
+    const canonical = fellBackToPl
         ? `/nowosielski/${slug}`
-        : `/${locale}/nowosielski/${slug}`;
+        : (locale === routing.defaultLocale ? `/nowosielski/${slug}` : `/${locale}/nowosielski/${slug}`);
 
     const description = post.excerpt || post.title;
     return {
         title: { absolute: `${post.title} | ${brand.name}` },
         description,
+        ...(fellBackToPl ? { robots: { index: false, follow: true } } : {}),
         alternates: { canonical, languages },
         openGraph: {
             title: post.title,

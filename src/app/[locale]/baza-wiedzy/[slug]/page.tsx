@@ -122,13 +122,19 @@ export async function generateMetadata({
         languages['x-default'] = articleUrl(locale, slug);
     }
 
-    const canonical = locale === routing.defaultLocale
+    // 3B (2026-06-09): foreign-locale URL bez własnego tłumaczenia serwuje PL body
+    // (fallback `.eq('locale','pl')`). Eliminujemy duplicate-content/language-mismatch:
+    // noindex + canonical → PL oryginał. Prawdziwe tłumaczenia (article.locale === locale)
+    // pozostają indexable + canonical self.
+    const fellBackToPl = article.locale !== locale;
+    const canonical = fellBackToPl
         ? `/baza-wiedzy/${slug}`
-        : `/${locale}/baza-wiedzy/${slug}`;
+        : (locale === routing.defaultLocale ? `/baza-wiedzy/${slug}` : `/${locale}/baza-wiedzy/${slug}`);
 
     return {
         title: { absolute: `${article.title} | ${t('metaSuffix', brandI18nParams())}` },
         description: article.excerpt,
+        ...(fellBackToPl ? { robots: { index: false, follow: true } } : {}),
         alternates: { canonical, languages },
         openGraph: {
             title: article.title,
