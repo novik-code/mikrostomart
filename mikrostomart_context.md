@@ -1,13 +1,13 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-08 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ KOMPLETNA** (1A `03ae220` schema/NAP/local; 1B `a4b15b6` hreflang scoping + geo orphans + mapa; 1C `e443139` meta ≤60/≤160 + news E-E-A-T byline/reviewedBy + mapa-bólu JPG 2.2MB→webp 57KB). Build clean, test 109/109, migracje do `160`. **Faza 2A ✅** (`2a5d072` /oferta/all-on-4, siatka /oferta=11) **+ 2B ✅** (`689e983` — geo `/all-on-4-opole`: PL-only indexable + foreign noindex, Service+Offer 30-55k + MedicalProcedure + FAQPage + LazyMapEmbed, hreflang scoped, audit:hreflang 200/200). Następna: **Faza 2C** (metamorfozy content).
+> **Last Updated:** 2026-06-08 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ KOMPLETNA** (1A `03ae220` schema/NAP/local; 1B `a4b15b6` hreflang scoping + geo orphans + mapa; 1C `e443139` meta ≤60/≤160 + news E-E-A-T byline/reviewedBy + mapa-bólu JPG 2.2MB→webp 57KB). Build clean, test 109/109, migracje do `160`. **Faza 2A+2B+2C ✅** (`2a5d072` /oferta/all-on-4 siatka=11 · `689e983` geo /all-on-4-opole PL-only Service+Offer+mapa audit:hreflang 200/200 · `056d933` /metamorfozy content money page: H1 geo, 7 H2, FAQPage+ImageGallery, paths cross-linki). Następna: **Faza 2D** (geo premium licówki/metamorfoza + cienkie strony + reciprocal cross-linki).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
 > 🧱 **Dług techniczny / otwarte pozycje** (referencja do oceny, NIE backlog): weryfikacja synchronizacji migracji DB na produkcji (RLS `132`, treści `137`–`160` — status nieznany dla AI); `src/app/[locale]/admin/page.tsx` monolit ~2,4k LOC; `withAuth` niewdrożony do wszystkich tras; Performance/CWV (`Navbar`→LazyMotion, `HomeClient`→`next/dynamic` → Faza 4; `mapa-bolu` webp ✅ 1C); SEO P3 (drobne schema + CAPS-title newsów = ręczna korekta w DB). Pełniejszy inwentarz: „🎯 Implementation Status”; skrócony dług: `KOMENDA_STARTOWA_MIKROSTOMART.md §0`.
 
 > **Version:** Production + Demo (Dual Vercel Deployment)
-> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1 ✅ (1A+1B+1C) + Faza 2A+2B ✅ (all-on-4 strona+geo), następna 2C** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
+> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1 ✅ + Faza 2A+2B+2C ✅ (all-on-4 strona+geo + metamorfozy content), następna 2D** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
 
 ---
 
@@ -2469,6 +2469,33 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-08 #11 — 🦷 SEO Faza 2C: /metamorfozy content money page (smile makeover Opole)
+
+**Faza 2C** — `/metamorfozy` z galerii w pełną content money page (premium). Treść = ogólne metody metamorfozy (bez nowych twierdzeń klinicznych); opisy case = istniejące dane (`metamorphoses.ts`, live).
+
+#### Commit
+- `056d933` — feat(seo): Faza 2C — /metamorfozy content money page (smile makeover Opole)
+
+#### Co zmienione
+- **`metamorfozy/page.tsx`** — z (nagłówek + galeria) w content money page: H1 geo (locale-aware) → 7× H2: czym jest metamorfoza · **ścieżki** (licówki/bonding/korony/implanty/All-on-X — kafelki z cross-linkami do `/oferta/stomatologia-estetyczna` ×2, `/oferta/protetyka`, `/oferta/implantologia`, `/oferta/all-on-4`) · DSD · koszt/czas/kwalifikacja (link cennik) · galeria 16 case (zachowana, `MetamorphosisContent`) · FAQ (5) · CTA.
+- **`metamorfozy/layout.tsx`** — +**FAQPage** (5 Q&A z i18n) + **ImageGallery** (32 ImageObject before/after z `metamorphoses.ts`, caption=tytuł+opis, creator Physician @id Marcin). BreadcrumbList zostaje.
+- **i18n `metamorfozy` ×4** rozbudowany (4 → ~42 klucze, ręcznie PL+EN+DE+UA). **PAGE_SEO ×4** — title geo + „smile makeover" (EN/DE „Smile Makeover Opole — Before & After").
+
+#### Pliki (9)
+`metamorfozy/{page,layout}.tsx` + seoTranslations.ts + messages/{pl,en,de,ua}/pages.json. Auto: sw.js, generated-route-mtimes.
+
+#### Weryfikacja (preview prod :3001)
+- 4 locale → 200, H1 geo, **7× H2**, FAQPage + ImageGallery w schema, **4/4 paths cross-linki**, galeria obecna, 0 raw keys, tytuł geo+makeover. Build clean, test 109/109, **0 błędów konsoli**, screenshot OK. Dostęp usera: Navbar (Metamorfozy) + Footer.
+
+#### Świadomie odłożone
+- **Reciprocal cross-link** `/oferta/stomatologia-estetyczna` + `/oferta/implantologia` → `/metamorfozy` (drobne SEO; wymaga i18n w tych namespace) → do 2D.
+
+#### Brak migracji / env. Deploy: produkcja + demo.
+
+#### Next: Faza 2D (`feat/premium-geo-thin`) — geo premium `/licowki-opole` + `/metamorfoza-usmiechu-opole` (wzorzec implanty-opole) + rozbudowa cienkich stron (periodontologia/dziecięca/zachowawcza → ≥1000 słów + H1 geo + FAQ) + cennik +All-on-4 + reciprocal cross-linki z 2C. Możliwy podział na 2 sesje.
+
+---
 
 ### 2026-06-08 #10 — 🦷 SEO Faza 2B: geo-landing /all-on-4-opole (All-on-X local pack)
 
