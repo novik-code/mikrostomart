@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+// 4A (perf): LazyMotion + m zamiast eager motion (Footer na każdej stronie).
+import { LazyMotion, domAnimation, m, AnimatePresence } from 'framer-motion';
 
 /**
  * NovikCodeCredit — Footer credit with epic full-page takeover.
@@ -87,9 +88,10 @@ export default function NovikCodeCredit() {
             {/* ═══════════════════════════════════════════════════
                 FULLSCREEN TAKEOVER — Logo as background
                 ═══════════════════════════════════════════════════ */}
+            <LazyMotion features={domAnimation} strict>
             <AnimatePresence>
                 {isActive && (
-                    <motion.div
+                    <m.div
                         key="novik-takeover"
                         onClick={handleClose}
                         style={{
@@ -105,7 +107,7 @@ export default function NovikCodeCredit() {
                         transition={{ duration: 0.4 }}
                     >
                         {/* Layer 1: Expanding black vortex from click point */}
-                        <motion.div
+                        <m.div
                             style={{
                                 position: 'absolute',
                                 inset: 0,
@@ -122,7 +124,7 @@ export default function NovikCodeCredit() {
                         />
 
                         {/* Layer 2: Fullscreen Logo Background */}
-                        <motion.div
+                        <m.div
                             style={{
                                 position: 'absolute',
                                 inset: 0,
@@ -154,7 +156,7 @@ export default function NovikCodeCredit() {
                         />
 
                         {/* Layer 3: Subtle dark vignette overlay */}
-                        <motion.div
+                        <m.div
                             style={{
                                 position: 'absolute',
                                 inset: 0,
@@ -168,7 +170,7 @@ export default function NovikCodeCredit() {
 
                         {/* Layer 4: Shockwave rings */}
                         {[0, 1, 2].map((ring) => (
-                            <motion.div
+                            <m.div
                                 key={`ring-${ring}`}
                                 style={{
                                     position: 'absolute',
@@ -193,7 +195,7 @@ export default function NovikCodeCredit() {
 
                         {/* Layer 5: Particle explosion */}
                         {particles.map((p) => (
-                            <motion.div
+                            <m.div
                                 key={`particle-${p.id}`}
                                 style={{
                                     position: 'absolute',
@@ -230,7 +232,7 @@ export default function NovikCodeCredit() {
                         ))}
 
                         {/* Layer 6: Subtitle text */}
-                        <motion.div
+                        <m.div
                             style={{
                                 position: 'absolute',
                                 bottom: '12%',
@@ -253,10 +255,10 @@ export default function NovikCodeCredit() {
                             }}>
                                 Design · Development · Innovation
                             </p>
-                        </motion.div>
+                        </m.div>
 
                         {/* Layer 7: "Click to close" hint */}
-                        <motion.p
+                        <m.p
                             style={{
                                 position: 'absolute',
                                 bottom: '1.5rem',
@@ -274,10 +276,11 @@ export default function NovikCodeCredit() {
                             transition={{ delay: 2.5, duration: 0.5 }}
                         >
                             kliknij aby wrócić
-                        </motion.p>
-                    </motion.div>
+                        </m.p>
+                    </m.div>
                 )}
             </AnimatePresence>
+            </LazyMotion>
         </>
     );
 }

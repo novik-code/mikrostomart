@@ -4,7 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from '@/i18n/navigation';
 import { usePathname } from '@/i18n/navigation';
 import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
+// 4A (perf): LazyMotion + m (domAnimation) zamiast eager motion — Navbar renderuje
+// się na każdej stronie, więc tree-shake framer z initial bundle = globalny zysk INP/TBT.
+import { LazyMotion, domAnimation, m, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import styles from './Navbar.module.css';
 import { brand } from "@/lib/brandConfig";
@@ -283,9 +285,10 @@ export default function Navbar() {
     // HAMBURGER LAYOUT (default mikrostomart): centered hamburger burst
     // ================================================================
     return (
+        <LazyMotion features={domAnimation} strict>
         <nav className={styles.navbar}>
             <div className={`container ${styles.container}`}>
-                <motion.div
+                <m.div
                     initial={{ opacity: 0, y: -8, scale: 0.92, filter: 'blur(4px)' }}
                     animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
                     transition={{
@@ -320,7 +323,7 @@ export default function Navbar() {
                             />
                         )}
                     </Link>
-                </motion.div>
+                </m.div>
 
                 {/* ═══════════════════════════════════════════════════
                     S7-3 LUXURY (2026-05-17): DESKTOP TOP NAV — 5 widocznych pozycji
@@ -354,7 +357,7 @@ export default function Navbar() {
                         </button>
                         <AnimatePresence>
                             {topNavToolsOpen && (
-                                <motion.div
+                                <m.div
                                     initial={{ opacity: 0, y: -8 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -5 }}
@@ -389,7 +392,7 @@ export default function Navbar() {
                                     <Link href="/aplikacja" className={styles.topNavDropdownLink} onClick={() => setTopNavToolsOpen(false)}>
                                         📱 {t('app')}
                                     </Link>
-                                </motion.div>
+                                </m.div>
                             )}
                         </AnimatePresence>
                     </div>
@@ -415,7 +418,7 @@ export default function Navbar() {
                         </button>
                         <AnimatePresence>
                             {topNavMoreOpen && (
-                                <motion.div
+                                <m.div
                                     initial={{ opacity: 0, y: -8 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     exit={{ opacity: 0, y: -5 }}
@@ -463,7 +466,7 @@ export default function Navbar() {
                                     >
                                         ⭐ {t('shareOpinion')}
                                     </button>
-                                </motion.div>
+                                </m.div>
                             )}
                         </AnimatePresence>
                     </div>
@@ -483,7 +486,7 @@ export default function Navbar() {
                     {/* Left Links — burst leftward */}
                     <AnimatePresence>
                         {isDesktopMenuOpen && (
-                            <motion.div
+                            <m.div
                                 className={styles.linksLeft}
                                 variants={leftContainerVariants}
                                 initial="hidden"
@@ -491,24 +494,24 @@ export default function Navbar() {
                                 exit="exit"
                                 key="left-links"
                             >
-                                <motion.div variants={leftLinkVariants} className={styles.linkWrapper}>
+                                <m.div variants={leftLinkVariants} className={styles.linkWrapper}>
                                     <Link href="/o-nas" className={styles.link}>{t('about')}</Link>
-                                </motion.div>
-                                {f.metamorphoses && <motion.div variants={leftLinkVariants} className={styles.linkWrapper}>
+                                </m.div>
+                                {f.metamorphoses && <m.div variants={leftLinkVariants} className={styles.linkWrapper}>
                                     <Link href="/metamorfozy" className={styles.link}>{t('transformations')}</Link>
-                                </motion.div>}
-                                <motion.div variants={leftLinkVariants} className={styles.linkWrapper}>
+                                </m.div>}
+                                <m.div variants={leftLinkVariants} className={styles.linkWrapper}>
                                     <Link href="/oferta" className={styles.link}>{t('services')}</Link>
-                                </motion.div>
-                                <motion.div variants={leftLinkVariants} className={styles.linkWrapper}>
+                                </m.div>
+                                <m.div variants={leftLinkVariants} className={styles.linkWrapper}>
                                     <Link href="/aktualnosci" className={styles.link}>{t('news')}</Link>
-                                </motion.div>
-                            </motion.div>
+                                </m.div>
+                            </m.div>
                         )}
                     </AnimatePresence>
 
                     {/* Desktop Hamburger Icon — dissolves when expanded */}
-                    <motion.div
+                    <m.div
                         className={styles.desktopHamburger}
                         animate={isDesktopMenuOpen ? {
                             scale: 0.4,
@@ -528,12 +531,12 @@ export default function Navbar() {
                         <span className={styles.desktopBar}></span>
                         <span className={styles.desktopBar}></span>
                         <span className={styles.desktopBar}></span>
-                    </motion.div>
+                    </m.div>
 
                     {/* Right Links — burst rightward */}
                     <AnimatePresence>
                         {isDesktopMenuOpen && (
-                            <motion.div
+                            <m.div
                                 className={styles.linksRight}
                                 variants={rightContainerVariants}
                                 initial="hidden"
@@ -542,7 +545,7 @@ export default function Navbar() {
                                 key="right-links"
                             >
                                 {/* DROPDOWN: Dodatki */}
-                                <motion.div variants={rightLinkVariants} className={styles.linkWrapper}>
+                                <m.div variants={rightLinkVariants} className={styles.linkWrapper}>
                                     <div
                                         className={styles.link}
                                         style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
@@ -555,7 +558,7 @@ export default function Navbar() {
 
                                         <AnimatePresence>
                                             {isDropdownOpen && (
-                                                <motion.div
+                                                <m.div
                                                     initial={{ opacity: 0, y: -8, scale: 0.95 }}
                                                     animate={{ opacity: 1, y: 0, scale: 1 }}
                                                     exit={{ opacity: 0, y: -5, scale: 0.97 }}
@@ -630,19 +633,19 @@ export default function Navbar() {
                                                             ⭐ {t('shareOpinion')}
                                                         </button>
                                                     </div>
-                                                </motion.div>
+                                                </m.div>
                                             )}
                                         </AnimatePresence>
                                     </div>
-                                </motion.div>
+                                </m.div>
 
-                                <motion.div variants={rightLinkVariants} className={styles.linkWrapper}>
+                                <m.div variants={rightLinkVariants} className={styles.linkWrapper}>
                                     <Link href="/strefa-pacjenta/" className={styles.link}>{t('patientZone')}</Link>
-                                </motion.div>
-                                <motion.div variants={rightLinkVariants} className={styles.linkWrapper}>
+                                </m.div>
+                                <m.div variants={rightLinkVariants} className={styles.linkWrapper}>
                                     <Link href="/kontakt" className={styles.link}>{t('contact')}</Link>
-                                </motion.div>
-                            </motion.div>
+                                </m.div>
+                            </m.div>
                         )}
                     </AnimatePresence>
                 </div>
@@ -809,7 +812,7 @@ export default function Navbar() {
                                         </button>
                                         <AnimatePresence initial={false}>
                                             {isOpen && (
-                                                <motion.div
+                                                <m.div
                                                     initial={{ height: 0, opacity: 0 }}
                                                     animate={{ height: 'auto', opacity: 1 }}
                                                     exit={{ height: 0, opacity: 0 }}
@@ -817,7 +820,7 @@ export default function Navbar() {
                                                     className={styles.mobileSectionContent}
                                                 >
                                                     {items.map(renderLink)}
-                                                </motion.div>
+                                                </m.div>
                                             )}
                                         </AnimatePresence>
                                     </div>
@@ -828,5 +831,6 @@ export default function Navbar() {
                 </div>
             </div>
         </nav>
+        </LazyMotion>
     );
 }

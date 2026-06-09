@@ -20,11 +20,14 @@ import { useTheme, usePresetId } from "@/context/ThemeContext";
 import { isDemoMode } from "@/lib/demoMode";
 import { getPresetContent } from "@/lib/presetContent";
 import { sanitizeRichHtml } from "@/lib/sanitize";
-import DensFlowLightPage from "@/components/DensFlowLightPage";
-import DentalLuxePage from "@/components/DentalLuxePage";
-import FreshSmilePage from "@/components/FreshSmilePage";
-import NordicDentalPage from "@/components/NordicDentalPage";
-import WarmCarePage from "@/components/WarmCarePage";
+// 4A (perf, 2026-06-09): 5 presetów theme'ów (~4500 LOC) → dynamic import.
+// SSR zachowany (ssr domyślnie true) — Googlebot widzi content; chunk poza
+// initial bundle. mikrostomart używa default-gold (nie preset) → nigdy nie ładowane.
+const DensFlowLightPage = dynamic(() => import("@/components/DensFlowLightPage"));
+const DentalLuxePage = dynamic(() => import("@/components/DentalLuxePage"));
+const FreshSmilePage = dynamic(() => import("@/components/FreshSmilePage"));
+const NordicDentalPage = dynamic(() => import("@/components/NordicDentalPage"));
+const WarmCarePage = dynamic(() => import("@/components/WarmCarePage"));
 import type { PageSection } from "@/lib/sections";
 
 // ===================== HERO VARIANTS =====================
