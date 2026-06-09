@@ -11,6 +11,7 @@ import { getTranslations } from 'next-intl/server';
 import { breadcrumbHref, getOgLocale, localizedBreadcrumb } from '@/lib/seo';
 import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
+import RelatedArticles from '@/components/RelatedArticles';
 
 // S5-4 (2026-05-15): if a slug doesn't exist in the requested locale but DOES
 // exist in another locale (cross-locale URL — typical Google ghost from old
@@ -407,6 +408,14 @@ export default async function ArticlePage({
                         })}
                     </div>
                 </RevealOnScroll>
+
+                <RelatedArticles
+                    kind="kb"
+                    locale={locale}
+                    currentSlug={slug}
+                    title={article.title}
+                    tags={article.tags}
+                />
 
             </article>
         </main>

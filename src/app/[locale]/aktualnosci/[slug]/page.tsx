@@ -11,6 +11,7 @@ import { brand } from '@/lib/brandConfig';
 import { breadcrumbHref, getOgLocale, localizedBreadcrumb } from '@/lib/seo';
 import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
+import RelatedArticles from '@/components/RelatedArticles';
 
 // S5-2 (2026-05-15): if a foreign locale lacks a translation for this article,
 // return 404 instead of silently serving the PL fallback content. Foreign-locale
@@ -420,6 +421,14 @@ export default async function ArticlePage({ params }: { params: Promise<{ locale
                         })}
                     </div>
                 </RevealOnScroll>
+
+                <RelatedArticles
+                    kind="news"
+                    locale={locale}
+                    currentSlug={slug}
+                    title={localizedArticle.title}
+                    tags={localizedArticle.tags}
+                />
 
             </article>
         </main>

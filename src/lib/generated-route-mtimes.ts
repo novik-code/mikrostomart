@@ -10,9 +10,9 @@ export const routeMtimes: Record<string, string> = {
     "/oferta/implantologia": "2026-06-09T10:30:29+02:00",
     "/oferta/all-on-4": "2026-06-08T13:43:57+02:00",
     "/oferta/laser": "2026-06-03T10:34:52+02:00",
-    "/oferta/periodontologia": "2026-06-03T18:17:10+02:00",
-    "/oferta/stomatologia-dziecieca": "2026-06-08T08:17:56+02:00",
-    "/oferta/stomatologia-zachowawcza": "2026-06-08T08:17:56+02:00",
+    "/oferta/periodontologia": "2026-06-09T10:51:50+02:00",
+    "/oferta/stomatologia-dziecieca": "2026-06-09T10:51:50+02:00",
+    "/oferta/stomatologia-zachowawcza": "2026-06-09T10:51:50+02:00",
     "/oferta/leczenie-kanalowe": "2026-06-03T15:31:49+02:00",
     "/oferta/stomatologia-estetyczna": "2026-06-09T10:30:29+02:00",
     "/oferta/ortodoncja": "2026-05-21T14:50:08+02:00",
@@ -60,4 +60,4 @@ export const routeMtimes: Record<string, string> = {
 };
 
 /** Fallback for routes not in the map (e.g. newly added pages before next regen). */
-export const buildTime: string = "2026-06-09T08:48:22.690Z";
+export const buildTime: string = "2026-06-09T09:57:36.597Z";

@@ -13,6 +13,8 @@ import { breadcrumbHref, getOgLocale, localizedBreadcrumb } from '@/lib/seo';
 import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
 import { sanitizeRichHtml } from '@/lib/sanitize';
+import { linkifyHtml } from '@/lib/internalLinks';
+import RelatedArticles from '@/components/RelatedArticles';
 
 function schemaImageUrl(image: string | null | undefined): string {
     if (!image) return `${brand.appUrl}/opengraph-image.png`;
@@ -173,7 +175,10 @@ export default async function BlogPost({
         return out;
     };
 
-    const sanitizedContent = decodeWpEntities(sanitizeRichHtml(post.content));
+    // SEO Faza 3A: keyword-linker — wstrzykuje wewnętrzne linki (usługi/oferta + geo)
+    // do treści HTML blogu (dotąd 0 in-body links). Działa PO sanitize (dodajemy
+    // tylko zaufane <a> z naszej mapy). Geo-landingi tylko w PL (foreign noindex).
+    const sanitizedContent = linkifyHtml(decodeWpEntities(sanitizeRichHtml(post.content)), locale);
 
     // BlogPosting JSON-LD schema for rich snippets in Google search.
     // dateModified prefers updated_at if available — otherwise falls back to published date,
@@ -327,6 +332,14 @@ export default async function BlogPost({
                         <div dangerouslySetInnerHTML={{ __html: sanitizedContent }} />
                     </div>
                 </RevealOnScroll>
+
+                <RelatedArticles
+                    kind="blog"
+                    locale={locale}
+                    currentSlug={slug}
+                    title={post.title}
+                    tags={post.tags}
+                />
 
             </article>
         </main>
