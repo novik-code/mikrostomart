@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-08 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ KOMPLETNA** (1A `03ae220` schema/NAP/local; 1B `a4b15b6` hreflang scoping + geo orphans + mapa; 1C `e443139` meta ≤60/≤160 + news E-E-A-T byline/reviewedBy + mapa-bólu JPG 2.2MB→webp 57KB). Build clean, test 109/109, migracje do `160`. **Faza 2A+2B+2C ✅** (`2a5d072` /oferta/all-on-4 siatka=11 · `689e983` geo /all-on-4-opole PL-only Service+Offer+mapa audit:hreflang 200/200 · `056d933` /metamorfozy content money page: H1 geo, 7 H2, FAQPage+ImageGallery, paths cross-linki). **Faza 2D w toku — geo premium ✅** (`f4abab6` `/licowki-opole` + `9bd0ace` `/metamorfoza-usmiechu-opole`; PL-only Service Cosmetic + MedicalProcedure + FAQPage, audit:hreflang 208/208; bez Offer — brak ustalonej ceny). Dalej 2D (ostatni kawałek): cienkie strony (perio/dziecięca/zachowawcza ≥1000 słów + H1 geo) + cennik (+All-on-4) + reciprocal cross-linki estetyczna/implantologia→/metamorfozy.
+> **Last Updated:** 2026-06-08 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ KOMPLETNA** (1A `03ae220` schema/NAP/local; 1B `a4b15b6` hreflang scoping + geo orphans + mapa; 1C `e443139` meta ≤60/≤160 + news E-E-A-T byline/reviewedBy + mapa-bólu JPG 2.2MB→webp 57KB). Build clean, test 109/109, migracje do `160`. **Faza 2A+2B+2C ✅** (`2a5d072` /oferta/all-on-4 siatka=11 · `689e983` geo /all-on-4-opole PL-only Service+Offer+mapa audit:hreflang 200/200 · `056d933` /metamorfozy content money page: H1 geo, 7 H2, FAQPage+ImageGallery, paths cross-linki). **Faza 2D w toku — geo premium ✅ + cross-linki ✅** (`f4abab6` `/licowki-opole` + `48f8240` `/metamorfoza-usmiechu-opole`; PL-only Service Cosmetic + MedicalProcedure + FAQPage, audit:hreflang 208/208; bez Offer — brak ustalonej ceny licówek/metamorfozy) (`3c77e63` reciprocal cross-linki estetyczna/implantologia→/metamorfozy, dług z 2C domknięty). Dalej 2D (ostatni kawałek): cienkie strony (perio/dziecięca/zachowawcza ≥1000 słów + H1 geo) + cennik (+All-on-4, H1 „Cennik stomatologiczny Opole").
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
@@ -2469,6 +2469,26 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-08 #14 — 🔗 SEO Faza 2D (cz.3): reciprocal cross-linki → /metamorfozy
+
+**Domknięcie długu z 2C.** Strony usług estetyczna + implantologia linkują teraz do `/metamorfozy` (reciprocal — `/metamorfozy` już linkowało do nich w 2C przez kafelki ścieżek).
+
+#### Commit
+- `3c77e63` — feat(seo): Faza 2D (cz.3) — reciprocal cross-linki estetyczna/implantologia → /metamorfozy
+
+#### Co zmienione
+- `oferta/stomatologia-estetyczna/page.tsx` + `oferta/implantologia/page.tsx` — drugi hook `useTranslations('metamorfozy')` + `<Link href="/metamorfozy">` (przed PerformerCard).
+- i18n **`metamorfozy.crossLinkCta` ×4** (jeden klucz reużyty przez obie strony — czyściej niż 2 klucze × 2 namespace). **Lekcja:** strony client-component osadzają cały namespace messages w HTML → nazwy kluczy widoczne w źródle (to NIE raw-key leak — liczy się, że zlokalizowany tekst renderuje; potwierdzone na żywo).
+
+#### Weryfikacja
+- Build clean, test 109/109, **0 błędów konsoli**; link + zlokalizowany tekst obecne na estetyczna + implantologia ×4 locale.
+
+#### Brak migracji / env. Deploy: produkcja + demo.
+
+#### Next (ostatni kawałek 2D): rozbudowa cienkich stron (periodontologia/stomatologia-dziecieca/stomatologia-zachowawcza → ≥1000 słów + H1 „Opole" + rozszerzone FAQ) + cennik (+kategoria/FAQ All-on-4 30-55k, H1 „Cennik stomatologiczny Opole"). Treść medyczna → medical review Marcina.
+
+---
 
 ### 2026-06-08 #13 — 🦷 SEO Faza 2D (cz.2): premium geo /metamorfoza-usmiechu-opole
 
