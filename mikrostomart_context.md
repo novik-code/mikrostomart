@@ -1,13 +1,13 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-08 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ KOMPLETNA** (1A `03ae220` schema/NAP/local; 1B `a4b15b6` hreflang scoping + geo orphans + mapa; 1C `e443139` meta ≤60/≤160 + news E-E-A-T byline/reviewedBy + mapa-bólu JPG 2.2MB→webp 57KB). Build clean, test 109/109, migracje do `160`. **Faza 2A+2B+2C ✅** (`2a5d072` /oferta/all-on-4 siatka=11 · `689e983` geo /all-on-4-opole PL-only Service+Offer+mapa audit:hreflang 200/200 · `056d933` /metamorfozy content money page: H1 geo, 7 H2, FAQPage+ImageGallery, paths cross-linki). **Faza 2D w toku — geo premium ✅ + cross-linki ✅** (`f4abab6` `/licowki-opole` + `48f8240` `/metamorfoza-usmiechu-opole`; PL-only Service Cosmetic + MedicalProcedure + FAQPage, audit:hreflang 208/208; bez Offer — brak ustalonej ceny licówek/metamorfozy) (`3c77e63` reciprocal cross-linki estetyczna/implantologia→/metamorfozy, dług z 2C domknięty). Dalej 2D (ostatni kawałek): cienkie strony (perio/dziecięca/zachowawcza ≥1000 słów + H1 geo) + cennik (+All-on-4, H1 „Cennik stomatologiczny Opole").
+> **Last Updated:** 2026-06-08 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ KOMPLETNA** (1A `03ae220` schema/NAP/local; 1B `a4b15b6` hreflang scoping + geo orphans + mapa; 1C `e443139` meta ≤60/≤160 + news E-E-A-T byline/reviewedBy + mapa-bólu JPG 2.2MB→webp 57KB). Build clean, test 109/109, migracje do `160`. **🎉 Faza 2 ✅ KOMPLETNA** (2A `/oferta/all-on-4` siatka /oferta=11 · 2B geo `/all-on-4-opole` · 2C `/metamorfozy` content money page · 2D: geo `/licowki-opole`+`/metamorfoza-usmiechu-opole`, reciprocal cross-linki estetyczna/implantologia→/metamorfozy, cennik +kategoria/FAQ All-on-4 + H1 „Cennik stomatologiczny Opole", 3 cienkie strony H1 geo + sekcja „podejście w Opolu"). Ostatni commit `2fb8800`; audit:hreflang 208/208; bez Offer na geo licówki/metamorfoza (brak ustalonej ceny). Następna: **Faza 3** (treść/E-E-A-T/linkowanie).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
 > 🧱 **Dług techniczny / otwarte pozycje** (referencja do oceny, NIE backlog): weryfikacja synchronizacji migracji DB na produkcji (RLS `132`, treści `137`–`160` — status nieznany dla AI); `src/app/[locale]/admin/page.tsx` monolit ~2,4k LOC; `withAuth` niewdrożony do wszystkich tras; Performance/CWV (`Navbar`→LazyMotion, `HomeClient`→`next/dynamic` → Faza 4; `mapa-bolu` webp ✅ 1C); SEO P3 (drobne schema + CAPS-title newsów = ręczna korekta w DB). Pełniejszy inwentarz: „🎯 Implementation Status”; skrócony dług: `KOMENDA_STARTOWA_MIKROSTOMART.md §0`.
 
 > **Version:** Production + Demo (Dual Vercel Deployment)
-> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1 ✅ + Faza 2A+2B+2C ✅ + 2D w toku (geo premium ✅ /licowki-opole + /metamorfoza-usmiechu-opole; dalej cienkie strony + cennik + cross-linki)** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
+> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1 ✅ + Faza 2 ✅ KOMPLETNA (2A+2B+2C+2D), następna Faza 3** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
 
 ---
 
@@ -2469,6 +2469,26 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-08 #15 — 🦷 SEO Faza 2D (cz.4, finał): cennik +All-on-4/geo H1 + rozbudowa 3 cienkich stron (FAZA 2 KOMPLETNA)
+
+**Domknięcie Fazy 2.** Cennik wzbogacony o All-on-X + geo H1; 3 „cienkie" strony oferty (perio/dziecięca/zachowawcza) dostały H1 z „Opole" + sekcję „nasze podejście w Opolu".
+
+#### Commit
+- `2fb8800` — feat(seo): Faza 2D (cz.4, final) — cennik +All-on-4/geo H1 + rozbudowa 3 cienkich stron
+
+#### Co zmienione
+- **Cennik:** H1 → „Cennik stomatologiczny Opole" (heroTitle/heroAccent geo ×4). Nowa kategoria **All-on-4 / All-on-6** w `cennik-categories.ts` (`catAllon4`, priceFrom 30000/priceTo 55000, badge new, href /oferta/all-on-4) → auto w OfferCatalog schema + siatce. `CENNIK_FAQ_COUNT` 8→9 + **faqQ9/faqA9** (cena All-on-4) ×4. i18n catAllon4 {title,desc,priceLabel} ×4.
+- **Cienkie strony** (`periodontologia`, `stomatologia-dziecieca`, `stomatologia-zachowawcza`): H1 +„Opole" ×4 (uwaga: pl zachowawcza title kolidował z `catZachowawcza` cennika → kotwica title+subtitle) + nowa sekcja `geoTitle`/`geoText` „nasze podejście w Opolu" (page.tsx przed PerformerCard + i18n ×4) — geo + objętość treści.
+
+#### Weryfikacja (preview prod :3001)
+- cennik H1 „Cennik stomatologiczny Opole" (de „Zahnarzt-Preisliste Opole") + kategoria All-on-4 (30 000-55 000 zł) + faqQ9; 3 cienkie strony H1 z „Opole" + geoText renderuje (4 locale). 0 raw keys (geoTitle/geoText/catAllon4 w HTML = klucze w payloadzie messages client-component, NIE leak). Build clean, test 109/109, **0 błędów konsoli**, **audit:hreflang 208/208**.
+
+#### Brak migracji / env. Deploy: produkcja + demo.
+
+#### 🎉 FAZA 2 KOMPLETNA (2A+2B+2C+2D). Next: **Faza 3** — treść/E-E-A-T/linkowanie (blog keyword-linker, related posts, foreign-locale fallback fix, nowe klastry KB). Stałe: Marcin manual (apex→www 308, GBP „Opole"); opcjonalnie ceny licówek/metamorfozy → Offer na geo.
+
+---
 
 ### 2026-06-08 #14 — 🔗 SEO Faza 2D (cz.3): reciprocal cross-linki → /metamorfozy
 
