@@ -84,6 +84,12 @@ export default function StomatologiaDziececaPage() {
                     </div>
                 </div>
 
+                {/* Nasze podejście w Opolu (2D) */}
+                <div style={{ marginBottom: "4rem" }}>
+                    <h2 style={{ fontSize: "2rem", marginBottom: "1rem" }}>{t('geoTitle')}</h2>
+                    <p style={{ lineHeight: 1.8, maxWidth: "800px" }}>{t('geoText')}</p>
+                </div>
+
                 <PerformerCard doctor="marcin" />
                 <div style={{ textAlign: "center", marginTop: "4rem" }}>
                     <Link href="/kontakt" className="btn-primary" style={{ padding: "1rem 3rem", fontSize: "1.2rem" }}>{t('cta')}</Link>

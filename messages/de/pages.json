@@ -1,7 +1,9 @@
 {
   "dziecieca": {
     "tagline": "KINDERZAHNHEILKUNDE · OPOLE",
-    "title": "Kinderzahnheilkunde",
+    "geoTitle": "Kinderzahnheilkunde in Opole — unser Ansatz",
+    "geoText": "Kleine Patienten empfangen wir in Opole in ruhiger, entspannter Atmosphäre — der erste Besuch ist oft ein Gewöhnungsbesuch, bei dem sich das Kind an die Praxis gewöhnt. Wir setzen auf Prävention (Fissurenversiegelung, Fluoridierung, Hygieneschulung) und möglichst minimalinvasive Behandlung — in vielen Fällen behandeln wir Karies bei Kindern mit dem Laser, ohne Bohrer und ohne Schmerzen. Wir achten auf positive erste Erfahrungen, die sich später als fehlende Zahnarztangst auszahlen. Eltern sind Teil des Prozesses — wir erklären jeden Schritt. Praxis im Zentrum von Opole, bequeme Anfahrt, Betreuung auch für Familien von auswärts.",
+    "title": "Kinderzahnheilkunde in Opole",
     "subtitle": "Ruhig, schmerzfrei und ohne Angst — wir bauen positive Verbindungen zum Zahnarzt auf",
     "intro1": "Die ersten Zahnarztbesuche eines Kindes prägen seine Einstellung zur Behandlung fürs ganze Leben. In der Klinik Mikrostomart in Opole sorgen wir dafür, dass sich Kinder sicher fühlen — ohne Eile, ohne Einschüchterung und ohne Schmerzen. Unser Ziel ist ein gesundes Lächeln unserer jüngsten Patienten und ruhige, positive Erinnerungen an die Praxis.",
     "intro2": "Wir verbinden einen behutsamen Ansatz mit moderner Technik: dem Fotona-Laser, mit dem wir viele Kariesstellen ohne Bohrer behandeln, sowie computergesteuerter Betäubung. Dadurch sind die Eingriffe weniger belastend und der Besuch wird zu einer positiven Erfahrung.",
@@ -43,7 +45,9 @@
   },
   "zachowawcza": {
     "tagline": "KONSERVIERENDE ZAHNHEILKUNDE · OPOLE",
-    "title": "Konservierende Zahnheilkunde",
+    "geoTitle": "Konservierende Zahnheilkunde in Opole — unser Ansatz",
+    "geoText": "Karies und Defekte behandeln wir bei Patienten aus Opole mit dem Ziel, möglichst viel der eigenen Zahnsubstanz zu erhalten. Wir arbeiten unter Vergrößerung, verwenden Adhäsivprotokolle der neuen Generation und Premium-Materialien (Komposite 3M Filtek, GC G-aenial) und in vielen Fällen — bohrerfreie Behandlung (Er:YAG-Laser, ICON-Infiltration). Wir ersetzen auch alte, undichte Füllungen (einschließlich Amalgam) durch ästhetische Komposit-Restaurationen. Ziel ist eine langlebige, dichte und natürlich aussehende Restauration, die den Zahn vor einer künftigen Wurzelkanalbehandlung schützt. Praxis im Zentrum von Opole, bequeme Anfahrt, Betreuung auch für Patienten von auswärts.",
+    "title": "Konservierende Zahnheilkunde in Opole",
     "subtitle": "Kariesbehandlung und ästhetische Füllungen — das Fundament eines gesunden Lächelns",
     "intro1": "Die konservierende Zahnheilkunde ist die Grundlage der Zahngesundheit — die frühe Erkennung und Behandlung von Karies sowie die Wiederherstellung beschädigter Zähne mit ästhetischen Füllungen. Hier beginnt meist der Weg zu einem gesunden, schönen Lächeln.",
     "intro2": "In der Klinik Mikrostomart in Opole behandeln wir präzise — oft mit Vergrößerung und Laser — und ästhetisch, indem wir die Materialien an Farbe und Struktur Ihrer Zähne anpassen. Unser Ziel ist es, möglichst viel gesunde Zahnsubstanz zu erhalten (daher „konservierend“).",
@@ -77,7 +81,9 @@
   },
   "periodontologia": {
     "tagline": "PARODONTOLOGIE · ZAHNFLEISCHBEHANDLUNG · OPOLE",
-    "title": "Parodontologie — Behandlung der Parodontitis",
+    "geoTitle": "Parodontitis-Behandlung in Opole — unser Ansatz",
+    "geoText": "Patienten mit Zahnfleischerkrankungen aus Opole und Umgebung behandeln wir umfassend — von präziser Diagnostik (Taschensondierung, Beurteilung des Attachmentverlusts) über die Ursachenbehandlung (subgingivales Scaling, Kürettage) bis zur Laser-Dekontamination der Taschen (Nd:YAG), die die Entzündung stoppt. Parodontitis ist eine chronische Erkrankung, daher legen wir Wert auf die Erhaltungsphase und regelmäßige Mundhygiene — sie entscheidet über die Haltbarkeit des Ergebnisses und schützt die Zähne vor Verlust. Den Behandlungsplan stimmen wir individuell ab, unter Berücksichtigung von Allgemeinerkrankungen (Diabetes, Herzerkrankungen) und Gewohnheiten des Patienten. Praxis im Zentrum von Opole, bequeme Anfahrt, Betreuung auch für Patienten von auswärts.",
+    "title": "Parodontologie Opole — Behandlung der Parodontitis",
     "subtitle": "Wir stoppen die Zahnfleischerkrankung, bevor sie zum Zahnverlust führt",
     "intro1": "Parodontitis (Zahnfleischerkrankung) ist eine heimtückische, oft schmerzfreie Erkrankung — und eine der häufigsten Ursachen für Zahnverlust bei Erwachsenen. Bakterien aus Plaque und Zahnstein zerstören allmählich das Zahnfleisch und den Knochen, der die Zähne hält. Je früher wir handeln, desto mehr lässt sich retten.",
     "intro2": "In der Klinik Mikrostomart in Opole, Polen, verbinden wir die klassische, bewährte Parodontalbehandlung mit dem Fotona-LightWalker-Laser, mit dem wir erkrankte Zahnfleischtaschen gründlich desinfizieren und die Regeneration des Gewebes um den Zahn unterstützen können — schonender und mit mehr Komfort.",
@@ -523,8 +529,8 @@
     "complexityLevelLabel": "Niveau"
   },
   "cennik": {
-    "heroTitle": "Preisliste",
-    "heroAccent": "Intelligent",
+    "heroTitle": "Zahnarzt-Preisliste",
+    "heroAccent": "Opole",
     "heroSubtitle": "Fragen Sie nach dem Preis eines Eingriffs — unser KI-Assistent gibt Ihnen eine ungefähre Schätzung und berechnet die Gesamtkosten.",
     "chatTitle": "Preis-Assistent",
     "chatSubtitle": "{brandName} · Ungefähre Preise",
@@ -586,6 +592,11 @@
       "desc": "Implantat + keramische Krone unter Kontrolle einer chirurgischen Schablone (guided surgery). All-on-4, Knochenregeneration, PRF. RWTH Aachen + Oral Surgery Academy.",
       "priceLabel": "6000-8000 PLN"
     },
+    "catAllon4": {
+      "title": "All-on-4 / All-on-6",
+      "desc": "Festsitzende Vollbogen-Versorgung auf 4 oder 6 Implantaten — neue Zähne oft an einem Tag. Verschraubte Zirkonbrücke, Sofortbelastung. Implantologe M.Sc. RWTH Aachen.",
+      "priceLabel": "30.000-55.000 PLN"
+    },
     "catEstetyczna": {
       "title": "Ästhetische Zahnmedizin",
       "desc": "Porzellanveneers (E.max), In-Office und Home-Bleaching, Komposit-Bonding, Digital Smile Design. Natürlicher Effekt — kein „Hollywood Smile auf Zwang\".",
@@ -626,6 +637,8 @@
     "faqA7": "Ja — wir stellen Rechnungen auf den Namen mit der PWZ-Nummer des Arztes, ICD-10-Code und einer Beschreibung der Behandlung gemäß den Anforderungen der Versicherer aus (Allianz Care, Medicover, LUX MED, private ausländische Policen). Für Patienten aus Deutschland — Rechnungen gemäß BEMA/GOZ (zur Erstattung durch die Krankenkasse bis zur Höhe der polnischen Sätze).",
     "faqQ8": "Kann ich vor dem ersten Besuch einen Kostenvoranschlag erhalten?",
     "faqA8": "Ja — über den AI-Assistenten unten (24/7 verfügbar) oder telefonisch während der Öffnungszeiten der Rezeption. Für Kostenvoranschläge, die eine Analyse von Bildern erfordern (Röntgenbilder vom vorherigen Zahnarzt, intraorale Bilder), kontaktieren Sie uns bitte über das Formular auf /kontakt — wir antworten innerhalb von 24 Arbeitsstunden.",
+    "faqQ9": "Was kosten All-on-4 / All-on-6 in Opole?",
+    "faqA9": "All-on-4 beginnt bei etwa 30.000-40.000 PLN pro Kiefer, All-on-6 liegt bei etwa 45.000-55.000 PLN. Der Preis hängt von der Implantatzahl und dem Brückenmaterial ab. Wir bieten Ratenzahlung/Finanzierung. Ein genaues, verbindliches Angebot erstellen wir nach Beratung und CBCT.",
     "schemaOfferCatalogName": "Preisliste für zahnärztliche Dienstleistungen Mikrostomart Opole"
   },
   "faq": {

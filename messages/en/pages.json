@@ -1,7 +1,9 @@
 {
     "dziecieca": {
         "tagline": "PEDIATRIC DENTISTRY · OPOLE",
-        "title": "Pediatric dentistry",
+        "geoTitle": "Pediatric dentistry in Opole — our approach",
+        "geoText": "We see young patients in Opole in a calm, unhurried atmosphere — the first visit is often an adaptation visit, during which the child gets used to the practice. We focus on prevention (fissure sealing, fluoridation, hygiene education) and the least invasive treatment possible — in many cases we treat cavities in children with a laser, without a drill and without pain. We care about positive first experiences that pay off as the absence of dental phobia in adulthood. Parents are part of the process — we explain every step. Clinic in the centre of Opole, easy access, care also for families from out of town.",
+        "title": "Pediatric dentistry in Opole",
         "subtitle": "Calm, pain-free and fear-free — building positive associations with the dentist",
         "intro1": "A child's first dental visits shape their attitude to treatment for life. At the Mikrostomart clinic in Opole we make sure children feel safe — no rushing, no scaring and no pain. Our goal is a healthy smile for our youngest patients and calm, positive memories of the practice.",
         "intro2": "We combine a gentle approach with modern technology: the Fotona laser, which lets us treat many cavities without a drill, and computer-controlled anaesthesia. As a result, procedures are less stressful and the visit becomes a positive experience.",
@@ -43,7 +45,9 @@
     },
     "zachowawcza": {
         "tagline": "CONSERVATIVE DENTISTRY · OPOLE",
-        "title": "Conservative dentistry",
+        "geoTitle": "Conservative dentistry in Opole — our approach",
+        "geoText": "We treat cavities and defects in patients from Opole with an emphasis on preserving the maximum of the tooth's own tissue. We work under magnification, use new-generation adhesive protocols and premium materials (3M Filtek, GC G-aenial composites), and in many cases — drill-free treatment (Er:YAG laser, ICON infiltration). We also replace old, leaking fillings (including amalgam) with aesthetic composite restorations. The goal is a durable, tight, natural-looking restoration that protects the tooth from root canal treatment in the future. Clinic in the centre of Opole, easy access, care also for out-of-town patients.",
+        "title": "Conservative dentistry in Opole",
         "subtitle": "Caries treatment and aesthetic fillings — the foundation of a healthy smile",
         "intro1": "Conservative dentistry is the foundation of caring for your teeth — early detection and treatment of caries and the restoration of damaged teeth with aesthetic fillings. This is most often where the journey to a healthy, beautiful smile begins.",
         "intro2": "At the Mikrostomart clinic in Opole we treat precisely — often using magnification and a laser — and aesthetically, matching materials to the colour and structure of your teeth. Our goal is to preserve as much healthy tooth tissue as possible (hence “conservative”).",
@@ -77,7 +81,9 @@
     },
     "periodontologia": {
         "tagline": "PERIODONTOLOGY · GUM TREATMENT · OPOLE",
-        "title": "Periodontology — treatment of gum disease",
+        "geoTitle": "Gum disease treatment in Opole — our approach",
+        "geoText": "We treat patients with gum disease from Opole and the surrounding area comprehensively — from precise diagnostics (pocket probing, attachment-loss assessment), through causal treatment (subgingival scaling, curettage), to laser pocket decontamination (Nd:YAG) that stops inflammation. Periodontitis is a chronic disease, so we emphasise the maintenance phase and regular hygiene — this is what determines lasting results and protects teeth from loss. We tailor the treatment plan individually, taking systemic conditions (diabetes, heart disease) and patient habits into account. Clinic in the centre of Opole, easy access, care also for out-of-town patients.",
+        "title": "Periodontology Opole — gum disease treatment",
         "subtitle": "We stop gum disease before it leads to tooth loss",
         "intro1": "Periodontitis (gum disease) is an insidious, often painless condition — and one of the most common causes of tooth loss in adults. Bacteria from plaque and tartar gradually destroy the gum and the bone that holds the teeth in place. The sooner we act, the more can be saved.",
         "intro2": "At the Mikrostomart clinic in Opole, Poland, we combine classic, proven periodontal treatment with the Fotona LightWalker laser, which lets us thoroughly disinfect diseased gum pockets and support regeneration of the tissue around the tooth — less invasively and with greater comfort.",
@@ -523,8 +529,8 @@
         "complexityLevelLabel": "Level"
     },
     "cennik": {
-        "heroTitle": "Price List",
-        "heroAccent": "Smart",
+        "heroTitle": "Dental Price List",
+        "heroAccent": "Opole",
         "heroSubtitle": "Ask about procedure costs — our AI assistant will give you an estimated price and calculate the total.",
         "chatTitle": "Pricing Assistant",
         "chatSubtitle": "{brandName} · Approximate prices",
@@ -586,6 +592,11 @@
             "desc": "Implant + ceramic crown under the guidance of a surgical template (guided surgery). All-on-4, bone regeneration, PRF. RWTH Aachen + Oral Surgery Academy.",
             "priceLabel": "6000-8000 PLN"
         },
+        "catAllon4": {
+            "title": "All-on-4 / All-on-6",
+            "desc": "Fixed full-arch restoration on 4 or 6 implants — new teeth often in a single day. Screw-retained zirconia bridge, immediate loading. Implantologist M.Sc. RWTH Aachen.",
+            "priceLabel": "30,000-55,000 PLN"
+        },
         "catEstetyczna": {
             "title": "Aesthetic Dentistry",
             "desc": "Porcelain veneers (E.max), in-office and at-home whitening, composite bonding, Digital Smile Design. Natural effect — not a forced 'Hollywood Smile'.",
@@ -626,6 +637,8 @@
         "faqA7": "Yes — we issue named invoices with the doctor's PWZ number, ICD-10 code, and procedure description in accordance with insurer requirements (Allianz Care, Medicover, LUX MED, private foreign policies). For patients from Germany — invoices compliant with BEMA/GOZ (for reimbursement from health insurance up to Polish rates).",
         "faqQ8": "Can I get an estimated quote before the first visit?",
         "faqA8": "Yes — through the AI assistant below (available 24/7) or by phone during reception hours. For quotes requiring analysis of images (X-rays from the previous dentist, intraoral images), please contact us via the form at /contact — we respond within 24 working hours.",
+        "faqQ9": "How much do All-on-4 / All-on-6 cost in Opole?",
+        "faqA9": "All-on-4 starts at around 30,000-40,000 PLN per arch, All-on-6 is around 45,000-55,000 PLN. The price depends on the number of implants and the bridge material. We offer instalments/financing. We give an exact, binding quote after a consultation and CBCT scan.",
         "schemaOfferCatalogName": "Mikrostomart Dental Services Price List Opole"
     },
     "faq": {

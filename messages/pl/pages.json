@@ -1,7 +1,9 @@
 {
     "dziecieca": {
         "tagline": "STOMATOLOGIA DZIECIĘCA · OPOLE",
-        "title": "Stomatologia dziecięca",
+        "geoTitle": "Stomatologia dziecięca w Opolu — nasze podejście",
+        "geoText": "Małych pacjentów w Opolu przyjmujemy w atmosferze spokoju i bez pośpiechu — pierwsza wizyta to często wizyta adaptacyjna, podczas której dziecko oswaja się z gabinetem. Stawiamy na profilaktykę (lakowanie bruzd, fluoryzacja, nauka higieny) i leczenie możliwie najmniej inwazyjne — w wielu przypadkach próchnicę u dzieci leczymy laserem, bez wiertła i bez bólu. Dbamy o pozytywne pierwsze doświadczenia, które procentują brakiem dentofobii w dorosłości. Rodzice są częścią procesu — tłumaczymy każdy etap. Gabinet w centrum Opola, dogodny dojazd, opieka także dla rodzin spoza miasta.",
+        "title": "Stomatologia dziecięca Opole",
         "subtitle": "Spokojnie, bez bólu i bez strachu — budujemy dobre skojarzenia z dentystą",
         "intro1": "Pierwsze wizyty u dentysty kształtują stosunek do leczenia na całe życie. W klinice Mikrostomart w Opolu dbamy o to, by dziecko czuło się bezpiecznie — bez pośpiechu, bez straszenia i bez bólu. Naszym celem jest zdrowy uśmiech małego pacjenta i jego spokojne, dobre skojarzenia z gabinetem.",
         "intro2": "Łączymy delikatne podejście z nowoczesną technologią: laserem Fotona, który pozwala leczyć wiele ubytków bez wiertła, oraz komputerowym znieczuleniem. Dzięki temu zabiegi są mniej stresujące, a wizyta zamienia się w pozytywne doświadczenie.",
@@ -43,7 +45,9 @@
     },
     "zachowawcza": {
         "tagline": "STOMATOLOGIA ZACHOWAWCZA · OPOLE",
-        "title": "Stomatologia zachowawcza",
+        "geoTitle": "Stomatologia zachowawcza w Opolu — nasze podejście",
+        "geoText": "Próchnicę i ubytki u pacjentów z Opola leczymy z naciskiem na maksymalne zachowanie własnych tkanek zęba. Pracujemy pod powiększeniem, stosujemy protokoły adhezyjne nowej generacji i materiały premium (kompozyty 3M Filtek, GC G-aenial), a w wielu przypadkach — leczenie bez wiertła (laser Er:YAG, infiltracja ICON). Wymieniamy też stare, nieszczelne wypełnienia (w tym amalgamatowe) na estetyczne odbudowy kompozytowe. Celem jest trwała, szczelna i naturalnie wyglądająca odbudowa, która chroni ząb przed leczeniem kanałowym w przyszłości. Gabinet w centrum Opola, dogodny dojazd, opieka także dla pacjentów spoza miasta.",
+        "title": "Stomatologia zachowawcza Opole",
         "subtitle": "Leczenie próchnicy i estetyczne wypełnienia — fundament zdrowego uśmiechu",
         "intro1": "Stomatologia zachowawcza to podstawa dbania o zdrowie zębów — wczesne wykrywanie i leczenie próchnicy oraz odbudowa zniszczonych zębów estetycznymi wypełnieniami. To właśnie tu najczęściej zaczyna się droga do zdrowego, pięknego uśmiechu.",
         "intro2": "W klinice Mikrostomart w Opolu leczymy precyzyjnie — często z użyciem powiększenia i lasera — oraz estetycznie, dobierając materiały kolorem i strukturą do Twoich zębów. Naszym celem jest zachowanie jak największej ilości zdrowej tkanki zęba (stąd „zachowawcza”).",
@@ -77,7 +81,9 @@
     },
     "periodontologia": {
         "tagline": "PERIODONTOLOGIA · LECZENIE DZIĄSEŁ · OPOLE",
-        "title": "Periodontologia — leczenie paradontozy",
+        "geoTitle": "Leczenie paradontozy w Opolu — nasze podejście",
+        "geoText": "Pacjentów z chorobami dziąseł z Opola i okolic leczymy kompleksowo — od dokładnej diagnostyki (sondowanie kieszonek, ocena utraty przyczepu), przez leczenie przyczynowe (skaling poddziąsłowy, kiretaż), po laserową dekontaminację kieszonek (Nd:YAG) zatrzymującą stan zapalny. Paradontoza to choroba przewlekła, dlatego kładziemy nacisk na fazę podtrzymującą i regularną higienizację — to ona decyduje o trwałości efektu i ochronie zębów przed utratą. Plan leczenia dobieramy indywidualnie, z uwzględnieniem chorób ogólnych (cukrzyca, choroby serca) i nawyków pacjenta. Gabinet w centrum Opola, dogodny dojazd, opieka także dla pacjentów spoza miasta.",
+        "title": "Periodontologia Opole — leczenie paradontozy",
         "subtitle": "Zatrzymujemy chorobę dziąseł, zanim doprowadzi do utraty zębów",
         "intro1": "Paradontoza (zapalenie przyzębia) to podstępna, często bezbolesna choroba — i jedna z najczęstszych przyczyn utraty zębów u dorosłych. Bakterie z płytki i kamienia nazębnego stopniowo niszczą dziąsło oraz kość, która utrzymuje zęby. Im wcześniej zareagujemy, tym więcej da się uratować.",
         "intro2": "W klinice Mikrostomart w Opolu łączymy klasyczne, sprawdzone leczenie periodontologiczne z laserem Fotona LightWalker, który pozwala dokładnie odkazić chore kieszonki dziąsłowe i wspomóc regenerację tkanek wokół zęba — mniej inwazyjnie i z większym komfortem.",
@@ -562,8 +568,8 @@
         "crossLinkCta": "Zobacz protetykę"
     },
     "cennik": {
-        "heroTitle": "Cennik",
-        "heroAccent": "Inteligentny",
+        "heroTitle": "Cennik stomatologiczny",
+        "heroAccent": "Opole",
         "heroSubtitle": "Zapytaj o cenę zabiegu — nasz asystent AI poda Ci orientacyjną wycenę i policzy łączny koszt.",
         "chatTitle": "Asystent Cennikowy",
         "chatSubtitle": "{brandName} · Orientacyjne ceny",
@@ -627,6 +633,11 @@
             "desc": "Implant + korona ceramiczna pod kontrolą szablonu chirurgicznego (guided surgery). All-on-4, regeneracja kości, PRF. RWTH Aachen + Oral Surgery Academy.",
             "priceLabel": "6000-8000 zł"
         },
+        "catAllon4": {
+            "title": "All-on-4 / All-on-6",
+            "desc": "Stała odbudowa całego łuku na 4 lub 6 implantach — nowe zęby często w jeden dzień. Most z cyrkonu przykręcany, obciążenie natychmiastowe. Implantolog M.Sc. RWTH Aachen.",
+            "priceLabel": "30 000-55 000 zł"
+        },
         "catEstetyczna": {
             "title": "Stomatologia estetyczna",
             "desc": "Licówki porcelanowe (E.max), wybielanie in-office i nakładkowe, bonding kompozytowy, Digital Smile Design. Naturalny efekt — nie „Hollywood Smile na siłę\".",
@@ -670,6 +681,8 @@
         "faqA7": "Tak — wystawiamy rachunki imienne z numerem PWZ lekarza, kodem ICD-10 i opisem zabiegu zgodnym z wymogami ubezpieczycieli (Allianz Care, Medicover, LUX MED, prywatne polisy zagraniczne). Dla pacjentów z Niemiec — rachunki zgodne z BEMA/GOZ (do refundacji z kasy chorych do wysokości polskich stawek).",
         "faqQ8": "Czy mogę dostać szacunkową wycenę przed pierwszą wizytą?",
         "faqA8": "Tak — przez asystenta AI poniżej (dostępny 24/7) lub telefonicznie w godzinach pracy recepcji. Dla wycen wymagających analizy zdjęć (RTG od poprzedniego dentysty, intra-oralne zdjęcia) skontaktuj się przez formularz na /kontakt — odpowiadamy w ciągu 24 godzin roboczych.",
+        "faqQ9": "Ile kosztuje All-on-4 / All-on-6 w Opolu?",
+        "faqA9": "All-on-4 zaczyna się od ok. 30 000-40 000 zł za łuk, All-on-6 to ok. 45 000-55 000 zł. Cena zależy od liczby implantów i materiału mostu. Oferujemy raty/finansowanie. Dokładną, wiążącą wycenę podajemy po konsultacji i tomografii CBCT.",
 
         "schemaOfferCatalogName": "Cennik usług stomatologicznych Mikrostomart Opole"
     },

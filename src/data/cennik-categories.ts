@@ -59,6 +59,15 @@ export const CENNIK_CATEGORIES: CennikCategory[] = [
         badge: 'popular',
     },
     {
+        slug: 'all-on-4',
+        i18nKey: 'catAllon4',
+        icon: '😬',
+        href: '/oferta/all-on-4',
+        priceFrom: 30000,
+        priceTo: 55000, // All-on-4 30-40k … All-on-6 45-55k PLN za łuk
+        badge: 'new',
+    },
+    {
         slug: 'estetyczna',
         i18nKey: 'catEstetyczna',
         icon: '✨',
@@ -92,4 +101,4 @@ export const CENNIK_CATEGORIES: CennikCategory[] = [
  * 8 FAQ cenowych dla FAQPage schema + visible accordion.
  * Klucze w cennik namespace: faqQ1..Q8 + faqA1..A8.
  */
-export const CENNIK_FAQ_COUNT = 8;
+export const CENNIK_FAQ_COUNT = 9;
