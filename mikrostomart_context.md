@@ -1,13 +1,13 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-09 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🔗 Faza 3 W TOKU: 3A ✅** (`1fedc78` — silnik linkowania wewnętrznego: blog `/nowosielski` keyword-linker [render-time mapa keyword→`/oferta/*`+geo, HTML-aware, geo PL-only] + blok „Zobacz też" na KB/blog/news; `src/lib/internalLinks.ts` + `RelatedArticles.tsx`). Build clean (217), **test 123/123** (+14 internalLinks), migracje do `160`. Ostatni commit `1fedc78`; audit:hreflang 208/208. **Następna: Faza 3B** (`fix/kb-foreign-fallback` — foreign-locale KB/blog PL-body → noindex/canonical→PL).
+> **Last Updated:** 2026-06-09 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🔗 Faza 3 W TOKU: 3A ✅ + 3B ✅.** **3A** (`1fedc78` — silnik linkowania wewnętrznego: blog `/nowosielski` keyword-linker [render-time mapa keyword→`/oferta/*`+geo, HTML-aware, geo PL-only] + blok „Zobacz też" na KB/blog/news; `src/lib/internalLinks.ts` + `RelatedArticles.tsx`). **3B** (`5177897` — foreign-locale KB/blog serwujący PL body → `noindex` + `canonical→PL`; realne tłumaczenia EN/DE zostają indexable). Build clean (217), **test 123/123** (+14 internalLinks), migracje do `160`. Ostatni commit `5177897`; audit:hreflang 208/208. **Następna: Faza 3C+** (rolling klastry KB premium — AI + medical review + migracje).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
 > 🧱 **Dług techniczny / otwarte pozycje** (referencja do oceny, NIE backlog): weryfikacja synchronizacji migracji DB na produkcji (RLS `132`, treści `137`–`160` — status nieznany dla AI); `src/app/[locale]/admin/page.tsx` monolit ~2,4k LOC; `withAuth` niewdrożony do wszystkich tras; Performance/CWV (`Navbar`→LazyMotion, `HomeClient`→`next/dynamic` → Faza 4; `mapa-bolu` webp ✅ 1C); SEO P3 (drobne schema + CAPS-title newsów = ręczna korekta w DB). Pełniejszy inwentarz: „🎯 Implementation Status”; skrócony dług: `KOMENDA_STARTOWA_MIKROSTOMART.md §0`.
 
 > **Version:** Production + Demo (Dual Vercel Deployment)
-> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1 ✅ + Faza 2 ✅ KOMPLETNE; Faza 3 W TOKU (3A ✅ silnik linkowania wewnętrznego), następna 3B** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
+> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1 ✅ + Faza 2 ✅ KOMPLETNE; Faza 3 W TOKU (3A ✅ linkowanie wewn. + 3B ✅ foreign-fallback noindex/canonical), następna 3C+ (klastry KB)** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
 
 ---
 
@@ -2469,6 +2469,26 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-09 #2 — 🌐 SEO Faza 3B: foreign-locale KB/blog PL-fallback → noindex + canonical→PL
+
+**P1 duplicate/mismatch.** Gdy `/en|de|ua/baza-wiedzy|nowosielski/<pl-slug>` nie miał własnego tłumaczenia, kod serwował **PL body z `index=true`** (treść PL pod foreign URL z `og:locale`/`inLanguage` foreign → duplicate-content + language-mismatch, mylący hreflang). News już to obsługiwał (301), ale KB/blog nie.
+
+#### Commit
+- `5177897` — fix(seo): Faza 3B — foreign-locale KB/blog PL-fallback → noindex + canonical→PL
+
+#### Co zmienione
+- **`baza-wiedzy/[slug]/page.tsx` + `nowosielski/[slug]/page.tsx`** (`generateMetadata`): detekcja `fellBackToPl = article/post.locale !== requested locale` (czyli zadziałał fallback `.eq('locale','pl')`). Gdy fallback → `robots: { index:false, follow:true }` + `canonical → /baza-wiedzy|nowosielski/<slug>` (PL oryginał, bez prefiksu). **Prawdziwe tłumaczenia** (`locale === locale`) → bez zmian: indexable + canonical self.
+- Wybór noindex+canonical (a nie 301 jak news): KB/blog mają osobne wiersze per-locale (group_id), strona fallback nadal **renderuje treść** (PL, dostępna dla usera) — gentle, zero UX-regresji, eliminuje duplicate. follow:true → link equity z in-body/related (3A) nadal płynie.
+
+#### Weryfikacja (preview prod :3001, 7 przypadków)
+- KB PL indexable+canon self; **KB `/en` + `/de` fallback (`10-niespodziewanych-nawykow`) → noindex,follow + canonical→PL**; **KB realne EN `bone-regeneration-implants` → indexable + canonical self `/en/`** (brak regresji). Blog PL indexable; **blog `/de` fallback → noindex+canonical→PL**; **blog realne DE `warum-...teil-2` → indexable + canonical self `/de/`**. Build clean (217). HTTP 200 na fallback (treść renderuje, tylko noindex).
+
+#### Świadomie pominięte (plan „opcj."): KB `force-dynamic` → ISR (`revalidate` + per-locale `generateStaticParams`) — większa zmiana, średnie ryzyko; P1 (fallback) to realny problem SEO, ISR to perf-nice-to-have. Odłożone.
+
+#### Brak migracji / env. Deploy: produkcja + demo. **Następna: Faza 3C+** (rolling klastry KB premium: All-on-X / periimplantitis / augmentacja / ortodoncja — AI + medical review + migracje INSERT do `articles` na oba Supabase).
+
+---
 
 ### 2026-06-09 — 🔗 SEO Faza 3A: silnik linkowania wewnętrznego (blog keyword-linker + related)
 
