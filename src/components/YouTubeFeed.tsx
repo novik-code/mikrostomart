@@ -173,6 +173,8 @@ export default function YouTubeFeed() {
                                                 <img
                                                     src={`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
                                                     alt={video.title}
+                                                    width={480}
+                                                    height={360}
                                                     loading="lazy"
                                                     onError={(e) => {
                                                         // Faza G3: fallback dla filmów które nie mają hqdefault (480p

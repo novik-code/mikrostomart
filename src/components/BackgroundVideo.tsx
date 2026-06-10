@@ -113,7 +113,10 @@ export default function BackgroundVideo(_props: { videoId: string }) {
             {mountVideo && (
                 <video
                     ref={videoRef}
-                    src="/hero-video.mp4"
+                    // 4B (perf, 2026-06-10): hero-video.mp4 8.3 MB → hero-video-v2.mp4 3.4 MB
+                    // (640×360 crf36, -59% transfer). Tło opacity 0.3 + luminosity → artefakty
+                    // niewidoczne. Rename = cache-bust (Vercel CDN immutable).
+                    src="/hero-video-v2.mp4"
                     poster="/hero-video-poster.webp"
                     autoPlay
                     muted
