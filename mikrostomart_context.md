@@ -1,13 +1,13 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-09 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🔗 Faza 3 W TOKU: 3A ✅ + 3B ✅.** **3A** (`1fedc78` — silnik linkowania wewnętrznego: blog `/nowosielski` keyword-linker [render-time mapa keyword→`/oferta/*`+geo, HTML-aware, geo PL-only] + blok „Zobacz też" na KB/blog/news; `src/lib/internalLinks.ts` + `RelatedArticles.tsx`). **3B** (`5177897` — foreign-locale KB/blog serwujący PL body → `noindex` + `canonical→PL`; realne tłumaczenia EN/DE zostają indexable). Build clean (217), **test 123/123** (+14 internalLinks), migracje do `160`. Ostatni commit `5177897`; audit:hreflang 208/208. **Następna: Faza 3C+** (rolling klastry KB premium — AI + medical review + migracje).
+> **Last Updated:** 2026-06-09 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `160`. Ostatni commit `3e8755b`; audit:hreflang 208/208. **Pozostaje tylko Faza 3C+** (rolling klastry KB premium — AI + medical review gate + migracje; na życzenie Marcina).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
 > 🧱 **Dług techniczny / otwarte pozycje** (referencja do oceny, NIE backlog): weryfikacja synchronizacji migracji DB na produkcji (RLS `132`, treści `137`–`160` — status nieznany dla AI); `src/app/[locale]/admin/page.tsx` monolit ~2,4k LOC; `withAuth` niewdrożony do wszystkich tras; Performance/CWV (`Navbar`→LazyMotion, `HomeClient`→`next/dynamic` → Faza 4; `mapa-bolu` webp ✅ 1C); SEO P3 (drobne schema + CAPS-title newsów = ręczna korekta w DB). Pełniejszy inwentarz: „🎯 Implementation Status”; skrócony dług: `KOMENDA_STARTOWA_MIKROSTOMART.md §0`.
 
 > **Version:** Production + Demo (Dual Vercel Deployment)
-> **Status:** Aktywny development — **program SEO Premium+Local: Faza 1 ✅ + Faza 2 ✅ KOMPLETNE; Faza 3 W TOKU (3A ✅ linkowanie wewn. + 3B ✅ foreign-fallback noindex/canonical), następna 3C+ (klastry KB)** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
+> **Status:** Aktywny development — **program SEO Premium+Local: część techniczna KOMPLETNA (Fazy 1 ✅ · 2 ✅ · 3A+3B ✅ · 4A+4B ✅); pozostaje rolling Faza 3C+ (klastry KB, na życzenie)** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
 
 ---
 
@@ -2469,6 +2469,30 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-10 — ⚡ SEO Faza 4: Performance / CWV (4A bundle + 4B media) — PROGRAM TECHNICZNY KOMPLETNY
+
+**Ostatnia faza programu SEO Premium+Local.** Czysto techniczna (bez treści/migracji/review-gate) — bundle + media transfer (czynniki CWV: INP/TBT/transfer).
+
+#### Commity
+- `2fd9b40` — perf(seo): Faza 4A — presety→dynamic + Navbar/Footer/credit LazyMotion
+- `3e8755b` — perf(seo): Faza 4B — hero-video 8.3→3.4 MB + YouTube thumb wymiary
+
+#### 4A — Bundle (`2fd9b40`)
+- **5 presetów theme'ów → `dynamic()`** (`HomeClient.tsx`): DentalLuxe/FreshSmile/NordicDental/WarmCare/DensFlowLight (~4500 LOC) static import → `dynamic()` (SSR zachowany, ssr:true). mikrostomart = default-gold → presety **nigdy nie ładowane** = chunk poza initial bundle.
+- **Navbar + Footer-icons + NovikCodeCredit → LazyMotion** (`Navbar.tsx` 30× motion.div, `NovikCodeCredit.tsx` 11×, `AnimatedPhone/AnimatedAt`): eager `framer-motion` `motion.*` → `LazyMotion features={domAnimation} strict` + `m.*` (wzorzec HeroSlideshow). Navbar/Footer renderują się na każdej stronie → tree-shake framer z initial bundle = **globalny zysk INP/TBT**. Navbar: 1 wrap wokół głównego return (inline-branch bez motion). Brak drag/layout → `domAnimation` wystarcza.
+- **Weryfikacja exhaustive** (LazyMotion `strict` = runtime errors, build ich NIE łapie): homepage render + 0 błędów konsoli + brak Next error overlay; Footer 3 SVG (AnimatedPhone/At); desktop dropdowny Narzędzia/Dodatki (AnimatePresence+m.div, 11 itemów); mobile hamburger luxury menu (13 sekcji); NovikCodeCredit takeover (fixed z9999, 50 cząstek m.div, clip-path — screenshot OK).
+
+#### 4B — Media (`3e8755b`)
+- **hero-video.mp4 8.33 MB → hero-video-v2.mp4 3.44 MB** (ffmpeg 640×360 crf36, **-59%**, ~4.9 MB oszczędności mobile). Tło opacity 0.3 + mixBlendMode luminosity → artefakty niewidoczne. Rename = cache-bust (Vercel CDN immutable). Stary plik usunięty; serwist `sw.js` regeneruje precache na v2. `BackgroundVideo.tsx` src→v2. Weryfikacja: video v2 mounted (readyState 4, plays), 200 video/mp4 3.44MB, hero bez regresji (screenshot).
+- **YouTubeFeed.tsx**: `<img>` +width/height 480×360 (Lighthouse explicit-dimensions; CLS już pokryte przez wrapper `paddingBottom: 56.25%`).
+- **Polyfills ~112 KB: świadomie pominięte** — warunek planu „tylko jeśli field-INP słaby" niespełniony (CrUX field OK per perf-lessons); wcześniejsze próby usunięcia w Next 16 nieskuteczne; post-build patch ryzykowny. Czekamy Next 17.
+
+#### Lekcja git (recovery): pierwszy commit 4B był NIEKOMPLETNY (`git add` wywalił się na pathspec usuniętego pliku → przerwał staging → commit zawierał tylko deletion). Push odrzucony (origin ruszył: `ff02b90` obraz bloga) złapał błąd ZANIM trafił na deploy. Fix: `reset --soft` → dokompletowanie (deletion+kod) → rebase na origin → push. Lekcja: NIE `git add <usunięty-plik>` (pathspec fatal przerywa cały add); cudzysłów prosty `"` w `-m` zrywa quoting → użyj `commit -F plik`.
+
+#### 🎉 PROGRAM SEO PREMIUM + LOCAL — CZĘŚĆ TECHNICZNA KOMPLETNA (Fazy 1-4). Build clean (217), test 123/123. Bez migracji/env. Deploy: produkcja + demo. **Pozostaje: Faza 3C+** (rolling klastry KB premium — AI + medical review gate + migracje; uruchamiana na życzenie Marcina, per temat).
+
+---
 
 ### 2026-06-09 #2 — 🌐 SEO Faza 3B: foreign-locale KB/blog PL-fallback → noindex + canonical→PL
 
