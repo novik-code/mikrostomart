@@ -1,13 +1,13 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-09 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `160`. Ostatni commit `3e8755b`; audit:hreflang 208/208. **Pozostaje tylko Faza 3C+** (rolling klastry KB premium — AI + medical review gate + migracje; na życzenie Marcina).
+> **Last Updated:** 2026-06-10 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
 > 🧱 **Dług techniczny / otwarte pozycje** (referencja do oceny, NIE backlog): weryfikacja synchronizacji migracji DB na produkcji (RLS `132`, treści `137`–`160` — status nieznany dla AI); `src/app/[locale]/admin/page.tsx` monolit ~2,4k LOC; `withAuth` niewdrożony do wszystkich tras; Performance/CWV (`Navbar`→LazyMotion, `HomeClient`→`next/dynamic` → Faza 4; `mapa-bolu` webp ✅ 1C); SEO P3 (drobne schema + CAPS-title newsów = ręczna korekta w DB). Pełniejszy inwentarz: „🎯 Implementation Status”; skrócony dług: `KOMENDA_STARTOWA_MIKROSTOMART.md §0`.
 
 > **Version:** Production + Demo (Dual Vercel Deployment)
-> **Status:** Aktywny development — **program SEO Premium+Local: część techniczna KOMPLETNA (Fazy 1 ✅ · 2 ✅ · 3A+3B ✅ · 4A+4B ✅); pozostaje rolling Faza 3C+ (klastry KB, na życzenie)** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
+> **Status:** Aktywny development — **program SEO Premium+Local: część techniczna KOMPLETNA (Fazy 1 ✅ · 2 ✅ · 3A+3B ✅ · 4A+4B ✅); Faza 3C+ START — fala 1 klaster KB All-on-X PL (mig 161-164, `744ee35`), kolejne fale na życzenie** (plan: `bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`). Pełna historia zmian: sekcja „📝 Recent Changes” poniżej.
 
 ---
 
@@ -2469,6 +2469,38 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-10 #2 — 🦷 SEO Faza 3C (fala 1): klaster KB premium All-on-X (PL)
+
+**Start Fazy 3C+** (rolling klastry KB premium, AI + medical review gate). Fala 1 = **All-on-X** — domyka lukę: PL KB nie miało treści All-on-X (były tylko money pages `/oferta/all-on-4` + geo `/all-on-4-opole` z Fazy 2A/2B). Informational intent („co to All-on-4", „All-on-4 czy All-on-6", „ile trzymają") → KB pillar+clustery przekierowują ruch + link equity do money page.
+
+#### Commit
+- `744ee35` — feat(seo): Faza 3C — klaster KB All-on-X (pillar + 3 clustery PL)
+
+#### Migracje (4 nowe, NIE WGRANE, idempotent `WHERE NOT EXISTS`, OBA Supabase — KB edukacyjne)
+- **161** `kb_all_on_x_pillar.sql` — PILLAR „All-on-4 i All-on-6 — stałe zęby na implantach w jeden dzień (Opole)" (~2300 słów), obraz `kb-implant-procedure`
+- **162** `kb_all_on_x_4_vs_6.sql` — cluster „All-on-4 czy All-on-6 — które wybrać" (decision tree, evidence Maló 2019 18-letni follow-up, koszty), `kb-implant-structure`
+- **163** `kb_all_on_x_immediate_load.sql` — cluster „Stałe zęby w jeden dzień — obciążenie natychmiastowe" (warunki ISQ/torque, most tymcz. 24-48h, dla kogo NIE), `kb-zab-za-zab...`
+- **164** `kb_all_on_x_cost_warranty.sql` — cluster „All-on-4 — koszt, trwałość i gwarancja" (gwarancja **UCZCIWIE o granicach**), `kb-bone-regeneration`
+Kopie .txt: `~/Desktop/migracje_supabase/migracja_16{1..4}_*.txt`.
+
+#### Fakty kliniczne (medical review gate Marcina 2026-06-10)
+Ceny za **jeden łuk** (All-on-4 30-40k / All-on-6 45-55k / hybryda 4+2 ~37-47k PLN; raty TAK; obie szczęki ~2×); **zygoma TAK** (skrajny zanik szczęki); obciążenie natychmiastowe most tymcz. 24-48h → cyrkon przykręcany 3-6 mies; protokół **PRF + lasery Er:YAG/Nd:YAG + ozon**; **implanty dobierane do przypadku klinicznego, nie do marki** (mocny E-E-A-T); **Osstell ISQ + torque ≥35 Ncm**; **gwarancja ostrożnie** — gwarancja na implant NIE pokrywa zabiegów dodatkowych, gdy zmienione warunki anatomiczne uniemożliwią reimplantację (augmentacja/dodatkowa chirurgia); warunkowa (higiena/kontrole/niepalenie); warunki indywidualnie (explicit warning Marcina). Liczby kliniki: round-up „od 2016, ponad 1200 implantów", bez konkretu All-on-X.
+
+#### Schema + linkowanie
+MedicalWebPage + BreadcrumbList (auto z renderera; **KB renderer NIE generuje FAQPage** — FAQ w treści = tekst, inaczej niż `/oferta/*`). Cross-link markdown → `/oferta/all-on-4` (money page) + `/all-on-4-opole` (geo, PL-only OK bo to PL artykuł) + implanto/protetyka/chirurgia/cennik/gwarancje/metamorfozy/zespol + wzajemne pillar↔cluster. RelatedArticles (3A) auto pokaże powiązane (KB = recent + service link, bo brak kolumny `tags`). Standalone PL (`group_id`) → foreign URL `/en|de|ua/...` dostanie noindex+canonical→PL (3B).
+
+#### Weryfikacja (przed wgraniem — DB-gated, render po wgrywce)
+Walidacja markdown: `$body$` 2/2, brak markdown-tabel (parser ich nie obsługuje — naprawiony szczątek tabeli w 162), brak linków zagnieżdżonych w `**bold**`, slugi SAFE `^[a-z0-9-]+$`, 14 cross-link targets istnieją (curl-checked listą). Build clean (217). sw.js+route-mtimes drift (buildTime/precache) **cofnięty** — Vercel zregeneruje przy deployu; commit = tylko 4 .sql (570 ins.).
+
+#### 🚨 Manual Marcin
+1. **Wgrać migracje 161-164** na OBU Supabase (produkcja `keucogopujdolzmfajjv` + demo `mhosfncgasjfruiohlfo`) — idempotent, można razem. Kopie w `~/Desktop/migracje_supabase/`.
+2. Live URLs po wgraniu (~revalidate/sitemap pickup): `/baza-wiedzy/all-on-4-all-on-6-stale-zeby-na-implantach-opole` + `/baza-wiedzy/all-on-4-czy-all-on-6-porownanie` + `/baza-wiedzy/stale-zeby-w-jeden-dzien-obciazenie-natychmiastowe` + `/baza-wiedzy/all-on-4-koszt-trwalosc-gwarancja`.
+3. Finalny medical review treści (~15-20 min) + GSC re-submit; Rich Results Test (MedicalWebPage + BreadcrumbList).
+
+#### Następne fale 3C (na życzenie): periimplantitis PL · augmentacja kości PL · ortodoncja/Invisalign (brak gotowego obrazu KB → Replicate). Każda: ten sam wzorzec (pillar+clustery, INSERT idempotent oba Supabase, medical review gate).
+
+---
 
 ### 2026-06-10 — ⚡ SEO Faza 4: Performance / CWV (4A bundle + 4B media) — PROGRAM TECHNICZNY KOMPLETNY
 
