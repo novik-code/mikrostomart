@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-15 — **audyt GEO 2026-06-14**: fix liczników TrustStats SSR (P0 4.1) ✅ `7497df8`, reszta audytu w planie (Recent Changes 2026-06-15). Wcześniej: **program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
+> **Last Updated:** 2026-06-15 — **audyt GEO 2026-06-14**: fix liczników (4.1) ✅ `7497df8` · `llms.txt` ✅ `5d0364f` · **silnik treści KB Klasy A** ✅ `a7b8666` (mig **165-166**: auto-draft + self-critique + admin review, drafty noindex). Migracje do **166**. Reszta w planie: sprzątanie starego KB + #2 ceny protetyki (Recent Changes 2026-06-15). Wcześniej: **program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
@@ -2469,6 +2469,35 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-15 #3 — 🏭 Silnik treści KB Klasy A (auto-draft + self-critique + admin review)
+
+**Decyzja Marcina (po audycie GEO):** zamiast wyłączać „młynek” `daily-article` — przebudować go w silnik treści Klasy A. Audyt sam mówi: świeżość = plus, problem to jakość, nie publikowanie. Model: **Auto + self-critique → DRAFT → admin zatwierdza/edytuje/odrzuca**, generacja **tylko gdy temat w kolejce**.
+
+#### Commit
+- `a7b8666` — feat(seo): silnik treści KB Klasy A — auto-draft + self-critique + admin review (GEO #3)
+
+#### Migracje (WGRANE przez Marcina 2026-06-15, oba env)
+- **165** `articles_status.sql` — kolumna `articles.status` (draft/published; istniejące→published) + indeksy (status, locale+status).
+- **166** `seed_kb_topics.sql` — seed 15 strategicznych tematów „X czy Y” do `article_ideas`.
+
+#### Co zmienione
+- **Cron `daily-article` przepisany:** temat WYŁĄCZNIE z `article_ideas` (pusto→skip — koniec wymyślania clickbaitu); generacja przez `unifiedAI` (blog_generator → KB+brand) z twardymi wymaganiami (1400-2200 słów, 1. akapit=bezpośrednia odpowiedź [GEO], H2/H3, FAQ, konkretne liczby, E-E-A-T, linki wewn. markdown, **guardrail pro-gabinet** [zakaz „zamiast dentysty”], zakaz clickbait-tytułów); **self-critique** (rubric) + 1 regeneracja; dedup slug; zapis **PL=draft**. Obrazek+tłumaczenia przeniesione z crona do zatwierdzenia (zero orphanów, zero commit/deploy per draft). maxDuration 60→120.
+- **Drafty nigdy publiczne:** 11 publicznych odczytów `articles` + `.eq('status','published')` — `sitemap.ts`, `baza-wiedzy/page.tsx` (×2), `baza-wiedzy/[slug]/page.tsx` (×7: findSlugInAnyLocale, generateStaticParams, generateMetadata ×3, ArticlePage ×2), `RelatedArticles.tsx` (warunkowo `table==='articles'`).
+- **`/api/admin/articles`:** POST `publish` (obrazek Flux→DALL-E fallback + tłumaczenia EN/DE/UA best-effort + status→published, maxDuration 300), POST `reject` (delete grupy), PUT (edit title/excerpt/content/slug). GET bez zmian (admin widzi drafty).
+- **Admin UI** (`admin/page.tsx` renderArticlesTab): badge DRAFT/LIVE, sort draftów na górę, licznik draftów, Zatwierdź/Edytuj/Odrzuć/Usuń + modal edycji.
+
+#### Weryfikacja (live, prod DB po migracji)
+- Istniejące KB: `/baza-wiedzy` 200, **177 artykułów widocznych**, sample artykuł 200 — filtr nie zepsuł nic.
+- Test silnika: trigger cron → temat „Licówki porcelanowe czy kompozytowe…” → self-critique **score 95** (bez regeneracji) → draft zapisany. Draft URL → **404 publicznie**, **0** w listingu = gate działa.
+- Build clean (217), test 123/123.
+
+#### Stan / dalej
+- W produkcji czeka **1 testowy draft** („Licówki porcelanowe czy kompozytowe…”) do recenzji: admin → Artykuły → Zatwierdź/Edytuj/Odrzuć. Cron (codziennie 7:00 UTC) generuje kolejne z kolejki (15 tematów seed; gdy się skończą → skip, dosypiemy).
+- Osobno (czeka na decyzję Marcina): sprzątanie starego śmiecia KB (🔴 ~19 szkodliwych / 🟠 duplikaty / 🟡 cienkie — `~/Desktop/bałagan/PLAN_GEO_KB_CLEANUP_2026-06-15.md`).
+- #2 protetyka: licówki 2500 zł/szt mam; czekają widełki koron (E.max/cyrkon/most).
+
+---
 
 ### 2026-06-15 — 🔢 GEO 4.1: fix liczników TrustStats (SSR-render realnych liczb + usunięcie alarmu „offline”)
 
