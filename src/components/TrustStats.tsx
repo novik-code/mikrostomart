@@ -60,6 +60,13 @@ function buildInitialLiveStats(): LiveStats {
     };
 }
 
+// Deterministyczne formatowanie liczby (spacja nierozdzielająca co 3 cyfry).
+// NIE używamy toLocaleString — Node ICU na serwerze bywa bez grupowania pl-PL,
+// co dawałoby hydration mismatch (serwer "1288" vs klient "1 288").
+function formatPl(n: number): string {
+    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+
 // ─────────────────────────────────────────────────────────────
 // AnimatedCounter — counts from 0 to target when scrolled into view
 // Option B 2026-05-21: vanilla IntersectionObserver + requestAnimationFrame
@@ -67,15 +74,17 @@ function buildInitialLiveStats(): LiveStats {
 // ─────────────────────────────────────────────────────────────
 function AnimatedCounter({ value }: { value: number }) {
     const ref = useRef<HTMLSpanElement>(null);
-    const [display, setDisplay] = useState(0);
+    // GEO fix (2026-06-14): init = realna wartość (NIE 0). Dzięki temu crawlery AI
+    // i przeglądarki bez JS widzą prawdziwą liczbę w SSR HTML. Count-up 0→value to
+    // progressive enhancement uruchamiany tylko po stronie klienta (IntersectionObserver).
+    const [display, setDisplay] = useState(value);
     const startedRef = useRef(false);
 
     useEffect(() => {
         const node = ref.current;
         if (!node || startedRef.current) return;
         if (typeof window === "undefined" || !("IntersectionObserver" in window)) {
-            setDisplay(value);
-            startedRef.current = true;
+            // Brak IO (SSR / stara przeglądarka) → zostaw realną wartość z initial state.
             return;
         }
         const io = new IntersectionObserver(
@@ -84,6 +93,9 @@ function AnimatedCounter({ value }: { value: number }) {
                     if (entry.isIntersecting && !startedRef.current) {
                         startedRef.current = true;
                         io.disconnect();
+                        // Client-only: reset do 0 i animuj w górę (SSR już wyrenderował
+                        // realną liczbę, więc crawlery/no-JS jej nie tracą).
+                        setDisplay(0);
                         // requestAnimationFrame counter — 1.8s ease-out
                         const start = performance.now();
                         const duration = 1800;
@@ -107,7 +119,7 @@ function AnimatedCounter({ value }: { value: number }) {
 
     return (
         <span ref={ref}>
-            {display.toLocaleString("pl-PL").replace(/,/g, " ")}
+            {formatPl(display)}
         </span>
     );
 }
@@ -536,14 +548,20 @@ export default function TrustStats() {
                     >
                         {t("subheading")}
                     </p>
-                    <div style={{ textAlign: "center", marginBottom: "var(--spacing-md)" }}>
-                        <LiveIndicator
-                            source={stats.source}
-                            lastUpdated={stats.lastUpdated}
-                            label={stats.source === "fallback" ? t("liveLabelOffline") : t("liveLabel")}
-                            tooltip={stats.source === "fallback" ? t("liveTooltipOffline") : t("liveTooltip")}
-                        />
-                    </div>
+                    {/* GEO fix (2026-06-14): pokazuj wskaźnik TYLKO po potwierdzeniu live/partial
+                        po stronie klienta. Na SSR (source=fallback) i gdy Prodentis down NIE
+                        renderujemy nic — eliminuje komunikat „system kliniki chwilowo nieosiągalny"
+                        z HTML widzianego przez crawlery (był negatywnym sygnałem zaufania). */}
+                    {stats.source !== "fallback" && (
+                        <div style={{ textAlign: "center", marginBottom: "var(--spacing-md)" }}>
+                            <LiveIndicator
+                                source={stats.source}
+                                lastUpdated={stats.lastUpdated}
+                                label={t("liveLabel")}
+                                tooltip={t("liveTooltip")}
+                            />
+                        </div>
+                    )}
                 </RevealOnScroll>
 
                 {/* 4 cards: 2x2 mobile, 4x1 desktop */}
