@@ -181,6 +181,60 @@ const nextConfig: NextConfig = {
         destination: '/oferta/leczenie-kanalowe',
         permanent: true,
       },
+
+      // ── KB cleanup (2026-06-15, GEO audyt 5.3) ──
+      // Grupa A: artykuły "domowe wybielanie / bez dentysty" (treść anty-gabinetowa,
+      // GEO-szkodliwa) USUNIĘTE z DB (migracja 167) → 301 na tematyczną usługę lub hub.
+      // Grupa B: duplikaty SCALONE — losery USUNIĘTE → 301 na 1 best z klastra.
+      // Źródło = slug PL (foreign rows mają inne slugi i zostały usunięte → 404 OK
+      // dla cienkiej, usuwanej treści). Pełna lista decyzji: PLAN_GEO_KB_CLEANUP_2026-06-15.md.
+
+      // Grupa A → /oferta/stomatologia-estetyczna (tematyka: wybielanie/rozjaśnianie)
+      { source: '/baza-wiedzy/snieznobialy-usmiech-domowe-sposoby-na-naturalne-wybielanie-zebow-bez-dentysty', destination: '/oferta/stomatologia-estetyczna', permanent: true },
+      { source: '/baza-wiedzy/zeby-w-roli-glownej-jak-utrzymac-snieznobialy-usmiech-bez-wizyty-u-stomatologa', destination: '/oferta/stomatologia-estetyczna', permanent: true },
+      { source: '/baza-wiedzy/usmiech-pelen-blasku-naturalne-sposoby-na-wybielanie-zebow-w-domowym-zaciszu', destination: '/oferta/stomatologia-estetyczna', permanent: true },
+      { source: '/baza-wiedzy/usmiech-pelen-blasku-sekrety-naturalnego-wybielania-zebow-w-kuchni', destination: '/oferta/stomatologia-estetyczna', permanent: true },
+      { source: '/baza-wiedzy/usmiech-pelen-blasku-naturalne-sposoby-na-rozjasnienie-zebow', destination: '/oferta/stomatologia-estetyczna', permanent: true },
+      { source: '/baza-wiedzy/5-sposobow-na-naturalne-rozjasnianie-zebow-w-domowym-zaciszu', destination: '/oferta/stomatologia-estetyczna', permanent: true },
+      { source: '/baza-wiedzy/zeby-jak-diamenty-sekrety-domowego-wybielania', destination: '/oferta/stomatologia-estetyczna', permanent: true },
+      { source: '/baza-wiedzy/usmiech-bez-tajemnic-domowe-metody-wybielanie-zebow', destination: '/oferta/stomatologia-estetyczna', permanent: true },
+      { source: '/baza-wiedzy/magia-usmiechu-sekrety-naturalnych-sposobow-na-bielsze-zeby', destination: '/oferta/stomatologia-estetyczna', permanent: true },
+      { source: '/baza-wiedzy/usmiechnij-sie-szeroko-7-tajemnic-domowych-srodkow-na-biale-zeby-bez-ryzyka', destination: '/oferta/stomatologia-estetyczna', permanent: true },
+      // Grupa A → /oferta/stomatologia-zachowawcza (próchnica / remineralizacja / nadwrażliwość)
+      { source: '/baza-wiedzy/zapomnij-o-borowaniu-przewodnik-po-naturalnych-metodach-remineralizacja-zebow', destination: '/oferta/stomatologia-zachowawcza', permanent: true },
+      { source: '/baza-wiedzy/zdrowy-usmiech-lzejszy-portfel-domowe-sposoby-na-zapobieganie-prochnicy', destination: '/oferta/stomatologia-zachowawcza', permanent: true },
+      { source: '/baza-wiedzy/usmiech-bez-bolu-domowe-sposoby-na-nadwrazliwosc-zebow', destination: '/oferta/stomatologia-zachowawcza', permanent: true },
+      // Grupa A → /baza-wiedzy (ogólna pielęgnacja domowa / "bez dentysty")
+      { source: '/baza-wiedzy/zeby-w-30-dni-plan-na-zdrowy-usmiech-bez-dentysty', destination: '/baza-wiedzy', permanent: true },
+      { source: '/baza-wiedzy/usmiech-pelen-blasku-10-domowych-sposobow-na-zdrowe-i-lsniace-zeby', destination: '/baza-wiedzy', permanent: true },
+      { source: '/baza-wiedzy/usmiech-pelen-blasku-sekrety-domowej-pielegnacji-zebow', destination: '/baza-wiedzy', permanent: true },
+      { source: '/baza-wiedzy/usmiech-przez-lata-sekrety-domowej-pielegnacji-zebow', destination: '/baza-wiedzy', permanent: true },
+      { source: '/baza-wiedzy/usmiech-w-rytmie-natury-naturalne-remedia-na-zeby', destination: '/baza-wiedzy', permanent: true },
+      { source: '/baza-wiedzy/sekrety-zdrowego-usmiechu-naturalne-metody-wzmocnienie-zebow-dziasel', destination: '/baza-wiedzy', permanent: true },
+
+      // Grupa B losery → winner klastra (301, konsolidacja)
+      // klaster "nawyki niszczące zęby" → 10-niespodziewanych-nawykow-ktore-niszcza-zeby
+      { source: '/baza-wiedzy/10-zaskakujacych-nawykow-jedzeniowych-niszczacych-zeby', destination: '/baza-wiedzy/10-niespodziewanych-nawykow-ktore-niszcza-zeby', permanent: true },
+      { source: '/baza-wiedzy/10-zaskakujacych-nawykow-ktore-niszcza-twoje-zeby', destination: '/baza-wiedzy/10-niespodziewanych-nawykow-ktore-niszcza-zeby', permanent: true },
+      { source: '/baza-wiedzy/5-zaskakujacych-nawykow-ktore-niszczyly-twoje-zeby-a-teraz-moga-je-uratowac', destination: '/baza-wiedzy/10-niespodziewanych-nawykow-ktore-niszcza-zeby', permanent: true },
+      { source: '/baza-wiedzy/7-zaskakujacych-nawykow-ktore-moga-szkodzic-twoim-zebom', destination: '/baza-wiedzy/10-niespodziewanych-nawykow-ktore-niszcza-zeby', permanent: true },
+      { source: '/baza-wiedzy/7-zaskakujacych-nawykow-ktore-niszcza-twoj-usmiech', destination: '/baza-wiedzy/10-niespodziewanych-nawykow-ktore-niszcza-zeby', permanent: true },
+      { source: '/baza-wiedzy/7-zaskakujacych-nawykow-ktore-niszczy-twoje-zeby-kazdego-dnia', destination: '/baza-wiedzy/10-niespodziewanych-nawykow-ktore-niszcza-zeby', permanent: true },
+      // klaster "uśmiech przez sen" → usmiech-przez-sen-jak-nocna-rutyna-...
+      { source: '/baza-wiedzy/usmiech-przez-sen-jak-nocne-nawyki-wplywaja-na-zdrowie-twoich-zebow', destination: '/baza-wiedzy/usmiech-przez-sen-jak-nocna-rutyna-wplywa-na-zdrowie-twoich-zebow', permanent: true },
+      { source: '/baza-wiedzy/usmiech-przez-sen-jak-nocne-nawykowe-zachowania-wplywaja-na-zdrowie-twoich-zebow', destination: '/baza-wiedzy/usmiech-przez-sen-jak-nocna-rutyna-wplywa-na-zdrowie-twoich-zebow', permanent: true },
+      { source: '/baza-wiedzy/usmiech-przez-sen-jak-nocne-rutyny-moga-poprawic-zdrowie-twoich-zebow', destination: '/baza-wiedzy/usmiech-przez-sen-jak-nocna-rutyna-wplywa-na-zdrowie-twoich-zebow', permanent: true },
+      // klaster "magia uśmiechu" → magia-...regularne-wizyty-u-dentysty (pro-wizyta)
+      { source: '/baza-wiedzy/magia-usmiechu-10-codziennych-nawykow-ktore-odmlodza-twoje-zeby', destination: '/baza-wiedzy/magia-usmiechu-jak-regularne-wizyty-u-dentysty-moga-odmienic-twoje-zycie', permanent: true },
+      { source: '/baza-wiedzy/magia-usmiechu-jak-twoje-zeby-moga-wplynac-na-pierwsze-wrazenie-i-jak-o-nie-dbac', destination: '/baza-wiedzy/magia-usmiechu-jak-regularne-wizyty-u-dentysty-moga-odmienic-twoje-zycie', permanent: true },
+      // klaster "produkty z kuchni" → 5-zaskakujacych-produktow-z-kuchni-zdrowie-zebow
+      { source: '/baza-wiedzy/5-niezwyklych-znajdzki-z-kuchni-ktore-moga-uratowac-twoje-zeby-i-dziasla', destination: '/baza-wiedzy/5-zaskakujacych-produktow-z-kuchni-zdrowie-zebow', permanent: true },
+      { source: '/baza-wiedzy/zdrowe-zeby-zdrowsze-zycie-5-niezwyklych-produktow-w-kuchni', destination: '/baza-wiedzy/5-zaskakujacych-produktow-z-kuchni-zdrowie-zebow', permanent: true },
+      // klaster "ślina" → sekretne-zycie-sliny-...
+      { source: '/baza-wiedzy/zaskakujace-fakty-o-twojej-slinie-jak-wplywa-na-zdrowie-jamy-ustnej', destination: '/baza-wiedzy/sekretne-zycie-sliny-jak-produkcja-i-sklad-sliny-wplywaja-na-zdrowie-jamy-ustnej', permanent: true },
+      // klaster "pasta/etykiety" → sekrety-pasty-do-zebow-jak-wybrac-produkt-idealny-...
+      { source: '/baza-wiedzy/sekrety-zdrowego-usmiechu-etykiety-pasta-do-zebow', destination: '/baza-wiedzy/sekrety-pasty-do-zebow-jak-wybrac-produkt-idealny-dla-twojego-usmiechu', permanent: true },
+      { source: '/baza-wiedzy/sekrety-bialego-usmiechu-nawyki-zmieniajace-zeby', destination: '/baza-wiedzy/sekrety-pasty-do-zebow-jak-wybrac-produkt-idealny-dla-twojego-usmiechu', permanent: true },
     ];
   },
 };

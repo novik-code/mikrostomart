@@ -5,6 +5,7 @@ import { isDemoMode } from '@/lib/demoMode';
 import { routing } from '@/i18n/routing';
 import { routeMtimes, buildTime } from '@/lib/generated-route-mtimes';
 import { METAMORPHOSES } from '@/data/metamorphoses';
+import { KB_NOINDEX_GROUP_IDS } from '@/lib/kbNoindex';
 
 // Faza G3 (2026-05-09): cache sitemap przez 1 godzinę.
 // Bez tego każdy ping Googlebota / każde wejście /sitemap.xml triggerowało DB query
@@ -104,6 +105,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const kbArticles = (kbArticlesRaw || []).filter((a) => {
         if (!isSafeSlug(a.slug)) {
             console.warn(`[sitemap] Skipping KB article with unsafe slug: "${a.slug}" (locale=${a.locale}) — rename slug in DB to URL-safe pattern.`);
+            return false;
+        }
+        // KB cleanup (2026-06-15, GEO 5.3): Grupa C noindex — wyklucz z sitemap
+        // (noindexowane URL-e nie powinny być submitowane; lekcja S10-4).
+        if (a.group_id && KB_NOINDEX_GROUP_IDS.has(a.group_id)) {
             return false;
         }
         return true;

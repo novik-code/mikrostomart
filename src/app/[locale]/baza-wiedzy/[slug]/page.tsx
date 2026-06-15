@@ -12,6 +12,7 @@ import { breadcrumbHref, getOgLocale, localizedBreadcrumb } from '@/lib/seo';
 import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
 import RelatedArticles from '@/components/RelatedArticles';
+import { KB_NOINDEX_GROUP_IDS } from '@/lib/kbNoindex';
 
 // S5-4 (2026-05-15): if a slug doesn't exist in the requested locale but DOES
 // exist in another locale (cross-locale URL — typical Google ghost from old
@@ -138,10 +139,15 @@ export async function generateMetadata({
         ? `/baza-wiedzy/${slug}`
         : (locale === routing.defaultLocale ? `/baza-wiedzy/${slug}` : `/${locale}/baza-wiedzy/${slug}`);
 
+    // KB cleanup (2026-06-15, GEO 5.3): Grupa C — cienkie clickbaity oznaczone
+    // noindex (denylist po group_id w kbNoindex.ts → wszystkie locale). Zostają
+    // dla userów, wypadają z indeksu. follow:true → link equity z in-body/related płynie.
+    const isNoindexed = article.group_id ? KB_NOINDEX_GROUP_IDS.has(article.group_id) : false;
+
     return {
         title: { absolute: `${article.title} | ${t('metaSuffix', brandI18nParams())}` },
         description: article.excerpt,
-        ...(fellBackToPl ? { robots: { index: false, follow: true } } : {}),
+        ...(fellBackToPl || isNoindexed ? { robots: { index: false, follow: true } } : {}),
         alternates: { canonical, languages },
         openGraph: {
             title: article.title,
