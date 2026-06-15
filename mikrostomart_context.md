@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-10 — **AKTYWNY: program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
+> **Last Updated:** 2026-06-15 — **audyt GEO 2026-06-14**: fix liczników TrustStats SSR (P0 4.1) ✅ `7497df8`, reszta audytu w planie (Recent Changes 2026-06-15). Wcześniej: **program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
@@ -2469,6 +2469,38 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-15 — 🔢 GEO 4.1: fix liczników TrustStats (SSR-render realnych liczb + usunięcie alarmu „offline”)
+
+**Po audycie GEO (Generative Engine Optimization) 2026-06-14.** Najważniejsze znalezisko P0 (4.1) zweryfikowane w kodzie + na żywym HTML (`curl` jako GPTBot): crawlery AI bez JS widziały na homepage liczniki **0/0/0** + komunikat „system kliniki chwilowo nieosiągalny”. Najbardziej cytowalne liczby były dla modeli niewidoczne, a w zamian negatywny sygnał zaufania.
+
+#### Commit
+- `7497df8` — fix(seo): GEO 4.1 — liczniki TrustStats SSR-render + usunięcie alarmu offline z HTML
+
+#### Przyczyna (kod — fallback DANYCH był OK; bug w rendererze)
+- `AnimatedCounter` (`TrustStats.tsx`): `useState(0)` + count-up 0→value tylko przez client-side IntersectionObserver → SSR renderował `0`; realna `value` była tylko w propsach JS.
+- `LiveIndicator`: na SSR `source=”fallback”` (initial) → label/tooltip „Snapshot… system kliniki chwilowo nieosiągalny”.
+
+#### Fix (czysto kod, bez migracji/env)
+- `AnimatedCounter`: init = realna `value` (SSR/no-JS widzi liczbę); count-up = progressive enhancement client-only.
+- nowy `formatPl()` — deterministyczny separator tysięcy (server === client) zamiast `toLocaleString` (Node ICU bywa bez grupowania pl-PL → hydration mismatch).
+- `LiveIndicator` renderowany TYLKO gdy `source` live/partial → alarm znika z HTML; przy Prodentis-down brak wskaźnika (lepsze niż „nieosiągalny”).
+- `clinic-stats.ts`: snapshot fallback odświeżony do **1288/2304/6247** (live z audytu; nigdy 0).
+- usunięte martwe klucze i18n `liveLabelOffline`/`liveTooltipOffline` (pl/en/de/ua).
+
+#### Pliki
+`src/components/TrustStats.tsx`, `src/data/clinic-stats.ts`, `messages/{pl,en,de,ua}/common.json`. (sw.js + generated-route-mtimes drift cofnięty — Vercel regeneruje przy deployu.)
+
+#### Weryfikacja
+Build clean (217) + test 123/123. SSR jako GPTBot (`curl`): `1 288 / 2 304 / 6 247` w HTML; **0** wystąpień „Snapshot 2026”/„chwilowo nieosiągalny”. Brak migracji/env. Deploy: produkcja + demo.
+
+#### Audyt GEO — reszta w planie (per decyzja Marcina)
+- **Już zrobione (audyt nie miał jak zobaczyć):** schema Dentist/Physician/MedicalProcedure/FAQPage/Article ~90% (Fazy 1A/B/K/2); `robots.ts` dopuszcza boty AI (`*` allow, brak blokad GPTBot/ClaudeBot/PerplexityBot); `curl` jako GPTBot = 491 KB (CDN nie blokuje); aggregateRating z GBP (mig 135); homepage GoogleReviews = realne Places API.
+- **Kod (nasze, do zlecenia):** opcjonalny `public/llms.txt` (NIE istnieje); widełki cenowe na `/oferta/stomatologia-estetyczna` + `/oferta/protetyka` (wymaga cen od Marcina); KB „rozdwojenie jakości” — stop crona `daily-article`, konsolidacja/noindex cienkich + szkodliwych (domowe metody „bez dentysty”), naprawa diakrytyków w slugach.
+- **Off-site (Marcin, największa dźwignia):** ZnanyLekarz.pl, GBP (zdjęcia/posty/Q&A), realne opinie Google, spójne bio w sieci.
+- **Treść (Faza 3C+):** artykuły decyzyjne „X czy Y” (implant vs most, licówki vs korony, cyrkon vs E.max, pacjent z DE) — część pokrywa się z planem klastrów KB.
+
+---
 
 ### 2026-06-10 #2 — 🦷 SEO Faza 3C (fala 1): klaster KB premium All-on-X (PL)
 
