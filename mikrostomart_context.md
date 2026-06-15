@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-15 — **audyt GEO 2026-06-14**: fix liczników (4.1) ✅ `7497df8` · `llms.txt` ✅ `5d0364f` · **silnik treści KB Klasy A** ✅ `a7b8666` (mig **165-166**: auto-draft + self-critique + admin review, drafty noindex). Migracje do **166**. Reszta w planie: sprzątanie starego KB + #2 ceny protetyki (Recent Changes 2026-06-15). Wcześniej: **program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
+> **Last Updated:** 2026-06-15 — **audyt GEO 2026-06-14**: fix liczników (4.1) ✅ `7497df8` · `llms.txt` ✅ `5d0364f` · **silnik treści KB Klasy A** ✅ `a7b8666` (mig **165-166**: auto-draft + self-critique + admin review, drafty noindex). **Sprzątanie KB ✅** `1ed6a76` (mig **167** DELETE Grupa A 19 + B losery 16 / mig **168** borderline 3 drafty / noindex Grupa C 24 code-side / 35 redirectów 301). Migracje do **168**. Reszta: #2 ceny protetyki + round 2 dubli KB (Recent Changes 2026-06-15). Wcześniej: **program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
@@ -2469,6 +2469,42 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-15 #4 — 🧹 Sprzątanie Bazy Wiedzy (GEO audyt 5.3): usuń A + scal B + noindex C + borderline drafty
+
+**Po decyzjach Marcina** (`PLAN_GEO_KB_CLEANUP_2026-06-15.md`): KB miało ~70-80 art. Klasy B (clickbait/duplikaty/szkodliwe „bez dentysty") rozcieńczających E-E-A-T. Sprzątnięte 4 grupy. **AKCJA 0 (stop crona `daily-article`) — pominięta jako nieaktualna**: `a7b8666` już przebudował crona w silnik draft-only (nie auto-publikuje clickbaitu u źródła).
+
+#### Commit
+- `1ed6a76` — feat(seo): KB cleanup GEO 5.3 — A usuń (19) + B scal (16) + C noindex (24) + borderline 3 drafty
+
+#### Migracje (NIE WGRANE, idempotentne, OBA Supabase)
+- **167** `kb_cleanup_delete_merge.sql` — DELETE 35 grup po `group_id`: Grupa A (19 „domowe/bez dentysty") + Grupa B losery (16). Po group_id → usuwa wszystkie locale.
+- **168** `kb_borderline_rewrite_drafts.sql` — 3 borderline przepisane do Klasy A pro-wizyta (wybielanie-w-domu fakty/mity, lęk przed dentystą [The Wand + sedacja podtlenkiem], nadwrażliwość na zimno) → UPDATE PL `status='draft'` + DELETE starych EN/DE/UA (re-translacja przy publikacji). **Czekają na medical review w adminie → Artykuły.**
+Kopie .txt: `~/Desktop/migracje_supabase/migracja_16{7,8}_*.txt`.
+
+#### Kod (deploy od razu z main; DB-część czeka na migracje)
+- **`src/lib/kbNoindex.ts`** [NEW] — `KB_NOINDEX_GROUP_IDS` (24 group_id Grupy C). Denylist **po group_id** → noindexuje wszystkie 4 locale jednym wpisem (foreign slugi inne).
+- **`baza-wiedzy/[slug]/page.tsx`** generateMetadata: `robots noindex,follow` gdy `article.group_id` ∈ denylist (obok fellBackToPl z 3B).
+- **`sitemap.ts`**: wyklucza noindexowane group_id (lekcja S10-4 — noindex nie wisi w sitemap).
+- **`next.config.ts`**: +35 redirectów 301. Grupa A → `/oferta/stomatologia-estetyczna` (wybielanie) / `-zachowawcza` (próchnica/remin/nadwrażliwość) / `/baza-wiedzy` (ogólne). Grupa B losery → winner klastra. Źródło = slug PL (foreign slugi usuwane → 404 OK dla cienkiej treści).
+
+#### Grupa B — winnerzy (zostają indexable)
+nawyki→`10-niespodziewanych-nawykow-ktore-niszcza-zeby` · sen→`usmiech-przez-sen-jak-nocna-rutyna...` · magia→`magia-usmiechu-jak-regularne-wizyty-u-dentysty...` (pro-wizyta) · kuchnia→`5-zaskakujacych-produktow-z-kuchni-zdrowie-zebow` · ślina→`sekretne-zycie-sliny...` · pasta→`sekrety-pasty-do-zebow-jak-wybrac-produkt-idealny...`.
+
+#### Weryfikacja (build + preview prod :3001)
+Build clean (217), test 123/123. Redirecty **308** A→usługa / B-loser→winner. Grupa C `robots noindex,follow` — też **foreign locale** po group_id (EN `10-extraordinary-facts-about-your-teeth`). Sitemap: noindexowane wykluczone (0), kept obecne. Kept article bez noindex (0 regresji). sw.js + generated-route-mtimes drift cofnięty (Vercel regen).
+
+#### 🚨 Manual Marcin
+1. **Wgrać migracje 167 + 168** na OBU Supabase (idempotentne, razem). 167 → 35 grup usuniętych; 168 → 3 borderline = drafty.
+2. **Recenzja 3 draftów** w adminie → Artykuły (Zatwierdź/Edytuj/Odrzuć) — medical gate. Publikacja generuje świeże tłumaczenia EN/DE/UA.
+3. GSC re-submit sitemap (po deployu + migracji).
+
+#### Round 2 (DB ma więcej śmiecia niż plan wyliczył — na życzenie)
+Plan był próbką. Zostały m.in.: dentofobia ~9 art (jak-oswoic-strach, usmiech-bez-bolu/strachu/wstydu/pewnosci/w-obliczu-strachu...), „dieta a zęby" ~15+, „przyszłość/technologia u dentysty" ~5, „stres a zęby" ~5, dodatkowe „nawyki niszczące" (codzienne-nawyki, zeby-pod-lupa), `błyszczacy-...bez-wizyty` (diacritic slug — już poza sitemap). Round 2 = scal/noindex/usuń wg tych samych kryteriów.
+
+#### Brak env var. Deploy: produkcja + demo.
+
+---
 
 ### 2026-06-15 #3 — 🏭 Silnik treści KB Klasy A (auto-draft + self-critique + admin review)
 
