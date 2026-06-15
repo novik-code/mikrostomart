@@ -16,6 +16,7 @@ export default async function KnowledgeBasePage() {
         .from('articles')
         .select('id, slug, title, excerpt, date:published_date, image:image_url')
         .eq('locale', locale)
+        .eq('status', 'published')
         .order('published_date', { ascending: false });
 
     // Fallback: if no articles for this locale, show Polish
@@ -25,6 +26,7 @@ export default async function KnowledgeBasePage() {
             .from('articles')
             .select('id, slug, title, excerpt, date:published_date, image:image_url')
             .eq('locale', 'pl')
+            .eq('status', 'published')
             .order('published_date', { ascending: false });
         displayArticles = fallback;
     }

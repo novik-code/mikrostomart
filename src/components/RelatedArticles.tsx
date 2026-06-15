@@ -78,7 +78,13 @@ async function fetchRelated(
             // → dla KB pomijamy dopasowanie po tagach i dobieramy najnowsze.
             const hasTags = kind === 'blog';
             const sel = hasTags ? `slug, title, ${dateCol}, tags` : `slug, title, ${dateCol}`;
-            const base = () => supabase.from(table).select(sel).eq('locale', locale).neq('slug', currentSlug);
+            const base = () => {
+                let q = supabase.from(table).select(sel).eq('locale', locale).neq('slug', currentSlug);
+                // KB `articles` ma kolumnę status (mig 165) — pokazuj tylko opublikowane,
+                // nigdy drafty AI. blog_posts/news mają własny is_published (poza zakresem).
+                if (table === 'articles') q = q.eq('status', 'published');
+                return q;
+            };
             if (hasTags && tags && tags.length > 0) {
                 pushRows((await base().overlaps('tags', tags).order(dateCol, { ascending: false, nullsFirst: false }).limit(limit + 4)).data);
             }

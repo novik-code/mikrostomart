@@ -25,6 +25,7 @@ async function findSlugInAnyLocale(slug: string): Promise<string | null> {
         .from('articles')
         .select('locale')
         .eq('slug', slug)
+        .eq('status', 'published')
         .limit(1)
         .single();
     return data?.locale ?? null;
@@ -58,7 +59,10 @@ function articleUrl(locale: string, slug: string): string {
 }
 
 export async function generateStaticParams() {
-    const { data: articles } = await supabase.from('articles').select('slug');
+    const { data: articles } = await supabase
+        .from('articles')
+        .select('slug')
+        .eq('status', 'published');
     return (articles || []).map((article) => ({
         slug: article.slug,
     }));
@@ -77,6 +81,7 @@ export async function generateMetadata({
         .select('title, excerpt, locale, group_id, image_url')
         .eq('slug', slug)
         .eq('locale', locale)
+        .eq('status', 'published')
         .single();
 
     // Fallback: PL version with the same slug (legacy KB articles where the
@@ -87,6 +92,7 @@ export async function generateMetadata({
             .select('title, excerpt, locale, group_id, image_url')
             .eq('slug', slug)
             .eq('locale', 'pl')
+            .eq('status', 'published')
             .single();
         article = fallback.data;
     }
@@ -108,7 +114,8 @@ export async function generateMetadata({
         const { data: groupRows } = await supabase
             .from('articles')
             .select('locale, slug')
-            .eq('group_id', article.group_id);
+            .eq('group_id', article.group_id)
+            .eq('status', 'published');
         for (const row of (groupRows || []) as Array<{ locale: string; slug: string }>) {
             const hreflang = HREFLANG_MAP[row.locale] || row.locale;
             languages[hreflang] = articleUrl(row.locale, row.slug);
@@ -166,6 +173,7 @@ export default async function ArticlePage({
         .select('*, image:image_url, date:published_date')
         .eq('slug', slug)
         .eq('locale', locale)
+        .eq('status', 'published')
         .single();
 
     // Fallback: try Polish version if not found in current locale (legacy
@@ -177,6 +185,7 @@ export default async function ArticlePage({
             .select('*, image:image_url, date:published_date')
             .eq('slug', slug)
             .eq('locale', 'pl')
+            .eq('status', 'published')
             .single();
         article = fallback;
     }

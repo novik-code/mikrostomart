@@ -288,6 +288,54 @@ export default function AdminPage() {
         } catch (e) { alert("Błąd"); }
     };
 
+    // --- KB DRAFT REVIEW (silnik treści Klasy A) ---
+    const [editingArticle, setEditingArticle] = useState<any | null>(null);
+    const [articleActionId, setArticleActionId] = useState<string | null>(null);
+
+    const handlePublishArticle = async (id: string) => {
+        if (!confirm("Opublikować? Wygeneruje obrazek + tłumaczenia EN/DE/UA (~1 min).")) return;
+        setArticleActionId(id);
+        try {
+            const res = await fetch('/api/admin/articles', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'publish', id }),
+            });
+            const data = await res.json();
+            if (res.ok) { alert(`Opublikowano. Tłumaczenia: ${(data.translations || []).join(', ') || 'brak'}${data.image ? ' + obrazek' : ''}`); fetchArticles(); }
+            else alert(`Błąd: ${data.error || 'publikacja'}`);
+        } catch { alert("Błąd publikacji"); }
+        finally { setArticleActionId(null); }
+    };
+
+    const handleRejectArticle = async (id: string) => {
+        if (!confirm("Odrzucić i usunąć draft?")) return;
+        try {
+            const res = await fetch('/api/admin/articles', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'reject', id }),
+            });
+            if (res.ok) fetchArticles(); else alert("Błąd odrzucania");
+        } catch { alert("Błąd"); }
+    };
+
+    const handleSaveArticleEdit = async () => {
+        if (!editingArticle) return;
+        try {
+            const res = await fetch('/api/admin/articles', {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: editingArticle.id,
+                    title: editingArticle.title,
+                    excerpt: editingArticle.excerpt,
+                    content: editingArticle.content,
+                    slug: editingArticle.slug,
+                }),
+            });
+            if (res.ok) { setEditingArticle(null); fetchArticles(); }
+            else { const d = await res.json(); alert(`Błąd zapisu: ${d.error || ''}`); }
+        } catch { alert("Błąd zapisu"); }
+    };
+
     // --- NEWS HANDLERS ---
     const [news, setNews] = useState<any[]>([]);
     const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
@@ -1204,13 +1252,22 @@ export default function AdminPage() {
         </>
     );
 
-    const renderArticlesTab = () => (
+    const renderArticlesTab = () => {
+        // Drafty (silnik AI) na górze do recenzji; PL przed tłumaczeniami.
+        const sorted = [...articles].sort((a, b) => {
+            const ad = a.status === 'draft' ? 0 : 1;
+            const bd = b.status === 'draft' ? 0 : 1;
+            if (ad !== bd) return ad - bd;
+            return (b.published_date || '').localeCompare(a.published_date || '');
+        });
+        const draftCount = articles.filter((a) => a.status === 'draft').length;
+        return (
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <h2>Baza Wiedzy (Blog)</h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: 'wrap', gap: '0.5rem' }}>
+                <h2>Baza Wiedzy {draftCount > 0 && <span style={{ color: '#d4af37', fontSize: '0.9rem' }}>· {draftCount} draft(y) do recenzji</span>}</h2>
                 {manualGenerationStatus ? (
                     <span style={{ color: "var(--color-primary)", fontWeight: "bold" }}>
-                        Generator Cron: {manualGenerationStatus}
+                        Generator: {manualGenerationStatus}
                     </span>
                 ) : (
                     <button
@@ -1218,22 +1275,72 @@ export default function AdminPage() {
                         className="btn-primary"
                         style={{ background: "linear-gradient(135deg, var(--color-primary), var(--color-primary-light))", color: "black", fontSize: "0.9rem" }}
                     >
-                        Generuj Losowy Artykuł (Flux) 🎲
+                        Generuj z kolejki 📝
                     </button>
                 )}
             </div>
-            {articles.length === 0 ? <p>Brak artykułów.</p> : articles.map(a => (
-                <div key={a.id} style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)" }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <h3 style={{ fontSize: "1.1rem", margin: 0 }}>{a.title}</h3>
+            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', margin: 0 }}>
+                Silnik AI generuje artykuły z kolejki tematów jako <strong>drafty</strong>. Zatwierdzenie publikuje (obrazek + tłumaczenia EN/DE/UA). Drafty NIE są widoczne publicznie ani w Google.
+            </p>
+            {sorted.length === 0 ? <p>Brak artykułów.</p> : sorted.map(a => {
+                const isDraft = a.status === 'draft';
+                const busy = articleActionId === a.id;
+                return (
+                <div key={a.id} style={{ background: "var(--color-surface)", padding: "1.5rem", borderRadius: "var(--radius-md)", border: isDraft ? '1px solid #d4af37' : '1px solid transparent' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <h3 style={{ fontSize: "1.1rem", margin: 0 }}>
+                            <span style={{
+                                display: 'inline-block', fontSize: '0.7rem', fontWeight: 700, padding: '2px 8px', borderRadius: '999px', marginRight: '8px', verticalAlign: 'middle',
+                                background: isDraft ? '#d4af37' : 'var(--color-success, #10b981)', color: isDraft ? '#000' : '#fff',
+                            }}>{isDraft ? 'DRAFT' : `LIVE ${a.locale?.toUpperCase() || ''}`}</span>
+                            {a.title}
+                        </h3>
                         <span style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>{a.published_date}</span>
                     </div>
-                    <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginBottom: "1rem" }}>/{a.slug}</p>
-                    <button onClick={() => handleDeleteArticle(a.id)} style={{ padding: "0.5rem 1rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>Usuń</button>
+                    <p style={{ color: "var(--color-text-muted)", fontSize: "0.9rem", marginBottom: "1rem" }}>/{a.slug} {a.locale && a.locale !== 'pl' ? `(${a.locale})` : ''}</p>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {isDraft && (
+                            <button onClick={() => handlePublishArticle(a.id)} disabled={busy} style={{ padding: "0.5rem 1rem", background: busy ? '#888' : "var(--color-success, #10b981)", border: "none", borderRadius: "4px", color: "white", cursor: busy ? 'wait' : "pointer", fontWeight: 600 }}>
+                                {busy ? "Publikuję…" : "✓ Zatwierdź"}
+                            </button>
+                        )}
+                        <button onClick={() => setEditingArticle({ id: a.id, title: a.title || '', slug: a.slug || '', excerpt: a.excerpt || '', content: a.content || '' })} disabled={busy} style={{ padding: "0.5rem 1rem", background: "var(--color-surface-hover, #333)", border: "1px solid var(--color-primary)", borderRadius: "4px", color: "var(--color-primary)", cursor: "pointer" }}>✎ Edytuj</button>
+                        {isDraft ? (
+                            <button onClick={() => handleRejectArticle(a.id)} disabled={busy} style={{ padding: "0.5rem 1rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>✕ Odrzuć</button>
+                        ) : (
+                            <button onClick={() => handleDeleteArticle(a.id)} disabled={busy} style={{ padding: "0.5rem 1rem", background: "var(--color-error)", border: "none", borderRadius: "4px", color: "white", cursor: "pointer" }}>Usuń</button>
+                        )}
+                    </div>
                 </div>
-            ))}
+                );
+            })}
+
+            {editingArticle && (
+                <div onClick={() => setEditingArticle(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '2rem', overflowY: 'auto' }}>
+                    <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--color-bg-main, #14141a)', border: '1px solid var(--color-primary)', borderRadius: '8px', padding: '1.5rem', width: '100%', maxWidth: '820px', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        <h3 style={{ margin: 0 }}>Edycja artykułu</h3>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Tytuł
+                            <input value={editingArticle.title} onChange={(e) => setEditingArticle({ ...editingArticle, title: e.target.value })} style={{ width: '100%', padding: '0.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border, #333)', borderRadius: '4px', color: 'inherit', marginTop: '4px' }} />
+                        </label>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Slug (ASCII)
+                            <input value={editingArticle.slug} onChange={(e) => setEditingArticle({ ...editingArticle, slug: e.target.value })} style={{ width: '100%', padding: '0.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border, #333)', borderRadius: '4px', color: 'inherit', marginTop: '4px' }} />
+                        </label>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Streszczenie
+                            <textarea value={editingArticle.excerpt} onChange={(e) => setEditingArticle({ ...editingArticle, excerpt: e.target.value })} rows={2} style={{ width: '100%', padding: '0.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border, #333)', borderRadius: '4px', color: 'inherit', marginTop: '4px', resize: 'vertical' }} />
+                        </label>
+                        <label style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Treść (Markdown)
+                            <textarea value={editingArticle.content} onChange={(e) => setEditingArticle({ ...editingArticle, content: e.target.value })} rows={18} style={{ width: '100%', padding: '0.5rem', background: 'var(--color-surface)', border: '1px solid var(--color-border, #333)', borderRadius: '4px', color: 'inherit', marginTop: '4px', resize: 'vertical', fontFamily: 'monospace', fontSize: '0.85rem' }} />
+                        </label>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                            <button onClick={() => setEditingArticle(null)} style={{ padding: '0.5rem 1rem', background: 'var(--color-surface-hover, #333)', border: 'none', borderRadius: '4px', color: 'inherit', cursor: 'pointer' }}>Anuluj</button>
+                            <button onClick={handleSaveArticleEdit} style={{ padding: '0.5rem 1rem', background: 'var(--color-primary)', border: 'none', borderRadius: '4px', color: '#000', fontWeight: 600, cursor: 'pointer' }}>Zapisz</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
-    );
+        );
+    };
 
     const renderOrdersTab = () => (
         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>

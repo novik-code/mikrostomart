@@ -88,7 +88,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Knowledge Base articles — multi-locale (each article × 4 rows in DB linked by group_id)
     const { data: kbArticlesRaw } = await supabase
         .from('articles')
-        .select('slug, published_date, locale, group_id, image_url');
+        .select('slug, published_date, locale, group_id, image_url')
+        .eq('status', 'published');
 
     // S10-4 (audyt SEO SEO-01): defensywny filter slug pattern. 4 KB articles w DB
     // miały slugi z polskimi/niemieckimi diacritics (`lęk`, `świeżości`, `błyszczacy`,
