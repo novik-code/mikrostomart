@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-15 — **audyt GEO 2026-06-14**: fix liczników (4.1) ✅ `7497df8` · `llms.txt` ✅ `5d0364f` · **silnik treści KB Klasy A** ✅ `a7b8666` (mig **165-166**: auto-draft + self-critique + admin review, drafty noindex). **Sprzątanie KB ✅** `1ed6a76` (mig **167** DELETE Grupa A 19 + B losery 16 / mig **168** borderline 3 drafty / noindex Grupa C 24 code-side / 35 redirectów 301). Migracje do **168**. Reszta: #2 ceny protetyki + round 2 dubli KB (Recent Changes 2026-06-15). Wcześniej: **program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
+> **Last Updated:** 2026-06-15 — **audyt GEO 2026-06-14**: fix liczników (4.1) ✅ `7497df8` · `llms.txt` ✅ `5d0364f` · **silnik treści KB Klasy A** ✅ `a7b8666` (mig **165-166**: auto-draft + self-critique + admin review, drafty noindex). **Sprzątanie KB ✅** `1ed6a76` (mig **167** DELETE Grupa A 19 + B losery 16 / mig **168** borderline 3 drafty / noindex Grupa C 24 code-side / 35 redirectów 301). **Unifikacja głównego specjalisty ✅** `b1d578d` (PL `lek. dent. Marcin Nowosielski M.Sc.` / EN `Dentist` / DE `Zahnarzt` / UA `лікар-стоматолог` + M.Sc.; i18n 8 plików + kod, mig **169** treść DB). Migracje do **169**. Reszta: #2 ceny protetyki + round 2 dubli KB (Recent Changes 2026-06-15). Wcześniej: **program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
@@ -2469,6 +2469,38 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-15 #5 — 🪪 Unifikacja głównego specjalisty: zlokalizowany tytuł zawodowy + M.Sc.
+
+**Marcin (pilne):** na całej stronie „przewija się Marcin / dr Marcin / różne wariacje" — ujednolicić. **Dodatkowo to fix merytoryczny:** „dr/Dr." było BŁĘDNE (jest **lek. dent.** z **M.Sc.**, nie doktorat).
+
+#### Commit
+- `b1d578d` — feat(content): ujednolicenie głównego specjalisty na zlokalizowany tytuł zawodowy + M.Sc.
+
+#### Decyzje Marcina (AskUserQuestion)
+- **Forma per-locale (zlokalizowany tytuł zawodowy):** PL `lek. dent. Marcin Nowosielski M.Sc.` · EN `Dentist Marcin Nowosielski M.Sc.` · DE `Zahnarzt Marcin Nowosielski M.Sc.` · UA `лікар-стоматолог Марцін Новосельський M.Sc.` (genitive PL `lek. dent. Marcina Nowosielskiego M.Sc.` / UA `лікаря-стоматолога Марціна Новосельського M.Sc.`).
+- **Stopień:** `M.Sc.` (bez spacji; był 1× „M. Sc.", 2× „m.sc." → znormalizowane).
+
+#### Reguły (zastosowane)
+Zamieniane TYLKO formy z błędnym/niejednolitym tytułem (`Dr/dr/Dr./Др/д-р/доктор` + nazwisko, `, DDS`, `Marcin Nowosielski, Zahnarzt`, possessive `Dr X's`) → kanoniczna per-locale. **NIE** dopisywano M.Sc. do gołych „Marcin Nowosielski" (ryzyko podwójnego M.Sc. + gramatyka). Schema `name` w `personSchemas.ts` **zostaje** „Marcin Nowosielski" (tytuł w `honorificPrefix`/`Suffix` — poprawne structured data). Deklinacja PL/UA zachowana. **Poza zakresem (świadomie):** `reviews.ts` (cytaty pacjentów = naturalna mowa), `mock-patient-data.ts` (demo), inni lekarze w `SymptomData.en/de` („Dr. Ilona/Katarzyna/Dominika, DDS" — nieznane kwalifikacje, nie ruszam), komentarz `seo.ts:714`.
+
+#### Zmiany (kod+i18n deploy od razu; DB-część w mig 169)
+- **i18n:** `messages/{pl,en,de,ua}/{common,pages}.json` — **101 zamian** (skrypt: uporządkowane per-locale, najdłuższe/possessive/DDS pierwsze → bez podwójnego M.Sc.; JSON valid). Nagłówki gramatycznie poprawne (np. PL „Rola lek. dent. Marcina Nowosielskiego M.Sc. w organizacji", EN possessive „Marcin Nowosielski M.Sc.'s role", blog EN „Marcin Nowosielski's Blog", UA „Блог Марціна Новосельського").
+- **Kod (36 zamian):** `brandConfig.ts`, `page.tsx` (HOMEPAGE_SEO ×4 locale incl. UA cyrylica), `seo.ts` + `seoTranslations.ts` (breadcrumb/PAGE_SEO/blog), `o-nas/page.tsx` (fix „lek. dent. M. Sc. / Marcin Nowosielski" → pełna forma), `mapa-bolu/SymptomData.{ts,en,de,ua}.ts` (karta lekarza — wszystkie 4 locale, UA fix transliteracji „Новосєльскі"→„Новосельський"), `nowosielski/[slug]` (blog name), `aplikacja`, `YouTubeFeed` (social labels), `knowledgeBase.ts` (KB feed AI), `clinic-stats.ts` (komentarz), admin UI (`admin/page.tsx`, `BlogTab.tsx`, `ThemeEditor.tsx`).
+
+#### Migracja (NIE WGRANA, idempotentna, OBA Supabase)
+- **169** `unify_specialist_naming_content.sql` — `replace()` zagnieżdżone (najspecyficzniejsze najgłębiej → brak podwójnego M.Sc.) dla **articles** (per locale WHERE) + **news** (kolumny per-locale `content_en/de/ua`). Pokrywa: 11 art. EN/DE + 3 art. UA (cyrylica „Д-р/д-р") + 1 PL (instrumental „z dr. Marcinem" → „z lek. dent. Marcinem Nowosielskim M.Sc.") + news EN „DDS". News DE „Zahnarzt Marcin Nowosielski M.Sc." już kanoniczne — nietknięte. Kopia `~/Desktop/migracje_supabase/migracja_169_*.txt`.
+
+#### Weryfikacja
+Build clean (217), test 123/123, preview prod :3001 — PL/EN/DE/UA pokazują poprawne formy (o-nas „lek. dent. Marcin Nowosielski", homepage meta ×4 locale, akredytacje „Rola lek. dent. Marcina Nowosielskiego M.Sc."), **0 residuali wrong-title** (output-facing), **0 MISSING_MESSAGE**. sw.js+route-mtimes drift cofnięty.
+
+#### 🚨 Manual Marcin
+1. **Wgrać mig 169** na OBU Supabase (idempotentna) — ujednolica treść artykułów/news.
+2. Po deployu: Rich Results Test (Physician — `name` bez zmian, honorific OK) + GSC re-submit.
+
+#### Brak env var. Deploy: produkcja + demo.
+
+---
 
 ### 2026-06-15 #4 — 🧹 Sprzątanie Bazy Wiedzy (GEO audyt 5.3): usuń A + scal B + noindex C + borderline drafty
 
