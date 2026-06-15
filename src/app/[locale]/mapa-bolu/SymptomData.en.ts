@@ -6,7 +6,7 @@
 import type { ZoneInfo } from './SymptomData';
 
 export const DOCTORS_EN: Record<string, { name: string; specialties: string }> = {
-    marcin: { name: 'Dr. Marcin Nowosielski, DDS', specialties: 'Surgery, advanced endodontics, implant prosthetics' },
+    marcin: { name: 'Dentist Marcin Nowosielski M.Sc.', specialties: 'Surgery, advanced endodontics, implant prosthetics' },
     ilona: { name: 'Dr. Ilona Piechaczek, DDS', specialties: 'Endodontics, prosthetics' },
     katarzyna: { name: 'Dr. Katarzyna Halupczok, DDS', specialties: 'Restorative dentistry, pediatric dentistry' },
     dominika: { name: 'Dr. Dominika Milicz, DDS', specialties: 'Restorative dentistry, pediatric dentistry' },

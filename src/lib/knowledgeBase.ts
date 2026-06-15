@@ -18,7 +18,7 @@ export const KNOWLEDGE_BASE = `
     - **Rola**: "Dusza gabinetu". Dba o atmosferę i bezpieczeństwo. Zajmuje się metamorfozami i organizacją.
     - **Cechy**: Niezwykle empatyczna, potrafi uspokoić każdego pacjenta.
 
-### HISTORIA I EDKUACJA DR MARCINA (Z BLOGA NOWOSIELSKI.PL)
+### HISTORIA I EDUKACJA MARCINA NOWOSIELSKIEGO (Z BLOGA NOWOSIELSKI.PL)
 - **Pseudonim**: "Dental MacGyver" (YouTube) - pokazuje tricki stomatologiczne.
 - **Pochodzenie**: Głubczyce (Opolszczyzna). Absolwent Liceum nr II w Opolu (mieszkał w internacie, co uważa za "szkołę życia").
 - **Studia**: Akademia Medyczna we Wrocławiu (ukończona w 2013). Pierwszy lekarz w rodzinie.

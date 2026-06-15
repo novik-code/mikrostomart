@@ -1395,7 +1395,7 @@ export default function AdminPage() {
 
                     {/* AI GENERATOR SECTION (Reused logic) */}
                     <div style={{ marginBottom: "2rem", paddingBottom: "2rem", borderBottom: "1px solid var(--color-border)" }}>
-                        <h3 style={{ marginBottom: "1rem", color: "var(--color-primary)" }}>✨ Generator AI (Styl Dr. Marcina)</h3>
+                        <h3 style={{ marginBottom: "1rem", color: "var(--color-primary)" }}>✨ Generator AI (Styl Marcina Nowosielskiego)</h3>
                         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                             <input
                                 placeholder="Temat posta (np. Dlaczego warto leczyć kanałowo?)"
@@ -2166,7 +2166,7 @@ export default function AdminPage() {
                             {activeTab === 'products' && 'Zarządzanie Produktami'}
                             {activeTab === 'news' && 'Aktualności'}
                             {activeTab === 'articles' && 'Baza Wiedzy'}
-                            {activeTab === 'blog' && 'Blog (Dr. Marcin Nowosielski)'}
+                            {activeTab === 'blog' && 'Blog (Marcin Nowosielski)'}
                             {activeTab === 'questions' && 'Pytania do Eksperta'}
                             {activeTab === 'employees' && 'Pracownicy — Zarządzanie Zespołem'}
                             {activeTab === 'patient-communication' && '📨 Komunikacja z Pacjentem'}

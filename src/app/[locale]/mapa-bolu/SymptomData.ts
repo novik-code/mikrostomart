@@ -30,7 +30,7 @@ export interface ZoneInfo {
 
 // Doctor competencies for recommendations
 export const DOCTORS: Record<string, { name: string; specialties: string }> = {
-    marcin: { name: 'lek. dent. Marcin Nowosielski', specialties: 'Chirurgia, zaawansowana endodoncja, protetyka na implantach' },
+    marcin: { name: 'lek. dent. Marcin Nowosielski M.Sc.', specialties: 'Chirurgia, zaawansowana endodoncja, protetyka na implantach' },
     ilona: { name: 'lek. dent. Ilona Piechaczek', specialties: 'Endodoncja, protetyka' },
     katarzyna: { name: 'lek. dent. Katarzyna Halupczok', specialties: 'Stomatologia zachowawcza, stomatologia dziecięca' },
     dominika: { name: 'lek. dent. Dominika Milicz', specialties: 'Stomatologia zachowawcza, stomatologia dziecięca' },

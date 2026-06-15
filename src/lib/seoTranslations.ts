@@ -608,19 +608,19 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
     // ───────── /nowosielski (Dr Nowosielski blog) ─────────
     '/nowosielski': {
         pl: {
-            title: 'Blog Dr Nowosielski | Mikrostomart Stomatolog Opole',
-            description: 'Blog dr Marcina Nowosielskiego — implantolog i mikroskopowy endodonta. Praktyczne porady, opisy przypadków, edukacja stomatologiczna z gabinetu w Opolu.',
+            title: 'Blog Marcina Nowosielskiego | Mikrostomart Stomatolog Opole',
+            description: 'Blog lek. dent. Marcina Nowosielskiego M.Sc. — implantolog i mikroskopowy endodonta. Praktyczne porady, opisy przypadków, edukacja stomatologiczna z gabinetu w Opolu.',
             keywords: 'dr nowosielski blog, marcin nowosielski stomatolog, blog dentystyczny opole, opisy przypadków stomatologia',
         },
         en: {
-            title: "Dr Nowosielski's Blog | Mikrostomart Opole",
-            description: "Dr Marcin Nowosielski's blog — implantologist and microscopic endodontist. Case studies, practical advice, dental education from Opole, Poland.",
+            title: "Marcin Nowosielski's Blog | Mikrostomart Opole",
+            description: "Marcin Nowosielski M.Sc.'s blog — implantologist and microscopic endodontist. Case studies, practical advice, dental education from Opole, Poland.",
             keywords: 'dr nowosielski blog, dental case studies, dental education, microscopic endodontics blog',
         },
         de: {
-            title: 'Blog Dr Nowosielski | Mikrostomart Opole',
-            description: 'Blog von Dr Marcin Nowosielski — Implantologe und mikroskopischer Endodontologe. Fallstudien, praktische Tipps, Zahnmedizin-Bildung aus Opole.',
-            keywords: 'Dr Nowosielski Blog, Zahnmedizin Fallstudien, Implantologie Blog, Endodontie Blog',
+            title: 'Blog Marcin Nowosielski | Mikrostomart Opole',
+            description: 'Blog von Zahnarzt Marcin Nowosielski M.Sc. — Implantologe und mikroskopischer Endodontologe. Fallstudien, praktische Tipps, Zahnmedizin-Bildung aus Opole.',
+            keywords: 'Marcin Nowosielski Blog, Zahnmedizin Fallstudien, Implantologie Blog, Endodontie Blog',
         },
         ua: {
             title: 'Блог д-ра Новосельського | Mikrostomart Ополе',
@@ -856,7 +856,7 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
     '/leczenie-kanalowe-opole-mikroskop': {
         pl: {
             title: 'Leczenie kanałowe Opole mikroskop ZEISS | Endodonta Mikrostomart',
-            description: 'Endodoncja mikroskopowa w Opolu (ZEISS Extaro) od 800 zł. Lasery PIPS/SWEEPS, re-endodoncja trudnych przypadków. Specjalność dr. Nowosielskiego (PTE/ESE).',
+            description: 'Endodoncja mikroskopowa w Opolu (ZEISS Extaro) od 800 zł. Lasery PIPS/SWEEPS, re-endodoncja trudnych przypadków. Specjalność lek. dent. Marcina Nowosielskiego M.Sc. (PTE/ESE).',
             keywords: 'leczenie kanałowe opole, leczenie kanałowe pod mikroskopem opole, endodoncja opole, endodonta opole, leczenie kanałowe opole cena, mikroskop zeiss opole',
         },
         en: {

@@ -111,7 +111,7 @@
         "healthTitle": "Dziąsła a zdrowie całego organizmu",
         "healthText": "Przewlekły stan zapalny dziąseł nie dotyczy tylko jamy ustnej. Badania wiążą nieleczoną paradontozę z podwyższonym ryzykiem chorób serca, gorszą kontrolą cukrzycy oraz powikłaniami w ciąży. Dbanie o dziąsła to realna inwestycja w zdrowie ogólne — a leczenie przyzębia często poprawia samopoczucie i komfort życia.",
         "whyTitle": "Dlaczego u nas",
-        "whyText": "Leczenie prowadzimy w oparciu o dokładną diagnostykę i nowoczesny protokół laserowy. Dr Marcin Nowosielski (Master of Science in Lasers in Dentistry, RWTH Aachen) wykorzystuje laser m.in. w periodontologii i leczeniu periimplantitis, a faza podtrzymująca prowadzona przez naszą higienistkę dba o trwałość efektu. Stawiamy na zatrzymanie choroby i ratowanie własnych zębów Pacjenta.",
+        "whyText": "Leczenie prowadzimy w oparciu o dokładną diagnostykę i nowoczesny protokół laserowy. lek. dent. Marcin Nowosielski M.Sc. (Master of Science in Lasers in Dentistry, RWTH Aachen) wykorzystuje laser m.in. w periodontologii i leczeniu periimplantitis, a faza podtrzymująca prowadzona przez naszą higienistkę dba o trwałość efektu. Stawiamy na zatrzymanie choroby i ratowanie własnych zębów Pacjenta.",
         "faqTitle": "Najczęściej zadawane pytania",
         "faqQ1": "Czy paradontozę da się wyleczyć?",
         "faqA1": "Paradontoza to choroba przewlekła — nie „znika” całkowicie, ale można ją skutecznie zatrzymać i utrzymać pod kontrolą. Kluczowe są wczesne leczenie i regularna faza podtrzymująca.",
@@ -224,7 +224,7 @@
         "title": "Stomatologia laserowa",
         "subtitle": "Laser Fotona LightWalker — mniej bólu, często bez wiertła i bez skalpela, szybsze gojenie",
         "intro1": "Laser w stomatologii to nie gadżet — to precyzyjne narzędzie, które w wielu zabiegach zastępuje wiertło i skalpel. W klinice Mikrostomart w Opolu pracujemy na laserze Fotona LightWalker, jednym z najbardziej zaawansowanych systemów dentystycznych na świecie. Dzięki niemu wiele procedur — od leczenia kanałowego, przez chirurgię dziąseł, po odkażanie kieszonek przyzębnych — wykonujemy dokładniej, mniej inwazyjnie i z większym komfortem dla pacjenta.",
-        "intro2": "Laseroterapia to dziedzina, w której naprawdę się specjalizujemy. Dr Marcin Nowosielski ukończył studia Master of Science in Lasers in Dentistry na RWTH Aachen University — jako drugi w Polsce i najmłodszy w kraju — a wiedzą z zakresu laserów dzieli się jako wykładowca międzynarodowej akademii LA&HA. To realne kompetencje, nie hasło marketingowe.",
+        "intro2": "Laseroterapia to dziedzina, w której naprawdę się specjalizujemy. lek. dent. Marcin Nowosielski M.Sc. ukończył studia Master of Science in Lasers in Dentistry na RWTH Aachen University — jako drugi w Polsce i najmłodszy w kraju — a wiedzą z zakresu laserów dzieli się jako wykładowca międzynarodowej akademii LA&HA. To realne kompetencje, nie hasło marketingowe.",
         "fotonaTitle": "Fotona LightWalker — dwa lasery w jednym urządzeniu",
         "fotonaIntro": "LightWalker łączy dwie długości fali, które uzupełniają się w codziennej praktyce. Pozwala to dobrać tryb pracy idealnie do konkretnego zabiegu — od delikatnej tkanki miękkiej, przez twardą strukturę zęba, po głęboką dezynfekcję kanałów.",
         "advantage1Title": "Er:YAG 2940 nm — tkanki twarde i irygacja kanałów",
@@ -252,7 +252,7 @@
         "app7Title": "Wspomaganie estetyki i wybielania",
         "app7Text": "Laser wspiera zabiegi estetyczne — od przygotowania tkanek pod licówki, po laserowe wspomaganie wybielania i modelowanie linii dziąseł dla harmonijnego uśmiechu.",
         "authorityTitle": "Laser w rękach eksperta — M.Sc. RWTH Aachen",
-        "authorityDesc": "W stomatologii laserowej liczy się nie samo urządzenie, lecz wiedza i doświadczenie operatora. Dr Marcin Nowosielski jest absolwentem prestiżowych studiów Master of Science in Lasers in Dentistry na RWTH Aachen University (z wyróżnieniem) — jako drugi w Polsce i najmłodszy w kraju. Jest wykładowcą Laser and Health Academy (LA&HA), z którą występował m.in. na sympozjach w Słowenii (2019, 2023) oraz jako keynote speaker w Polsce (2022). Dzięki temu protokoły laserowe stosowane w Mikrostomart opierają się na aktualnej wiedzy naukowej, a nie na intuicji.",
+        "authorityDesc": "W stomatologii laserowej liczy się nie samo urządzenie, lecz wiedza i doświadczenie operatora. lek. dent. Marcin Nowosielski M.Sc. jest absolwentem prestiżowych studiów Master of Science in Lasers in Dentistry na RWTH Aachen University (z wyróżnieniem) — jako drugi w Polsce i najmłodszy w kraju. Jest wykładowcą Laser and Health Academy (LA&HA), z którą występował m.in. na sympozjach w Słowenii (2019, 2023) oraz jako keynote speaker w Polsce (2022). Dzięki temu protokoły laserowe stosowane w Mikrostomart opierają się na aktualnej wiedzy naukowej, a nie na intuicji.",
         "benefitsTitle": "Co zyskuje pacjent",
         "benefitsIntro": "Leczenie laserowe to wymierne korzyści, a nie tylko technologiczna ciekawostka:",
         "benefit1": "Mniej bólu w trakcie i po zabiegu — często bez znieczulenia.",
@@ -469,7 +469,7 @@
         "next": "Następna"
     },
     "nowosielski": {
-        "title": "Blog Dr. Marcina",
+        "title": "Blog lek. dent. Marcina Nowosielskiego M.Sc.",
         "loading": "Ładowanie postów...",
         "empty": "Brak wpisów.",
         "readMore": "Czytaj więcej",
@@ -625,7 +625,7 @@
         },
         "catEndodoncja": {
             "title": "Endodoncja mikroskopowa",
-            "desc": "Leczenie kanałowe pod mikroskopem ZEISS Extaro, lasery PIPS/SWEEPS, re-endodoncja trudnych przypadków. Specjalność dr Nowosielskiego — Curriculum PTE + ESE.",
+            "desc": "Leczenie kanałowe pod mikroskopem ZEISS Extaro, lasery PIPS/SWEEPS, re-endodoncja trudnych przypadków. Specjalność lek. dent. Marcina Nowosielskiego M.Sc. — Curriculum PTE + ESE.",
             "priceLabel": "od 800 zł"
         },
         "catImplantologia": {
@@ -1732,7 +1732,7 @@
         "doctorHeading": "Twój implantolog w Opolu",
         "doctorLead": "lek. dent. Marcin Nowosielski — implantolog, M.Sc. RWTH Aachen.",
         "doctorBio": "Marcin Nowosielski specjalizuje się w implantologii i mikroskopowej endodoncji. Tytuł Master of Science in Lasers in Dentistry uzyskał na RWTH Aachen. Pełne rekonstrukcje na implantach (All-on-4, All-on-6) planuje cyfrowo, z wykorzystaniem PRF i renomowanych systemów implantologicznych — stawiając na precyzję, komfort i trwały efekt.",
-        "doctorCta": "Poznaj dr. Nowosielskiego →",
+        "doctorCta": "Poznaj lek. dent. Marcina Nowosielskiego M.Sc. →",
         "reviewsHeading": "Opinie pacjentów",
         "reviewsIntro": "Zobacz, co o leczeniu w Mikrostomart mówią pacjenci w Google.",
         "faqHeading": "Najczęstsze pytania — All-on-4 / All-on-6 Opole",
@@ -1822,7 +1822,7 @@
         "heroTagline": "Endodoncja mikroskopowa w Opolu",
         "heroTitle": "Leczenie kanałowe w Opolu",
         "heroAccent": "pod mikroskopem ZEISS",
-        "heroLead": "Mikroskop ZEISS Extaro powiększa kanały zęba 4-25 razy. Lasery PIPS/SWEEPS dezynfekują obszary nieosiągalne dla narzędzi. Re-endodoncja zębów uznanych za stracone w innych gabinetach. Specjalność dr Nowosielskiego — Curriculum Endodontyczne PTE, członek ESE, autor 4 publikacji w Magazyn Stomatologiczny.",
+        "heroLead": "Mikroskop ZEISS Extaro powiększa kanały zęba 4-25 razy. Lasery PIPS/SWEEPS dezynfekują obszary nieosiągalne dla narzędzi. Re-endodoncja zębów uznanych za stracone w innych gabinetach. Specjalność lek. dent. Marcina Nowosielskiego M.Sc. — Curriculum Endodontyczne PTE, członek ESE, autor 4 publikacji w Magazyn Stomatologiczny.",
         "heroCta": "Umów konsultację endodontyczną",
         "heroCtaSecondary": "Zapytaj o wycenę",
 

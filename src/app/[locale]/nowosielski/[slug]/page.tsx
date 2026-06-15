@@ -192,9 +192,9 @@ export default async function BlogPost({
     // J-1 (2026-05-12): added articleSection + wordCount (+ keywords if tags present).
     // BlogPosting content is HTML (legacy import), so word count strips tags first.
     const SECTION_LABELS: Record<string, string> = {
-        pl: 'Blog Dr Nowosielski',
-        en: "Dr Nowosielski's Blog",
-        de: 'Dr Nowosielski Blog',
+        pl: 'Blog Marcina Nowosielskiego',
+        en: "Marcin Nowosielski's Blog",
+        de: 'Marcin Nowosielski Blog',
         ua: 'Блог д-ра Новосельського',
     };
     const wordCount = (post.content || '')

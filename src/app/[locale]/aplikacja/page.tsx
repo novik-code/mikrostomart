@@ -289,7 +289,7 @@ export default function AplikacjaPage() {
                         <div style={{ background: `${BRAND}18`, border: `1px solid ${BRAND}30`, borderRadius: '0.75rem', padding: '0.75rem' }}>
                             <div style={{ fontSize: '0.6rem', color: BRAND_LIGHT, fontWeight: 600, marginBottom: '0.2rem' }}>NASTĘPNA WIZYTA</div>
                             <div style={{ fontSize: '0.75rem', color: 'white', fontWeight: 700 }}>Wt, 4 marca 2026</div>
-                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)' }}>godz. 10:30 · Dr. Nowosielski</div>
+                            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.5)' }}>godz. 10:30 · lek. dent. Marcin Nowosielski M.Sc.</div>
                         </div>
                         {[
                             { icon: '💬', text: 'Nowa wiadomość od recepcji', time: '5 min temu' },

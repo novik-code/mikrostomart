@@ -281,7 +281,7 @@ export default function YouTubeFeed() {
                                     icon: <Instagram size={28} />,
                                     url: "https://www.instagram.com/nowosielski_marcin/",
                                     color: "#E1306C",
-                                    label: "Dr Marcin IG",
+                                    label: "Marcin Nowosielski IG",
                                     hoverColor: "rgba(225,48,108,0.1)",
                                     badge: "user"
                                 },
@@ -297,7 +297,7 @@ export default function YouTubeFeed() {
                                     icon: <Facebook size={28} />,
                                     url: "https://www.facebook.com/marcindentist/",
                                     color: "#1877F2",
-                                    label: "Dr Marcin FB",
+                                    label: "Marcin Nowosielski FB",
                                     hoverColor: "rgba(24,119,242,0.1)",
                                     badge: "user"
                                 },

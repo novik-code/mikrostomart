@@ -128,7 +128,7 @@ export default function BlogTab({ initialBlogPosts }: { initialBlogPosts: any[] 
 
                     {/* AI GENERATOR SECTION (Reused logic) */}
                     <div style={{ marginBottom: "2rem", paddingBottom: "2rem", borderBottom: "1px solid var(--color-border)" }}>
-                        <h3 style={{ marginBottom: "1rem", color: "var(--color-primary)" }}>✨ Generator AI (Styl Dr. Marcina)</h3>
+                        <h3 style={{ marginBottom: "1rem", color: "var(--color-primary)" }}>✨ Generator AI (Styl Marcina Nowosielskiego)</h3>
                         <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                             <input
                                 placeholder="Temat posta (np. Dlaczego warto leczyć kanałowo?)"

@@ -19,27 +19,27 @@ import HomeClient from "./HomeClient";
 const HOMEPAGE_SEO: Record<string, { title: string; description: string; ogTitle: string; ogDescription: string }> = {
     pl: {
         title: 'Stomatolog Opole | Mikrostomart — M.Sc. RWTH Aachen, mikroskop ZEISS',
-        description: 'Mikrostomart — dr Marcin Nowosielski, M.Sc. RWTH Aachen. Implanty, leczenie kanałowe pod mikroskopem ZEISS, laser Fotona. Opole, od 2016.',
+        description: 'Mikrostomart — lek. dent. Marcin Nowosielski M.Sc. RWTH Aachen. Implanty, leczenie kanałowe pod mikroskopem ZEISS, laser Fotona. Opole, od 2016.',
         ogTitle: 'Mikrostomart Opole — Stomatologia premium | M.Sc. RWTH Aachen',
-        ogDescription: 'Dr Marcin Nowosielski, drugi w Polsce z Master of Science RWTH Aachen. Mikroskop ZEISS, laser Fotona, implantologia cyfrowa. Opole.',
+        ogDescription: 'lek. dent. Marcin Nowosielski M.Sc., drugi w Polsce z Master of Science RWTH Aachen. Mikroskop ZEISS, laser Fotona, implantologia cyfrowa. Opole.',
     },
     en: {
         title: 'Dentist in Opole, Poland | Mikrostomart — M.Sc. RWTH Aachen',
-        description: 'Mikrostomart — Dr Marcin Nowosielski, M.Sc. RWTH Aachen. Dental implants, microscopic root canal, Fotona laser. Opole, Poland — since 2016.',
+        description: 'Mikrostomart — Dentist Marcin Nowosielski M.Sc. RWTH Aachen. Dental implants, microscopic root canal, Fotona laser. Opole, Poland — since 2016.',
         ogTitle: 'Mikrostomart Opole — Premium Dental Clinic | M.Sc. RWTH Aachen',
-        ogDescription: 'Dr Marcin Nowosielski — second dentist in Poland with Master of Science from RWTH Aachen. ZEISS microscope, Fotona laser, digital implantology.',
+        ogDescription: 'Dentist Marcin Nowosielski M.Sc. — second dentist in Poland with Master of Science from RWTH Aachen. ZEISS microscope, Fotona laser, digital implantology.',
     },
     de: {
         title: 'Zahnarzt in Opole, Polen | Mikrostomart — M.Sc. RWTH Aachen',
-        description: 'Mikrostomart — Dr. Marcin Nowosielski, M.Sc. RWTH Aachen. Zahnimplantate, mikroskopische Wurzelkanalbehandlung, Fotona-Laser. Opole — seit 2016.',
+        description: 'Mikrostomart — Zahnarzt Marcin Nowosielski M.Sc. RWTH Aachen. Zahnimplantate, mikroskopische Wurzelkanalbehandlung, Fotona-Laser. Opole — seit 2016.',
         ogTitle: 'Mikrostomart Opole — Premium-Zahnarztpraxis | M.Sc. RWTH Aachen',
-        ogDescription: 'Dr. Marcin Nowosielski — zweiter Zahnarzt in Polen mit Master of Science der RWTH Aachen. ZEISS-Mikroskop, Fotona-Laser, digitale Implantologie.',
+        ogDescription: 'Zahnarzt Marcin Nowosielski M.Sc. — zweiter Zahnarzt in Polen mit Master of Science der RWTH Aachen. ZEISS-Mikroskop, Fotona-Laser, digitale Implantologie.',
     },
     ua: {
         title: 'Стоматолог в Ополе, Польща | Mikrostomart — M.Sc. RWTH Aachen',
-        description: 'Mikrostomart — др. Марцін Новосельський, M.Sc. RWTH Aachen. Імпланти, ендодонтія під мікроскопом ZEISS, лазер Fotona. Ополе, з 2016.',
+        description: 'Mikrostomart — лікар-стоматолог Марцін Новосельський M.Sc. RWTH Aachen. Імпланти, ендодонтія під мікроскопом ZEISS, лазер Fotona. Ополе, з 2016.',
         ogTitle: 'Mikrostomart Ополе — Преміум-стоматологія | M.Sc. RWTH Aachen',
-        ogDescription: 'Др. Марцін Новосельський — другий стоматолог у Польщі з Master of Science RWTH Aachen. Мікроскоп ZEISS, лазер Fotona, цифрова імплантологія.',
+        ogDescription: 'Лікар-стоматолог Марцін Новосельський M.Sc. — другий стоматолог у Польщі з Master of Science RWTH Aachen. Мікроскоп ZEISS, лазер Fotona, цифрова імплантологія.',
     },
 };
 

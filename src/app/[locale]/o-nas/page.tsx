@@ -242,7 +242,7 @@ export default function AboutPage() {
                                     {t('marcinRole')}
                                 </p>
                                 <h2 style={{ fontSize: "3rem", marginBottom: "var(--spacing-md)", lineHeight: 1.1 }}>
-                                    lek. dent. M. Sc.<br /> Marcin Nowosielski
+                                    lek. dent. Marcin Nowosielski<br /> M.Sc.
                                 </h2>
                                 <blockquote style={{
                                     fontStyle: "italic",

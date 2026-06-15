@@ -20,7 +20,7 @@ export const CLINIC_STATS = {
     foundedYear: 2016,
     yearsActive: 10, // computed: currentYear - foundedYear
 
-    // dr Marcin Nowosielski osobiście (Prodentis ID 0100000001)
+    // lek. dent. Marcin Nowosielski M.Sc. osobiście (Prodentis ID 0100000001)
     marcin: {
         implants: 1085,
         rootCanals: 1861,

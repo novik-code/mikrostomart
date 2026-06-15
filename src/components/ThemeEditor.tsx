@@ -905,7 +905,7 @@ export default function ThemeEditor() {
                             <div>
                                 <h4 style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Strony & sekcje</h4>
                                 <ToggleSwitch label="Sklep" description="Sklep internetowy" value={theme.features.shop} onChange={(v) => updateFeature('shop', v)} />
-                                <ToggleSwitch label="Blog" description="Blog Dr. Nowosielskiego" value={theme.features.blog} onChange={(v) => updateFeature('blog', v)} />
+                                <ToggleSwitch label="Blog" description="Blog Marcina Nowosielskiego" value={theme.features.blog} onChange={(v) => updateFeature('blog', v)} />
                                 <ToggleSwitch label="FAQ" description="Najczęstsze pytania" value={theme.features.faq} onChange={(v) => updateFeature('faq', v)} />
                                 <ToggleSwitch label="Baza wiedzy" description="Artykuły edukacyjne" value={theme.features.knowledgeBase} onChange={(v) => updateFeature('knowledgeBase', v)} />
                                 <ToggleSwitch label="Kalkulator leczenia" description="Wycena kosztów leczenia" value={theme.features.treatmentCalculator} onChange={(v) => updateFeature('treatmentCalculator', v)} />

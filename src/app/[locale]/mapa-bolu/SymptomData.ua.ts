@@ -6,7 +6,7 @@
 import type { ZoneInfo } from './SymptomData';
 
 export const DOCTORS_UA: Record<string, { name: string; specialties: string }> = {
-    marcin: { name: 'лік. стом. Марцін Новосєльскі', specialties: 'Хірургія, ендодонтія, протезування на імплантатах' },
+    marcin: { name: 'лікар-стоматолог Марцін Новосельський M.Sc.', specialties: 'Хірургія, ендодонтія, протезування на імплантатах' },
     ilona: { name: 'лік. стом. Ілона Пєхачек', specialties: 'Ендодонтія, протезування' },
     katarzyna: { name: 'лік. стом. Катажина Галупчок', specialties: 'Терапевтична стоматологія, дитяча стоматологія' },
     dominika: { name: 'лік. стом. Домініка Мілич', specialties: 'Терапевтична стоматологія, дитяча стоматологія' },
