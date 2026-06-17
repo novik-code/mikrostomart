@@ -100,6 +100,8 @@ export default function BeforeAfterSlider({ beforeImage, afterImage, maskImage, 
                         <img
                             src={beforeImage}
                             alt={beforeAlt || t('before')}
+                            loading="lazy"
+                            decoding="async"
                             style={{
                                 position: 'absolute', top: 0, left: 0,
                                 width: '100%', height: '100%',
@@ -112,6 +114,8 @@ export default function BeforeAfterSlider({ beforeImage, afterImage, maskImage, 
                     <img
                         src={afterImage}
                         alt={afterAlt || t('after')}
+                        loading="lazy"
+                        decoding="async"
                         style={{
                             width: '100%',
                             height: '100%',
@@ -163,6 +167,8 @@ export default function BeforeAfterSlider({ beforeImage, afterImage, maskImage, 
                     <img
                         src={beforeImage}
                         alt={beforeAlt || t('before')}
+                        loading="lazy"
+                        decoding="async"
                         style={{
                             width: '100%',
                             height: '100%',

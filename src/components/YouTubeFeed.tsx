@@ -171,20 +171,23 @@ export default function YouTubeFeed() {
                                             >
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img
-                                                    src={`https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
+                                                    src={`https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`}
                                                     alt={video.title}
-                                                    width={480}
-                                                    height={360}
+                                                    width={320}
+                                                    height={180}
                                                     loading="lazy"
+                                                    decoding="async"
                                                     onError={(e) => {
-                                                        // Faza G3: fallback dla filmów które nie mają hqdefault (480p
-                                                        // jest opcjonalne w YouTube CDN). mqdefault (320×180) zawsze
-                                                        // istnieje — używamy jako safe fallback. Bez tego widać
-                                                        // broken-image icon i Lighthouse flaguje 404 w Best Practices.
+                                                        // 2026-06-17: mqdefault (320×180, 16:9) istnieje dla KAŻDego
+                                                        // filmu (też Shortów). Wcześniej hqdefault (480×360, 4:3) bywał
+                                                        // 404 dla Shortów → błąd 404 w konsoli ZANIM zadziałał fallback
+                                                        // → Lighthouse Best Practices -4 (intermittent, zależny od feedu).
+                                                        // mqdefault eliminuje 404 + jest natywnie 16:9 (bez kadrowania).
+                                                        // Fallback do default.jpg (120×90) jako ostateczna obrona.
                                                         const img = e.currentTarget;
                                                         if (!img.dataset.fallback) {
                                                             img.dataset.fallback = '1';
-                                                            img.src = `https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`;
+                                                            img.src = `https://i.ytimg.com/vi/${video.id}/default.jpg`;
                                                         }
                                                     }}
                                                     style={{
