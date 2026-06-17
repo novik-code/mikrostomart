@@ -139,7 +139,9 @@ const PROD_BRAND: BrandConfig = {
     titleTemplate: '%s | Mikrostomart - Dentysta Opole',
     description: 'Mikrostomart — lek. dent. Marcin Nowosielski M.Sc. RWTH Aachen. Implanty, leczenie kanałowe pod mikroskopem ZEISS, laser Fotona. Opole, od 2016.',
     keywords: 'dentysta opole, stomatolog opole, implanty opole, leczenie kanałowe opole, mikrostomart, stomatologia mikroskopowa',
-    ogSiteName: 'Mikrostomart - Dentysta Opole',
+    // Site name: zasila og:site_name ORAZ WebSite schema "name" (Google "site name" w SERP
+    // strony głównej). Premium (mikroskopowa = specjalista) + lokalne (Opole). 2026-06-17.
+    ogSiteName: 'Mikrostomart - Stomatologia Mikroskopowa Opole',
     ogImageAlt: 'Mikrostomart - Mikroskopowa Stomatologia Artystyczna w Opolu',
 
     // Social — H8 (2026-05-10): real URLs (były hardcoded w YouTubeFeed.tsx).

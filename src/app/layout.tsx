@@ -269,7 +269,15 @@ function SchemaOrg({ aggregateRating, reviews, locale }: { aggregateRating: Aggr
                         "@context": "https://schema.org",
                         "@type": "WebSite",
                         "@id": `${brand.appUrl}/#website`,
-                        "name": brand.name,
+                        // 2026-06-17: Google "site name" feature bierze nazwę witryny z TEGO pola
+                        // i podmienia nią <title> strony głównej w SERP (także dla zapytań typu
+                        // "dentysta opole" gdy rankuje homepage). Gołe brand.name="Mikrostomart"
+                        // dawało w wynikach samą markę. ogSiteName (premium: "Stomatologia
+                        // Mikroskopowa Opole") jest spójne z emitowanym og:site_name → Google
+                        // chętniej uzna tę nazwę zamiast wracać do gołej marki.
+                        // NIE używamy brand.name (49 innych miejsc: krótki brand w <title>) ani
+                        // application-name/appleWebApp.title (muszą zostać "Mikrostomart" = nazwa PWA).
+                        "name": brand.ogSiteName,
                         "url": brand.schemaUrl,
                         "inLanguage": ["pl", "en", "de", "uk"],
                         "publisher": {
