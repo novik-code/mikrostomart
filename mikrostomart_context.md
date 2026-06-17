@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-17 — **perf hero**: tło hero = 5 losowych 10s pętli (mobile ~167 KB / desktop ~456 KB HD, desktop/mobile osobno, precache bez mp4) zamiast 5-min 3.4 MB pliku — commit `65b6677` (+docs). Wcześniej 2026-06-15 — **audyt GEO 2026-06-14**: fix liczników (4.1) ✅ `7497df8` · `llms.txt` ✅ `5d0364f` · **silnik treści KB Klasy A** ✅ `a7b8666` (mig **165-166**: auto-draft + self-critique + admin review, drafty noindex). **Sprzątanie KB ✅** `1ed6a76` (mig **167** DELETE Grupa A 19 + B losery 16 / mig **168** borderline 3 drafty / noindex Grupa C 24 code-side / 35 redirectów 301). **Unifikacja głównego specjalisty ✅** `b1d578d` (PL `lek. dent. Marcin Nowosielski M.Sc.` / EN `Dentist` / DE `Zahnarzt` / UA `лікар-стоматолог` + M.Sc.; i18n 8 plików + kod, mig **169** treść DB). Migracje do **169**. Reszta: #2 ceny protetyki + round 2 dubli KB (Recent Changes 2026-06-15). Wcześniej: **program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
+> **Last Updated:** 2026-06-17 — **perf Tier 1** (`c79e012`): metamorfozy `lazy`/`async` + YouTube miniatura `mqdefault` (eliminuje intermittent 404 Shortów → Best Practices). · **perf hero**: tło hero = 5 losowych 10s pętli (mobile ~167 KB / desktop ~456 KB HD, desktop/mobile osobno, precache bez mp4) zamiast 5-min 3.4 MB pliku — commit `65b6677` (+docs). Wcześniej 2026-06-15 — **audyt GEO 2026-06-14**: fix liczników (4.1) ✅ `7497df8` · `llms.txt` ✅ `5d0364f` · **silnik treści KB Klasy A** ✅ `a7b8666` (mig **165-166**: auto-draft + self-critique + admin review, drafty noindex). **Sprzątanie KB ✅** `1ed6a76` (mig **167** DELETE Grupa A 19 + B losery 16 / mig **168** borderline 3 drafty / noindex Grupa C 24 code-side / 35 redirectów 301). **Unifikacja głównego specjalisty ✅** `b1d578d` (PL `lek. dent. Marcin Nowosielski M.Sc.` / EN `Dentist` / DE `Zahnarzt` / UA `лікар-стоматолог` + M.Sc.; i18n 8 plików + kod, mig **169** treść DB). Migracje do **169**. Reszta: #2 ceny protetyki + round 2 dubli KB (Recent Changes 2026-06-15). Wcześniej: **program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
@@ -2469,6 +2469,29 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-17 #2 — 🖼️ Perf Tier 1: metamorfozy lazy/async + YouTube miniatura mqdefault
+
+**Dokończenie Tier 1 z analizy PSI** (po hero #1; Marcin: „a Tier 1? tego chyba też nie zrobiliśmy"). Dwa zero-ryzyka fixy.
+
+#### Commit
+- `c79e012` — perf(images): metamorfozy lazy/async + YouTube miniatura mqdefault (Tier 1 PSI)
+
+#### Co zmienione
+- **`BeforeAfterSlider.tsx`** (podgląd metamorfoz w NarrativeSection homepage, poniżej folda) — 3× `<img>` (raw, bo maska AI symulatora) dostały `loading="lazy"` + `decoding="async"`. Były eager → ładowane podczas initial load mimo że poniżej folda. Teraz deferowane → mniej kontencji o pasmo na mobile (Speed Index/transfer). **Jakość 920px ZACHOWANA** (zdjęcia-wizytówki before/after, retina-appropriate — świadomie NIE downscalowane mimo flagi „image delivery −103KB" w DPR-1 labie). Komponent współdzielony z symulatorem — bez regresji (w modalu obraz in-viewport → lazy ładuje od razu).
+- **`YouTubeFeed.tsx`** — miniatura `hqdefault.jpg` (480×360, 4:3) → `mqdefault.jpg` (320×180, **16:9 natywne**, istnieje dla KAŻDego filmu incl. Shorts). Powód: niektóre Shorty kanału (np. `q0ke4aGfhgM`/`CQCcjr0X4XU`/`nHG5wdz1H7s` z raportu PSI) nie mają `hqdefault` → 404 logowany w konsoli ZANIM zadziała `onError`-fallback → Lighthouse Best Practices −4 (intermittent, zależny od tego które filmy zwróci feed). mqdefault eliminuje 404 + lepszy aspekt (bez kadrowania). Fallback `onError` → `default.jpg`. width/height 480×360 → 320×180.
+
+#### Weryfikacja (preview prod :3001)
+Build clean (217), **test 123/123**. Metamorfozy: `loading=lazy`+`decoding=async`, **nieładowane przed scrollem** (deferred), po scrollu 200 (920px, nie broken). YouTube: `mqdefault.jpg` 200 (natW 320, nie broken), **0 ytimg 404**. **0 błędów konsoli.**
+
+#### Świadomie pominięte / osobny temat
+- Resize metamorfoz do ~560px (flaga PSI „−103KB") — NIE robione: to zdjęcia-wizytówki, 920px retina-appropriate; flaga jest DPR-1 lab. Lazy załatwia realny problem (initial path).
+- **Avatary Google Reviews `lh3...` → `ERR_BLOCKED_BY_ORB`** (pre-existing, GoogleReviews; transform `=s40`) — MOŻE współ-przyczyniać się do desktop BP flag; lokalnie nie loguje błędu konsoli; osobny temat gdyby BP nie doszło do 100.
+- Tier 3 (unused JS 182KB / Script-Eval 1255ms = realny lab-LCP/TBT) — wymaga bundle-analizy, na życzenie.
+
+#### Brak migracji / env var. Deploy: produkcja + demo.
+
+---
 
 ### 2026-06-17 — ⚡ Perf: hero background = 5 losowych 10s pętli (mobile/desktop osobno) zamiast 5-min pliku
 
