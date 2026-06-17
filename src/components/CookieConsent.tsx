@@ -66,9 +66,20 @@ export default async function CookieConsent() {
                 zIndex: 99999,
                 display: "flex",
                 flexDirection: "column",
-                gap: "1rem"
+                gap: "1rem",
+                // 2026-06-17 (CLS fix): baner startuje opacity:0 i jest ujawniany po
+                // document.fonts.ready (w CookieConsentButton). Dzięki temu reflow tekstu przy
+                // late-swap fontów na 4G dzieje się gdy baner jest NIEWIDOCZNY → nie liczy się do
+                // CLS (niewidoczne elementy nie kontrybuują). Box pozostaje SSR-owany (rezerwuje
+                // miejsce, brak late-insert). <noscript> + setTimeout(3s) gwarantują pokazanie
+                // banera bez JS / gdyby fonts.ready zawisł (wymóg prawny — zgoda musi być dostępna).
+                opacity: 0,
+                transition: "opacity 0.45s ease",
             }}
         >
+            <noscript>
+                <style>{`[data-cookie-banner]{opacity:1!important}`}</style>
+            </noscript>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem" }}>
                 <div>
                     <h4 style={{ color: "var(--color-primary)", marginBottom: "0.5rem", fontSize: "1rem" }}>

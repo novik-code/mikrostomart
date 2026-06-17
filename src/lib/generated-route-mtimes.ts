@@ -4,8 +4,8 @@
 // signal instead of "every page changed right now" on each sitemap regeneration.
 
 export const routeMtimes: Record<string, string> = {
-    "": "2026-06-01T11:03:26+02:00",
-    "/o-nas": "2026-05-21T12:58:54+02:00",
+    "": "2026-06-15T14:11:11+02:00",
+    "/o-nas": "2026-06-15T14:11:11+02:00",
     "/oferta": "2026-05-10T07:51:40+02:00",
     "/oferta/implantologia": "2026-06-09T10:30:29+02:00",
     "/oferta/all-on-4": "2026-06-08T13:43:57+02:00",
@@ -23,7 +23,7 @@ export const routeMtimes: Record<string, string> = {
     "/rezerwacja": "2026-05-10T07:51:40+02:00",
     "/dla-pacjentow-przyjezdnych": "2026-06-08T11:13:41+02:00",
     "/aktualnosci": "2026-05-14T14:40:59+02:00",
-    "/baza-wiedzy": "2026-06-01T09:38:54+02:00",
+    "/baza-wiedzy": "2026-06-15T10:10:31+02:00",
     "/metamorfozy": "2026-06-08T14:30:43+02:00",
     "/sklep": "2026-06-08T11:13:41+02:00",
     "/faq": "2026-05-10T07:51:40+02:00",
@@ -33,7 +33,7 @@ export const routeMtimes: Record<string, string> = {
     "/porownywarka": "2026-05-17T14:14:00+02:00",
     "/selfie": "2026-05-10T16:56:18+02:00",
     "/symulator": "2026-05-10T16:56:18+02:00",
-    "/aplikacja": "2026-05-10T17:05:42+02:00",
+    "/aplikacja": "2026-06-15T14:11:11+02:00",
     "/zadatek": "2026-05-09T15:51:16+02:00",
     "/regulamin": "2026-06-08T11:13:41+02:00",
     "/polityka-cookies": "2026-06-08T11:13:41+02:00",
@@ -60,4 +60,4 @@ export const routeMtimes: Record<string, string> = {
 };
 
 /** Fallback for routes not in the map (e.g. newly added pages before next regen). */
-export const buildTime: string = "2026-06-10T08:54:32.563Z";
+export const buildTime: string = "2026-06-17T12:10:26.474Z";

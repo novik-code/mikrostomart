@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Client-side button for the (otherwise server-rendered) CookieConsent banner.
@@ -47,6 +47,24 @@ export function CookieConsentButton(props: Props) {
     const [showModal, setShowModal] = useState(false);
     const [aiMemory, setAiMemory] = useState(false);
     const [analytics, setAnalytics] = useState(false);
+
+    // 2026-06-17 (CLS fix): baner jest SSR-owany z opacity:0. Ujawniamy go dopiero gdy fonty
+    // są gotowe — wtedy box już się nie zreflowuje, więc fade-in (opacity, nie layout) = 0 CLS.
+    // Reflow przy swap fontów dzieje się WCZEŚNIEJ, gdy baner jest niewidoczny → nie liczy się.
+    // Fallback setTimeout(3s) gdyby fonts.ready zawisł (baner musi się pokazać — zgoda RODO).
+    useEffect(() => {
+        let done = false;
+        const reveal = () => {
+            if (done) return;
+            done = true;
+            const banner = document.querySelector<HTMLElement>('[data-cookie-banner]');
+            if (banner) banner.style.opacity = '1';
+        };
+        const fontsReady = (document as Document & { fonts?: { ready?: Promise<unknown> } }).fonts?.ready;
+        if (fontsReady) fontsReady.then(reveal).catch(reveal);
+        const t = setTimeout(reveal, 3000);
+        return () => clearTimeout(t);
+    }, []);
 
     const acceptAll = () => {
         saveConsent({ accepted: true, ai_memory: true, analytics: true, marketing: false });
