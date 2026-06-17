@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-15 — **audyt GEO 2026-06-14**: fix liczników (4.1) ✅ `7497df8` · `llms.txt` ✅ `5d0364f` · **silnik treści KB Klasy A** ✅ `a7b8666` (mig **165-166**: auto-draft + self-critique + admin review, drafty noindex). **Sprzątanie KB ✅** `1ed6a76` (mig **167** DELETE Grupa A 19 + B losery 16 / mig **168** borderline 3 drafty / noindex Grupa C 24 code-side / 35 redirectów 301). **Unifikacja głównego specjalisty ✅** `b1d578d` (PL `lek. dent. Marcin Nowosielski M.Sc.` / EN `Dentist` / DE `Zahnarzt` / UA `лікар-стоматолог` + M.Sc.; i18n 8 plików + kod, mig **169** treść DB). Migracje do **169**. Reszta: #2 ceny protetyki + round 2 dubli KB (Recent Changes 2026-06-15). Wcześniej: **program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
+> **Last Updated:** 2026-06-17 — **perf hero**: tło hero = 5 losowych 10s pętli (mobile ~167 KB / desktop ~456 KB HD, desktop/mobile osobno, precache bez mp4) zamiast 5-min 3.4 MB pliku — commit `65b6677` (+docs). Wcześniej 2026-06-15 — **audyt GEO 2026-06-14**: fix liczników (4.1) ✅ `7497df8` · `llms.txt` ✅ `5d0364f` · **silnik treści KB Klasy A** ✅ `a7b8666` (mig **165-166**: auto-draft + self-critique + admin review, drafty noindex). **Sprzątanie KB ✅** `1ed6a76` (mig **167** DELETE Grupa A 19 + B losery 16 / mig **168** borderline 3 drafty / noindex Grupa C 24 code-side / 35 redirectów 301). **Unifikacja głównego specjalisty ✅** `b1d578d` (PL `lek. dent. Marcin Nowosielski M.Sc.` / EN `Dentist` / DE `Zahnarzt` / UA `лікар-стоматолог` + M.Sc.; i18n 8 plików + kod, mig **169** treść DB). Migracje do **169**. Reszta: #2 ceny protetyki + round 2 dubli KB (Recent Changes 2026-06-15). Wcześniej: **program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
@@ -2469,6 +2469,35 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-06-17 — ⚡ Perf: hero background = 5 losowych 10s pętli (mobile/desktop osobno) zamiast 5-min pliku
+
+**Marcin (po raportach PSI):** „wszystkie parametry, zwłaszcza mobile, na maksa". Kontekst: **CrUX field już zielony** (LCP 1.6s / INP 163ms / CLS 0.01 — to liczy się dla rankingu); lab mobile 81 / desktop 95. Tło hero grało **CAŁY 5:22 promo w pętli** (`hero-video-v2.mp4` 3.44 MB) = 73% transferu mobile na 4G + audyt „enormous payloads". Rozmiar z DŁUGOŚCI, nie jakości (bitrate ~83 kbps). **Marcin: wideo zostaje (buduje identyfikację wizualną) — odchudzić, nie usuwać.** Pomysł Marcina: kilka losowych krótkich fragmentów.
+
+#### Commit
+- `65b6677` — perf(hero): losowe 10s pętle tła (mobile 640×360 ~167KB / desktop 960×540 ~456KB) zamiast 5-min 3.4MB pliku
+
+#### Co zmienione
+- **5 fragmentów 10s** ze ŚRODKA promo (bez intro/outro): mikroskop+glow lasera / chairside z pacjentem / skan 3D na monitorach / narzędzie-polerowanie makro / skaner CBCT. Ciemne premium, **bez napisów/name-card** (odrzucone: sala zabiegowa, gadające głowy z name-card, jaskrawa biel). Dobór: kontaktówka co 10s + paski weryfikacyjne 1kl/s oglądane przez AI.
+- **Źródło HD:** pobrany oryginał 1080p `vGAu6rdJ8WQ` (film kliniki, yt-dlp) → cięcie z 1080p (NIE upscale z 640×360 v2). Duration oryginału = 322.44s = identyczna jak v2 → timecody 1:1.
+- **2 profile (desktop/mobile OSOBNO):** desktop 960×540 crf28 (~456 KB śr., ostre), mobile 640×360 crf32 (~167 KB śr.). Pliki `public/hero/loop-{1..5}-{d,m}.mp4` (~3 MB total, on-demand + cache immutable).
+- **`BackgroundVideo.tsx`** [rewrite]: `matchMedia(max-width:768px)` wybiera zestaw, `Math.random()` losuje klip **per wejście** (client-only, po `requestIdleCallback` → wideo nie w SSR HTML → 0 ryzyka hydration). Poster + defer bez zmian. **Per-load pobiera się DOKŁADNIE 1 klip** = tyle co pojedyncza pętla; losowanie NIE dokłada wagi.
+- **`next.config.ts` `globPublicPatterns`:** include-lista rozszerzeń BEZ `mp4` → klipy poza precache. **Lekcja serwist:** pliki `/public` → precache jako `additionalPrecacheEntries` (omijają `manifestTransforms` — próbowałem nim, nie zadziałało); node-glob `globSync` nie wspiera negacji `!`, `ignore` zahardcodowane → jedyna dźwignia to lista rozszerzeń. Wideo i tak nie powinno być w precache.
+- Usunięty `public/hero-video-v2.mp4` (3.44 MB).
+
+#### Weryfikacja (preview prod :3001)
+Build clean (217), **test 123/123**. Mobile 526px → zestaw `-m` losowo (loop-1-m → po reloadzie loop-4-m), desktop 1280px → `-d` (loop-1-d). Wideo gra (readyState 4, paused:false), poster fade-out, **1 klip/wejście** (network: jeden 206, NIE 10), **0 mp4 w precache** (`sw.js`: reszta została — webp 166/avif 131/png 260/poster/pdf), **0 błędów konsoli**, screenshot mobile+desktop OK.
+
+#### Efekt
+Hero transfer mobile **3.44 MB → ~167 KB/wejście (−3.27 MB)**, audyt „Unikaj bardzo dużych ładunków" 4588 → ~1200 KiB, + **wariacja tła per odświeżenie**. Wideo widoczne bez zmian. Deferowane → nie blokuje LCP — główny lab-LCP render-delay 1270ms / TBT to **JS** (unused 182 KB / Script Eval 1255ms), osobny temat (Tier 3, bundle-analiza, na życzenie).
+
+#### Lekcja git/środowisko
+- **Build padł na `ENOSPC: no space left on device`** (122 MiB wolnego). Wyczyszczony `.next` (7.7 GB, w tym `.next/cache` 7.2 GB) → rebuild OK. ⚠️ Dysk Marcina: Data **890/926 GB (100%)** — cache odrośnie, kolejne buildy znów padną bez posprzątania.
+- Klipy referencjonowane przez tablicę w kodzie → **podmiana fragmentu = przekodowanie 1 pliku, 0 zmian kodu**.
+
+#### Brak migracji / env var. Deploy: produkcja + demo.
+
+---
 
 ### 2026-06-15 #5 — 🪪 Unifikacja głównego specjalisty: zlokalizowany tytuł zawodowy + M.Sc.
 
