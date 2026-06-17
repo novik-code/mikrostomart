@@ -5,53 +5,75 @@ import { useEffect, useRef, useState } from "react";
 /**
  * BackgroundVideo — cinematic hero background.
  *
- * Option C perf 2026-05-21 — defer 8 MB MP4 fetch:
- *   PROBLEM: hero-video.mp4 (8.1 MB) = 84% mobile initial transfer. Browser pobiera
- *   równolegle z critical resources (HTML, CSS, fonts, hero text, logo, JS) →
- *   bandwidth contention na 4G → LCP delay + Speed Index 12.3s.
+ * 2026-06-17 — losowe krótkie pętle zamiast jednego 5-minutowego pliku:
+ *   PROBLEM: hero-video-v2.mp4 to było pełne 5:22 promo (3.4 MB) serwowane w pętli jako tło.
+ *   Rozmiar brał się z DŁUGOŚCI (bitrate był już niski ~83 kbps), nie z jakości. Na mobile 4G
+ *   = 73% transferu strony + audyt "Unikaj bardzo dużych ładunków".
  *
- *   STRATEGIA: poster image (<img> 11 KB) renderuje SIĘ NATYCHMIAST jako "fake background"
- *   przed hydration. Video tag (z preload="auto") mountuje się DOPIERO po
- *   requestIdleCallback (~1.5-2s po hydration, gdy main thread idle + critical
- *   resources skończyły load). Browser fetchuje MP4 wtedy gdy ma capacity, NIE
- *   konkuruje z LCP elementem.
+ *   ROZWIĄZANIE: 5 krótkich (10 s) pętli wyciętych ze ŚRODKA promo (sceny premium/techniczne:
+ *   mikroskop, skan 3D, narzędzia makro, CBCT — bez napisów/name-card). Przy każdym wejściu
+ *   losujemy jedną → wariacja tła + tylko ~167 KB (mobile) / ~456 KB (desktop) zamiast 3.4 MB.
+ *   Per-load pobiera się DOKŁADNIE 1 klip, więc losowanie nie dokłada wagi — tylko zmienia
+ *   który klip.
  *
- *   Autoplay zachowane — `video.play()` triggerowany po mount + `loadedmetadata`.
- *   User experience identyczna: widzi cinematic frame (poster) od razu, video
- *   "wraca do życia" po ~2s gdy strona już interaktywna.
+ *   Desktop i mobile OSOBNO: matchMedia wybiera zestaw. Desktop 960×540 (HD-sourced z oryginału
+ *   1080p, ostre na dużych ekranach), mobile 640×360 (lekkie pod 4G). Math.random() jest
+ *   bezpieczny — wideo montuje się tylko po stronie klienta (po idle), nie ma go w SSR HTML,
+ *   więc zero ryzyka hydration mismatch.
+ *
+ *   Poster (<img> 11 KB) renderuje się NATYCHMIAST (cheap background przed hydration), wideo
+ *   montuje się DOPIERO po requestIdleCallback (nie konkuruje o pasmo z LCP elementem).
+ *   Autoplay wymuszany przez .play() po mount (iOS Safari 17+/Android Data Saver wymagają
+ *   explicit call mimo autoPlay attr).
  *
  * Wcześniejsze iteracje:
- *   - Faza D SEO (2026-05-09): YouTube iframe → self-hosted MP4 (eliminacja 4 MB JS)
- *   - K-1c #2 mobile fix (2026-05-19): ref + force .play() + poster attr +
- *     preload="metadata" (już wtedy delay 500ms; teraz w C bumped do idle)
+ *   - Faza D (2026-05-09): YouTube iframe → self-hosted MP4 (eliminacja ~4 MB JS)
+ *   - Faza 4B (2026-06-10): hero-video.mp4 8.3 MB → hero-video-v2.mp4 3.4 MB (640×360 crf36)
  */
+
+// 5 fragmentów (10 s) ze środka promo, losowane per wejście. Dwa profile jakości
+// (desktop ostry HD-sourced / mobile lekki). Pliki: public/hero/loop-{1..5}-{d,m}.mp4
+const CLIPS_DESKTOP = [
+    "/hero/loop-1-d.mp4",
+    "/hero/loop-2-d.mp4",
+    "/hero/loop-3-d.mp4",
+    "/hero/loop-4-d.mp4",
+    "/hero/loop-5-d.mp4",
+];
+const CLIPS_MOBILE = [
+    "/hero/loop-1-m.mp4",
+    "/hero/loop-2-m.mp4",
+    "/hero/loop-3-m.mp4",
+    "/hero/loop-4-m.mp4",
+    "/hero/loop-5-m.mp4",
+];
+
 export default function BackgroundVideo(_props: { videoId: string }) {
-    // mountVideo: true gdy chcemy zacząć fetchować MP4 (po idle).
-    // Poster image renders inny pierwszy (cheap), video overlay'uje go gdy ready.
-    const [mountVideo, setMountVideo] = useState(false);
+    // videoSrc: null dopóki nie wybierzemy klipu (po idle). Poster renderuje się wcześniej.
+    const [videoSrc, setVideoSrc] = useState<string | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
         if (typeof window === "undefined") return;
-        // Defer do gdy main thread idle. requestIdleCallback fallback do setTimeout
-        // dla browsers bez IC (Safari < 18 nie ma IC). Timeout 2.5s żeby zagwarantować
-        // że video się załaduje nawet jeśli main thread cały czas zajęty.
         let cancelled = false;
-        const trigger = () => {
-            if (!cancelled) setMountVideo(true);
+        // Po idle: wybierz zestaw wg viewportu + LOSOWY klip. Defer = MP4 nie konkuruje z LCP.
+        const pickAndMount = () => {
+            if (cancelled) return;
+            const isMobile = window.matchMedia("(max-width: 768px)").matches;
+            const set = isMobile ? CLIPS_MOBILE : CLIPS_DESKTOP;
+            setVideoSrc(set[Math.floor(Math.random() * set.length)]);
         };
 
-        // Use requestIdleCallback jeśli dostępne (Chrome, Firefox)
-        const ic = (window as any).requestIdleCallback;
+        // requestIdleCallback (Chrome, Firefox) z timeoutem 2.5s; fallback setTimeout (Safari).
+        const ic = (window as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
         if (typeof ic === "function") {
-            const id = ic(trigger, { timeout: 2500 });
+            const id = ic(pickAndMount, { timeout: 2500 });
             return () => {
                 cancelled = true;
-                ((window as any).cancelIdleCallback as any)?.(id);
+                (window as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback?.(id);
             };
         }
-        // Fallback: setTimeout 1500ms (Safari)
-        const tid = setTimeout(trigger, 1500);
+        const tid = setTimeout(pickAndMount, 1500);
         return () => {
             cancelled = true;
             clearTimeout(tid);
@@ -59,18 +81,16 @@ export default function BackgroundVideo(_props: { videoId: string }) {
     }, []);
 
     useEffect(() => {
-        if (!mountVideo) return;
+        if (!videoSrc) return;
         const v = videoRef.current;
         if (!v) return;
-        // Programowe wymuszenie play — niektóre browsers (iOS Safari 17+,
-        // Android Chrome z Data Saver) wymagają explicit .play() call mimo
-        // autoPlay attribute. Catch ignoruje rejection (np. user gesture
-        // required) — wtedy user widzi poster nadal.
+        // Programowe wymuszenie play — niektóre browsers wymagają explicit .play() mimo
+        // autoPlay attr. Catch ignoruje rejection (autoplay blocked → poster zostaje widoczny).
         const tryPlay = async () => {
-            try { await v.play(); } catch { /* autoplay blocked — poster stay visible */ }
+            try { await v.play(); } catch { /* autoplay blocked — poster stays visible */ }
         };
         tryPlay();
-    }, [mountVideo]);
+    }, [videoSrc]);
 
     return (
         <div style={{
@@ -86,8 +106,7 @@ export default function BackgroundVideo(_props: { videoId: string }) {
         }}>
             {/* Poster image — RENDERS IMMEDIATELY (zero JS dependency).
                 Acts as "cheap" hero background while video defers fetch.
-                Decoding async + fetchPriority high — non-blocking critical path
-                but priority hint dla browser scheduler. */}
+                Visible until a clip is picked + can play (potem overlay'owane przez <video>). */}
             <img
                 src="/hero-video-poster.webp"
                 alt=""
@@ -100,23 +119,17 @@ export default function BackgroundVideo(_props: { videoId: string }) {
                     width: "100%",
                     height: "100%",
                     objectFit: "cover",
-                    // Visible until video can play through (potem overlay'owane przez <video>)
-                    opacity: mountVideo ? 0 : 1,
+                    opacity: videoSrc ? 0 : 1,
                     transition: "opacity 0.6s ease-out",
                 }}
             />
 
-            {/* Video — mounted DOPIERO po idle (browser nie fetchuje MP4 wcześniej).
-                Mount → video element appended do DOM → src attribute → fetch start.
-                preload="auto" = browser fetchuje aggresively gdy mount, OK bo to po
-                idle czyli krytyczne zasoby już ściągnięte. */}
-            {mountVideo && (
+            {/* Video — mounted DOPIERO po idle z LOSOWO wybranym klipem (desktop/mobile set).
+                Mount → fetch start. preload="auto" OK bo to po idle (krytyczne zasoby już są). */}
+            {videoSrc && (
                 <video
                     ref={videoRef}
-                    // 4B (perf, 2026-06-10): hero-video.mp4 8.3 MB → hero-video-v2.mp4 3.4 MB
-                    // (640×360 crf36, -59% transfer). Tło opacity 0.3 + luminosity → artefakty
-                    // niewidoczne. Rename = cache-bust (Vercel CDN immutable).
-                    src="/hero-video-v2.mp4"
+                    src={videoSrc}
                     poster="/hero-video-poster.webp"
                     autoPlay
                     muted

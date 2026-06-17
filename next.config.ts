@@ -20,6 +20,16 @@ const withSerwist = withSerwistInit({
   swDest: "public/sw.js",
   cacheOnNavigation: false,
   disable: process.env.NODE_ENV === "development",
+  // 2026-06-17: NIE precache'uj wideo (klipy hero /hero/loop-*.mp4 — wszystkie 10 mp4 w /public to
+  // właśnie one). Gramy tylko 1 LOSOWY klip per wejście; precache wszystkich 10 (~3 MB) zniweczyłby
+  // oszczędność danych na mobile + dokładałby background-download przy instalacji SW.
+  // Pliki /public trafiają do precache jako additionalPrecacheEntries (omijają manifestTransforms),
+  // a node-glob nie wspiera negacji `!`, więc filtrujemy przez include-listę rozszerzeń BEZ mp4/webm.
+  // Klipy ładują się runtime (on-demand); defaultCache (@serwist/next) cache'uje tylko ten faktycznie
+  // odtworzony. .map (source maps) i tak nie muszą być precache'owane.
+  globPublicPatterns: [
+    "**/*.{png,webp,avif,jpg,jpeg,gif,svg,ico,txt,xml,js,mjs,json,webmanifest,ttf,otf,woff,woff2,html,pdf}",
+  ],
 });
 
 // Force Deploy Timestamp: 2025-12-31 21:42
