@@ -40,9 +40,9 @@ export async function GET(req: NextRequest) {
         // ── 2. E-karta submissions ──
         const { data: intakes, error: intakeErr } = await supabase
             .from('patient_intake_submissions')
-            .select('id, created_at, pdf_url')
-            .eq('prodentis_id', prodentisId)
-            .order('created_at', { ascending: false })
+            .select('id, submitted_at, pdf_url')
+            .eq('prodentis_patient_id', prodentisId)
+            .order('submitted_at', { ascending: false })
             .limit(5);
 
         if (intakeErr) {
@@ -78,8 +78,8 @@ export async function GET(req: NextRequest) {
                 type: 'ekarta',
                 label: 'E-Karta Pacjenta',
                 fileUrl: i.pdf_url || null,
-                fileName: `ekarta_${i.created_at?.slice(0, 10)}.pdf`,
-                date: i.created_at,
+                fileName: `ekarta_${i.submitted_at?.slice(0, 10)}.pdf`,
+                date: i.submitted_at,
             });
         }
 

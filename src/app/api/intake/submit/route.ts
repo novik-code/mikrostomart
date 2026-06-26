@@ -313,7 +313,18 @@ export async function POST(req: Request) {
             const firstName = formData.firstName || 'Pacjent';
             const lastName = formData.lastName || '';
             const dateStr = new Date().toISOString().slice(0, 10);
-            const fileName = `ekarta_${firstName}_${lastName}_${dateStr}.pdf`.replace(/\s+/g, '_');
+            // ASCII-only nazwa pliku — Supabase Storage odrzuca klucze z polskimi znakami
+            // ('Invalid key' → upload pada → pdf_url null). Ten sam wzór co w generate-pdf (4fbcb19).
+            const polishToAscii = (str: string) => str
+                .replace(/ą/g, 'a').replace(/ć/g, 'c').replace(/ę/g, 'e')
+                .replace(/ł/g, 'l').replace(/ń/g, 'n').replace(/ó/g, 'o')
+                .replace(/ś/g, 's').replace(/ź/g, 'z').replace(/ż/g, 'z')
+                .replace(/Ą/g, 'A').replace(/Ć/g, 'C').replace(/Ę/g, 'E')
+                .replace(/Ł/g, 'L').replace(/Ń/g, 'N').replace(/Ó/g, 'O')
+                .replace(/Ś/g, 'S').replace(/Ź/g, 'Z').replace(/Ż/g, 'Z')
+                .replace(/[^a-zA-Z0-9_\-\.]/g, '_')
+                .replace(/_+/g, '_');
+            const fileName = `ekarta_${polishToAscii(firstName)}_${polishToAscii(lastName)}_${dateStr}.pdf`;
             const resolvedProdentisId = prodentisPatientId || tokenRow.prodentis_patient_id || 'unknown';
             const storagePath = `${resolvedProdentisId}/${fileName}`;
 
