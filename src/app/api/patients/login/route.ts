@@ -262,8 +262,10 @@ export async function POST(request: Request) {
         // Generate JWT
         const jwtSecret = process.env.JWT_SECRET!;
 
+        // Natywna apka (X-Client: native) trzyma token w SecureStore i odblokowuje
+        // biometrią → dłuższa sesja 30 dni. Web (cookie) zostaje na 7 dniach.
         const signOptions: SignOptions = {
-            expiresIn: '7d' as const
+            expiresIn: isNativeClient ? '30d' : '7d',
         };
 
         const token = jwt.sign(
