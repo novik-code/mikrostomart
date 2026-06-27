@@ -44,6 +44,38 @@ async function scheduleInProdentis(booking: any): Promise<{ success: boolean; ap
     return scheduleWithIds(doctorProdentisId, patientProdentisId, booking);
 }
 
+/**
+ * Sprawdza, czy pacjent ma JUŻ wizytę w Prodentisie na dany termin.
+ * Używane przy 409 SLOT_TAKEN do odróżnienia realnego konfliktu od fałszywego 409
+ * (np. double-submit: 1. wywołanie utworzyło wizytę, 2. dostaje 409 na zajęty już slot).
+ * Read-only; w razie błędu zwraca null (zachowanie jak dotąd — realny konflikt).
+ */
+async function findExistingAppointment(patientId: string, booking: any): Promise<string | null> {
+    try {
+        const res = await fetch(`${PRODENTIS_API}/api/patient/${patientId}/future-appointments?days=180`, {
+            headers: { 'Content-Type': 'application/json' },
+            cache: 'no-store',
+            signal: AbortSignal.timeout(8000),
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        const wantDate = String(booking.appointment_date).slice(0, 10); // YYYY-MM-DD
+        const wantTime = String(booking.appointment_time || '').slice(0, 5); // HH:MM
+        for (const apt of data.appointments || []) {
+            if (!apt?.date) continue;
+            // czas ścienny gabinetu — komponenty ze stringa, bez konwersji strefy
+            const aptDate = String(apt.date).slice(0, 10);
+            const aptTime = String(apt.date).slice(11, 16);
+            if (aptDate === wantDate && aptTime === wantTime) {
+                return apt.id || apt.appointmentId || null;
+            }
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
 async function scheduleWithIds(doctorId: string, patientId: string, booking: any) {
     if (!patientId) {
         return { success: false, error: 'MISSING_PATIENT_ID' };
@@ -77,6 +109,15 @@ async function scheduleWithIds(doctorId: string, patientId: string, booking: any
             return { success: true, appointmentId: data.appointmentId };
         }
         if (res.status === 409) {
+            // 409 bywa FAŁSZYWY przy double-submit: poprzednie wywołanie już utworzyło
+            // wizytę, a kolejne dostaje 409 na „zajęty" (przez tę samą wizytę) slot.
+            // Zweryfikuj realny stan w Prodentisie — jeśli pacjent ma już wizytę na ten
+            // termin, to idempotentny sukces; w innym wypadku realny konflikt slotu.
+            const existingId = await findExistingAppointment(patientId, booking);
+            if (existingId) {
+                console.warn(`[OnlineBookings] 409 SLOT_TAKEN, ale wizyta istnieje (patient ${patientId} @ ${booking.appointment_date} ${booking.appointment_time}) → traktuję jako scheduled (id: ${existingId})`);
+                return { success: true, appointmentId: existingId };
+            }
             return { success: false, error: `SLOT_TAKEN: ${data.message}` };
         }
         if (res.status === 404) {
