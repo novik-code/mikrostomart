@@ -10,6 +10,8 @@ interface Conversation {
     status: string;
     last_message_at: string;
     unread_by_admin: boolean;
+    is_anonymous?: boolean | null;
+    guest_phone?: string | null;
     lastMessage: string;
     lastMessageRole: string;
     lastMessageAt: string;
@@ -46,6 +48,30 @@ const labels = {
     dAgo: 'd temu',
     back: '← Wstecz',
 };
+
+// Plakietka odróżniająca rozmowy gości (niezalogowanych) od pacjentów z kontem.
+function GuestBadge() {
+    return (
+        <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.2rem',
+            padding: '0.1rem 0.45rem',
+            borderRadius: '999px',
+            fontSize: '0.62rem',
+            fontWeight: 'bold',
+            letterSpacing: '0.02em',
+            textTransform: 'uppercase',
+            background: 'rgba(245, 158, 11, 0.14)',
+            color: '#fbbf24',
+            border: '1px solid rgba(245, 158, 11, 0.4)',
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+        }}>
+            👤 Gość
+        </span>
+    );
+}
 
 export default function AdminChat() {
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -333,11 +359,18 @@ export default function AdminChat() {
                             >
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <span style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.4rem',
                                         fontWeight: conv.unread_by_admin ? 'bold' : 'normal',
                                         color: '#fff',
                                         fontSize: '0.95rem',
+                                        minWidth: 0,
                                     }}>
-                                        {conv.patient_name}
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {conv.patient_name}
+                                        </span>
+                                        {conv.is_anonymous && <GuestBadge />}
                                     </span>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         {conv.unreadCount > 0 && (
@@ -446,14 +479,22 @@ export default function AdminChat() {
                                 }}>
                                     {conversations.find(c => c.id === selectedConv)?.patient_name?.[0]?.toUpperCase() || '?'}
                                 </div>
-                                <div>
-                                    <h3 style={{ color: '#fff', fontSize: '1rem', margin: 0 }}>
-                                        {conversations.find(c => c.id === selectedConv)?.patient_name || 'Pacjent'}
-                                    </h3>
-                                    <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', margin: 0 }}>
-                                        {labels.chatWithPatient}
-                                    </p>
-                                </div>
+                                {(() => {
+                                    const active = conversations.find(c => c.id === selectedConv);
+                                    return (
+                                        <div>
+                                            <h3 style={{ color: '#fff', fontSize: '1rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                {active?.patient_name || 'Pacjent'}
+                                                {active?.is_anonymous && <GuestBadge />}
+                                            </h3>
+                                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.75rem', margin: 0 }}>
+                                                {active?.is_anonymous
+                                                    ? (active.guest_phone ? `Gość · ${active.guest_phone}` : 'Czat z gościem')
+                                                    : labels.chatWithPatient}
+                                            </p>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                             <button
                                 onClick={async () => {

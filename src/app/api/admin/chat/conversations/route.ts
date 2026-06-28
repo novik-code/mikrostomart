@@ -25,7 +25,9 @@ export async function GET(request: NextRequest) {
                 status,
                 last_message_at,
                 unread_by_admin,
-                created_at
+                created_at,
+                is_anonymous,
+                guest_phone
             `)
             .eq('status', statusFilter)
             .order('last_message_at', { ascending: false });
