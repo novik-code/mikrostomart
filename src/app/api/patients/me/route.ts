@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
         // Fetch email, phone, and account_status from Supabase
         const { data: supabasePatient, error: supabaseError } = await supabase
             .from('patients')
-            .select('email, phone, account_status, locale')
+            .select('email, phone, account_status, locale, avatar')
             .eq('prodentis_id', payload.prodentisId)
             .single();
 
@@ -107,6 +107,7 @@ export async function GET(request: NextRequest) {
             phone: supabasePatient?.phone || patientData.phone || null,
             account_status: supabasePatient?.account_status || null,
             locale: supabasePatient?.locale || 'pl',
+            avatar: supabasePatient?.avatar || null,
         };
 
         return NextResponse.json(mergedData);
@@ -133,7 +134,7 @@ export async function PATCH(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { email, phone, locale, notification_preferences } = body;
+        const { email, phone, locale, notification_preferences, avatar } = body;
 
         // Build update object (only update provided fields)
         const updates: any = {};
@@ -169,6 +170,18 @@ export async function PATCH(request: NextRequest) {
             updates.notification_preferences = notification_preferences;
         }
 
+        if (avatar !== undefined) {
+            // Id presetu avatara wybranego w apce. Walidacja odsprzęgnięta od
+            // konkretnej listy presetów: bezpieczny charset + limit długości.
+            if (avatar !== null && (typeof avatar !== 'string' || !/^[a-z0-9_-]{1,40}$/.test(avatar))) {
+                return NextResponse.json(
+                    { error: 'Nieprawidłowy avatar' },
+                    { status: 400 }
+                );
+            }
+            updates.avatar = avatar;
+        }
+
         // Update in Supabase
         const { data, error } = await supabase
             .from('patients')
@@ -191,6 +204,7 @@ export async function PATCH(request: NextRequest) {
                 email: data.email,
                 phone: data.phone,
                 locale: data.locale,
+                avatar: data.avatar,
             }
         });
 
