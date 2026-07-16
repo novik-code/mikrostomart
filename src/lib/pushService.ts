@@ -7,6 +7,7 @@
 import { getMessaging } from './firebase';
 import { createClient } from '@supabase/supabase-js';
 import { getPushTranslation, PushNotificationType } from './pushTranslations';
+import { sendExpoPushToPatient } from './expoPush';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -168,6 +169,16 @@ export async function pushToUser(
 ): Promise<{ sent: number; failed: number }> {
     // Always log to history regardless of delivery
     await logPush(userId, userType, payload);
+
+    // Pacjent: dodatkowo push do aplikacji mobilnej (Expo Push — patient_push_tokens,
+    // mig 173). Fire-and-forget: brak tabeli/tokenów nie może wywrócić web-pusha.
+    if (userType === 'patient') {
+        sendExpoPushToPatient(userId, {
+            title: payload.title,
+            body: payload.body,
+            data: payload.url ? { url: payload.url } : {},
+        }).catch(err => console.error('[Push] Expo push error:', err));
+    }
 
     const { data: tokenRows } = await supabase
         .from('fcm_tokens')
