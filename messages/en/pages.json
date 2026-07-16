@@ -826,7 +826,7 @@
         "sec8Title": "VIII. Your rights — how to exercise them",
         "sec8Intro": "At any time you may:",
         "sec8Li1": "Export your data (Art. 15 GDPR): log in → Patient Zone → My Profile → \"Download my data\" → you will receive a package with personal details, visit history, signed consents and medical card.",
-        "sec8Li2": "Delete account (Art. 17 GDPR): My Profile → \"Delete account\" → personal data (name, surname, phone, email) will be anonymized immediately. Medical documentation remains for 20 years per Art. 29(1) Polish Patient Rights Act.",
+        "sec8Li2": "Delete account (Art. 17 GDPR): My Profile → \"Delete account\" → personal data (name, surname, phone, email) will be anonymized immediately. Medical documentation remains for 20 years per Art. 29(1) Polish Patient Rights Act. You can also request account deletion without the app — see: mikrostomart.pl/usun-konto.",
         "sec8Li3": "Withdraw marketing consent (Art. 7(3) GDPR): write to gabinet@mikrostomart.pl or change preferences in patient panel.",
         "sec8Li4": "Lodge a complaint with the supervisory authority (Art. 77 GDPR): President of UODO, ul. Stawki 2, 00-193 Warsaw, Poland.",
         "sec9Title": "IX. List of processors (Art. 28 GDPR)",
@@ -2131,5 +2131,25 @@
         "ctaLead": "First visit from 250 PLN. Full range of services in one place — without the need to travel to different specialists all over Opole.",
         "ctaButton": "Schedule your first visit",
         "ctaPhone": "or call: {phone1}"
+    },
+    "usunKonto": {
+        "tagline": "MIKROSTOMART APP",
+        "title": "Account & data deletion",
+        "subtitle": "You can delete your patient account at any time — in the app or by sending an e-mail request, without installing the app.",
+        "inAppTitle": "Delete your account in the app",
+        "inAppText": "Sign in to the app, open My Profile → \"Delete account\" and confirm with your password. Your account and app data (contact details, notification preferences, chat history) will be deleted and personal data anonymized.",
+        "emailTitle": "Request deletion without the app",
+        "emailIntro": "If you no longer have access to the app, send a deletion request by e-mail. Please include:",
+        "emailLi1": "your first and last name,",
+        "emailLi2": "the phone number provided at registration (for identity verification),",
+        "emailLi3": "the e-mail address linked to the account (if you remember it).",
+        "emailSla": "We will process your request without undue delay, no later than within 30 days (Art. 12 GDPR), and send a confirmation to your e-mail address.",
+        "emailCta": "Write to: {contactEmail}",
+        "mailSubject": "Account deletion request — Mikrostomart app",
+        "scopeTitle": "What we delete and what we must retain",
+        "scopeDeleted": "We delete: your app account, contact details (e-mail, preferences), push notification tokens and reception chat history.",
+        "scopeRetained": "We retain: medical records for 20 years (Art. 29(1) of the Polish Patient Rights Act — a statutory obligation) and billing documents for the period required by tax law. This data is no longer linked to your app account.",
+        "contactTitle": "Questions?",
+        "contactText": "Write to {contactEmail} or call {contactPhone}. See our Privacy Policy for details on data processing."
     }
 }

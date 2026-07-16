@@ -871,7 +871,7 @@
         "sec8Title": "VIII. Twoje prawa — jak skorzystać",
         "sec8Intro": "Możesz w każdej chwili:",
         "sec8Li1": "Pobrać swoje dane (Art. 15 RODO): zaloguj się → Strefa Pacjenta → Mój profil → \"Pobierz moje dane\" → otrzymasz pakiet z danymi osobowymi, historią wizyt, podpisanymi zgodami i e-kartą.",
-        "sec8Li2": "Usunąć konto (Art. 17 RODO): Mój profil → \"Usuń konto\" → dane osobowe (imię, nazwisko, telefon, email) zostaną zanonimizowane natychmiast. Dokumentacja medyczna pozostaje 20 lat zgodnie z art. 29 ust. 1 ustawy o prawach pacjenta.",
+        "sec8Li2": "Usunąć konto (Art. 17 RODO): Mój profil → \"Usuń konto\" → dane osobowe (imię, nazwisko, telefon, email) zostaną zanonimizowane natychmiast. Dokumentacja medyczna pozostaje 20 lat zgodnie z art. 29 ust. 1 ustawy o prawach pacjenta. Usunięcia konta możesz też zażądać bez aplikacji — instrukcja: mikrostomart.pl/usun-konto.",
         "sec8Li3": "Wycofać zgodę marketingową (Art. 7 ust. 3 RODO): napisz na gabinet@mikrostomart.pl lub zmień preferencje w panelu pacjenta.",
         "sec8Li4": "Złożyć skargę do organu nadzorczego (Art. 77 RODO): Prezes UODO, ul. Stawki 2, 00-193 Warszawa.",
         "sec9Title": "IX. Lista podmiotów przetwarzających (Art. 28 RODO)",
@@ -2175,5 +2175,25 @@
         "ctaLead": "Pierwsza wizyta od 250 zł. Pełny zakres usług w jednym miejscu — bez konieczności jeżdżenia do różnych specjalistów po całym Opolu.",
         "ctaButton": "Umów pierwszą wizytę",
         "ctaPhone": "lub zadzwoń: {phone1}"
+    },
+    "usunKonto": {
+        "tagline": "APLIKACJA MIKROSTOMART",
+        "title": "Usunięcie konta i danych",
+        "subtitle": "Konto pacjenta możesz usunąć w każdej chwili — w aplikacji albo wysyłając żądanie e-mailem, bez instalowania aplikacji.",
+        "inAppTitle": "Usunięcie konta w aplikacji",
+        "inAppText": "Zaloguj się w aplikacji, otwórz Mój profil → „Usuń konto\" i potwierdź hasłem. Konto oraz dane aplikacyjne (dane kontaktowe, preferencje powiadomień, historia czatu) zostaną usunięte, a dane osobowe zanonimizowane.",
+        "emailTitle": "Żądanie usunięcia bez aplikacji",
+        "emailIntro": "Jeśli nie masz dostępu do aplikacji, wyślij żądanie usunięcia konta e-mailem. W wiadomości podaj:",
+        "emailLi1": "imię i nazwisko,",
+        "emailLi2": "numer telefonu podany przy rejestracji (do weryfikacji tożsamości),",
+        "emailLi3": "adres e-mail przypisany do konta (jeśli pamiętasz).",
+        "emailSla": "Żądanie zrealizujemy niezwłocznie, nie później niż w ciągu 30 dni (art. 12 RODO), a potwierdzenie wyślemy na Twój adres e-mail.",
+        "emailCta": "Napisz: {contactEmail}",
+        "mailSubject": "Żądanie usunięcia konta — aplikacja Mikrostomart",
+        "scopeTitle": "Co usuwamy, a co musimy zachować",
+        "scopeDeleted": "Usuwamy: konto w aplikacji, dane kontaktowe (e-mail, preferencje), tokeny powiadomień push oraz historię czatu z recepcją.",
+        "scopeRetained": "Zachowujemy: dokumentację medyczną przez 20 lat (art. 29 ust. 1 ustawy o prawach pacjenta i Rzeczniku Praw Pacjenta — obowiązek ustawowy) oraz dokumenty rozliczeniowe przez okres wymagany przepisami podatkowymi. Te dane nie są już powiązane z kontem w aplikacji.",
+        "contactTitle": "Masz pytania?",
+        "contactText": "Napisz na {contactEmail} lub zadzwoń: {contactPhone}. Więcej o przetwarzaniu danych znajdziesz w naszej Polityce prywatności."
     }
 }

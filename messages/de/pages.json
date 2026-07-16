@@ -826,7 +826,7 @@
     "sec8Title": "VIII. Ihre Rechte — Ausübung",
     "sec8Intro": "Sie können jederzeit:",
     "sec8Li1": "Ihre Daten exportieren (Art. 15 DSGVO): einloggen → Patientenbereich → Mein Profil → \"Meine Daten herunterladen\" → Sie erhalten ein Paket mit persönlichen Daten, Besuchshistorie, unterzeichneten Einwilligungen und Patientenkarte.",
-    "sec8Li2": "Konto löschen (Art. 17 DSGVO): Mein Profil → \"Konto löschen\" → personenbezogene Daten (Vor- und Nachname, Telefon, E-Mail) werden sofort anonymisiert. Medizinische Unterlagen bleiben 20 Jahre gemäß Art. 29 Abs. 1 des polnischen Patientenrechtegesetzes.",
+    "sec8Li2": "Konto löschen (Art. 17 DSGVO): Mein Profil → \"Konto löschen\" → personenbezogene Daten (Vor- und Nachname, Telefon, E-Mail) werden sofort anonymisiert. Medizinische Unterlagen bleiben 20 Jahre gemäß Art. 29 Abs. 1 des polnischen Patientenrechtegesetzes. Die Kontolöschung kannst du auch ohne die App beantragen — Anleitung: mikrostomart.pl/usun-konto.",
     "sec8Li3": "Marketing-Einwilligung widerrufen (Art. 7 Abs. 3 DSGVO): schreiben Sie an gabinet@mikrostomart.pl oder ändern Sie die Einstellungen im Patientenpanel.",
     "sec8Li4": "Beschwerde bei der Aufsichtsbehörde einreichen (Art. 77 DSGVO): Vorsitzender UODO, ul. Stawki 2, 00-193 Warschau, Polen.",
     "sec9Title": "IX. Liste der Auftragsverarbeiter (Art. 28 DSGVO)",
@@ -2131,5 +2131,25 @@
     "ctaLead": "Erstbesuch ab 250 PLN. Vollständiges Dienstleistungsangebot an einem Ort — ohne zu verschiedenen Spezialisten in ganz Opole fahren zu müssen.",
     "ctaButton": "Vereinbaren Sie Ihren ersten Termin",
     "ctaPhone": "oder rufen Sie an: {phone1}"
+  },
+  "usunKonto": {
+    "tagline": "MIKROSTOMART-APP",
+    "title": "Konto- und Datenlöschung",
+    "subtitle": "Du kannst dein Patientenkonto jederzeit löschen — in der App oder per E-Mail-Anfrage, ohne die App zu installieren.",
+    "inAppTitle": "Konto in der App löschen",
+    "inAppText": "Melde dich in der App an, öffne Mein Profil → „Konto löschen\" und bestätige mit deinem Passwort. Konto und App-Daten (Kontaktdaten, Benachrichtigungseinstellungen, Chatverlauf) werden gelöscht, personenbezogene Daten anonymisiert.",
+    "emailTitle": "Löschung ohne die App beantragen",
+    "emailIntro": "Wenn du keinen Zugriff auf die App hast, sende eine Löschanfrage per E-Mail. Bitte gib an:",
+    "emailLi1": "Vor- und Nachname,",
+    "emailLi2": "die bei der Registrierung angegebene Telefonnummer (zur Identitätsprüfung),",
+    "emailLi3": "die mit dem Konto verknüpfte E-Mail-Adresse (falls bekannt).",
+    "emailSla": "Wir bearbeiten deine Anfrage unverzüglich, spätestens innerhalb von 30 Tagen (Art. 12 DSGVO), und senden eine Bestätigung an deine E-Mail-Adresse.",
+    "emailCta": "Schreib an: {contactEmail}",
+    "mailSubject": "Antrag auf Kontolöschung — Mikrostomart-App",
+    "scopeTitle": "Was wir löschen und was wir aufbewahren müssen",
+    "scopeDeleted": "Wir löschen: dein App-Konto, Kontaktdaten (E-Mail, Einstellungen), Push-Benachrichtigungstokens und den Chatverlauf mit der Rezeption.",
+    "scopeRetained": "Wir bewahren auf: medizinische Dokumentation 20 Jahre lang (Art. 29 Abs. 1 des polnischen Patientenrechtegesetzes — gesetzliche Pflicht) sowie Abrechnungsunterlagen für den steuerrechtlich vorgeschriebenen Zeitraum. Diese Daten sind nicht mehr mit deinem App-Konto verknüpft.",
+    "contactTitle": "Fragen?",
+    "contactText": "Schreib an {contactEmail} oder ruf an: {contactPhone}. Mehr zur Datenverarbeitung findest du in unserer Datenschutzerklärung."
   }
 }

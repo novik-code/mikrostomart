@@ -275,6 +275,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         '/polityka-cookies',
         '/polityka-prywatnosci',
         '/rodo',
+        '/usun-konto', // Google Play Data safety: publiczny URL usunięcia konta (aplikacja mobilna)
     ];
     const plOnlyLegalRoutes: MetadataRoute.Sitemap = plOnlyLegalPaths.map((path) => ({
         url: `${BASE_URL}${path}`,
