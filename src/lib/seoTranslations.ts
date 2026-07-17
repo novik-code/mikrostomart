@@ -701,26 +701,26 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
         },
     },
 
-    // ───────── /symulator (smile simulator — AI Flux Fill Dev) ─────────
+    // ───────── /symulator (smile simulator — /api/smile v2) ─────────
     '/symulator': {
         pl: {
             title: 'Symulator uśmiechu AI | Zobacz nowy uśmiech - Mikrostomart',
-            description: 'Symulator uśmiechu AI: prześlij selfie i zobacz swój uśmiech po licówkach lub wybielaniu. 4 style: Hollywood, Natural, Soft, Strong. Mikrostomart Opole.',
+            description: 'Symulator uśmiechu AI: prześlij selfie i zobacz swój uśmiech po licówkach lub wybielaniu. 3 style: Naturalny, Jaśniejszy, Hollywood. Mikrostomart Opole.',
             keywords: 'symulator uśmiechu opole, ai uśmiech, podgląd licówek, podgląd wybielania, projektowanie uśmiechu opole',
         },
         en: {
             title: 'AI Smile Simulator | Preview Your New Smile - Mikrostomart',
-            description: 'Mikrostomart AI Smile Simulator: upload a selfie and see your smile after veneers or whitening. 4 styles: Hollywood, Natural, Soft, Strong.',
+            description: 'Mikrostomart AI Smile Simulator: upload a selfie and see your smile after veneers or whitening. 3 styles: Natural, Brighter, Hollywood.',
             keywords: 'AI smile simulator Opole, smile preview, veneers preview Poland, whitening preview, smile design Opole',
         },
         de: {
             title: 'KI-Lächeln-Simulator | Neues Lächeln Vorschau - Mikrostomart',
-            description: 'Mikrostomart KI-Lächeln-Simulator: Selfie hochladen und Ihr Lächeln nach Veneers oder Bleaching sehen. 4 Stile: Hollywood, Natural, Soft, Strong.',
+            description: 'Mikrostomart KI-Lächeln-Simulator: Selfie hochladen und Ihr Lächeln nach Veneers oder Bleaching sehen. 3 Stile: Natürlich, Heller, Hollywood.',
             keywords: 'KI Lächeln Simulator Opole, Lächeln Vorschau, Veneers Vorschau Polen, Bleaching Vorschau, Smile Design Opole',
         },
         ua: {
             title: 'AI симулятор посмішки | Нова посмішка - Mikrostomart',
-            description: 'AI симулятор посмішки Mikrostomart: завантажте селфі і подивіться як виглядатиме посмішка після вінірів або відбілювання. 4 стилі.',
+            description: 'AI симулятор посмішки Mikrostomart: завантажте селфі і подивіться як виглядатиме посмішка після вінірів або відбілювання. 3 стилі.',
             keywords: 'AI симулятор посмішки Ополе, передперегляд вінірів, передперегляд відбілювання, дизайн посмішки Ополе Польща',
         },
     },
