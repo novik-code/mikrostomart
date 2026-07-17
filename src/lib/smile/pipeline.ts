@@ -27,6 +27,7 @@ import Replicate from 'replicate';
 import OpenAI from 'openai';
 import { checkRateLimit } from '@/lib/rateLimit';
 import { KONTEXT_PROMPTS, SMILE_PROMPTS, SmileStyle } from './prompts';
+import { WATERMARK_ASPECT, WATERMARK_PNG_BASE64 } from './watermarkAsset';
 
 // --- Public types ---
 
@@ -93,9 +94,6 @@ const CROP_EXPAND_H = 2.6;
 // Feathered composite edge, as a fraction of the crop width.
 const FEATHER_RATIO = 0.08;
 
-const WATERMARK_TEXT = 'Symulacja poglądowa · Mikrostomart';
-const WATERMARK_FONT_RATIO = 0.026; // font size as fraction of image width
-const WATERMARK_OPACITY = 0.75;
 
 function qaModel(): string {
     return process.env.SMILE_QA_MODEL || QA_MODEL_DEFAULT;
@@ -551,31 +549,35 @@ async function generateFallbackComposite(
 
 // --- Step 7: watermark ---
 
-function escapeXml(text: string): string {
-    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-/** Semi-transparent "Symulacja poglądowa · Mikrostomart" in the bottom-right corner. */
+/**
+ * Semi-transparent "Symulacja poglądowa · Mikrostomart" in the bottom-right
+ * corner. Composites a pre-rendered PNG (see watermarkAsset.ts) — SVG <text>
+ * is NOT used because Vercel lambdas have no fonts and librsvg renders tofu
+ * boxes in production.
+ */
 async function applyWatermark(image: Buffer): Promise<Buffer> {
     const meta = await sharp(image).metadata();
     const width = meta.width ?? 0;
     const height = meta.height ?? 0;
     if (!width || !height) return image;
 
-    const fontSize = Math.max(12, Math.round(width * WATERMARK_FONT_RATIO));
-    const margin = Math.round(fontSize * 0.9);
-    const shadowOffset = Math.max(1, Math.round(fontSize / 14));
-    const text = escapeXml(WATERMARK_TEXT);
-    const fontFamily = "Helvetica, Arial, 'DejaVu Sans', sans-serif";
+    // ~45% of image width matches the old 2.6%-font design for this text length.
+    const wmWidth = Math.min(width, Math.max(120, Math.round(width * 0.45)));
+    const wmHeight = Math.max(8, Math.round(wmWidth / WATERMARK_ASPECT));
+    const margin = Math.round(wmHeight * 0.6);
 
-    // Text drawn twice: dark offset copy as a shadow, white copy on top.
-    const svg = `<svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-<text x="${width - margin + shadowOffset}" y="${height - margin + shadowOffset}" text-anchor="end" font-family="${fontFamily}" font-size="${fontSize}" fill="#000000" fill-opacity="0.45">${text}</text>
-<text x="${width - margin}" y="${height - margin}" text-anchor="end" font-family="${fontFamily}" font-size="${fontSize}" fill="#ffffff" fill-opacity="${WATERMARK_OPACITY}">${text}</text>
-</svg>`;
+    const wm = await sharp(Buffer.from(WATERMARK_PNG_BASE64, 'base64'))
+        .resize(wmWidth, wmHeight)
+        .toBuffer();
 
     return sharp(image)
-        .composite([{ input: Buffer.from(svg) }])
+        .composite([
+            {
+                input: wm,
+                left: Math.max(0, width - wmWidth - margin),
+                top: Math.max(0, height - wmHeight - margin),
+            },
+        ])
         .jpeg({ quality: JPEG_QUALITY })
         .toBuffer();
 }
