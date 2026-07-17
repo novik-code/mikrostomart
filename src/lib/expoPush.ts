@@ -27,7 +27,22 @@ function isExpoToken(token: string): boolean {
 }
 
 /**
- * Wyślij push Expo na wszystkie urządzenia pacjenta (po prodentisId).
+ * pushToUser dla pacjenta bywa wołany z RÓŻNYMI id: webowym UUID (patients.id —
+ * np. czat admina, careflow) albo prodentisId (crony). Tokeny apki są kluczowane
+ * prodentisId (z JWT), więc UUID trzeba najpierw rozwiązać przez tabelę patients.
+ */
+async function resolveProdentisId(patientId: string): Promise<string | null> {
+    if (/^\d+$/.test(patientId)) return patientId; // już prodentisId
+    const { data } = await supabase
+        .from('patients')
+        .select('prodentis_id')
+        .eq('id', patientId)
+        .maybeSingle();
+    return data?.prodentis_id ?? null;
+}
+
+/**
+ * Wyślij push Expo na wszystkie urządzenia pacjenta (web UUID lub prodentisId).
  * Nieblokujące błędy; tokeny DeviceNotRegistered są usuwane z bazy.
  */
 export async function sendExpoPushToPatient(
@@ -35,10 +50,13 @@ export async function sendExpoPushToPatient(
     payload: ExpoPushPayload
 ): Promise<{ sent: number; failed: number }> {
     try {
+        const prodentisId = await resolveProdentisId(patientId);
+        if (!prodentisId) return { sent: 0, failed: 0 };
+
         const { data: rows } = await supabase
             .from('patient_push_tokens')
             .select('token')
-            .eq('patient_id', patientId);
+            .eq('patient_id', prodentisId);
 
         const tokens = (rows || []).map(r => r.token).filter(isExpoToken);
         if (tokens.length === 0) return { sent: 0, failed: 0 };
