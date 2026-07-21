@@ -1,5 +1,5 @@
 import { Shield, Mail, Globe, Video, Brain, Lock, Trash2, FileText, ExternalLink } from "lucide-react";
-import { brand } from "@/lib/brandConfig";
+import { brand, demoSanitize } from "@/lib/brandConfig";
 import { formatPhoneForTel, formatPhoneDisplay } from "@/lib/phoneFormat";
 
 export default function PrivacyPolicyPage() {
@@ -86,13 +86,13 @@ export default function PrivacyPolicyPage() {
                             marginTop: "0.75rem",
                         }}>
                             <p style={{ fontWeight: 600, color: "var(--color-text-main)", marginBottom: "0.25rem" }}>
-                                Mikrostomart Gabinet Stomatologiczny
+                                {demoSanitize(brand.legalEntity.name)}
                             </p>
-                            <p>Marcin Nowosielski</p>
-                            <p>ul. Centralna 33a, 45-940 Opole, Poland</p>
-                            <p>NIP: 7542680826</p>
+                            <p>{demoSanitize(`operator of the ${brand.name} dental clinic`)}</p>
+                            <p>{`${brand.streetAddress}, ${brand.postalCode} ${brand.city}, Poland`}</p>
+                            <p>{demoSanitize(`NIP: ${brand.legalEntity.nip} · KRS: ${brand.legalEntity.krs}`)}</p>
                             <p style={{ marginTop: "0.5rem" }}>
-                                Email: <a href="mailto:kontakt@mikrostomart.pl" style={{ color: "var(--color-primary)" }}>kontakt@mikrostomart.pl</a>
+                                Email: <a href={`mailto:${brand.email}`} style={{ color: "var(--color-primary)" }}>{brand.email}</a>
                             </p>
                             <p>
                                 Phone: <a href={`tel:${phoneTel}`} style={{ color: "var(--color-primary)" }}>{phoneDisplay}</a>
@@ -259,8 +259,8 @@ export default function PrivacyPolicyPage() {
                         </ul>
                         <p style={{ marginTop: "0.75rem" }}>
                             To exercise any of these rights, contact us at{" "}
-                            <a href="mailto:kontakt@mikrostomart.pl" style={{ color: "var(--color-primary)" }}>
-                                kontakt@mikrostomart.pl
+                            <a href={`mailto:${brand.email}`} style={{ color: "var(--color-primary)" }}>
+                                {brand.email}
                             </a>.
                             We will respond within 30 days as required by GDPR.
                         </p>
@@ -319,7 +319,7 @@ export default function PrivacyPolicyPage() {
                             For any questions about this Privacy Policy or our data practices, please contact:
                         </p>
                         <ul>
-                            <li>Email: <a href="mailto:kontakt@mikrostomart.pl" style={{ color: "var(--color-primary)" }}>kontakt@mikrostomart.pl</a></li>
+                            <li>Email: <a href={`mailto:${brand.email}`} style={{ color: "var(--color-primary)" }}>{brand.email}</a></li>
                             <li>Phone: <a href={`tel:${phoneTel}`} style={{ color: "var(--color-primary)" }}>{phoneDisplay}</a></li>
                             <li>Address: ul. Centralna 33a, 45-940 Opole, Poland</li>
                         </ul>

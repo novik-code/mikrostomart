@@ -366,7 +366,9 @@ export function demoSanitize(text: string): string {
         // NIP / company details
         .replace(/ELMAR\s+SP(?:ÓŁKA|\.)\s*Z\s*(?:OGRANICZONĄ\s*ODPOWIEDZIALNOŚCIĄ|O\.?\s*O\.?)/gi, 'Demo Dental Sp. z o.o.')
         .replace(/NIP:\s*7543251709/gi, 'NIP: 0000000000')
-        .replace(/7543251709/g, '0000000000');
+        .replace(/7543251709/g, '0000000000')
+        .replace(/KRS:\s*0000815074/gi, 'KRS: 0000000000')
+        .replace(/0000815074/g, '0000000000');
 }
 
 /**
