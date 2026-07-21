@@ -385,6 +385,8 @@ export function brandI18nParams(): Record<string, string> {
         cityShort: brand.cityShort,
         phone1: brand.phone1,
         legalName: brand.legalEntity?.name || brand.name,
-        email: brand.senderEmail,
+        // {email} w tekstach dla pacjenta = adres kontaktowy recepcji (gabinet@),
+        // NIE adres nadawcy maili transakcyjnych (senderEmail = noreply@).
+        email: brand.email,
     };
 }
