@@ -87,7 +87,7 @@ export default async function Layout({
             "name": t(`faqQ${n}`),
             "acceptedAnswer": {
                 "@type": "Answer",
-                "text": t(`faqA${n}`),
+                "text": t(`faqA${n}`, { phone1: brand.phone1, email: brand.email }),
             },
         })),
     };
