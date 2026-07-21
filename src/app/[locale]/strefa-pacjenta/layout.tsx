@@ -230,7 +230,7 @@ function AuthenticatedLayout({ children, pathname }: { children: React.ReactNode
                             </p>
                             <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '0.9rem', lineHeight: '1.6' }}>
                                 Otrzymasz powiadomienie email po zatwierdzeniu konta.<br />
-                                W razie pytań: 📞 <strong>{brand.phone1}</strong> lub 📧 <strong>{brand.senderEmail}</strong>
+                                W razie pytań: 📞 <strong>{brand.phone1}</strong> lub 📧 <strong>{brand.email}</strong>
                             </p>
                         </div>
                     </div>
