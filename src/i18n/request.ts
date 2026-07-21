@@ -1,7 +1,6 @@
 import { hasLocale } from 'next-intl';
 import { getRequestConfig } from 'next-intl/server';
 import { routing } from './routing';
-import { brandI18nParams } from '@/lib/brandConfig';
 
 // S5-3 (2026-05-15): deep merge instead of shallow.
 // Shallow `{...common, ...pages}` silently dropped sub-keys whenever both files
@@ -43,8 +42,11 @@ export default getRequestConfig(async ({ requestLocale }) => {
     return {
         locale,
         messages: deepMerge(common, pages),
-        // Auto-inject brand tokens into ALL translations so {brandName} etc. resolve
-        // without needing manual brandI18nParams() in every component
-        defaultTranslationValues: brandI18nParams(),
+        // UWAGA: next-intl v4 USUNĄŁ `defaultTranslationValues` — opcja była tu cicho
+        // ignorowana (nie istnieje w typach 4.12, więc tsc też jej nie łapał).
+        // Tokeny brandu ({brandName}, {email}, ...) są pre-bake'owane w
+        // src/app/layout.tsx (deepBrandReplace) dla ścieżki klienckiej.
+        // Komponenty SERWEROWE wołające getTranslations() dostają surowe wiadomości,
+        // więc muszą przekazywać parametry jawnie: t('klucz', brandI18nParams()).
     };
 });
