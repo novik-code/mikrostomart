@@ -141,8 +141,8 @@ describe('POST /api/smile — pipeline mapping', () => {
         expect(await response.json()).toEqual({ ok: false, reason: 'no_face' });
     });
 
-    it('maps rate_limited to 429 with the scope', async () => {
-        runSmilePipelineMock.mockResolvedValue({ kind: 'rate_limited', scope: 'global' });
+    it('maps a daily-quota rate_limited to 429 with scope + window + Retry-After', async () => {
+        runSmilePipelineMock.mockResolvedValue({ kind: 'rate_limited', scope: 'global', window: 'day' });
 
         const form = new FormData();
         form.set('photo', photoFile());
@@ -151,7 +151,29 @@ describe('POST /api/smile — pipeline mapping', () => {
         const response = await POST(makeRequest(form));
 
         expect(response.status).toBe(429);
-        expect(await response.json()).toEqual({ ok: false, reason: 'rate_limited', scope: 'global' });
+        expect(await response.json()).toEqual({
+            ok: false, reason: 'rate_limited', scope: 'global', window: 'day',
+        });
+        // Daily quota resets at UTC midnight → Retry-After is a positive seconds value.
+        const retryAfter = Number(response.headers.get('Retry-After'));
+        expect(retryAfter).toBeGreaterThan(0);
+        expect(retryAfter).toBeLessThanOrEqual(24 * 60 * 60);
+    });
+
+    it('maps a flood rate_limited to a 60s per-minute window', async () => {
+        runSmilePipelineMock.mockResolvedValue({ kind: 'rate_limited', scope: 'user', window: 'minute' });
+
+        const form = new FormData();
+        form.set('photo', photoFile());
+
+        const { POST } = await import('@/app/api/smile/route');
+        const response = await POST(makeRequest(form));
+
+        expect(response.status).toBe(429);
+        expect(await response.json()).toEqual({
+            ok: false, reason: 'rate_limited', scope: 'user', window: 'minute',
+        });
+        expect(response.headers.get('Retry-After')).toBe('60');
     });
 
     it('maps generation_failed to 502', async () => {

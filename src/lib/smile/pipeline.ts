@@ -26,6 +26,7 @@ import sharp from 'sharp';
 import Replicate from 'replicate';
 import OpenAI from 'openai';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { sendTelegramNotification } from '@/lib/telegram';
 import { KONTEXT_PROMPTS, SMILE_PROMPTS, SmileStyle } from './prompts';
 import { WATERMARK_ASPECT, WATERMARK_PNG_BASE64 } from './watermarkAsset';
 
@@ -43,6 +44,9 @@ export type SmileRejectReason =
     | 'mouth_too_small';
 
 export type RateLimitScope = 'user' | 'global';
+
+/** Which bucket was hit: the per-minute flood guard, or a daily quota. */
+export type RateLimitWindow = 'minute' | 'day';
 
 export interface SmileIdentity {
     /** Set when the request carries a valid patient JWT. */
@@ -62,7 +66,10 @@ export interface SmilePipelineInput {
 export type SmilePipelineResult =
     | { kind: 'success'; provider: SmileProvider; image: string; tookMs: number; remaining?: number }
     | { kind: 'rejected'; reason: SmileRejectReason }
-    | { kind: 'rate_limited'; scope: RateLimitScope }
+    // `window` is ADDITIVE: old app builds (already in the stores, and there is
+    // no OTA) only read `scope`, so its meaning must never change. New clients
+    // use `window` to say "try again in a minute" instead of "come back tomorrow".
+    | { kind: 'rate_limited'; scope: RateLimitScope; window: RateLimitWindow }
     | { kind: 'bad_input' }
     | { kind: 'generation_failed' };
 
@@ -74,6 +81,17 @@ const GLOBAL_DAILY_LIMIT = 200;
 const PATIENT_DAILY_LIMIT = 3;
 const DEVICE_DAILY_LIMIT = 1;
 const IP_DAILY_LIMIT = 3;
+
+/**
+ * Every generation costs real money (Replicate + OpenAI), so a database outage
+ * must NOT silently disable the limiter. Without this, the in-memory fallback
+ * is per-lambda — effectively no cap at all — while spending continues.
+ * Deliberate trade-off: budget over availability.
+ */
+const FAIL_CLOSED = { failClosed: true } as const;
+
+/** Warn the clinic on Telegram once the global daily cap is this far spent. */
+const GLOBAL_ALERT_AT = 0.8;
 
 const MAX_EDGE_PX = 1280;
 const JPEG_QUALITY = 85;
@@ -126,8 +144,35 @@ type LimitOutcome =
  * passed the QA gate — a rejected photo must not burn the user's daily try.
  */
 async function checkSmileFlood(identity: SmileIdentity): Promise<boolean> {
-    const flood = await checkRateLimit(`smile:flood:${identity.ip}`, FLOOD_LIMIT_PER_MINUTE, 60_000);
+    const flood = await checkRateLimit(
+        `smile:flood:${identity.ip}`,
+        FLOOD_LIMIT_PER_MINUTE,
+        60_000,
+        FAIL_CLOSED
+    );
     return flood.allowed;
+}
+
+/**
+ * Budget alarm: warn the clinic once per day when the global cap is nearly
+ * spent, so "the simulator is very popular today" never silently looks like an
+ * outage to patients. The latch itself is a rate-limit key (max 1 per day).
+ */
+async function maybeAlertGlobalBudget(remaining: number, day: string): Promise<void> {
+    const used = GLOBAL_DAILY_LIMIT - remaining;
+    // Alert once spending crosses the threshold. Computed on `used` with ceil so
+    // the trigger is exactly ⌈200·0.8⌉ = 160, not 161 (a float-derived
+    // `floor(200·0.2)=39` remaining bound fired one late).
+    if (used < Math.ceil(GLOBAL_DAILY_LIMIT * GLOBAL_ALERT_AT)) return;
+
+    const latch = await checkRateLimit(`smile:alert:${day}`, 1, DAY_MS);
+    if (!latch.allowed) return; // already alerted today
+
+    await sendTelegramNotification(
+        `⚠️ Symulator uśmiechu: zużyto ${used}/${GLOBAL_DAILY_LIMIT} dziennego limitu generacji ` +
+        `(pozostało ${remaining}). Po wyczerpaniu pacjenci zobaczą komunikat o dużym zainteresowaniu.`,
+        'messages'
+    ).catch(() => { /* alert must never break a generation */ });
 }
 
 /** Daily quotas (global cost cap + per-user), consumed only for actual generations. */
@@ -135,17 +180,20 @@ async function checkSmileQuotas(identity: SmileIdentity): Promise<LimitOutcome> 
     const day = new Date().toISOString().slice(0, 10); // UTC day bucket
 
     // 1. Global daily budget (cost guard across all clients).
-    const global = await checkRateLimit(`smile:global:${day}`, GLOBAL_DAILY_LIMIT, DAY_MS);
+    const global = await checkRateLimit(`smile:global:${day}`, GLOBAL_DAILY_LIMIT, DAY_MS, FAIL_CLOSED);
     if (!global.allowed) return { allowed: false, scope: 'global' };
+    // Fire-and-forget: the budget alarm must never sit on the generation's
+    // critical path (it does a DB latch + a network call to Telegram).
+    void maybeAlertGlobalBudget(global.remaining, day).catch(() => { /* never throws */ });
 
     // 2. Per-user / per-device / per-IP daily quota.
     let user;
     if (identity.prodentisId) {
-        user = await checkRateLimit(`smile:patient:${identity.prodentisId}:${day}`, PATIENT_DAILY_LIMIT, DAY_MS);
+        user = await checkRateLimit(`smile:patient:${identity.prodentisId}:${day}`, PATIENT_DAILY_LIMIT, DAY_MS, FAIL_CLOSED);
     } else if (identity.deviceId) {
-        user = await checkRateLimit(`smile:device:${identity.deviceId}:${day}`, DEVICE_DAILY_LIMIT, DAY_MS);
+        user = await checkRateLimit(`smile:device:${identity.deviceId}:${day}`, DEVICE_DAILY_LIMIT, DAY_MS, FAIL_CLOSED);
     } else {
-        user = await checkRateLimit(`smile:ip:${identity.ip}:${day}`, IP_DAILY_LIMIT, DAY_MS);
+        user = await checkRateLimit(`smile:ip:${identity.ip}:${day}`, IP_DAILY_LIMIT, DAY_MS, FAIL_CLOSED);
     }
     if (!user.allowed) return { allowed: false, scope: 'user' };
 
@@ -592,7 +640,7 @@ export async function runSmilePipeline(input: SmilePipelineInput): Promise<Smile
     //    rejected photo never burns the user's daily try.
     if (!(await checkSmileFlood(identity))) {
         logInfo('rate limited', { scope: 'user', flood: true, client: identity.client });
-        return { kind: 'rate_limited', scope: 'user' };
+        return { kind: 'rate_limited', scope: 'user', window: 'minute' };
     }
 
     // 2. Input normalization.
@@ -632,7 +680,7 @@ export async function runSmilePipeline(input: SmilePipelineInput): Promise<Smile
     const limits = await checkSmileQuotas(identity);
     if (!limits.allowed) {
         logInfo('rate limited', { scope: limits.scope, client: identity.client });
-        return { kind: 'rate_limited', scope: limits.scope };
+        return { kind: 'rate_limited', scope: limits.scope, window: 'day' };
     }
 
     const finish = async (provider: SmileProvider, result: Buffer): Promise<SmilePipelineResult> => {

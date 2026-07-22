@@ -30,6 +30,11 @@ vi.mock('@/lib/rateLimit', () => ({
     getClientIP: () => '203.0.113.5',
 }));
 
+const telegramMock = vi.fn(async (_message: string, _channel?: string) => true);
+vi.mock('@/lib/telegram', () => ({
+    sendTelegramNotification: (message: string, channel?: string) => telegramMock(message, channel),
+}));
+
 // --- Helpers ---
 
 const PATIENT_IDENTITY: SmileIdentity = { prodentisId: 'P-123', ip: '203.0.113.5', client: 'native' };
@@ -151,11 +156,21 @@ describe('smile pipeline — happy path', () => {
         expect(options.input.output_format).toBe('jpg');
         expect(Array.isArray(options.input.image_input)).toBe(true);
 
-        // Rate-limit keys in order: flood → global → patient.
-        const keys = checkRateLimitMock.mock.calls.map((call) => call[0]);
-        expect(keys[0]).toMatch(/^smile:flood:203\.0\.113\.5$/);
-        expect(keys[1]).toMatch(/^smile:global:\d{4}-\d{2}-\d{2}$/);
-        expect(keys[2]).toMatch(/^smile:patient:P-123:\d{4}-\d{2}-\d{2}$/);
+        // Rate-limit keys: flood → global → patient. Matched by prefix rather
+        // than by call index, because the budget alarm may insert an extra
+        // `smile:alert:` call between them once the global cap is nearly spent.
+        const keys = checkRateLimitMock.mock.calls.map((call) => String(call[0]));
+        expect(keys.find((k) => k.startsWith('smile:flood:'))).toMatch(/^smile:flood:203\.0\.113\.5$/);
+        expect(keys.find((k) => k.startsWith('smile:global:'))).toMatch(/^smile:global:\d{4}-\d{2}-\d{2}$/);
+        expect(keys.find((k) => k.startsWith('smile:patient:'))).toMatch(/^smile:patient:P-123:\d{4}-\d{2}-\d{2}$/);
+
+        // Every paid-path limit check must be fail-closed: a DB outage must not
+        // silently turn the cost cap off while Replicate keeps being billed.
+        for (const call of checkRateLimitMock.mock.calls) {
+            const key = String(call[0]);
+            if (key.startsWith('smile:alert:')) continue; // alarm latch, not a cost gate
+            expect(call[3]).toEqual({ failClosed: true });
+        }
     });
 });
 
@@ -229,7 +244,7 @@ describe('smile pipeline — rate limits', () => {
             identity: PATIENT_IDENTITY,
         });
 
-        expect(result).toEqual({ kind: 'rate_limited', scope: 'user' });
+        expect(result).toEqual({ kind: 'rate_limited', scope: 'user', window: 'day' });
         expect(replicateRunMock).not.toHaveBeenCalled();
     });
 
@@ -248,7 +263,7 @@ describe('smile pipeline — rate limits', () => {
             identity: PATIENT_IDENTITY,
         });
 
-        expect(result).toEqual({ kind: 'rate_limited', scope: 'global' });
+        expect(result).toEqual({ kind: 'rate_limited', scope: 'global', window: 'day' });
         expect(replicateRunMock).not.toHaveBeenCalled();
     });
 
@@ -279,8 +294,10 @@ describe('smile pipeline — rate limits', () => {
             style: 'natural',
             identity: { deviceId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', ip: '203.0.113.5', client: 'native' },
         });
-        expect(checkRateLimitMock.mock.calls[2][0]).toMatch(/^smile:device:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:/);
-        expect(checkRateLimitMock.mock.calls[2][1]).toBe(1); // 1/day per device
+        const deviceCall = checkRateLimitMock.mock.calls.find((c) =>
+            String(c[0]).startsWith('smile:device:'));
+        expect(deviceCall?.[0]).toMatch(/^smile:device:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:/);
+        expect(deviceCall?.[1]).toBe(1); // 1/day per device
 
         checkRateLimitMock.mockClear();
         await runSmilePipeline({
@@ -288,8 +305,71 @@ describe('smile pipeline — rate limits', () => {
             style: 'natural',
             identity: { ip: '203.0.113.5', client: 'web' },
         });
-        expect(checkRateLimitMock.mock.calls[2][0]).toMatch(/^smile:ip:203\.0\.113\.5:/);
-        expect(checkRateLimitMock.mock.calls[2][1]).toBe(3); // 3/day per IP
+        const ipCall = checkRateLimitMock.mock.calls.find((c) =>
+            String(c[0]).startsWith('smile:ip:'));
+        expect(ipCall?.[0]).toMatch(/^smile:ip:203\.0\.113\.5:/);
+        expect(ipCall?.[1]).toBe(3); // 3/day per IP
+    });
+
+    it('reports the flood guard as a per-minute window, not a spent daily quota', async () => {
+        installOpenAiMock();
+        checkRateLimitMock.mockImplementation(async (key: string) =>
+            key.startsWith('smile:flood:')
+                ? { allowed: false, remaining: 0 }
+                : { allowed: true, remaining: 5 },
+        );
+
+        const { runSmilePipeline } = await import('@/lib/smile/pipeline');
+        const result = await runSmilePipeline({
+            photo: await makeJpeg(),
+            style: 'natural',
+            identity: PATIENT_IDENTITY,
+        });
+
+        // `scope` stays 'user' for app builds already in the stores (no OTA);
+        // `window` is what lets new clients say "try again in a minute".
+        expect(result).toEqual({ kind: 'rate_limited', scope: 'user', window: 'minute' });
+        expect(replicateRunMock).not.toHaveBeenCalled();
+    });
+});
+
+describe('smile pipeline — global budget alarm', () => {
+    it('alerts once when the global cap is ~80% spent, and not again the same day', async () => {
+        installOpenAiMock();
+        replicateRunMock.mockResolvedValue(await makeJpegDataUri(1024, 768));
+
+        // remaining 30 of 200 → below the 20%-left alarm threshold.
+        let alertLatchTaken = false;
+        checkRateLimitMock.mockImplementation(async (key: string) => {
+            if (key.startsWith('smile:alert:')) {
+                const allowed = !alertLatchTaken;
+                alertLatchTaken = true;
+                return { allowed, remaining: 0 };
+            }
+            if (key.startsWith('smile:global:')) return { allowed: true, remaining: 30 };
+            return { allowed: true, remaining: 5 };
+        });
+
+        const { runSmilePipeline } = await import('@/lib/smile/pipeline');
+
+        // Two generations past the threshold — the latch must fire exactly once.
+        // The alert is fire-and-forget, so wait for the pending microtasks.
+        await runSmilePipeline({ photo: await makeJpeg(), style: 'natural', identity: PATIENT_IDENTITY });
+        await runSmilePipeline({ photo: await makeJpeg(), style: 'natural', identity: PATIENT_IDENTITY });
+
+        await vi.waitFor(() => expect(telegramMock).toHaveBeenCalledTimes(1));
+        expect(String(telegramMock.mock.calls[0][0])).toContain('170/200');
+    });
+
+    it('stays silent while the global cap is comfortable', async () => {
+        installOpenAiMock();
+        replicateRunMock.mockResolvedValue(await makeJpegDataUri(1024, 768));
+        checkRateLimitMock.mockImplementation(async () => ({ allowed: true, remaining: 150 }));
+
+        const { runSmilePipeline } = await import('@/lib/smile/pipeline');
+        await runSmilePipeline({ photo: await makeJpeg(), style: 'natural', identity: PATIENT_IDENTITY });
+
+        expect(telegramMock).not.toHaveBeenCalled();
     });
 });
 

@@ -22,7 +22,8 @@ export const maxDuration = 120;
  *   200 { ok: true, provider, image: dataUri, tookMs, remaining? }
  *   400 { ok: false, reason: 'bad_input' }
  *   422 { ok: false, reason: <qa reject code> }
- *   429 { ok: false, reason: 'rate_limited', scope: 'user'|'global' }
+ *   429 { ok: false, reason: 'rate_limited', scope: 'user'|'global',
+ *         window: 'minute'|'day' } + Retry-After header
  *   502 { ok: false, reason: 'generation_failed' }
  *
  * The heavy lifting lives in src/lib/smile/pipeline.ts (testable module).
@@ -34,6 +35,15 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 function badInput(): NextResponse {
     return NextResponse.json({ ok: false, reason: 'bad_input' }, { status: 400 });
+}
+
+/** Daily quota keys use a UTC day bucket, so that is when they reset. */
+function secondsUntilUtcMidnight(): number {
+    const now = new Date();
+    const midnight = Date.UTC(
+        now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0, 0
+    );
+    return Math.max(1, Math.ceil((midnight - now.getTime()) / 1000));
 }
 
 export async function POST(req: NextRequest) {
@@ -90,8 +100,17 @@ export async function POST(req: NextRequest) {
             });
         case 'rejected':
             return NextResponse.json({ ok: false, reason: result.reason }, { status: 422 });
-        case 'rate_limited':
-            return NextResponse.json({ ok: false, reason: 'rate_limited', scope: result.scope }, { status: 429 });
+        case 'rate_limited': {
+            // `scope` keeps its original meaning for app builds already in the
+            // stores (no OTA — they map anything != 'global' to "come back
+            // tomorrow"). `window` and Retry-After are additive: new clients can
+            // tell "try again in a minute" apart from "daily quota spent".
+            const retryAfter = result.window === 'minute' ? 60 : secondsUntilUtcMidnight();
+            return NextResponse.json(
+                { ok: false, reason: 'rate_limited', scope: result.scope, window: result.window },
+                { status: 429, headers: { 'Retry-After': String(retryAfter) } }
+            );
+        }
         case 'bad_input':
             return badInput();
         case 'generation_failed':
