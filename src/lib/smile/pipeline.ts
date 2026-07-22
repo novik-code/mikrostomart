@@ -77,10 +77,26 @@ export type SmilePipelineResult =
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const FLOOD_LIMIT_PER_MINUTE = 10;
-const GLOBAL_DAILY_LIMIT = 200;
-const PATIENT_DAILY_LIMIT = 3;
-const DEVICE_DAILY_LIMIT = 1;
-const IP_DAILY_LIMIT = 3;
+
+// Daily quotas. Tunable via env (both Vercel envs) without a code change.
+const GLOBAL_DAILY_LIMIT = Number(process.env.SMILE_GLOBAL_DAILY_LIMIT ?? 200);
+const PATIENT_DAILY_LIMIT = Number(process.env.SMILE_PATIENT_DAILY_LIMIT ?? 3);
+const DEVICE_DAILY_LIMIT = Number(process.env.SMILE_DEVICE_DAILY_LIMIT ?? 3);
+const IP_DAILY_LIMIT = Number(process.env.SMILE_IP_DAILY_LIMIT ?? 3);
+
+/**
+ * Logged-in accounts (by prodentisId) that skip daily quotas entirely — for the
+ * clinic's own testing/demo. Comma-separated in SMILE_UNLIMITED_PRODENTIS_IDS.
+ * The per-minute flood guard still applies, so a looping client can't burn the
+ * budget. Treat these as trusted: a leaked token of a listed account generates
+ * without a daily cap. Read at call time so the env can be changed without a
+ * redeploy (and so it is testable).
+ */
+function isUnlimitedProdentisId(prodentisId: string): boolean {
+    return (process.env.SMILE_UNLIMITED_PRODENTIS_IDS ?? '')
+        .split(',')
+        .some((id) => id.trim() === prodentisId);
+}
 
 /**
  * Every generation costs real money (Replicate + OpenAI), so a database outage
@@ -178,6 +194,13 @@ async function maybeAlertGlobalBudget(remaining: number, day: string): Promise<v
 /** Daily quotas (global cost cap + per-user), consumed only for actual generations. */
 async function checkSmileQuotas(identity: SmileIdentity): Promise<LimitOutcome> {
     const day = new Date().toISOString().slice(0, 10); // UTC day bucket
+
+    // 0. Unlimited whitelist (clinic testing). Skips daily quotas AND the global
+    //    cap by design — the flood guard (already passed) is the only backstop.
+    if (identity.prodentisId && isUnlimitedProdentisId(identity.prodentisId)) {
+        logInfo('quota bypass (whitelist)', { client: identity.client });
+        return { allowed: true, remaining: 999 };
+    }
 
     // 1. Global daily budget (cost guard across all clients).
     const global = await checkRateLimit(`smile:global:${day}`, GLOBAL_DAILY_LIMIT, DAY_MS, FAIL_CLOSED);

@@ -297,7 +297,7 @@ describe('smile pipeline — rate limits', () => {
         const deviceCall = checkRateLimitMock.mock.calls.find((c) =>
             String(c[0]).startsWith('smile:device:'));
         expect(deviceCall?.[0]).toMatch(/^smile:device:aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee:/);
-        expect(deviceCall?.[1]).toBe(1); // 1/day per device
+        expect(deviceCall?.[1]).toBe(3); // 3/day per device (raised from 1)
 
         checkRateLimitMock.mockClear();
         await runSmilePipeline({
@@ -330,6 +330,59 @@ describe('smile pipeline — rate limits', () => {
         // `window` is what lets new clients say "try again in a minute".
         expect(result).toEqual({ kind: 'rate_limited', scope: 'user', window: 'minute' });
         expect(replicateRunMock).not.toHaveBeenCalled();
+    });
+
+    it('whitelisted prodentisId bypasses daily + global quotas (flood guard still runs)', async () => {
+        installOpenAiMock();
+        replicateRunMock.mockResolvedValue(await makeJpegDataUri(1024, 768));
+        // Even a fully-spent global cap must not stop a whitelisted account.
+        checkRateLimitMock.mockImplementation(async (key: string) =>
+            key.startsWith('smile:flood:')
+                ? { allowed: true, remaining: 9 }
+                : { allowed: false, remaining: 0 },
+        );
+        process.env.SMILE_UNLIMITED_PRODENTIS_IDS = 'P-999, P-123 ,P-777'; // spaces on purpose
+
+        try {
+            const { runSmilePipeline } = await import('@/lib/smile/pipeline');
+            const result = await runSmilePipeline({
+                photo: await makeJpeg(),
+                style: 'natural',
+                identity: PATIENT_IDENTITY, // prodentisId P-123
+            });
+
+            expect(result.kind).toBe('success');
+            expect(replicateRunMock).toHaveBeenCalled();
+            // Flood guard is the ONLY limit key touched — no daily/global check.
+            const keys = checkRateLimitMock.mock.calls.map((c) => String(c[0]));
+            expect(keys.every((k) => k.startsWith('smile:flood:'))).toBe(true);
+        } finally {
+            delete process.env.SMILE_UNLIMITED_PRODENTIS_IDS;
+        }
+    });
+
+    it('a non-whitelisted patient is NOT bypassed', async () => {
+        installOpenAiMock();
+        checkRateLimitMock.mockImplementation(async (key: string) =>
+            key.startsWith('smile:patient:')
+                ? { allowed: false, remaining: 0 }
+                : { allowed: true, remaining: 5 },
+        );
+        process.env.SMILE_UNLIMITED_PRODENTIS_IDS = 'P-999'; // P-123 not listed
+
+        try {
+            const { runSmilePipeline } = await import('@/lib/smile/pipeline');
+            const result = await runSmilePipeline({
+                photo: await makeJpeg(),
+                style: 'natural',
+                identity: PATIENT_IDENTITY,
+            });
+
+            expect(result).toEqual({ kind: 'rate_limited', scope: 'user', window: 'day' });
+            expect(replicateRunMock).not.toHaveBeenCalled();
+        } finally {
+            delete process.env.SMILE_UNLIMITED_PRODENTIS_IDS;
+        }
     });
 });
 
