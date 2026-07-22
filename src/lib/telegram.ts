@@ -71,6 +71,10 @@ export async function sendTelegramNotification(
 
     await Promise.all(chatIds.map(async (chatId) => {
         try {
+            // Bounded timeout: without it a hung api.telegram.org keeps the
+            // caller's request alive until the serverless maxDuration. This
+            // helper is often awaited on a user-facing path (bookings, chat,
+            // budget alerts), so a stuck notification must never stall it.
             const res = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -79,6 +83,7 @@ export async function sendTelegramNotification(
                     text: message,
                     parse_mode: 'HTML',
                 }),
+                signal: AbortSignal.timeout(8000),
             });
 
             if (res.ok) {
