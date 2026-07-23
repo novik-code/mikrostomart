@@ -160,6 +160,12 @@ export async function GET(req: NextRequest) {
         q => q.eq('clicks', 0).lt('created_at', d365)
     );
 
+    // 3b. smile_leads: leady symulatora/wyceniarki > 12 mies. (deklaracja
+    // retencji z rodo sec11 / politykaPriv sec5 — draft smilelead-v1-2026-07)
+    await clean('smile_leads_old', 'Smile/estimate leads > 12 months', d365, 'smile_leads',
+        q => q.lt('created_at', d365)
+    );
+
     // 4. sms_reminders: status sent/cancelled/failed + > 180d
     await clean('sms_reminders_old', 'SMS reminders sent/failed > 180 days', d180, 'sms_reminders',
         q => q.in('status', ['sent', 'cancelled', 'failed']).lt('created_at', d180)

@@ -139,8 +139,12 @@ export default function RodoPage() {
                             <p>{t('sec9Text')}</p>
                         </LegalSection>
 
-                        <LegalSection number="10" title={t('sec10Title')} last>
+                        <LegalSection number="10" title={t('sec10Title')}>
                             <p>{t('sec10Text')}</p>
+                        </LegalSection>
+
+                        <LegalSection number="11" title={t('sec11Title')} last>
+                            <p>{t('sec11Text')}</p>
                         </LegalSection>
 
                     </div>
