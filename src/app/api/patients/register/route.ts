@@ -129,44 +129,70 @@ export async function POST(request: Request) {
             );
         }
 
-        // Send verification email
+        // Send verification email — Z RETRY (łapie transienty Resend/sieci) i
+        // JAWNYM zapisem statusu, żeby dało się ustalić, czy mail wyszedł.
         const verificationUrl = `${process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl')}/strefa-pacjenta/register/verify-email/${token}`;
 
-        console.log('[Register] Attempting to send verification email to:', email);
-        console.log('[Register] Verification URL:', verificationUrl);
+        const { subject, html } = getEmailTemplate('verification_email', locale, {
+            verificationUrl,
+            year: String(new Date().getFullYear()),
+        });
 
-        try {
-            const { subject, html } = getEmailTemplate('verification_email', locale, {
-                verificationUrl,
-                year: String(new Date().getFullYear()),
-            });
-
-            await sendEmail({ to: email, subject, html });
-
-            console.log('[Register] Verification email sent successfully');
-        } catch (emailError) {
-            console.error('[Register] Failed to send verification email:', emailError);
-            // Don't fail the registration if email fails - log it
-            // User can request new verification link later
+        const MAX_EMAIL_ATTEMPTS = 3;
+        let emailSent = false;
+        let emailError: string | null = 'not attempted';
+        let emailAttempts = 0;
+        for (let i = 0; i < MAX_EMAIL_ATTEMPTS; i++) {
+            emailAttempts = i + 1;
+            // sendEmail NIE rzuca — zwraca { success, id, error }. Sprawdzamy wynik.
+            const res = await sendEmail({ to: email, subject, html });
+            if (res.success) {
+                emailSent = true;
+                emailError = null;
+                console.log(`[Register] Verification email sent (attempt ${emailAttempts}) id: ${res.id}`);
+                break;
+            }
+            emailError = res.error ?? 'unknown';
+            console.error(`[Register] Verification email FAILED (attempt ${emailAttempts}/${MAX_EMAIL_ATTEMPTS}):`, emailError);
+            if (i < MAX_EMAIL_ATTEMPTS - 1) await new Promise((r) => setTimeout(r, 800));
         }
+
+        // Ślad diagnostyczny na tokenie (mig 176): czy mail wyszedł / po ilu próbach / błąd.
+        // Zapytanie „komu mail nie wyszedł": email_verification_tokens WHERE email_sent=false AND used=false.
+        const { error: statusErr } = await supabase
+            .from('email_verification_tokens')
+            .update({
+                email_sent: emailSent,
+                email_sent_at: emailSent ? new Date().toISOString() : null,
+                email_error: emailError,
+                email_attempts: emailAttempts,
+            })
+            .eq('token', token);
+        if (statusErr) console.error('[Register] Failed to record email status:', statusErr.message);
 
         // Push notification to admin
         broadcastPush('admin', 'patient_registered', { email }, '/admin').catch(console.error);
 
-        // Telegram notification to default channel
+        // Telegram do recepcji — JAWNIE oznacz, czy mail wyszedł.
         const now = new Date().toLocaleString('pl-PL', { timeZone: 'Europe/Warsaw', dateStyle: 'short', timeStyle: 'short' });
+        const mailLine = emailSent
+            ? `✅ <b>Mail weryfikacyjny wysłany.</b> Pacjent musi kliknąć link, aby konto trafiło do zatwierdzenia.`
+            : `⚠️ <b>UWAGA: MAIL NIE WYSZEDŁ</b> (po ${emailAttempts} próbach: ${emailError}). Pacjent NIE dostał linku i NIE pojawi się do zatwierdzenia — recepcja musi się z nim skontaktować.`;
         const telegramMsg =
             `👤 <b>NOWY PACJENT — REJESTRACJA</b>\n\n` +
             `🔵 <b>ID Prodentis:</b> ${prodentisId}\n` +
             `📧 <b>Email:</b> ${email}\n` +
             `📲 <b>Telefon:</b> ${normalizedPhone}\n` +
             `🕒 <b>Data rejestracji:</b> ${now}\n\n` +
-            `ℹ️ Pacjent musi zweryfikować email, aby aktywować konto.`;
+            mailLine;
         sendTelegramNotification(telegramMsg, 'default').catch(console.error);
 
         return NextResponse.json({
             success: true,
-            message: 'Sprawdź swoją skrzynkę email, aby dokończyć rejestrację',
+            emailSent, // additive — live app ignoruje; nowszy build może pokazać właściwy komunikat
+            message: emailSent
+                ? 'Sprawdź swoją skrzynkę email, aby dokończyć rejestrację'
+                : 'Konto założone, ale nie udało się wysłać maila. Recepcja wkrótce się z Tobą skontaktuje.',
         });
 
     } catch (error: any) {
