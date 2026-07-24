@@ -41,12 +41,6 @@ export const COMPARATORS_UA: Comparator[] = [
                 ]
             },
             {
-                id: "priority_v", label: "Що важливіше?", options: [
-                    { value: "speed", label: "Швидкість виконання", emoji: "⚡" },
-                    { value: "longevity", label: "Довговічність", emoji: "🏰" },
-                ]
-            },
-            {
                 id: "bruxism_v", label: "Бруксизм?", options: [
                     { value: "no", label: "Ні", emoji: "😊" },
                     { value: "yes", label: "Так", emoji: "😬" },
@@ -122,12 +116,6 @@ export const COMPARATORS_UA: Comparator[] = [
                 id: "other_issues", label: "Є інші нерівності?", options: [
                     { value: "no", label: "Ні, тільки діастема", emoji: "✅" },
                     { value: "yes", label: "Так, інші нерівності теж", emoji: "🔀" },
-                ]
-            },
-            {
-                id: "speed_d", label: "Як швидко хочете результат?", options: [
-                    { value: "asap", label: "Якнайшвидше", emoji: "⚡" },
-                    { value: "can_wait", label: "Можу почекати", emoji: "⏳" },
                 ]
             },
         ],
@@ -357,12 +345,6 @@ export const COMPARATORS_UA: Comparator[] = [
                     { value: "no", label: "Не заважає плану лікування", emoji: "👍" },
                 ]
             },
-            {
-                id: "time_pref", label: "Швидкість vs довговічність?", options: [
-                    { value: "save_time", label: "Хочу швидше — 1–3 візити", emoji: "⚡" },
-                    { value: "invest", label: "Інвестую в довговічність — можу чекати", emoji: "🏰" },
-                ]
-            },
         ],
     },
     {
@@ -408,12 +390,6 @@ export const COMPARATORS_UA: Comparator[] = [
                 id: "anatomy_e", label: "Анатомія каналів?", options: [
                     { value: "simple", label: "Проста (1–2 канали)", emoji: "📏" },
                     { value: "complex", label: "Складна (3+ каналів, вигини)", emoji: "🔀" },
-                ]
-            },
-            {
-                id: "preference_e", label: "Ваша перевага?", options: [
-                    { value: "one_done", label: "Одне засідання — і все", emoji: "⚡" },
-                    { value: "safe", label: "Краще два коротших візити", emoji: "🛡️" },
                 ]
             },
         ],
@@ -682,6 +658,7 @@ export const COMPARATORS_UA: Comparator[] = [
                 id: "willing_br", label: "Чи будете носити шину на ніч?", options: [
                     { value: "yes", label: "Так, без проблем", emoji: "✅" },
                     { value: "maybe", label: "Спробую", emoji: "🤔" },
+                    { value: "no", label: "Радше не носитиму", emoji: "🙅" },
                 ]
             },
         ],

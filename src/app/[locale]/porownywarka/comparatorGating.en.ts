@@ -81,6 +81,7 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     },
     {
         id: "implant_bone_bad", comparatorId: "implant_timing", answers: { bone: "deficient" }, effects: [
+            { methodId: "implant_delayed", scoreDelta: 8 },
             { methodId: "implant_immediate", scoreDelta: -15, badge: "With bone deficiency, delayed implant placement with augmentation is the typical approach." },
         ]
     },
@@ -92,7 +93,7 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     {
         id: "bridge_no_bone", comparatorId: "bridge_types", answers: { bone_b: "no" }, effects: [
             { methodId: "implant", scoreDelta: -15, badge: "Bone deficiency limits implant options." },
-            { methodId: "bridge_on_implants", scoreDelta: -15 },
+            { methodId: "bridge_on_implants", scoreDelta: -15, badge: "A lack of bone limits the implant options." },
         ]
     },
     {
@@ -353,6 +354,284 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     {
         id: "baby_difficult", comparatorId: "baby_tooth_caries", answers: { cooperation: "difficult" }, effects: [
             { methodId: "baby_pulpotomy", scoreDelta: -8, badge: "A pulpotomy is generally done when the child can stay calm and cooperative." },
+        ]
+    },
+
+    // ═══ NOWE REGUŁY (tabela decyzji klinicznych 2026-07-24) ═══
+    {
+        id: "smile_scope_few", comparatorId: "smile_upgrade", answers: { scope: "few" }, effects: [
+            { methodId: "veneer_porc_smile", scoreDelta: -10, badge: "For a change involving 1–2 teeth, a full veneer protocol is usually not necessary — bonding is often considered." },
+            { methodId: "bonding_smile", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "smile_scope_full", comparatorId: "smile_upgrade", answers: { scope: "full" }, effects: [
+            { methodId: "crown_smile", scoreDelta: -10, badge: "Crowns across the whole arch mean extensive grinding; less invasive options are usually considered." },
+            { methodId: "veneer_porc_smile", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "veneer_scope_many", comparatorId: "veneer_type", answers: { scope_v: "many" }, effects: [
+            { methodId: "veneer_comp_type", scoreDelta: -10, badge: "For a makeover of many teeth, composite requires more frequent maintenance; porcelain is usually considered." },
+            { methodId: "veneer_porc_type", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "veneer_scope_few", comparatorId: "veneer_type", answers: { scope_v: "few" }, effects: [
+            { methodId: "veneer_porc_type", scoreDelta: -5 },
+        ]
+    },
+    {
+        id: "bonding_chip", comparatorId: "bonding_scope", answers: { problem_b: "chip" }, effects: [
+            { methodId: "bonding_spot", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "bonding_shape", comparatorId: "bonding_scope", answers: { problem_b: "shape" }, effects: [
+            { methodId: "bonding_full", scoreDelta: 5 },
+        ]
+    },
+    {
+        id: "straighten_crowding", comparatorId: "straighten_vs_mask", answers: { problem_s: "crowding" }, effects: [
+            { methodId: "bonding_mask", scoreDelta: -12, badge: "With crowding there is often not enough room for material — masking options are limited." },
+            { methodId: "aligners", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "straighten_both", comparatorId: "straighten_vs_mask", answers: { problem_s: "both" }, effects: [
+            { methodId: "bonding_mask", scoreDelta: -10, badge: "With co-existing crowding, masking options can be limited." },
+            { methodId: "aligners", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "straighten_cause", comparatorId: "straighten_vs_mask", answers: { cause: "cause" }, effects: [
+            { methodId: "bonding_mask", scoreDelta: -8, badge: "Bonding and veneers improve appearance but do not change the position of the teeth." },
+            { methodId: "aligners", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "diastema_other", comparatorId: "diastema", answers: { other_issues: "yes" }, effects: [
+            { methodId: "bonding_dia", scoreDelta: -8, badge: "Closing the diastema alone does not correct the alignment of the remaining teeth." },
+            { methodId: "ortho_dia", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "bruxism_wear_many", comparatorId: "bruxism_wear", answers: { tooth_count_w: "many" }, effects: [
+            { methodId: "splint_rebuild", scoreDelta: 8 },
+            { methodId: "crown_brux", scoreDelta: -8, badge: "Crowns on 8+ teeth mean extensive grinding; additive restorations are often considered first." },
+        ]
+    },
+    {
+        id: "missing_front", comparatorId: "missing_tooth", answers: { location: "front" }, effects: [
+            { methodId: "partial_denture", scoreDelta: -10, badge: "In the smile zone, the clasps of a partial denture are usually visible when speaking and smiling." },
+            { methodId: "implant", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "implant_zone_aesthetic", comparatorId: "implant_timing", answers: { zone: "aesthetic" }, effects: [
+            { methodId: "implant_immediate", scoreDelta: 6 },
+            { methodId: "implant_delayed", scoreDelta: -4, badge: "In the smile zone, a delayed implant usually means a longer time with a temporary tooth." },
+        ]
+    },
+    {
+        id: "bridge_gap_one", comparatorId: "bridge_types", answers: { gap_count: "one" }, effects: [
+            { methodId: "bridge_on_implants", scoreDelta: -12, badge: "For a single missing tooth, a single implant usually suffices instead of a bridge." },
+            { methodId: "implant", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "bridge_gap_more", comparatorId: "bridge_types", answers: { gap_count: "more" }, effects: [
+            { methodId: "implant", scoreDelta: -15, badge: "With 4+ missing teeth, a single implant with a crown usually will not fill the whole gap." },
+            { methodId: "bridge_on_teeth", scoreDelta: -5, badge: "With a long gap, a tooth-supported bridge has a wide span between abutments, which usually loads them more." },
+            { methodId: "bridge_on_implants", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "denture_many", comparatorId: "denture_types", answers: { missing_count_d: "many" }, effects: [
+            { methodId: "denture_flexible", scoreDelta: -12, badge: "With 4+ missing teeth, a flexible denture usually provides too little stability and support." },
+            { methodId: "denture_skeletal", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "denture_few", comparatorId: "denture_types", answers: { missing_count_d: "few" }, effects: [
+            { methodId: "denture_flexible", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "full_denture_lower", comparatorId: "full_denture", answers: { jaw: "lower" }, effects: [
+            { methodId: "full_denture", scoreDelta: -10, badge: "A lower complete denture usually holds less well — the suction effect does not work in the lower jaw." },
+            { methodId: "overdenture", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "onlay_walls_few", comparatorId: "onlay_vs_crown", answers: { walls: "two_less" }, effects: [
+            { methodId: "onlay", scoreDelta: -15, badge: "With 1–2 remaining walls, the thin walls under an onlay are usually at risk of fracture." },
+            { methodId: "crown_rebuild", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "onlay_walls_many", comparatorId: "onlay_vs_crown", answers: { walls: "three_plus" }, effects: [
+            { methodId: "onlay", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "retreat_short", comparatorId: "retreatment", answers: { previous: "short" }, effects: [
+            { methodId: "re_endo", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "retreat_leakage", comparatorId: "retreatment", answers: { previous: "leakage" }, effects: [
+            { methodId: "re_endo", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "retreat_anatomy", comparatorId: "retreatment", answers: { previous: "anatomy" }, effects: [
+            { methodId: "re_endo", scoreDelta: -12, badge: "With difficult anatomy or a fractured instrument, root canal re-treatment can be less predictable." },
+            { methodId: "resection", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "post_endo_little", comparatorId: "post_endo_rebuild", answers: { tissue_loss: "little" }, effects: [
+            { methodId: "filling_post_endo", scoreDelta: -15, badge: "With 1–2 walls, a tooth after root canal treatment is fragile — a filling alone is usually not enough." },
+            { methodId: "post_crown", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "post_endo_plenty", comparatorId: "post_endo_rebuild", answers: { tissue_loss: "plenty" }, effects: [
+            { methodId: "filling_post_endo", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "gum_bone_advanced", comparatorId: "gum_treatment", answers: { bone_loss_g: "advanced" }, effects: [
+            { methodId: "hygiene_instruct", scoreDelta: -15, badge: "With advanced bone loss, professional cleaning alone is usually not enough." },
+            { methodId: "curettage_open", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "gum_bone_none", comparatorId: "gum_treatment", answers: { bone_loss_g: "none" }, effects: [
+            { methodId: "curettage_open", scoreDelta: -10, badge: "Without bone loss on the X-ray, open curettage is usually not performed." },
+            { methodId: "hygiene_instruct", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "gum_bone_moderate", comparatorId: "gum_treatment", answers: { bone_loss_g: "moderate" }, effects: [
+            { methodId: "curettage_closed", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "gum_compliance_avg", comparatorId: "gum_treatment", answers: { compliance: "average" }, effects: [
+            { methodId: "hygiene_instruct", scoreDelta: 8 },
+            { methodId: "curettage_open", scoreDelta: -5, badge: "After open curettage, the outcome largely depends on daily home hygiene." },
+        ]
+    },
+    {
+        id: "sens_post_scaling", comparatorId: "sensitivity", answers: { cause_s: "post_scaling" }, effects: [
+            { methodId: "varnish_sensitivity", scoreDelta: 10, badge: "After scaling or whitening, sensitivity is usually temporary — a varnish provides quick relief." },
+            { methodId: "paste_sensitivity", scoreDelta: 8 },
+            { methodId: "laser_sensitivity", scoreDelta: -5, badge: "Sensitivity after scaling or whitening often resolves with simpler methods." },
+        ]
+    },
+    {
+        id: "sens_recession", comparatorId: "sensitivity", answers: { cause_s: "recession" }, effects: [
+            { methodId: "varnish_sensitivity", scoreDelta: 8 },
+            { methodId: "laser_sensitivity", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "extract_complex_roots", comparatorId: "extraction_type", answers: { roots_ex: "complex" }, effects: [
+            { methodId: "extract_simple", scoreDelta: -10, badge: "With curved or brittle roots, a simple extraction often turns into a surgical one during the procedure." },
+            { methodId: "extract_surgical", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "extract_inflammation", comparatorId: "extraction_type", answers: { inflammation: "yes" }, effects: [
+            { methodId: "extract_simple", scoreDelta: -5, badge: "With acute inflammation, anaesthesia usually works less well; the timing of the procedure is set individually." },
+            { methodId: "extract_surgical", scoreDelta: -5, badge: "Acute inflammation usually increases the risk of healing complications; the procedure is sometimes preceded by pharmacological treatment." },
+        ]
+    },
+    {
+        id: "sinus_with_enough", comparatorId: "sinus_lift", answers: { implant_plan: "with", bone_height: "enough" }, effects: [
+            { methodId: "sinus_closed", scoreDelta: 10 },
+            { methodId: "sinus_open", scoreDelta: -8, badge: "An open sinus lift is usually a separate procedure — the implant is typically placed after about 6 months of healing." },
+        ]
+    },
+    {
+        id: "sinus_staged", comparatorId: "sinus_lift", answers: { implant_plan: "staged" }, effects: [
+            { methodId: "sinus_open", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "brush_technique_avg", comparatorId: "toothbrush", answers: { technique: "average" }, effects: [
+            { methodId: "brush_electric", scoreDelta: 8 },
+            { methodId: "brush_manual", scoreDelta: -8, badge: "With uncertain technique, a manual brush usually cleans less thoroughly than an electric or sonic one." },
+        ]
+    },
+    {
+        id: "brush_technique_good", comparatorId: "toothbrush", answers: { technique: "good" }, effects: [
+            { methodId: "brush_manual", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "inter_limited_dex", comparatorId: "interdental", answers: { dexterity: "limited" }, effects: [
+            { methodId: "floss", scoreDelta: -10, badge: "With limited dexterity, floss can be difficult — interdental brushes are usually easier." },
+            { methodId: "interdental_brush", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "sealant_under6", comparatorId: "sealant_vs_fluoride", answers: { age_child: "under_6" }, effects: [
+            { methodId: "sealant", scoreDelta: -12, badge: "Under the age of 6, the permanent molars have usually not erupted yet; sealing is typically postponed." },
+            { methodId: "fluoride_varnish", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "sealant_6_12", comparatorId: "sealant_vs_fluoride", answers: { age_child: "6_12" }, effects: [
+            { methodId: "sealant", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "fluoride_under3", comparatorId: "fluoride_method", answers: { age_f: "under_3" }, effects: [
+            { methodId: "fluoride_home", scoreDelta: -10, badge: "Under the age of 3, children often swallow toothpaste — at home a smear amount is recommended, and the dose of additional fluoride is easier to control in the office." },
+            { methodId: "fluoride_office", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "wisdom_impacted", comparatorId: "wisdom_teeth", answers: { position_w: "impacted" }, effects: [
+            { methodId: "wisdom_keep", scoreDelta: -12, badge: "A wisdom tooth impacted in the bone requires periodic X-ray monitoring; with symptoms or changes, removal is usually considered." },
+            { methodId: "wisdom_remove", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "baby_deep", comparatorId: "baby_tooth_caries", answers: { depth: "deep" }, effects: [
+            { methodId: "baby_filling", scoreDelta: -12, badge: "When decay reaches the pulp, pulp treatment is usually considered rather than a filling alone." },
+            { methodId: "baby_pulpotomy", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "crown_comp_severe", comparatorId: "crown_vs_composite", answers: { destruction: "severe" }, effects: [
+            { methodId: "composite_rebuild", scoreDelta: -10, badge: "With the loss of more than half the tooth crown, composite fractures more often; a crown is typically considered." },
+            { methodId: "crown_rebuild", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "sens_paste_helped", comparatorId: "sensitivity", answers: { tried_paste: "yes_helped" }, effects: [
+            { methodId: "paste_sensitivity", scoreDelta: 10, badge: "If the toothpaste is effective, it is often continued as the first line of management." },
+        ]
+    },
+    {
+        id: "extract_partial", comparatorId: "extraction_type", answers: { tooth_visible: "partial" }, effects: [
+            { methodId: "extract_simple", scoreDelta: -10, badge: "For a partially erupted tooth, surgical access is often needed." },
+            { methodId: "extract_surgical", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "brush_receding", comparatorId: "toothbrush", answers: { gums: "receding" }, effects: [
+            { methodId: "brush_sonic", scoreDelta: 10 },
+            { methodId: "brush_manual", scoreDelta: -8, badge: "With gum recession, brushing too hard by hand can deepen defects at the tooth necks." },
+        ]
+    },
+    {
+        id: "brux_unwilling", comparatorId: "bruxism_guard", answers: { willing_br: "no" }, effects: [
+            { methodId: "splint_guard", scoreDelta: -10, badge: "A guard only protects when it is worn; without that, its effectiveness is limited." },
         ]
     },
 ];
