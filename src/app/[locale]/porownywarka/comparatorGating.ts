@@ -4,7 +4,7 @@ export const GATING_RULES_ALL: GatingRule[] = [
     // ═══ ESTETYKA ═══
     {
         id: "smile_brux", comparatorId: "smile_upgrade", answers: { bruxism: "yes" }, effects: [
-            { methodId: "bonding_smile", scoreDelta: -15, badge: "Bruksizm skraca żywotność bondingu — szyna nocna obowiązkowa." },
+            { methodId: "bonding_smile", scoreDelta: -15, badge: "Przy bruksizmie żywotność bondingu jest zwykle krótsza; w praktyce łączy się go z szyną nocną." },
             { methodId: "whitening", scoreDelta: -5 },
         ]
     },
@@ -32,7 +32,7 @@ export const GATING_RULES_ALL: GatingRule[] = [
     },
     {
         id: "bonding_brux_scope", comparatorId: "bonding_scope", answers: { bruxism_b: "yes" }, effects: [
-            { methodId: "bonding_full", scoreDelta: -10, badge: "Bruksizm — rozważ szynę nocną." },
+            { methodId: "bonding_full", scoreDelta: -10, badge: "Przy bruksizmie często stosuje się dodatkowo szynę nocną." },
         ]
     },
     {
@@ -49,21 +49,21 @@ export const GATING_RULES_ALL: GatingRule[] = [
     },
     {
         id: "wear_severe", comparatorId: "bruxism_wear", answers: { wear_level: "severe" }, effects: [
-            { methodId: "splint_rebuild", scoreDelta: -10, badge: "Zaawansowane starcia mogą wymagać pełnego pokrycia." },
+            { methodId: "splint_rebuild", scoreDelta: -10, badge: "Przy zaawansowanych starciach często stosuje się odbudowy pełnego pokrycia." },
             { methodId: "crown_brux", scoreDelta: 10 },
         ]
     },
     {
         id: "wear_no_splint", comparatorId: "bruxism_wear", answers: { splint_ok: "no" }, effects: [
-            { methodId: "splint_rebuild", scoreDelta: -10, badge: "Bez szyny efekt odbudowy będzie krótkotrwały." },
-            { methodId: "veneer_brux", scoreDelta: -8, badge: "Licówki bez szyny mają większe ryzyko pęknięcia." },
+            { methodId: "splint_rebuild", scoreDelta: -10, badge: "Bez szyny trwałość odbudowy przy bruksizmie jest zwykle wyraźnie krótsza." },
+            { methodId: "veneer_brux", scoreDelta: -8, badge: "Bez szyny trwałość licówek przy bruksizmie jest zwykle wyraźnie krótsza." },
         ]
     },
 
     // ═══ BRAKI ZĘBOWE ═══
     {
         id: "missing_healthy", comparatorId: "missing_tooth", answers: { neighbors: "healthy" }, effects: [
-            { methodId: "bridge", scoreDelta: -12, badge: "Szkoda szlifować zdrowe sąsiednie zęby pod most." },
+            { methodId: "bridge", scoreDelta: -12, badge: "Most wymaga oszlifowania zębów sąsiednich — przy zdrowych filarach to istotny kompromis." },
             { methodId: "implant", scoreDelta: 8 },
         ]
     },
@@ -75,18 +75,18 @@ export const GATING_RULES_ALL: GatingRule[] = [
     },
     {
         id: "implant_infection", comparatorId: "implant_timing", answers: { infection: "yes" }, effects: [
-            { methodId: "implant_immediate", scoreDelta: -20, badge: "Infekcja wyklucza implant natychmiastowy." },
+            { methodId: "implant_immediate", scoreDelta: -20, badge: "Przy aktywnej infekcji implantacji natychmiastowej zwykle się nie wykonuje." },
             { methodId: "implant_delayed", scoreDelta: 10 },
         ]
     },
     {
         id: "implant_bone_bad", comparatorId: "implant_timing", answers: { bone: "deficient" }, effects: [
-            { methodId: "implant_immediate", scoreDelta: -15, badge: "Brak kości — implant odroczony z augmentacją." },
+            { methodId: "implant_immediate", scoreDelta: -15, badge: "Przy niedoborze kości typowo wykonuje się implantację odroczoną z augmentacją." },
         ]
     },
     {
         id: "bridge_healthy_abut", comparatorId: "bridge_types", answers: { abutment: "healthy" }, effects: [
-            { methodId: "bridge_on_teeth", scoreDelta: -12, badge: "Zdrowe filary — szkoda szlifować pod most." },
+            { methodId: "bridge_on_teeth", scoreDelta: -12, badge: "Most wymaga oszlifowania zębów sąsiednich — przy zdrowych filarach to istotny kompromis." },
         ]
     },
     {
@@ -97,7 +97,7 @@ export const GATING_RULES_ALL: GatingRule[] = [
     },
     {
         id: "denture_temp", comparatorId: "denture_types", answers: { duration_d: "temp" }, effects: [
-            { methodId: "denture_acrylic", scoreDelta: 12, badge: "Akrylowa: idealna jako tymczasowa." },
+            { methodId: "denture_acrylic", scoreDelta: 12, badge: "Proteza akrylowa często pełni rolę rozwiązania tymczasowego." },
             { methodId: "denture_skeletal", scoreDelta: -5 },
         ]
     },
@@ -110,23 +110,23 @@ export const GATING_RULES_ALL: GatingRule[] = [
     {
         id: "full_loose", comparatorId: "full_denture", answers: { stability: "loose" }, effects: [
             { methodId: "overdenture", scoreDelta: 15 },
-            { methodId: "full_denture", scoreDelta: -10, badge: "Luźna proteza — implanty drastycznie poprawią komfort." },
+            { methodId: "full_denture", scoreDelta: -10, badge: "Przy luźnej protezie zaopatrzenie na implantach zwykle znacząco poprawia stabilność." },
         ]
     },
     {
         id: "full_no_surgery", comparatorId: "full_denture", answers: { surgery_ok: "no" }, effects: [
-            { methodId: "overdenture", scoreDelta: -20, badge: "Overdenture wymaga zabiegu chirurgicznego." },
+            { methodId: "overdenture", scoreDelta: -20, badge: "Overdenture wiąże się z zabiegiem chirurgicznym." },
         ]
     },
     {
         id: "onlay_endo", comparatorId: "onlay_vs_crown", answers: { endo_done: "yes" }, effects: [
             { methodId: "crown_rebuild", scoreDelta: 10 },
-            { methodId: "onlay", scoreDelta: -8, badge: "Ząb po endo — korona daje lepszą ochronę." },
+            { methodId: "onlay", scoreDelta: -8, badge: "Po leczeniu kanałowym korona zapewnia pełniejsze pokrycie i ochronę tkanek zęba." },
         ]
     },
     {
         id: "onlay_brux", comparatorId: "onlay_vs_crown", answers: { bruxism_o: "yes" }, effects: [
-            { methodId: "onlay", scoreDelta: -8, badge: "Bruksizm: korona bezpieczniejsza." },
+            { methodId: "onlay", scoreDelta: -8, badge: "Przy bruksizmie korona wiąże się z mniejszym ryzykiem uszkodzenia niż onlay." },
         ]
     },
     {
@@ -138,14 +138,14 @@ export const GATING_RULES_ALL: GatingRule[] = [
     {
         id: "crown_endo_back", comparatorId: "crown_vs_composite", answers: { endo_cr: "yes", position_cr: "back" }, effects: [
             { methodId: "crown_rebuild", scoreDelta: 12 },
-            { methodId: "composite_rebuild", scoreDelta: -10, badge: "Ząb boczny po endo — korona chroni przed pęknięciem." },
+            { methodId: "composite_rebuild", scoreDelta: -10, badge: "W zębach bocznych po leczeniu kanałowym korona zmniejsza ryzyko pęknięcia." },
         ]
     },
 
     // ═══ KANAŁOWE ═══
     {
         id: "endo_hopeless", comparatorId: "endo_vs_extract", answers: { tooth_state: "hopeless" }, effects: [
-            { methodId: "endo", scoreDelta: -25, badge: "Ząb nie nadaje się do leczenia — ekstrakcja wskazana." },
+            { methodId: "endo", scoreDelta: -25, badge: "Przy tak rozległym zniszczeniu leczenie kanałowe zwykle nie jest już możliwe." },
             { methodId: "extract_implant", scoreDelta: 10 },
         ]
     },
@@ -167,7 +167,7 @@ export const GATING_RULES_ALL: GatingRule[] = [
     },
     {
         id: "endo_abscess", comparatorId: "endo_sessions", answers: { diagnosis_e: "abscess" }, effects: [
-            { methodId: "endo_1visit", scoreDelta: -15, badge: "Ropień — dezynfekcja wymaga wkładki (2 wizyty)." },
+            { methodId: "endo_1visit", scoreDelta: -15, badge: "Przy ropniu dezynfekcję zwykle prowadzi się przez wkładkę leczniczą (2 wizyty)." },
             { methodId: "endo_2visit", scoreDelta: 10 },
         ]
     },
@@ -179,7 +179,7 @@ export const GATING_RULES_ALL: GatingRule[] = [
     {
         id: "post_endo_back", comparatorId: "post_endo_rebuild", answers: { tooth_type_pe: "back" }, effects: [
             { methodId: "post_crown", scoreDelta: 10 },
-            { methodId: "filling_post_endo", scoreDelta: -8, badge: "Ząb boczny po endo — korona zalecana." },
+            { methodId: "filling_post_endo", scoreDelta: -8, badge: "W zębach bocznych po leczeniu kanałowym zamiast wypełnienia zwykle stosuje się koronę." },
         ]
     },
     {
@@ -192,7 +192,7 @@ export const GATING_RULES_ALL: GatingRule[] = [
     // ═══ PERIODONTOLOGIA ═══
     {
         id: "hyg_deep", comparatorId: "hygiene_methods", answers: { pockets: "deep" }, effects: [
-            { methodId: "scaling", scoreDelta: -10, badge: "Głębokie kieszonki wymagają kiretażu." },
+            { methodId: "scaling", scoreDelta: -10, badge: "Głębokie kieszonki zwykle przekraczają zasięg samego skalingu." },
             { methodId: "airflow", scoreDelta: -10 },
             { methodId: "curettage", scoreDelta: 15 },
         ]
@@ -217,18 +217,18 @@ export const GATING_RULES_ALL: GatingRule[] = [
     {
         id: "gum_deep", comparatorId: "gum_treatment", answers: { pockets_g: "over_6" }, effects: [
             { methodId: "curettage_open", scoreDelta: 12 },
-            { methodId: "hygiene_instruct", scoreDelta: -10, badge: "Kieszonki >6 mm wymagają interwencji chirurgicznej." },
+            { methodId: "hygiene_instruct", scoreDelta: -10, badge: "Kieszonki powyżej 6 mm zwykle przekraczają zasięg metod zamkniętych." },
         ]
     },
     {
         id: "sens_severe", comparatorId: "sensitivity", answers: { intensity: "severe" }, effects: [
-            { methodId: "paste_sensitivity", scoreDelta: -15, badge: "Silna nadwrażliwość — pasta nie wystarczy." },
+            { methodId: "paste_sensitivity", scoreDelta: -15, badge: "Przy silnej nadwrażliwości sama pasta zwykle nie daje wystarczającego efektu." },
             { methodId: "laser_sensitivity", scoreDelta: 10 },
         ]
     },
     {
         id: "sens_tried_paste", comparatorId: "sensitivity", answers: { tried_paste: "yes_not" }, effects: [
-            { methodId: "paste_sensitivity", scoreDelta: -15, badge: "Pasta nie pomogła — potrzebna interwencja gabinetowa." },
+            { methodId: "paste_sensitivity", scoreDelta: -15, badge: "Skoro pasta nie przyniosła efektu, zwykle sięga się po metody gabinetowe." },
             { methodId: "varnish_sensitivity", scoreDelta: 8 },
             { methodId: "laser_sensitivity", scoreDelta: 8 },
         ]
@@ -237,13 +237,13 @@ export const GATING_RULES_ALL: GatingRule[] = [
     // ═══ CHIRURGIA ═══
     {
         id: "extract_impacted", comparatorId: "extraction_type", answers: { tooth_visible: "no" }, effects: [
-            { methodId: "extract_simple", scoreDelta: -25, badge: "Ząb zatrzymany — konieczna ekstrakcja chirurgiczna." },
+            { methodId: "extract_simple", scoreDelta: -25, badge: "Ząb zatrzymany usuwa się metodą chirurgiczną, nie prostą." },
             { methodId: "extract_surgical", scoreDelta: 10 },
         ]
     },
     {
         id: "wisdom_frequent", comparatorId: "wisdom_teeth", answers: { symptoms_w: "frequent" }, effects: [
-            { methodId: "wisdom_keep", scoreDelta: -20, badge: "Częste problemy — wskazanie do ekstrakcji." },
+            { methodId: "wisdom_keep", scoreDelta: -20, badge: "Częste dolegliwości to typowa sytuacja, w której rozważa się usunięcie ósemki." },
             { methodId: "wisdom_remove", scoreDelta: 10 },
         ]
     },
@@ -255,13 +255,13 @@ export const GATING_RULES_ALL: GatingRule[] = [
     },
     {
         id: "wisdom_caries", comparatorId: "wisdom_teeth", answers: { caries_w: "yes" }, effects: [
-            { methodId: "wisdom_keep", scoreDelta: -15, badge: "Próchnica ósemki lub sąsiada — ekstrakcja wskazana." },
+            { methodId: "wisdom_keep", scoreDelta: -15, badge: "Próchnica ósemki lub zęba sąsiedniego to częsty powód decyzji o usunięciu." },
             { methodId: "wisdom_remove", scoreDelta: 10 },
         ]
     },
     {
         id: "sinus_little_bone", comparatorId: "sinus_lift", answers: { bone_height: "little" }, effects: [
-            { methodId: "sinus_closed", scoreDelta: -15, badge: "Zbyt mało kości na zamknięty — potrzebny otwarty." },
+            { methodId: "sinus_closed", scoreDelta: -15, badge: "Przy tej wysokości kości zwykle wykonuje się podniesienie metodą otwartą." },
             { methodId: "sinus_open", scoreDelta: 10 },
         ]
     },
@@ -298,19 +298,19 @@ export const GATING_RULES_ALL: GatingRule[] = [
     },
     {
         id: "inter_prosth", comparatorId: "interdental", answers: { prosthetics_i: "yes" }, effects: [
-            { methodId: "irrigator", scoreDelta: 10, badge: "Irygator: idealny do mostów i implantów." },
+            { methodId: "irrigator", scoreDelta: 10, badge: "Irygator dobrze sprawdza się przy mostach i implantach." },
             { methodId: "interdental_brush", scoreDelta: 8 },
         ]
     },
     {
         id: "brux_severe", comparatorId: "bruxism_guard", answers: { symptoms_br: "severe" }, effects: [
-            { methodId: "no_guard", scoreDelta: -25, badge: "Silny bruksizm bez szyny prowadzi do pęknięć i utraty zębów." },
+            { methodId: "no_guard", scoreDelta: -25, badge: "Nieleczony nasilony bruksizm wiąże się z ryzykiem pęknięć i uszkodzeń zębów." },
             { methodId: "splint_guard", scoreDelta: 10 },
         ]
     },
     {
         id: "brux_wear_visible", comparatorId: "bruxism_guard", answers: { wear_visible: "yes" }, effects: [
-            { methodId: "no_guard", scoreDelta: -15, badge: "Widoczne starcia — szyna konieczna." },
+            { methodId: "no_guard", scoreDelta: -15, badge: "Widoczne starcia wskazują na aktywny bruksizm; typowym postępowaniem jest szyna." },
         ]
     },
 
@@ -340,19 +340,19 @@ export const GATING_RULES_ALL: GatingRule[] = [
     },
     {
         id: "baby_abscess", comparatorId: "baby_tooth_caries", answers: { depth: "abscess" }, effects: [
-            { methodId: "baby_filling", scoreDelta: -20, badge: "Ropień — wypełnienie nie wystarczy." },
+            { methodId: "baby_filling", scoreDelta: -20, badge: "Przy ropniu samo wypełnienie zwykle nie rozwiązuje problemu." },
             { methodId: "baby_extraction", scoreDelta: 12 },
         ]
     },
     {
         id: "baby_soon", comparatorId: "baby_tooth_caries", answers: { exchange: "soon" }, effects: [
-            { methodId: "baby_pulpotomy", scoreDelta: -10, badge: "Wymiana blisko — leczenie kanałowe niekonieczne." },
+            { methodId: "baby_pulpotomy", scoreDelta: -10, badge: "Przy bliskiej wymianie zęba leczenie miazgi często nie przynosi już korzyści." },
             { methodId: "baby_extraction", scoreDelta: 8 },
         ]
     },
     {
         id: "baby_difficult", comparatorId: "baby_tooth_caries", answers: { cooperation: "difficult" }, effects: [
-            { methodId: "baby_pulpotomy", scoreDelta: -8, badge: "Trudna współpraca: pulpotomia wymaga spokojnego dziecka." },
+            { methodId: "baby_pulpotomy", scoreDelta: -8, badge: "Pulpotomię zwykle wykonuje się u spokojnie współpracującego dziecka." },
         ]
     },
 ];

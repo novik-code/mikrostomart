@@ -16,7 +16,7 @@ export const CATEGORIES_EN: Category[] = [
 
 export const PRIORITIES_EN: PriorityOption[] = [
     { id: "balanced", label: "Balanced", sublabel: "Balance between all factors", emoji: "⚖️", color: "#a855f7" },
-    { id: "durable", label: "Most durable", sublabel: "Priority for years", emoji: "��", color: "#38bdf8" },
+    { id: "durable", label: "Most durable", sublabel: "Priority for years", emoji: "🏰", color: "#38bdf8" },
     { id: "min_invasive", label: "Least invasive", sublabel: "Preserve tissue", emoji: "🌿", color: "#10b981" },
     { id: "fast", label: "Fastest", sublabel: "Quickest result", emoji: "⚡", color: "#f59e0b" },
     { id: "easy_maintenance", label: "Easy maintenance", sublabel: "Minimum upkeep", emoji: "🧼", color: "#06b6d4" },
@@ -33,5 +33,5 @@ export const TABLE_ROW_LABELS_EN: { key: string; label: string; tooltip: string 
 ];
 
 export function getRecommendationText_EN(priorityId: string, priorityLabel: string, methodLabel: string, methodShort: string, hasBadges: boolean): string {
-    return `With priority "${priorityLabel}" the best match is **${methodLabel}**: ${methodShort} ${hasBadges ? "Pay attention to the notes below." : ""}`;
+    return `In this comparison, with the "**${priorityLabel}**" priority, **${methodLabel}** comes out favourably: ${methodShort}${hasBadges ? " Please note the information below." : ""}`;
 }

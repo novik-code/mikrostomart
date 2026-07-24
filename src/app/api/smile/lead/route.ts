@@ -25,7 +25,7 @@ import { sendTelegramNotification } from '@/lib/telegram';
  *   w formularzu (e-mail/telefon) — zero wiązania leada z ID kartoteki.
  *
  * Body (JSON):
- * { source: 'metamorfoza'|'wycena'|'duration', locale?, name?, email?, phone?,
+ * { source: 'metamorfoza'|'wycena'|'duration'|'compare', locale?, name?, email?, phone?,
  *   consentResult: true, consentMarketing?: boolean,
  *   style?, summary?, estimateMin?, estimateMax?,
  *   image?: string  // data-URL JPEG (tylko metamorfoza; NIE zapisywane) }
@@ -47,7 +47,7 @@ const MAX_IMAGE_CHARS = 4_500_000;
 /** Telegram idzie z parse_mode HTML — surowy user-input z `<` ubija CAŁĄ wiadomość. */
 const tgEsc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-type LeadSource = 'metamorfoza' | 'wycena' | 'duration';
+type LeadSource = 'metamorfoza' | 'wycena' | 'duration' | 'compare';
 
 type LeadBody = {
     source?: string;
@@ -99,9 +99,13 @@ const MAIL = {
         estimateIntro: 'Poniżej orientacyjna wycena skonfigurowana przez Ciebie w aplikacji Mikrostomart:',
         subjectDuration: 'Twoje orientacyjne podsumowanie leczenia — Mikrostomart',
         durationIntro: 'Poniżej orientacyjne podsumowanie leczenia (liczba wizyt i czas), które przygotowałeś/aś w aplikacji Mikrostomart:',
+        subjectCompare: 'Twoje porównanie metod leczenia — Mikrostomart',
+        compareIntro: 'Poniżej podsumowanie porównania metod leczenia, które przygotowałeś/aś w aplikacji Mikrostomart:',
         estimateRange: 'Orientacyjny przedział',
         notAnOffer:
             'Wycena ma charakter wyłącznie poglądowy i orientacyjny. Nie stanowi oferty w rozumieniu art. 66 § 1 Kodeksu cywilnego — wiążąca wycena jest możliwa po badaniu klinicznym. Symulacja i wycena nie stanowią porady medycznej, diagnozy ani planu leczenia.',
+        notAnOfferSummary:
+            'Podsumowanie ma charakter wyłącznie informacyjny i orientacyjny. Nie stanowi porady medycznej, diagnozy ani planu leczenia, ani oferty w rozumieniu art. 66 § 1 Kodeksu cywilnego — o doborze metody i planie leczenia decyduje badanie kliniczne.',
         cta: 'Aby umówić konsultację, odpowiedz na tego maila lub zadzwoń:',
         withdraw:
             'Dane podane w formularzu przetwarzamy na podstawie Twojej zgody (możesz ją wycofać w każdej chwili, pisząc na',
@@ -115,9 +119,13 @@ const MAIL = {
         estimateIntro: 'Below is the indicative estimate you configured in the Mikrostomart app:',
         subjectDuration: 'Your indicative treatment summary — Mikrostomart',
         durationIntro: 'Below is the indicative treatment summary (number of visits and duration) you prepared in the Mikrostomart app:',
+        subjectCompare: 'Your treatment method comparison — Mikrostomart',
+        compareIntro: 'Below is the summary of the treatment method comparison you prepared in the Mikrostomart app:',
         estimateRange: 'Indicative range',
         notAnOffer:
             'The estimate is indicative only. It does not constitute an offer within the meaning of art. 66 § 1 of the Polish Civil Code — a binding quote is possible after a clinical examination. The simulation and estimate are not medical advice, a diagnosis or a treatment plan.',
+        notAnOfferSummary:
+            'The summary is informational and indicative only. It does not constitute medical advice, a diagnosis or a treatment plan, nor an offer within the meaning of art. 66 § 1 of the Polish Civil Code — the choice of method and the treatment plan are determined by a clinical examination.',
         cta: 'To book a consultation, reply to this e-mail or call:',
         withdraw:
             'We process the data from this form based on your consent (you can withdraw it at any time by writing to',
@@ -131,9 +139,13 @@ const MAIL = {
         estimateIntro: 'Unten die unverbindliche Kostenschätzung, die Sie in der Mikrostomart-App konfiguriert haben:',
         subjectDuration: 'Ihre unverbindliche Behandlungsübersicht — Mikrostomart',
         durationIntro: 'Unten die unverbindliche Behandlungsübersicht (Anzahl der Besuche und Dauer), die Sie in der Mikrostomart-App erstellt haben:',
+        subjectCompare: 'Ihr Behandlungsmethoden-Vergleich — Mikrostomart',
+        compareIntro: 'Unten die Zusammenfassung des Behandlungsmethoden-Vergleichs, den Sie in der Mikrostomart-App erstellt haben:',
         estimateRange: 'Unverbindliche Spanne',
         notAnOffer:
             'Die Schätzung ist unverbindlich und dient nur der Orientierung. Sie stellt kein Angebot im Sinne von Art. 66 § 1 des polnischen Zivilgesetzbuchs dar — ein verbindlicher Kostenplan ist nach einer klinischen Untersuchung möglich. Simulation und Schätzung sind keine medizinische Beratung, Diagnose oder Behandlungsplan.',
+        notAnOfferSummary:
+            'Die Zusammenfassung dient nur der Information und Orientierung. Sie stellt weder eine medizinische Beratung, Diagnose oder einen Behandlungsplan noch ein Angebot im Sinne von Art. 66 § 1 des polnischen Zivilgesetzbuchs dar — über die Wahl der Methode und den Behandlungsplan entscheidet die klinische Untersuchung.',
         cta: 'Für eine Beratung antworten Sie auf diese E-Mail oder rufen Sie an:',
         withdraw:
             'Die Formulardaten verarbeiten wir auf Grundlage Ihrer Einwilligung (Widerruf jederzeit möglich per E-Mail an',
@@ -147,9 +159,13 @@ const MAIL = {
         estimateIntro: 'Нижче — орієнтовний розрахунок, який ви налаштували в застосунку Mikrostomart:',
         subjectDuration: 'Ваш орієнтовний підсумок лікування — Mikrostomart',
         durationIntro: 'Нижче — орієнтовний підсумок лікування (кількість візитів і час), який ви підготували в застосунку Mikrostomart:',
+        subjectCompare: 'Ваше порівняння методів лікування — Mikrostomart',
+        compareIntro: 'Нижче — підсумок порівняння методів лікування, який ви підготували в застосунку Mikrostomart:',
         estimateRange: 'Орієнтовний діапазон',
         notAnOffer:
             'Розрахунок має виключно орієнтовний характер. Він не є офертою в розумінні ст. 66 § 1 Цивільного кодексу Польщі — остаточний розрахунок можливий після клінічного обстеження. Симуляція та розрахунок не є медичною порадою, діагнозом чи планом лікування.',
+        notAnOfferSummary:
+            'Підсумок має виключно інформаційний та орієнтовний характер. Він не є медичною порадою, діагнозом чи планом лікування, ані офертою в розумінні ст. 66 § 1 Цивільного кодексу Польщі — вибір методу та план лікування визначає клінічне обстеження.',
         cta: 'Щоб записатися на консультацію, дайте відповідь на цей лист або зателефонуйте:',
         withdraw:
             'Дані з форми обробляємо на підставі вашої згоди (її можна відкликати в будь-який момент, написавши на',
@@ -175,7 +191,13 @@ function buildEmailHtml(
         ? `<p style="color:#444;line-height:1.5">${summary.replace(/</g, '&lt;')}</p>`
         : '';
     const intro =
-        source === 'metamorfoza' ? m.resultIntro : source === 'duration' ? m.durationIntro : m.estimateIntro;
+        source === 'metamorfoza'
+            ? m.resultIntro
+            : source === 'duration'
+                ? m.durationIntro
+                : source === 'compare'
+                    ? m.compareIntro
+                    : m.estimateIntro;
     return `
 <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#222">
   <h2 style="color:#b8862f">Mikrostomart</h2>
@@ -183,7 +205,7 @@ function buildEmailHtml(
   <p>${intro}</p>
   ${summaryHtml}
   ${range}
-  <p style="font-size:12px;color:#666;line-height:1.5;border-left:3px solid #dcb14a;padding-left:10px">${m.notAnOffer}</p>
+  <p style="font-size:12px;color:#666;line-height:1.5;border-left:3px solid #dcb14a;padding-left:10px">${source === 'duration' || source === 'compare' ? m.notAnOfferSummary : m.notAnOffer}</p>
   <p>${m.cta} <a href="tel:+48${brand.phone1.replace(/\D/g, '')}">${brand.phone1}</a></p>
   <hr style="border:none;border-top:1px solid #eee;margin:20px 0" />
   <p style="font-size:11px;color:#888;line-height:1.5">
@@ -214,7 +236,10 @@ export async function POST(req: NextRequest) {
     }
 
     const source =
-        body.source === 'metamorfoza' || body.source === 'wycena' || body.source === 'duration'
+        body.source === 'metamorfoza' ||
+        body.source === 'wycena' ||
+        body.source === 'duration' ||
+        body.source === 'compare'
             ? body.source
             : null;
     if (!source) return NextResponse.json({ error: 'invalid_source' }, { status: 400 });
@@ -328,7 +353,9 @@ export async function POST(req: NextRequest) {
                     ? m.subjectResult
                     : source === 'duration'
                         ? m.subjectDuration
-                        : m.subjectEstimate,
+                        : source === 'compare'
+                            ? m.subjectCompare
+                            : m.subjectEstimate,
             html: buildEmailHtml(loc, source, name, summary, estimateMin, estimateMax),
             replyTo: brand.email,
             ...(imageBuffer
@@ -348,7 +375,7 @@ export async function POST(req: NextRequest) {
     // User-input eskejpowany (parse_mode HTML). Zawartość zgodna z polityką
     // sec9 (dane kontaktowe z formularza; ZERO ID kartoteki/dok. medycznej).
     const tgLines = [
-        `🧲 Nowy lead z aplikacji (${source === 'metamorfoza' ? 'symulator' : source === 'duration' ? 'kalkulator czasu' : 'wyceniarka'})`,
+        `🧲 Nowy lead z aplikacji (${source === 'metamorfoza' ? 'symulator' : source === 'duration' ? 'kalkulator czasu' : source === 'compare' ? 'porównywarka' : 'wyceniarka'})`,
         name ? `👤 ${tgEsc(name)}` : null,
         email
             ? `✉️ ${tgEsc(email)}${emailSent ? ' (wynik wysłany)' : ' — ❌ mail NIE wysłany, wyślij ręcznie'}`
