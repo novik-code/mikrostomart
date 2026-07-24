@@ -25,7 +25,7 @@ import { sendTelegramNotification } from '@/lib/telegram';
  *   w formularzu (e-mail/telefon) — zero wiązania leada z ID kartoteki.
  *
  * Body (JSON):
- * { source: 'metamorfoza'|'wycena', locale?, name?, email?, phone?,
+ * { source: 'metamorfoza'|'wycena'|'duration', locale?, name?, email?, phone?,
  *   consentResult: true, consentMarketing?: boolean,
  *   style?, summary?, estimateMin?, estimateMax?,
  *   image?: string  // data-URL JPEG (tylko metamorfoza; NIE zapisywane) }
@@ -47,7 +47,7 @@ const MAX_IMAGE_CHARS = 4_500_000;
 /** Telegram idzie z parse_mode HTML — surowy user-input z `<` ubija CAŁĄ wiadomość. */
 const tgEsc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-type LeadSource = 'metamorfoza' | 'wycena';
+type LeadSource = 'metamorfoza' | 'wycena' | 'duration';
 
 type LeadBody = {
     source?: string;
@@ -97,6 +97,8 @@ const MAIL = {
         hello: 'Dzień dobry',
         resultIntro: 'W załączniku przesyłamy wynik Twojej symulacji uśmiechu z aplikacji Mikrostomart.',
         estimateIntro: 'Poniżej orientacyjna wycena skonfigurowana przez Ciebie w aplikacji Mikrostomart:',
+        subjectDuration: 'Twoje orientacyjne podsumowanie leczenia — Mikrostomart',
+        durationIntro: 'Poniżej orientacyjne podsumowanie leczenia (liczba wizyt i czas), które przygotowałeś/aś w aplikacji Mikrostomart:',
         estimateRange: 'Orientacyjny przedział',
         notAnOffer:
             'Wycena ma charakter wyłącznie poglądowy i orientacyjny. Nie stanowi oferty w rozumieniu art. 66 § 1 Kodeksu cywilnego — wiążąca wycena jest możliwa po badaniu klinicznym. Symulacja i wycena nie stanowią porady medycznej, diagnozy ani planu leczenia.',
@@ -111,6 +113,8 @@ const MAIL = {
         hello: 'Hello',
         resultIntro: 'Attached is the result of your smile simulation from the Mikrostomart app.',
         estimateIntro: 'Below is the indicative estimate you configured in the Mikrostomart app:',
+        subjectDuration: 'Your indicative treatment summary — Mikrostomart',
+        durationIntro: 'Below is the indicative treatment summary (number of visits and duration) you prepared in the Mikrostomart app:',
         estimateRange: 'Indicative range',
         notAnOffer:
             'The estimate is indicative only. It does not constitute an offer within the meaning of art. 66 § 1 of the Polish Civil Code — a binding quote is possible after a clinical examination. The simulation and estimate are not medical advice, a diagnosis or a treatment plan.',
@@ -125,6 +129,8 @@ const MAIL = {
         hello: 'Guten Tag',
         resultIntro: 'Im Anhang finden Sie das Ergebnis Ihrer Lächeln-Simulation aus der Mikrostomart-App.',
         estimateIntro: 'Unten die unverbindliche Kostenschätzung, die Sie in der Mikrostomart-App konfiguriert haben:',
+        subjectDuration: 'Ihre unverbindliche Behandlungsübersicht — Mikrostomart',
+        durationIntro: 'Unten die unverbindliche Behandlungsübersicht (Anzahl der Besuche und Dauer), die Sie in der Mikrostomart-App erstellt haben:',
         estimateRange: 'Unverbindliche Spanne',
         notAnOffer:
             'Die Schätzung ist unverbindlich und dient nur der Orientierung. Sie stellt kein Angebot im Sinne von Art. 66 § 1 des polnischen Zivilgesetzbuchs dar — ein verbindlicher Kostenplan ist nach einer klinischen Untersuchung möglich. Simulation und Schätzung sind keine medizinische Beratung, Diagnose oder Behandlungsplan.',
@@ -139,6 +145,8 @@ const MAIL = {
         hello: 'Доброго дня',
         resultIntro: 'У вкладенні — результат вашої симуляції усмішки з застосунку Mikrostomart.',
         estimateIntro: 'Нижче — орієнтовний розрахунок, який ви налаштували в застосунку Mikrostomart:',
+        subjectDuration: 'Ваш орієнтовний підсумок лікування — Mikrostomart',
+        durationIntro: 'Нижче — орієнтовний підсумок лікування (кількість візитів і час), який ви підготували в застосунку Mikrostomart:',
         estimateRange: 'Орієнтовний діапазон',
         notAnOffer:
             'Розрахунок має виключно орієнтовний характер. Він не є офертою в розумінні ст. 66 § 1 Цивільного кодексу Польщі — остаточний розрахунок можливий після клінічного обстеження. Симуляція та розрахунок не є медичною порадою, діагнозом чи планом лікування.',
@@ -166,7 +174,8 @@ function buildEmailHtml(
     const summaryHtml = summary
         ? `<p style="color:#444;line-height:1.5">${summary.replace(/</g, '&lt;')}</p>`
         : '';
-    const intro = source === 'metamorfoza' ? m.resultIntro : m.estimateIntro;
+    const intro =
+        source === 'metamorfoza' ? m.resultIntro : source === 'duration' ? m.durationIntro : m.estimateIntro;
     return `
 <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#222">
   <h2 style="color:#b8862f">Mikrostomart</h2>
@@ -204,7 +213,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
     }
 
-    const source = body.source === 'metamorfoza' || body.source === 'wycena' ? body.source : null;
+    const source =
+        body.source === 'metamorfoza' || body.source === 'wycena' || body.source === 'duration'
+            ? body.source
+            : null;
     if (!source) return NextResponse.json({ error: 'invalid_source' }, { status: 400 });
 
     // zgoda (a) — przesłanie wyniku/wyceny — jest podstawą przetwarzania: bez niej 400
@@ -311,7 +323,12 @@ export async function POST(req: NextRequest) {
         const m = MAIL[loc];
         const result = await sendEmail({
             to: email,
-            subject: source === 'metamorfoza' ? m.subjectResult : m.subjectEstimate,
+            subject:
+                source === 'metamorfoza'
+                    ? m.subjectResult
+                    : source === 'duration'
+                        ? m.subjectDuration
+                        : m.subjectEstimate,
             html: buildEmailHtml(loc, source, name, summary, estimateMin, estimateMax),
             replyTo: brand.email,
             ...(imageBuffer
@@ -331,7 +348,7 @@ export async function POST(req: NextRequest) {
     // User-input eskejpowany (parse_mode HTML). Zawartość zgodna z polityką
     // sec9 (dane kontaktowe z formularza; ZERO ID kartoteki/dok. medycznej).
     const tgLines = [
-        `🧲 Nowy lead z aplikacji (${source === 'metamorfoza' ? 'symulator' : 'wyceniarka'})`,
+        `🧲 Nowy lead z aplikacji (${source === 'metamorfoza' ? 'symulator' : source === 'duration' ? 'kalkulator czasu' : 'wyceniarka'})`,
         name ? `👤 ${tgEsc(name)}` : null,
         email
             ? `✉️ ${tgEsc(email)}${emailSent ? ' (wynik wysłany)' : ' — ❌ mail NIE wysłany, wyślij ręcznie'}`
