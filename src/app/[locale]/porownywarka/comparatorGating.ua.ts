@@ -4,7 +4,7 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     // ═══ ЕСТЕТИКА ═══
     {
         id: "smile_brux", comparatorId: "smile_upgrade", answers: { bruxism: "yes" }, effects: [
-            { methodId: "bonding_smile", scoreDelta: -15, badge: "Бруксизм скорочує термін служби бондингу — нічна шина обов'язкова." },
+            { methodId: "bonding_smile", scoreDelta: -15, badge: "При бруксизмі бондинг зазвичай служить коротше; на практиці його поєднують із нічною шиною." },
             { methodId: "whitening", scoreDelta: -5 },
         ]
     },
@@ -32,7 +32,7 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     },
     {
         id: "bonding_brux_scope", comparatorId: "bonding_scope", answers: { bruxism_b: "yes" }, effects: [
-            { methodId: "bonding_full", scoreDelta: -10, badge: "Бруксизм — розгляньте нічну шину." },
+            { methodId: "bonding_full", scoreDelta: -10, badge: "При бруксизмі часто додатково застосовують нічну шину." },
         ]
     },
     {
@@ -49,21 +49,21 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     },
     {
         id: "wear_severe", comparatorId: "bruxism_wear", answers: { wear_level: "severe" }, effects: [
-            { methodId: "splint_rebuild", scoreDelta: -10, badge: "Виражене стирання може потребувати повного покриття." },
+            { methodId: "splint_rebuild", scoreDelta: -10, badge: "При вираженому стиранні часто застосовують відновлення з повним покриттям." },
             { methodId: "crown_brux", scoreDelta: 10 },
         ]
     },
     {
         id: "wear_no_splint", comparatorId: "bruxism_wear", answers: { splint_ok: "no" }, effects: [
-            { methodId: "splint_rebuild", scoreDelta: -10, badge: "Без шини відбудова буде короткотривалою." },
-            { methodId: "veneer_brux", scoreDelta: -8, badge: "Вініри без шини мають вищий ризик тріщини." },
+            { methodId: "splint_rebuild", scoreDelta: -10, badge: "Без шини довговічність відновлення при бруксизмі зазвичай помітно коротша." },
+            { methodId: "veneer_brux", scoreDelta: -8, badge: "Без шини довговічність вінірів при бруксизмі зазвичай помітно коротша." },
         ]
     },
 
     // ═══ ВІДСУТНІ ЗУБИ ═══
     {
         id: "missing_healthy", comparatorId: "missing_tooth", answers: { neighbors: "healthy" }, effects: [
-            { methodId: "bridge", scoreDelta: -12, badge: "Шкода обточувати здорові сусідні зуби під міст." },
+            { methodId: "bridge", scoreDelta: -12, badge: "Міст потребує обточування сусідніх зубів — при здорових зубах це суттєвий компроміс." },
             { methodId: "implant", scoreDelta: 8 },
         ]
     },
@@ -75,18 +75,18 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     },
     {
         id: "implant_infection", comparatorId: "implant_timing", answers: { infection: "yes" }, effects: [
-            { methodId: "implant_immediate", scoreDelta: -20, badge: "Інфекція виключає негайну імплантацію." },
+            { methodId: "implant_immediate", scoreDelta: -20, badge: "При активній інфекції негайну імплантацію зазвичай не виконують." },
             { methodId: "implant_delayed", scoreDelta: 10 },
         ]
     },
     {
         id: "implant_bone_bad", comparatorId: "implant_timing", answers: { bone: "deficient" }, effects: [
-            { methodId: "implant_immediate", scoreDelta: -15, badge: "Дефіцит кістки — відстрочений імплант з аугментацією." },
+            { methodId: "implant_immediate", scoreDelta: -15, badge: "При дефіциті кістки типово виконують відстрочену імплантацію з аугментацією." },
         ]
     },
     {
         id: "bridge_healthy_abut", comparatorId: "bridge_types", answers: { abutment: "healthy" }, effects: [
-            { methodId: "bridge_on_teeth", scoreDelta: -12, badge: "Здорові опори — шкода обточувати під міст." },
+            { methodId: "bridge_on_teeth", scoreDelta: -12, badge: "Міст потребує обточування сусідніх зубів — при здорових зубах це суттєвий компроміс." },
         ]
     },
     {
@@ -97,7 +97,7 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     },
     {
         id: "denture_temp", comparatorId: "denture_types", answers: { duration_d: "temp" }, effects: [
-            { methodId: "denture_acrylic", scoreDelta: 12, badge: "Акриловий: ідеальний як тимчасовий." },
+            { methodId: "denture_acrylic", scoreDelta: 12, badge: "Акриловий протез часто виконує роль тимчасового рішення." },
             { methodId: "denture_skeletal", scoreDelta: -5 },
         ]
     },
@@ -110,23 +110,23 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     {
         id: "full_loose", comparatorId: "full_denture", answers: { stability: "loose" }, effects: [
             { methodId: "overdenture", scoreDelta: 15 },
-            { methodId: "full_denture", scoreDelta: -10, badge: "Вільний протез — імпланти кардинально покращать комфорт." },
+            { methodId: "full_denture", scoreDelta: -10, badge: "При нестабільному протезі опора на імплантах зазвичай значно покращує стабільність." },
         ]
     },
     {
         id: "full_no_surgery", comparatorId: "full_denture", answers: { surgery_ok: "no" }, effects: [
-            { methodId: "overdenture", scoreDelta: -20, badge: "Overdenture потребує хірургічної процедури." },
+            { methodId: "overdenture", scoreDelta: -20, badge: "Овердентура пов'язана з хірургічним втручанням." },
         ]
     },
     {
         id: "onlay_endo", comparatorId: "onlay_vs_crown", answers: { endo_done: "yes" }, effects: [
             { methodId: "crown_rebuild", scoreDelta: 10 },
-            { methodId: "onlay", scoreDelta: -8, badge: "Зуб після ендо — коронка дає кращий захист." },
+            { methodId: "onlay", scoreDelta: -8, badge: "Після лікування каналів коронка забезпечує повніше покриття та захист тканин зуба." },
         ]
     },
     {
         id: "onlay_brux", comparatorId: "onlay_vs_crown", answers: { bruxism_o: "yes" }, effects: [
-            { methodId: "onlay", scoreDelta: -8, badge: "Бруксизм: коронка безпечніша." },
+            { methodId: "onlay", scoreDelta: -8, badge: "При бруксизмі коронка пов'язана з меншим ризиком пошкодження, ніж онлей." },
         ]
     },
     {
@@ -138,14 +138,14 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     {
         id: "crown_endo_back", comparatorId: "crown_vs_composite", answers: { endo_cr: "yes", position_cr: "back" }, effects: [
             { methodId: "crown_rebuild", scoreDelta: 12 },
-            { methodId: "composite_rebuild", scoreDelta: -10, badge: "Бічний зуб після ендо — коронка захищає від перелому." },
+            { methodId: "composite_rebuild", scoreDelta: -10, badge: "У бічних зубах після лікування каналів коронка зменшує ризик перелому." },
         ]
     },
 
     // ═══ КАНАЛИ ═══
     {
         id: "endo_hopeless", comparatorId: "endo_vs_extract", answers: { tooth_state: "hopeless" }, effects: [
-            { methodId: "endo", scoreDelta: -25, badge: "Зуб не підлягає лікуванню — показане видалення." },
+            { methodId: "endo", scoreDelta: -25, badge: "При такому обсязі руйнування лікування каналів зазвичай уже неможливе." },
             { methodId: "extract_implant", scoreDelta: 10 },
         ]
     },
@@ -167,7 +167,7 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     },
     {
         id: "endo_abscess", comparatorId: "endo_sessions", answers: { diagnosis_e: "abscess" }, effects: [
-            { methodId: "endo_1visit", scoreDelta: -15, badge: "Абсцес — дезинфекція потребує вкладки (2 візити)." },
+            { methodId: "endo_1visit", scoreDelta: -15, badge: "При абсцесі дезінфекцію зазвичай проводять через лікувальну вкладку (2 візити)." },
             { methodId: "endo_2visit", scoreDelta: 10 },
         ]
     },
@@ -179,7 +179,7 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     {
         id: "post_endo_back", comparatorId: "post_endo_rebuild", answers: { tooth_type_pe: "back" }, effects: [
             { methodId: "post_crown", scoreDelta: 10 },
-            { methodId: "filling_post_endo", scoreDelta: -8, badge: "Бічний зуб після ендо — рекомендована коронка." },
+            { methodId: "filling_post_endo", scoreDelta: -8, badge: "У бічних зубах після лікування каналів замість пломби зазвичай застосовують коронку." },
         ]
     },
     {
@@ -192,7 +192,7 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     // ═══ ПАРОДОНТОЛОГІЯ ═══
     {
         id: "hyg_deep", comparatorId: "hygiene_methods", answers: { pockets: "deep" }, effects: [
-            { methodId: "scaling", scoreDelta: -10, badge: "Глибокі кишені потребують кюретажу." },
+            { methodId: "scaling", scoreDelta: -10, badge: "Глибокі кишені зазвичай виходять за межі можливостей самого скейлінгу." },
             { methodId: "airflow", scoreDelta: -10 },
             { methodId: "curettage", scoreDelta: 15 },
         ]
@@ -217,18 +217,18 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     {
         id: "gum_deep", comparatorId: "gum_treatment", answers: { pockets_g: "over_6" }, effects: [
             { methodId: "curettage_open", scoreDelta: 12 },
-            { methodId: "hygiene_instruct", scoreDelta: -10, badge: "Кишені >6 мм потребують хірургічного втручання." },
+            { methodId: "hygiene_instruct", scoreDelta: -10, badge: "Кишені понад 6 мм зазвичай виходять за межі закритих методів." },
         ]
     },
     {
         id: "sens_severe", comparatorId: "sensitivity", answers: { intensity: "severe" }, effects: [
-            { methodId: "paste_sensitivity", scoreDelta: -15, badge: "Сильна чутливість — пасти недостатньо." },
+            { methodId: "paste_sensitivity", scoreDelta: -15, badge: "При сильній чутливості сама паста зазвичай не дає достатнього ефекту." },
             { methodId: "laser_sensitivity", scoreDelta: 10 },
         ]
     },
     {
         id: "sens_tried_paste", comparatorId: "sensitivity", answers: { tried_paste: "yes_not" }, effects: [
-            { methodId: "paste_sensitivity", scoreDelta: -15, badge: "Паста не допомогла — потрібне кабінетне лікування." },
+            { methodId: "paste_sensitivity", scoreDelta: -15, badge: "Якщо паста не допомогла, зазвичай переходять до кабінетних методів." },
             { methodId: "varnish_sensitivity", scoreDelta: 8 },
             { methodId: "laser_sensitivity", scoreDelta: 8 },
         ]
@@ -237,13 +237,13 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     // ═══ ХІРУРГІЯ ═══
     {
         id: "extract_impacted", comparatorId: "extraction_type", answers: { tooth_visible: "no" }, effects: [
-            { methodId: "extract_simple", scoreDelta: -25, badge: "Ретинований зуб — необхідне хірургічне видалення." },
+            { methodId: "extract_simple", scoreDelta: -25, badge: "Ретинований зуб видаляють хірургічним методом, а не простим." },
             { methodId: "extract_surgical", scoreDelta: 10 },
         ]
     },
     {
         id: "wisdom_frequent", comparatorId: "wisdom_teeth", answers: { symptoms_w: "frequent" }, effects: [
-            { methodId: "wisdom_keep", scoreDelta: -20, badge: "Часті проблеми — показане видалення." },
+            { methodId: "wisdom_keep", scoreDelta: -20, badge: "Повторювані скарги — типова ситуація, коли розглядають видалення зуба мудрості." },
             { methodId: "wisdom_remove", scoreDelta: 10 },
         ]
     },
@@ -255,13 +255,13 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     },
     {
         id: "wisdom_caries", comparatorId: "wisdom_teeth", answers: { caries_w: "yes" }, effects: [
-            { methodId: "wisdom_keep", scoreDelta: -15, badge: "Карієс зуба мудрості або сусіда — показане видалення." },
+            { methodId: "wisdom_keep", scoreDelta: -15, badge: "Карієс зуба мудрості або сусіднього зуба — часта причина рішення про видалення." },
             { methodId: "wisdom_remove", scoreDelta: 10 },
         ]
     },
     {
         id: "sinus_little_bone", comparatorId: "sinus_lift", answers: { bone_height: "little" }, effects: [
-            { methodId: "sinus_closed", scoreDelta: -15, badge: "Замало кістки для закритого — потрібен відкритий синус-ліфт." },
+            { methodId: "sinus_closed", scoreDelta: -15, badge: "При такій висоті кістки зазвичай виконують відкритий синус-ліфтинг." },
             { methodId: "sinus_open", scoreDelta: 10 },
         ]
     },
@@ -298,19 +298,19 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     },
     {
         id: "inter_prosth", comparatorId: "interdental", answers: { prosthetics_i: "yes" }, effects: [
-            { methodId: "irrigator", scoreDelta: 10, badge: "Іригатор: ідеальний для мостів та імплантів." },
+            { methodId: "irrigator", scoreDelta: 10, badge: "Іригатор добре підходить при мостах та імплантах." },
             { methodId: "interdental_brush", scoreDelta: 8 },
         ]
     },
     {
         id: "brux_severe", comparatorId: "bruxism_guard", answers: { symptoms_br: "severe" }, effects: [
-            { methodId: "no_guard", scoreDelta: -25, badge: "Сильний бруксизм без шини веде до переломів і втрати зубів." },
+            { methodId: "no_guard", scoreDelta: -25, badge: "Нелікований виражений бруксизм пов'язаний із ризиком тріщин і пошкоджень зубів." },
             { methodId: "splint_guard", scoreDelta: 10 },
         ]
     },
     {
         id: "brux_wear_visible", comparatorId: "bruxism_guard", answers: { wear_visible: "yes" }, effects: [
-            { methodId: "no_guard", scoreDelta: -15, badge: "Помітне стирання — шина необхідна." },
+            { methodId: "no_guard", scoreDelta: -15, badge: "Видиме стирання вказує на активний бруксизм; типовим підходом є шина." },
         ]
     },
 
@@ -340,19 +340,19 @@ export const GATING_RULES_ALL_UA: GatingRule[] = [
     },
     {
         id: "baby_abscess", comparatorId: "baby_tooth_caries", answers: { depth: "abscess" }, effects: [
-            { methodId: "baby_filling", scoreDelta: -20, badge: "Абсцес — пломби недостатньо." },
+            { methodId: "baby_filling", scoreDelta: -20, badge: "При абсцесі сама пломба зазвичай не вирішує проблеми." },
             { methodId: "baby_extraction", scoreDelta: 12 },
         ]
     },
     {
         id: "baby_soon", comparatorId: "baby_tooth_caries", answers: { exchange: "soon" }, effects: [
-            { methodId: "baby_pulpotomy", scoreDelta: -10, badge: "Зміна скоро — лікування каналів непотрібне." },
+            { methodId: "baby_pulpotomy", scoreDelta: -10, badge: "Коли зуб скоро зміниться природно, лікування пульпи часто вже не приносить користі." },
             { methodId: "baby_extraction", scoreDelta: 8 },
         ]
     },
     {
         id: "baby_difficult", comparatorId: "baby_tooth_caries", answers: { cooperation: "difficult" }, effects: [
-            { methodId: "baby_pulpotomy", scoreDelta: -8, badge: "Складна співпраця: пульпотомія потребує спокійної дитини." },
+            { methodId: "baby_pulpotomy", scoreDelta: -8, badge: "Пульпотомію зазвичай виконують у спокійної, готової до співпраці дитини." },
         ]
     },
 ];

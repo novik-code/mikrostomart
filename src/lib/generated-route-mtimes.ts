@@ -38,7 +38,7 @@ export const routeMtimes: Record<string, string> = {
     "/regulamin": "2026-06-08T11:13:41+02:00",
     "/polityka-cookies": "2026-06-08T11:13:41+02:00",
     "/polityka-prywatnosci": "2026-06-08T11:13:41+02:00",
-    "/rodo": "2026-06-08T11:13:41+02:00",
+    "/rodo": "2026-07-23T15:48:18+02:00",
     "/privacy-policy": "2026-07-21T14:04:11+02:00",
     "/akredytacje": "2026-05-20T12:51:37+02:00",
     "/akredytacje/pte": "2026-05-20T12:51:37+02:00",
@@ -60,4 +60,4 @@ export const routeMtimes: Record<string, string> = {
 };
 
 /** Fallback for routes not in the map (e.g. newly added pages before next regen). */
-export const buildTime: string = "2026-07-23T13:33:10.083Z";
+export const buildTime: string = "2026-07-24T12:36:05.840Z";

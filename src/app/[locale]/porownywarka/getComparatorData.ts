@@ -69,7 +69,7 @@ export interface ComparatorDataSet {
     rankMethods: (comparatorId: string, priorityId: string, answers: Record<string, string>) => ScoredMethod[];
 }
 
-const WEIGHTS: Record<string, PriorityWeights> = {
+export const WEIGHTS: Record<string, PriorityWeights> = {
     balanced: { durabilityScore: 0.25, speedScore: 0.20, minInvasiveScore: 0.20, maintenanceScore: 0.20, riskScore: 0.15 },
     durable: { durabilityScore: 0.50, speedScore: 0.05, minInvasiveScore: 0.10, maintenanceScore: 0.20, riskScore: 0.15 },
     min_invasive: { durabilityScore: 0.10, speedScore: 0.10, minInvasiveScore: 0.45, maintenanceScore: 0.15, riskScore: 0.20 },
@@ -116,9 +116,10 @@ function createRankMethods(
     };
 }
 
-// ─── Polish recommendation text (adapted to new signature) ───
+// ─── Polish recommendation text (reframe MDR: neutralne porównanie, nie „zwycięzca";
+//     bold znormalizowany dla priorytetu I metody, bez trailing space) ───
 function getRecommendationText_PL(_priorityId: string, priorityLabel: string, methodLabel: string, methodShort: string, hasBadges: boolean): string {
-    return `Przy priorytecie „**${priorityLabel}**" najlepiej wypada **${methodLabel}**: ${methodShort} ${hasBadges ? "Zwróć uwagę na zastrzeżenia poniżej." : ""}`;
+    return `W tym zestawieniu, przy priorytecie „**${priorityLabel}**", korzystnie wypada **${methodLabel}**: ${methodShort}${hasBadges ? " Zwróć uwagę na informacje poniżej." : ""}`;
 }
 
 // ─── Merged methods per locale ───

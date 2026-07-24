@@ -43,7 +43,7 @@ export const METHODS_KANALOWE: Record<string, Method> = {
             invasiveness: { value: "Średnia", scale: 3, tooltip: "Praca przez koronę, zachowuje ząb." },
             risk: { value: "Średnie", scale: 3, tooltip: "Trudniejsze niż pierwsze endo. Ryzyko perforacji." },
             hygiene: { value: "Bez zmian", scale: 5, tooltip: "Standardowa higiena." },
-            worksWhen: ["Pierwsze endo niedoszczętne (krótkie wypełnienie)", "Brak szczelności koronowej, wtórna infekcja", "Pomyłka — dodatkowy kanał nieznaleziony"],
+            worksWhen: ["Pierwsze endo niepełne (krótkie wypełnienie)", "Brak szczelności koronowej, wtórna infekcja", "Pomyłka — dodatkowy kanał nieznaleziony"],
             notIdealWhen: ["Pęknięcie korzenia", "Złamany instrument nie do usunięcia", "Ząb nie nadaje się do odbudowy"],
             maintenance: { value: "RTG kontrolne", tooltip: "Kontrola po 6 i 12 miesiącach." },
         },

@@ -4,7 +4,7 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     // ═══ AESTHETICS ═══
     {
         id: "smile_brux", comparatorId: "smile_upgrade", answers: { bruxism: "yes" }, effects: [
-            { methodId: "bonding_smile", scoreDelta: -15, badge: "Bruxism shortens bonding lifespan — a night guard is mandatory." },
+            { methodId: "bonding_smile", scoreDelta: -15, badge: "With bruxism, bonding tends to wear down sooner; in practice it is combined with a night guard." },
             { methodId: "whitening", scoreDelta: -5 },
         ]
     },
@@ -32,7 +32,7 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     },
     {
         id: "bonding_brux_scope", comparatorId: "bonding_scope", answers: { bruxism_b: "yes" }, effects: [
-            { methodId: "bonding_full", scoreDelta: -10, badge: "Bruxism — consider a night guard." },
+            { methodId: "bonding_full", scoreDelta: -10, badge: "With bruxism, a night guard is often used alongside treatment." },
         ]
     },
     {
@@ -49,21 +49,21 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     },
     {
         id: "wear_severe", comparatorId: "bruxism_wear", answers: { wear_level: "severe" }, effects: [
-            { methodId: "splint_rebuild", scoreDelta: -10, badge: "Advanced wear may require full coverage." },
+            { methodId: "splint_rebuild", scoreDelta: -10, badge: "With advanced wear, full-coverage restorations are often used." },
             { methodId: "crown_brux", scoreDelta: 10 },
         ]
     },
     {
         id: "wear_no_splint", comparatorId: "bruxism_wear", answers: { splint_ok: "no" }, effects: [
-            { methodId: "splint_rebuild", scoreDelta: -10, badge: "Without a guard the restoration will be short-lived." },
-            { methodId: "veneer_brux", scoreDelta: -8, badge: "Veneers without a guard have a higher fracture risk." },
+            { methodId: "splint_rebuild", scoreDelta: -10, badge: "Without a night guard, rebuilt teeth tend to wear down much sooner with bruxism." },
+            { methodId: "veneer_brux", scoreDelta: -8, badge: "Without a night guard, veneers tend to last visibly shorter with bruxism." },
         ]
     },
 
     // ═══ MISSING TEETH ═══
     {
         id: "missing_healthy", comparatorId: "missing_tooth", answers: { neighbors: "healthy" }, effects: [
-            { methodId: "bridge", scoreDelta: -12, badge: "It's a pity to grind down healthy neighbours for a bridge." },
+            { methodId: "bridge", scoreDelta: -12, badge: "A bridge requires grinding down the neighbouring teeth — a significant trade-off when they are healthy." },
             { methodId: "implant", scoreDelta: 8 },
         ]
     },
@@ -75,18 +75,18 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     },
     {
         id: "implant_infection", comparatorId: "implant_timing", answers: { infection: "yes" }, effects: [
-            { methodId: "implant_immediate", scoreDelta: -20, badge: "Infection rules out immediate implant placement." },
+            { methodId: "implant_immediate", scoreDelta: -20, badge: "With an active infection, immediate implant placement is usually not performed." },
             { methodId: "implant_delayed", scoreDelta: 10 },
         ]
     },
     {
         id: "implant_bone_bad", comparatorId: "implant_timing", answers: { bone: "deficient" }, effects: [
-            { methodId: "implant_immediate", scoreDelta: -15, badge: "Bone deficiency — delayed implant with augmentation." },
+            { methodId: "implant_immediate", scoreDelta: -15, badge: "With bone deficiency, delayed implant placement with augmentation is the typical approach." },
         ]
     },
     {
         id: "bridge_healthy_abut", comparatorId: "bridge_types", answers: { abutment: "healthy" }, effects: [
-            { methodId: "bridge_on_teeth", scoreDelta: -12, badge: "Healthy abutments — it's a pity to grind them for a bridge." },
+            { methodId: "bridge_on_teeth", scoreDelta: -12, badge: "A bridge requires grinding down the neighbouring teeth — a significant trade-off when they are healthy." },
         ]
     },
     {
@@ -97,7 +97,7 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     },
     {
         id: "denture_temp", comparatorId: "denture_types", answers: { duration_d: "temp" }, effects: [
-            { methodId: "denture_acrylic", scoreDelta: 12, badge: "Acrylic: ideal as a temporary solution." },
+            { methodId: "denture_acrylic", scoreDelta: 12, badge: "An acrylic denture often serves as a temporary solution." },
             { methodId: "denture_skeletal", scoreDelta: -5 },
         ]
     },
@@ -110,23 +110,23 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     {
         id: "full_loose", comparatorId: "full_denture", answers: { stability: "loose" }, effects: [
             { methodId: "overdenture", scoreDelta: 15 },
-            { methodId: "full_denture", scoreDelta: -10, badge: "Loose denture — implants will drastically improve comfort." },
+            { methodId: "full_denture", scoreDelta: -10, badge: "With a loose denture, implant-supported solutions usually improve stability considerably." },
         ]
     },
     {
         id: "full_no_surgery", comparatorId: "full_denture", answers: { surgery_ok: "no" }, effects: [
-            { methodId: "overdenture", scoreDelta: -20, badge: "Overdenture requires a surgical procedure." },
+            { methodId: "overdenture", scoreDelta: -20, badge: "An overdenture involves a surgical procedure." },
         ]
     },
     {
         id: "onlay_endo", comparatorId: "onlay_vs_crown", answers: { endo_done: "yes" }, effects: [
             { methodId: "crown_rebuild", scoreDelta: 10 },
-            { methodId: "onlay", scoreDelta: -8, badge: "Endo-treated tooth — a crown provides better protection." },
+            { methodId: "onlay", scoreDelta: -8, badge: "After root canal treatment, a crown provides fuller coverage and protection of the tooth." },
         ]
     },
     {
         id: "onlay_brux", comparatorId: "onlay_vs_crown", answers: { bruxism_o: "yes" }, effects: [
-            { methodId: "onlay", scoreDelta: -8, badge: "Bruxism: a crown is safer." },
+            { methodId: "onlay", scoreDelta: -8, badge: "With bruxism, a crown carries a lower risk of damage than an onlay." },
         ]
     },
     {
@@ -138,14 +138,14 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     {
         id: "crown_endo_back", comparatorId: "crown_vs_composite", answers: { endo_cr: "yes", position_cr: "back" }, effects: [
             { methodId: "crown_rebuild", scoreDelta: 12 },
-            { methodId: "composite_rebuild", scoreDelta: -10, badge: "Posterior tooth after endo — a crown protects from fracture." },
+            { methodId: "composite_rebuild", scoreDelta: -10, badge: "In back teeth after root canal treatment, a crown reduces the risk of fracture." },
         ]
     },
 
     // ═══ ROOT CANAL ═══
     {
         id: "endo_hopeless", comparatorId: "endo_vs_extract", answers: { tooth_state: "hopeless" }, effects: [
-            { methodId: "endo", scoreDelta: -25, badge: "Tooth is not salvageable — extraction indicated." },
+            { methodId: "endo", scoreDelta: -25, badge: "With damage this extensive, root canal treatment is usually no longer possible." },
             { methodId: "extract_implant", scoreDelta: 10 },
         ]
     },
@@ -167,7 +167,7 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     },
     {
         id: "endo_abscess", comparatorId: "endo_sessions", answers: { diagnosis_e: "abscess" }, effects: [
-            { methodId: "endo_1visit", scoreDelta: -15, badge: "Abscess — disinfection requires a medicament (2 visits)." },
+            { methodId: "endo_1visit", scoreDelta: -15, badge: "With an abscess, disinfection is usually done via a medicated dressing (2 visits)." },
             { methodId: "endo_2visit", scoreDelta: 10 },
         ]
     },
@@ -179,7 +179,7 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     {
         id: "post_endo_back", comparatorId: "post_endo_rebuild", answers: { tooth_type_pe: "back" }, effects: [
             { methodId: "post_crown", scoreDelta: 10 },
-            { methodId: "filling_post_endo", scoreDelta: -8, badge: "Posterior tooth after endo — a crown is recommended." },
+            { methodId: "filling_post_endo", scoreDelta: -8, badge: "In back teeth after root canal treatment, a crown is usually used instead of a filling." },
         ]
     },
     {
@@ -192,7 +192,7 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     // ═══ PERIODONTOLOGY ═══
     {
         id: "hyg_deep", comparatorId: "hygiene_methods", answers: { pockets: "deep" }, effects: [
-            { methodId: "scaling", scoreDelta: -10, badge: "Deep pockets require curettage." },
+            { methodId: "scaling", scoreDelta: -10, badge: "Deep pockets usually go beyond what scaling alone can reach." },
             { methodId: "airflow", scoreDelta: -10 },
             { methodId: "curettage", scoreDelta: 15 },
         ]
@@ -217,18 +217,18 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     {
         id: "gum_deep", comparatorId: "gum_treatment", answers: { pockets_g: "over_6" }, effects: [
             { methodId: "curettage_open", scoreDelta: 12 },
-            { methodId: "hygiene_instruct", scoreDelta: -10, badge: "Pockets >6 mm require surgical intervention." },
+            { methodId: "hygiene_instruct", scoreDelta: -10, badge: "Pockets over 6 mm usually go beyond closed (non-surgical) methods." },
         ]
     },
     {
         id: "sens_severe", comparatorId: "sensitivity", answers: { intensity: "severe" }, effects: [
-            { methodId: "paste_sensitivity", scoreDelta: -15, badge: "Severe sensitivity — toothpaste alone is not enough." },
+            { methodId: "paste_sensitivity", scoreDelta: -15, badge: "With severe sensitivity, toothpaste alone usually does not bring sufficient relief." },
             { methodId: "laser_sensitivity", scoreDelta: 10 },
         ]
     },
     {
         id: "sens_tried_paste", comparatorId: "sensitivity", answers: { tried_paste: "yes_not" }, effects: [
-            { methodId: "paste_sensitivity", scoreDelta: -15, badge: "Toothpaste didn't help — in-office treatment needed." },
+            { methodId: "paste_sensitivity", scoreDelta: -15, badge: "Since toothpaste has not helped, in-office methods are usually the next step." },
             { methodId: "varnish_sensitivity", scoreDelta: 8 },
             { methodId: "laser_sensitivity", scoreDelta: 8 },
         ]
@@ -237,13 +237,13 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     // ═══ SURGERY ═══
     {
         id: "extract_impacted", comparatorId: "extraction_type", answers: { tooth_visible: "no" }, effects: [
-            { methodId: "extract_simple", scoreDelta: -25, badge: "Impacted tooth — surgical extraction required." },
+            { methodId: "extract_simple", scoreDelta: -25, badge: "An impacted tooth is removed surgically, not with simple extraction." },
             { methodId: "extract_surgical", scoreDelta: 10 },
         ]
     },
     {
         id: "wisdom_frequent", comparatorId: "wisdom_teeth", answers: { symptoms_w: "frequent" }, effects: [
-            { methodId: "wisdom_keep", scoreDelta: -20, badge: "Frequent problems — extraction indicated." },
+            { methodId: "wisdom_keep", scoreDelta: -20, badge: "Recurring symptoms are a typical situation in which removing the wisdom tooth is considered." },
             { methodId: "wisdom_remove", scoreDelta: 10 },
         ]
     },
@@ -255,20 +255,20 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     },
     {
         id: "wisdom_caries", comparatorId: "wisdom_teeth", answers: { caries_w: "yes" }, effects: [
-            { methodId: "wisdom_keep", scoreDelta: -15, badge: "Caries in wisdom tooth or neighbour — extraction indicated." },
+            { methodId: "wisdom_keep", scoreDelta: -15, badge: "Decay in the wisdom tooth or its neighbour is a common reason to decide on removal." },
             { methodId: "wisdom_remove", scoreDelta: 10 },
         ]
     },
     {
         id: "sinus_little_bone", comparatorId: "sinus_lift", answers: { bone_height: "little" }, effects: [
-            { methodId: "sinus_closed", scoreDelta: -15, badge: "Too little bone for closed approach — open sinus lift needed." },
+            { methodId: "sinus_closed", scoreDelta: -15, badge: "At this bone height, the open sinus lift technique is usually used." },
             { methodId: "sinus_open", scoreDelta: 10 },
         ]
     },
     {
         id: "sinus_issues", comparatorId: "sinus_lift", answers: { sinus_health: "issues" }, effects: [
-            { methodId: "sinus_closed", scoreDelta: -10, badge: "Sinus pathology — ENT consultation needed." },
-            { methodId: "sinus_open", scoreDelta: -10, badge: "Sinus pathology — treat the sinus before augmentation." },
+            { methodId: "sinus_closed", scoreDelta: -10, badge: "With sinus pathology, an ENT evaluation is usually the first step." },
+            { methodId: "sinus_open", scoreDelta: -10, badge: "With sinus pathology, the sinus is usually treated before augmentation." },
         ]
     },
 
@@ -298,19 +298,19 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     },
     {
         id: "inter_prosth", comparatorId: "interdental", answers: { prosthetics_i: "yes" }, effects: [
-            { methodId: "irrigator", scoreDelta: 10, badge: "Irrigator: ideal for bridges and implants." },
+            { methodId: "irrigator", scoreDelta: 10, badge: "A water flosser works well with bridges and implants." },
             { methodId: "interdental_brush", scoreDelta: 8 },
         ]
     },
     {
         id: "brux_severe", comparatorId: "bruxism_guard", answers: { symptoms_br: "severe" }, effects: [
-            { methodId: "no_guard", scoreDelta: -25, badge: "Severe bruxism without a guard leads to fractures and tooth loss." },
+            { methodId: "no_guard", scoreDelta: -25, badge: "Untreated severe bruxism is associated with a risk of cracks and tooth damage." },
             { methodId: "splint_guard", scoreDelta: 10 },
         ]
     },
     {
         id: "brux_wear_visible", comparatorId: "bruxism_guard", answers: { wear_visible: "yes" }, effects: [
-            { methodId: "no_guard", scoreDelta: -15, badge: "Visible wear — a guard is necessary." },
+            { methodId: "no_guard", scoreDelta: -15, badge: "Visible wear points to active bruxism; a night guard is the typical management." },
         ]
     },
 
@@ -340,19 +340,19 @@ export const GATING_RULES_ALL_EN: GatingRule[] = [
     },
     {
         id: "baby_abscess", comparatorId: "baby_tooth_caries", answers: { depth: "abscess" }, effects: [
-            { methodId: "baby_filling", scoreDelta: -20, badge: "Abscess — a filling is not enough." },
+            { methodId: "baby_filling", scoreDelta: -20, badge: "With an abscess, a filling alone usually does not solve the problem." },
             { methodId: "baby_extraction", scoreDelta: 12 },
         ]
     },
     {
         id: "baby_soon", comparatorId: "baby_tooth_caries", answers: { exchange: "soon" }, effects: [
-            { methodId: "baby_pulpotomy", scoreDelta: -10, badge: "Tooth change is near — root canal treatment unnecessary." },
+            { methodId: "baby_pulpotomy", scoreDelta: -10, badge: "When the tooth is close to falling out naturally, pulp treatment often no longer brings benefit." },
             { methodId: "baby_extraction", scoreDelta: 8 },
         ]
     },
     {
         id: "baby_difficult", comparatorId: "baby_tooth_caries", answers: { cooperation: "difficult" }, effects: [
-            { methodId: "baby_pulpotomy", scoreDelta: -8, badge: "Difficult cooperation: pulpotomy requires a calm child." },
+            { methodId: "baby_pulpotomy", scoreDelta: -8, badge: "A pulpotomy is generally done when the child can stay calm and cooperative." },
         ]
     },
 ];

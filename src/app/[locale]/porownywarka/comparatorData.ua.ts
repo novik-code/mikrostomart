@@ -33,5 +33,5 @@ export const TABLE_ROW_LABELS_UA: { key: string; label: string; tooltip: string 
 ];
 
 export function getRecommendationText_UA(priorityId: string, priorityLabel: string, methodLabel: string, methodShort: string, hasBadges: boolean): string {
-    return `При пріоритеті «${priorityLabel}» найкраще підходить **${methodLabel}**: ${methodShort} ${hasBadges ? "Зверніть увагу на застереження нижче." : ""}`;
+    return `У цьому порівнянні, з пріоритетом «**${priorityLabel}**», вигідно виглядає **${methodLabel}**: ${methodShort}${hasBadges ? " Зверніть увагу на інформацію нижче." : ""}`;
 }

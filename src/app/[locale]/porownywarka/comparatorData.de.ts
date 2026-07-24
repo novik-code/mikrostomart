@@ -33,5 +33,5 @@ export const TABLE_ROW_LABELS_DE: { key: string; label: string; tooltip: string 
 ];
 
 export function getRecommendationText_DE(priorityId: string, priorityLabel: string, methodLabel: string, methodShort: string, hasBadges: boolean): string {
-    return `Bei Priorität „${priorityLabel}" schneidet **${methodLabel}** am besten ab: ${methodShort} ${hasBadges ? "Beachten Sie die Hinweise unten." : ""}`;
+    return `In diesem Vergleich schneidet bei der Priorität „**${priorityLabel}**" **${methodLabel}** günstig ab: ${methodShort}${hasBadges ? " Beachten Sie die Hinweise unten." : ""}`;
 }
