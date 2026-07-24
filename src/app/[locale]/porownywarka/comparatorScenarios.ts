@@ -41,12 +41,6 @@ export const COMPARATORS_ALL: Comparator[] = [
                 ]
             },
             {
-                id: "priority_v", label: "Co ważniejsze?", options: [
-                    { value: "speed", label: "Szybkość realizacji", emoji: "⚡" },
-                    { value: "longevity", label: "Trwałość na lata", emoji: "🏰" },
-                ]
-            },
-            {
                 id: "bruxism_v", label: "Bruksizm?", options: [
                     { value: "no", label: "Nie", emoji: "😊" },
                     { value: "yes", label: "Tak", emoji: "😬" },
@@ -122,12 +116,6 @@ export const COMPARATORS_ALL: Comparator[] = [
                 id: "other_issues", label: "Czy są inne nierówności?", options: [
                     { value: "no", label: "Nie, tylko diastema", emoji: "✅" },
                     { value: "yes", label: "Tak, inne nierówności też", emoji: "🔀" },
-                ]
-            },
-            {
-                id: "speed_d", label: "Jak szybko chcesz efekt?", options: [
-                    { value: "asap", label: "Jak najszybciej", emoji: "⚡" },
-                    { value: "can_wait", label: "Mogę poczekać", emoji: "⏳" },
                 ]
             },
         ],
@@ -357,12 +345,6 @@ export const COMPARATORS_ALL: Comparator[] = [
                     { value: "no", label: "Nie koliduje z planem leczenia", emoji: "👍" },
                 ]
             },
-            {
-                id: "time_pref", label: "Szybkość vs trwałość?", options: [
-                    { value: "save_time", label: "Chcę szybciej — 1–3 wizyty", emoji: "⚡" },
-                    { value: "invest", label: "Inwestuję w trwałość — mogę czekać", emoji: "🏰" },
-                ]
-            },
         ],
     },
     {
@@ -408,12 +390,6 @@ export const COMPARATORS_ALL: Comparator[] = [
                 id: "anatomy_e", label: "Anatomia kanałowa?", options: [
                     { value: "simple", label: "Prosta (1–2 kanały)", emoji: "📏" },
                     { value: "complex", label: "Złożona (3+ kanałów, zagięcia)", emoji: "🔀" },
-                ]
-            },
-            {
-                id: "preference_e", label: "Twoja preferencja?", options: [
-                    { value: "one_done", label: "Jedno posiedzenie — mam to z głowy", emoji: "⚡" },
-                    { value: "safe", label: "Wolę dwie krótsze wizyty", emoji: "🛡️" },
                 ]
             },
         ],
@@ -684,6 +660,7 @@ export const COMPARATORS_ALL: Comparator[] = [
                 id: "willing_br", label: "Czy będziesz nosić szynę na noc?", options: [
                     { value: "yes", label: "Tak, bez problemu", emoji: "✅" },
                     { value: "maybe", label: "Spróbuję", emoji: "🤔" },
+                    { value: "no", label: "Raczej nie będę nosić", emoji: "🙅" },
                 ]
             },
         ],

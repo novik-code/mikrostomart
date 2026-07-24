@@ -41,12 +41,6 @@ export const COMPARATORS_DE: Comparator[] = [
                 ]
             },
             {
-                id: "priority_v", label: "Was ist wichtiger?", options: [
-                    { value: "speed", label: "Schnelligkeit der Umsetzung", emoji: "⚡" },
-                    { value: "longevity", label: "Langlebigkeit", emoji: "🏰" },
-                ]
-            },
-            {
                 id: "bruxism_v", label: "Bruxismus?", options: [
                     { value: "no", label: "Nein", emoji: "😊" },
                     { value: "yes", label: "Ja", emoji: "😬" },
@@ -122,12 +116,6 @@ export const COMPARATORS_DE: Comparator[] = [
                 id: "other_issues", label: "Gibt es andere Unregelmäßigkeiten?", options: [
                     { value: "no", label: "Nein, nur das Diastema", emoji: "✅" },
                     { value: "yes", label: "Ja, auch andere Unregelmäßigkeiten", emoji: "🔀" },
-                ]
-            },
-            {
-                id: "speed_d", label: "Wie schnell möchten Sie das Ergebnis?", options: [
-                    { value: "asap", label: "So schnell wie möglich", emoji: "⚡" },
-                    { value: "can_wait", label: "Ich kann warten", emoji: "⏳" },
                 ]
             },
         ],
@@ -357,12 +345,6 @@ export const COMPARATORS_DE: Comparator[] = [
                     { value: "no", label: "Kollidiert nicht mit dem Behandlungsplan", emoji: "👍" },
                 ]
             },
-            {
-                id: "time_pref", label: "Geschwindigkeit vs Haltbarkeit?", options: [
-                    { value: "save_time", label: "Schneller — 1–3 Termine", emoji: "⚡" },
-                    { value: "invest", label: "Investiere in Haltbarkeit — kann warten", emoji: "🏰" },
-                ]
-            },
         ],
     },
     {
@@ -408,12 +390,6 @@ export const COMPARATORS_DE: Comparator[] = [
                 id: "anatomy_e", label: "Kanalanatomie?", options: [
                     { value: "simple", label: "Einfach (1–2 Kanäle)", emoji: "📏" },
                     { value: "complex", label: "Komplex (3+ Kanäle, Krümmungen)", emoji: "🔀" },
-                ]
-            },
-            {
-                id: "preference_e", label: "Ihre Präferenz?", options: [
-                    { value: "one_done", label: "Eine Sitzung — erledigt", emoji: "⚡" },
-                    { value: "safe", label: "Lieber zwei kürzere Termine", emoji: "🛡️" },
                 ]
             },
         ],
@@ -682,6 +658,7 @@ export const COMPARATORS_DE: Comparator[] = [
                 id: "willing_br", label: "Werden Sie nachts eine Schiene tragen?", options: [
                     { value: "yes", label: "Ja, kein Problem", emoji: "✅" },
                     { value: "maybe", label: "Ich probiere es", emoji: "🤔" },
+                    { value: "no", label: "Werde ich eher nicht tragen", emoji: "🙅" },
                 ]
             },
         ],

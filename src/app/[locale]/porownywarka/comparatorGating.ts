@@ -81,6 +81,7 @@ export const GATING_RULES_ALL: GatingRule[] = [
     },
     {
         id: "implant_bone_bad", comparatorId: "implant_timing", answers: { bone: "deficient" }, effects: [
+            { methodId: "implant_delayed", scoreDelta: 8 },
             { methodId: "implant_immediate", scoreDelta: -15, badge: "Przy niedoborze kości typowo wykonuje się implantację odroczoną z augmentacją." },
         ]
     },
@@ -92,7 +93,7 @@ export const GATING_RULES_ALL: GatingRule[] = [
     {
         id: "bridge_no_bone", comparatorId: "bridge_types", answers: { bone_b: "no" }, effects: [
             { methodId: "implant", scoreDelta: -15, badge: "Brak kości ogranicza opcje implantologiczne." },
-            { methodId: "bridge_on_implants", scoreDelta: -15 },
+            { methodId: "bridge_on_implants", scoreDelta: -15, badge: "Brak kości ogranicza opcje implantologiczne." },
         ]
     },
     {
@@ -353,6 +354,284 @@ export const GATING_RULES_ALL: GatingRule[] = [
     {
         id: "baby_difficult", comparatorId: "baby_tooth_caries", answers: { cooperation: "difficult" }, effects: [
             { methodId: "baby_pulpotomy", scoreDelta: -8, badge: "Pulpotomię zwykle wykonuje się u spokojnie współpracującego dziecka." },
+        ]
+    },
+
+    // ═══ NOWE REGUŁY (tabela decyzji klinicznych 2026-07-24) ═══
+    {
+        id: "smile_scope_few", comparatorId: "smile_upgrade", answers: { scope: "few" }, effects: [
+            { methodId: "veneer_porc_smile", scoreDelta: -10, badge: "Przy zmianie 1–2 zębów pełny protokół licówek zwykle nie jest konieczny — często rozważa się bonding." },
+            { methodId: "bonding_smile", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "smile_scope_full", comparatorId: "smile_upgrade", answers: { scope: "full" }, effects: [
+            { methodId: "crown_smile", scoreDelta: -10, badge: "Korony na całym łuku oznaczają rozległe szlifowanie; zwykle rozważa się mniej inwazyjne opcje." },
+            { methodId: "veneer_porc_smile", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "veneer_scope_many", comparatorId: "veneer_type", answers: { scope_v: "many" }, effects: [
+            { methodId: "veneer_comp_type", scoreDelta: -10, badge: "Przy metamorfozie wielu zębów kompozyt wymaga częstszego serwisu; zwykle rozważa się porcelanę." },
+            { methodId: "veneer_porc_type", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "veneer_scope_few", comparatorId: "veneer_type", answers: { scope_v: "few" }, effects: [
+            { methodId: "veneer_porc_type", scoreDelta: -5 },
+        ]
+    },
+    {
+        id: "bonding_chip", comparatorId: "bonding_scope", answers: { problem_b: "chip" }, effects: [
+            { methodId: "bonding_spot", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "bonding_shape", comparatorId: "bonding_scope", answers: { problem_b: "shape" }, effects: [
+            { methodId: "bonding_full", scoreDelta: 5 },
+        ]
+    },
+    {
+        id: "straighten_crowding", comparatorId: "straighten_vs_mask", answers: { problem_s: "crowding" }, effects: [
+            { methodId: "bonding_mask", scoreDelta: -12, badge: "Przy stłoczeniach często brakuje miejsca na materiał — możliwości maskowania są ograniczone." },
+            { methodId: "aligners", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "straighten_both", comparatorId: "straighten_vs_mask", answers: { problem_s: "both" }, effects: [
+            { methodId: "bonding_mask", scoreDelta: -10, badge: "Przy współistniejących stłoczeniach możliwości maskowania bywają ograniczone." },
+            { methodId: "aligners", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "straighten_cause", comparatorId: "straighten_vs_mask", answers: { cause: "cause" }, effects: [
+            { methodId: "bonding_mask", scoreDelta: -8, badge: "Bonding i licówki poprawiają wygląd, ale nie zmieniają pozycji zębów." },
+            { methodId: "aligners", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "diastema_other", comparatorId: "diastema", answers: { other_issues: "yes" }, effects: [
+            { methodId: "bonding_dia", scoreDelta: -8, badge: "Samo zamknięcie diastemy nie koryguje ustawienia pozostałych zębów." },
+            { methodId: "ortho_dia", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "bruxism_wear_many", comparatorId: "bruxism_wear", answers: { tooth_count_w: "many" }, effects: [
+            { methodId: "splint_rebuild", scoreDelta: 8 },
+            { methodId: "crown_brux", scoreDelta: -8, badge: "Korony na 8+ zębach to rozległe szlifowanie; często rozważa się najpierw odbudowy addytywne." },
+        ]
+    },
+    {
+        id: "missing_front", comparatorId: "missing_tooth", answers: { location: "front" }, effects: [
+            { methodId: "partial_denture", scoreDelta: -10, badge: "W strefie uśmiechu klamry protezy częściowej są zwykle widoczne przy mówieniu i uśmiechu." },
+            { methodId: "implant", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "implant_zone_aesthetic", comparatorId: "implant_timing", answers: { zone: "aesthetic" }, effects: [
+            { methodId: "implant_immediate", scoreDelta: 6 },
+            { methodId: "implant_delayed", scoreDelta: -4, badge: "W strefie uśmiechu implant odroczony oznacza zwykle dłuższy czas z zębem tymczasowym." },
+        ]
+    },
+    {
+        id: "bridge_gap_one", comparatorId: "bridge_types", answers: { gap_count: "one" }, effects: [
+            { methodId: "bridge_on_implants", scoreDelta: -12, badge: "Przy braku jednego zęba zwykle wystarcza pojedynczy implant zamiast mostu." },
+            { methodId: "implant", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "bridge_gap_more", comparatorId: "bridge_types", answers: { gap_count: "more" }, effects: [
+            { methodId: "implant", scoreDelta: -15, badge: "Przy braku 4+ zębów pojedynczy implant z koroną zwykle nie uzupełni całej przerwy." },
+            { methodId: "bridge_on_teeth", scoreDelta: -5, badge: "Przy długiej przerwie most na zębach ma duży rozstaw filarów, co zwykle mocniej je obciąża." },
+            { methodId: "bridge_on_implants", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "denture_many", comparatorId: "denture_types", answers: { missing_count_d: "many" }, effects: [
+            { methodId: "denture_flexible", scoreDelta: -12, badge: "Przy braku 4+ zębów proteza elastyczna daje zwykle za małą stabilność i podparcie." },
+            { methodId: "denture_skeletal", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "denture_few", comparatorId: "denture_types", answers: { missing_count_d: "few" }, effects: [
+            { methodId: "denture_flexible", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "full_denture_lower", comparatorId: "full_denture", answers: { jaw: "lower" }, effects: [
+            { methodId: "full_denture", scoreDelta: -10, badge: "Dolna proteza całkowita trzyma się zwykle słabiej — w żuchwie nie działa efekt przyssania." },
+            { methodId: "overdenture", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "onlay_walls_few", comparatorId: "onlay_vs_crown", answers: { walls: "two_less" }, effects: [
+            { methodId: "onlay", scoreDelta: -15, badge: "Przy 1–2 zachowanych ścianach cienkie ściany pod onlayem są zwykle narażone na pęknięcie." },
+            { methodId: "crown_rebuild", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "onlay_walls_many", comparatorId: "onlay_vs_crown", answers: { walls: "three_plus" }, effects: [
+            { methodId: "onlay", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "retreat_short", comparatorId: "retreatment", answers: { previous: "short" }, effects: [
+            { methodId: "re_endo", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "retreat_leakage", comparatorId: "retreatment", answers: { previous: "leakage" }, effects: [
+            { methodId: "re_endo", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "retreat_anatomy", comparatorId: "retreatment", answers: { previous: "anatomy" }, effects: [
+            { methodId: "re_endo", scoreDelta: -12, badge: "Przy trudnej anatomii lub złamanym instrumencie powtórne endo bywa mniej przewidywalne." },
+            { methodId: "resection", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "post_endo_little", comparatorId: "post_endo_rebuild", answers: { tissue_loss: "little" }, effects: [
+            { methodId: "filling_post_endo", scoreDelta: -15, badge: "Przy 1–2 ścianach ząb po endo jest kruchy — samo wypełnienie zwykle nie wystarcza." },
+            { methodId: "post_crown", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "post_endo_plenty", comparatorId: "post_endo_rebuild", answers: { tissue_loss: "plenty" }, effects: [
+            { methodId: "filling_post_endo", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "gum_bone_advanced", comparatorId: "gum_treatment", answers: { bone_loss_g: "advanced" }, effects: [
+            { methodId: "hygiene_instruct", scoreDelta: -15, badge: "Przy zaawansowanej utracie kości sama higienizacja zwykle nie wystarcza." },
+            { methodId: "curettage_open", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "gum_bone_none", comparatorId: "gum_treatment", answers: { bone_loss_g: "none" }, effects: [
+            { methodId: "curettage_open", scoreDelta: -10, badge: "Bez utraty kości na RTG kiretażu otwartego zwykle się nie wykonuje." },
+            { methodId: "hygiene_instruct", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "gum_bone_moderate", comparatorId: "gum_treatment", answers: { bone_loss_g: "moderate" }, effects: [
+            { methodId: "curettage_closed", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "gum_compliance_avg", comparatorId: "gum_treatment", answers: { compliance: "average" }, effects: [
+            { methodId: "hygiene_instruct", scoreDelta: 8 },
+            { methodId: "curettage_open", scoreDelta: -5, badge: "Po kiretażu otwartym efekt w dużej mierze zależy od codziennej higieny domowej." },
+        ]
+    },
+    {
+        id: "sens_post_scaling", comparatorId: "sensitivity", answers: { cause_s: "post_scaling" }, effects: [
+            { methodId: "varnish_sensitivity", scoreDelta: 10, badge: "Po skalingu lub wybielaniu nadwrażliwość jest zwykle przejściowa — lakier daje szybką ulgę." },
+            { methodId: "paste_sensitivity", scoreDelta: 8 },
+            { methodId: "laser_sensitivity", scoreDelta: -5, badge: "Nadwrażliwość po skalingu lub wybielaniu często ustępuje po prostszych metodach." },
+        ]
+    },
+    {
+        id: "sens_recession", comparatorId: "sensitivity", answers: { cause_s: "recession" }, effects: [
+            { methodId: "varnish_sensitivity", scoreDelta: 8 },
+            { methodId: "laser_sensitivity", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "extract_complex_roots", comparatorId: "extraction_type", answers: { roots_ex: "complex" }, effects: [
+            { methodId: "extract_simple", scoreDelta: -10, badge: "Przy zagiętych lub kruchych korzeniach ekstrakcja prosta często przechodzi śródzabiegowo w chirurgiczną." },
+            { methodId: "extract_surgical", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "extract_inflammation", comparatorId: "extraction_type", answers: { inflammation: "yes" }, effects: [
+            { methodId: "extract_simple", scoreDelta: -5, badge: "Przy ostrym stanie zapalnym znieczulenie działa zwykle słabiej; termin zabiegu ustala się indywidualnie." },
+            { methodId: "extract_surgical", scoreDelta: -5, badge: "Ostry stan zapalny zwiększa zwykle ryzyko powikłań gojenia; zabieg bywa poprzedzany leczeniem farmakologicznym." },
+        ]
+    },
+    {
+        id: "sinus_with_enough", comparatorId: "sinus_lift", answers: { implant_plan: "with", bone_height: "enough" }, effects: [
+            { methodId: "sinus_closed", scoreDelta: 10 },
+            { methodId: "sinus_open", scoreDelta: -8, badge: "Sinus otwarty to zwykle osobny zabieg — implant osadza się typowo po ok. 6 miesiącach gojenia." },
+        ]
+    },
+    {
+        id: "sinus_staged", comparatorId: "sinus_lift", answers: { implant_plan: "staged" }, effects: [
+            { methodId: "sinus_open", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "brush_technique_avg", comparatorId: "toothbrush", answers: { technique: "average" }, effects: [
+            { methodId: "brush_electric", scoreDelta: 8 },
+            { methodId: "brush_manual", scoreDelta: -8, badge: "Przy niepewnej technice manualna zwykle czyści mniej dokładnie niż elektryczna czy soniczna." },
+        ]
+    },
+    {
+        id: "brush_technique_good", comparatorId: "toothbrush", answers: { technique: "good" }, effects: [
+            { methodId: "brush_manual", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "inter_limited_dex", comparatorId: "interdental", answers: { dexterity: "limited" }, effects: [
+            { methodId: "floss", scoreDelta: -10, badge: "Przy ograniczonej zręczności nić bywa trudna — szczoteczki międzyzębowe są zwykle łatwiejsze." },
+            { methodId: "interdental_brush", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "sealant_under6", comparatorId: "sealant_vs_fluoride", answers: { age_child: "under_6" }, effects: [
+            { methodId: "sealant", scoreDelta: -12, badge: "Poniżej 6 lat stałe trzonowce zwykle jeszcze się nie wyrzynęły; lakowanie typowo się odracza." },
+            { methodId: "fluoride_varnish", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "sealant_6_12", comparatorId: "sealant_vs_fluoride", answers: { age_child: "6_12" }, effects: [
+            { methodId: "sealant", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "fluoride_under3", comparatorId: "fluoride_method", answers: { age_f: "under_3" }, effects: [
+            { methodId: "fluoride_home", scoreDelta: -10, badge: "Poniżej 3 lat dzieci często połykają pastę — w domu zaleca się śladową ilość, a dawkę dodatkowego fluoru łatwiej kontrolować w gabinecie." },
+            { methodId: "fluoride_office", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "wisdom_impacted", comparatorId: "wisdom_teeth", answers: { position_w: "impacted" }, effects: [
+            { methodId: "wisdom_keep", scoreDelta: -12, badge: "Ósemka zatrzymana w kości wymaga okresowej kontroli RTG; przy objawach lub zmianach zwykle rozważa się usunięcie." },
+            { methodId: "wisdom_remove", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "baby_deep", comparatorId: "baby_tooth_caries", answers: { depth: "deep" }, effects: [
+            { methodId: "baby_filling", scoreDelta: -12, badge: "Przy próchnicy sięgającej miazgi zwykle rozważa się leczenie miazgi, nie samo wypełnienie." },
+            { methodId: "baby_pulpotomy", scoreDelta: 10 },
+        ]
+    },
+    {
+        id: "crown_comp_severe", comparatorId: "crown_vs_composite", answers: { destruction: "severe" }, effects: [
+            { methodId: "composite_rebuild", scoreDelta: -10, badge: "Przy utracie ponad połowy korony zęba kompozyt częściej pęka; typowo rozważa się koronę." },
+            { methodId: "crown_rebuild", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "sens_paste_helped", comparatorId: "sensitivity", answers: { tried_paste: "yes_helped" }, effects: [
+            { methodId: "paste_sensitivity", scoreDelta: 10, badge: "Jeśli pasta przynosi efekt, często kontynuuje się ją jako pierwszą linię postępowania." },
+        ]
+    },
+    {
+        id: "extract_partial", comparatorId: "extraction_type", answers: { tooth_visible: "partial" }, effects: [
+            { methodId: "extract_simple", scoreDelta: -10, badge: "Przy zębie częściowo wyrżniętym często potrzebny jest dostęp chirurgiczny." },
+            { methodId: "extract_surgical", scoreDelta: 8 },
+        ]
+    },
+    {
+        id: "brush_receding", comparatorId: "toothbrush", answers: { gums: "receding" }, effects: [
+            { methodId: "brush_sonic", scoreDelta: 10 },
+            { methodId: "brush_manual", scoreDelta: -8, badge: "Przy recesjach dziąseł zbyt mocne szczotkowanie manualne może pogłębiać ubytki przy szyjkach." },
+        ]
+    },
+    {
+        id: "brux_unwilling", comparatorId: "bruxism_guard", answers: { willing_br: "no" }, effects: [
+            { methodId: "splint_guard", scoreDelta: -10, badge: "Szyna chroni tylko wtedy, gdy jest noszona; bez tego jej skuteczność jest ograniczona." },
         ]
     },
 ];
