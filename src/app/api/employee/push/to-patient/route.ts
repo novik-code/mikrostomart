@@ -103,22 +103,11 @@ export async function POST(req: Request) {
     const payload: PushPayload = { title, body: pushBody, url: url || '/strefa-pacjenta/powiadomienia' };
     const pushResult = await pushToUser(patientUserId, 'patient', payload);
 
-    // Log historii (best-effort).
-    try {
-        await supabase.from('push_notifications_log').insert({
-            user_id: patientUserId,
-            user_type: 'patient',
-            title,
-            body: pushBody,
-            url: url || null,
-            sent_at: new Date().toISOString(),
-            sent_by: auth.user.email || 'employee',
-            devices_sent: pushResult.sent,
-            devices_failed: pushResult.failed,
-        });
-    } catch {
-        /* tabela może nie istnieć */
-    }
+    // UWAGA: `pushToUser` już zapisuje wiersz do `push_notifications_log` (logPush),
+    // a `sent_at` ma DEFAULT now() → wiersz jest widoczny w historii pacjenta.
+    // Ręczny insert tutaj dawałby DRUGI wiersz = duplikat w historii pacjenta
+    // (pre-existing bug w admin/push-send — tu świadomie NIE powielamy).
+    // Metadane sent_by/devices trzymamy w audycie personelu poniżej.
 
     // Audyt RODO — personel wysłał push do pacjenta.
     logAudit({
