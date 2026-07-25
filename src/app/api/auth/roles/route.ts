@@ -1,42 +1,51 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { getUserRoles } from '@/lib/roles';
+import { extractBearerToken, getUserFromBearerToken } from '@/lib/bearerAuth';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/auth/roles
- * Returns the current authenticated user's roles
+ * Returns the current authenticated user's roles.
+ * Accepts either the web cookie session or a native staff Bearer token.
  */
 export async function GET() {
     try {
-        const cookieStore = await cookies();
+        // 1. Native staff clients — Authorization: Bearer <supabase access_token>.
+        const headerStore = await headers();
+        const bearer = extractBearerToken(headerStore.get('authorization'));
+        let user = bearer ? await getUserFromBearerToken(bearer) : null;
 
-        const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            {
-                cookies: {
-                    getAll() {
-                        return cookieStore.getAll();
+        // 2. Web — Supabase cookie session (unchanged when no Bearer).
+        if (!user) {
+            const cookieStore = await cookies();
+            const supabase = createServerClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+                {
+                    cookies: {
+                        getAll() {
+                            return cookieStore.getAll();
+                        },
+                        setAll(cookiesToSet) {
+                            try {
+                                cookiesToSet.forEach(({ name, value, options }) =>
+                                    cookieStore.set(name, value, options)
+                                );
+                            } catch {
+                                // Ignored in read-only context
+                            }
+                        },
                     },
-                    setAll(cookiesToSet) {
-                        try {
-                            cookiesToSet.forEach(({ name, value, options }) =>
-                                cookieStore.set(name, value, options)
-                            );
-                        } catch {
-                            // Ignored in read-only context
-                        }
-                    },
-                },
-            }
-        );
+                }
+            );
+            const { data: { user: cookieUser }, error } = await supabase.auth.getUser();
+            if (!error) user = cookieUser;
+        }
 
-        const { data: { user }, error } = await supabase.auth.getUser();
-
-        if (error || !user) {
+        if (!user) {
             return NextResponse.json(
                 { error: 'Not authenticated' },
                 { status: 401 }

@@ -1,14 +1,27 @@
 import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
 import { getUserRoles, type UserRole } from "@/lib/roles";
+import { extractBearerToken, getUserFromBearerToken } from "@/lib/bearerAuth";
 
 export type AuthSuccess = { ok: true; user: User; roles: UserRole[] };
 export type AuthFailure = { ok: false; response: NextResponse };
 export type AuthResult = AuthSuccess | AuthFailure;
 
 async function getSupabaseUser(): Promise<User | null> {
+    // 1. Native staff clients (mobile app) — Authorization: Bearer <supabase access_token>.
+    //    Additive: web never sends this header on admin/employee routes, so the
+    //    cookie path below is unchanged. See lib/bearerAuth.ts.
+    const headerStore = await headers();
+    const bearer = extractBearerToken(headerStore.get("authorization"));
+    if (bearer) {
+        const bearerUser = await getUserFromBearerToken(bearer);
+        if (bearerUser) return bearerUser;
+        // Bearer present but invalid → fall through to cookie (web has no Bearer here anyway).
+    }
+
+    // 2. Web — Supabase cookie session.
     const cookieStore = await cookies();
 
     const supabase = createServerClient(
