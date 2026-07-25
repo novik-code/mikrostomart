@@ -4,6 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import createIntlMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
 import { verifyMfaSessionToken, MFA_COOKIE_NAME } from "./lib/mfaSession";
+import { extractBearerToken, getUserFromBearerToken, evaluateStaffMfa } from "./lib/bearerAuth";
 
 /**
  * Known search engine bot user-agent patterns.
@@ -299,8 +300,28 @@ async function handleSupabaseAuth(request: NextRequest) {
     // ─── S8-2 2FA Enforcement ────────────────────────────────────────────
     // After Supabase auth check, ensure 2FA is satisfied for protected routes.
     // Skip during login flow, password update, /auth/2fa-challenge, and 2FA API.
-    if (user) {
-        const mfaCheck = await enforce2FA(request, user.id, pathname);
+    //
+    // Native staff clients (mobile app) authenticate with Authorization: Bearer
+    // instead of cookies, so the cookie `user` above is null for them. Resolve
+    // the Bearer user here so 2FA is enforced for native too — otherwise a
+    // logged-in-but-not-2FA admin could reach /api/admin/* without a second
+    // factor (the cookie-only middleware would silently skip them). enforce2FA
+    // reads the MFA proof from the X-MFA-Session header and answers with JSON
+    // (401/403) instead of a redirect for these API clients.
+    let mfaUser = user;
+    let viaBearer = false;
+    if (!mfaUser) {
+        const bearer = extractBearerToken(request.headers.get("authorization"));
+        if (bearer) {
+            const bearerUser = await getUserFromBearerToken(bearer);
+            if (bearerUser) {
+                mfaUser = bearerUser;
+                viaBearer = true;
+            }
+        }
+    }
+    if (mfaUser) {
+        const mfaCheck = await enforce2FA(request, mfaUser.id, pathname, viaBearer);
         if (mfaCheck) {
             return addSecurityHeaders(mfaCheck);
         }
@@ -321,7 +342,7 @@ async function handleSupabaseAuth(request: NextRequest) {
  *
  * Lookup employee row via service_role (RLS doesn't matter here, server-only).
  */
-async function enforce2FA(request: NextRequest, userId: string, pathname: string): Promise<NextResponse | null> {
+async function enforce2FA(request: NextRequest, userId: string, pathname: string, viaBearer: boolean = false): Promise<NextResponse | null> {
     // Skip paths that 2FA setup/challenge themselves need to work
     const SKIP_2FA_PATHS = [
         '/auth/2fa-challenge',
@@ -360,13 +381,33 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
         const isAdmin = (roles || []).some(r => r.role === 'admin');
         const totpEnabled = Boolean(employee?.totp_enabled);
 
-        // Case 1: Admin without 2FA → force setup
+        // Native staff clients (Bearer): enforce the same 2FA rules, but read the
+        // proof from the X-MFA-Session header and answer with JSON instead of a
+        // redirect. Logic lives in the pure, unit-tested evaluateStaffMfa().
+        if (viaBearer) {
+            const verdict = evaluateStaffMfa({
+                isAdmin,
+                totpEnabled,
+                proof: request.headers.get('x-mfa-session') ?? undefined,
+                userId,
+            });
+            if (!verdict.ok) {
+                return NextResponse.json(
+                    { error: verdict.reason },
+                    { status: verdict.reason === 'mfa_setup_required' ? 403 : 401 },
+                );
+            }
+            return null;
+        }
+
+        // Web (cookie) path — unchanged.
+        // Case 1: Admin without 2FA → force setup.
         if (isAdmin && !totpEnabled) {
             const url = new URL('/pracownik/security?force=true', request.url);
             return NextResponse.redirect(url);
         }
 
-        // Case 2: 2FA enabled but no valid mfa_session → challenge
+        // Case 2: 2FA enabled but no valid mfa_session → challenge.
         if (totpEnabled) {
             const cookie = request.cookies.get(MFA_COOKIE_NAME)?.value;
             const session = verifyMfaSessionToken(cookie);
