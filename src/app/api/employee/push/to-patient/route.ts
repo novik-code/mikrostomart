@@ -15,6 +15,9 @@ export const dynamic = 'force-dynamic';
  * dostarcza je i na FCM (web/PWA) i na apkę mobilną pacjenta (patient_push_tokens).
  *
  * Body: { prodentis_id?, phone?, patient_name?, title, body, url? }
+ *
+ * Preflight: gdy `check: true` — NIE wysyła, tylko zwraca `{ hasAccount, hasPush }`
+ * (apka sprawdza przed otwarciem kompozytora, żeby nie kazać pisać treści na darmo).
  */
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,6 +35,7 @@ export async function POST(req: Request) {
         title?: string;
         body?: string;
         url?: string;
+        check?: boolean;
     };
     try {
         body = await req.json();
@@ -39,9 +43,10 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
     }
 
-    const { prodentis_id, phone, patient_name, title, body: pushBody, url } = body;
+    const { prodentis_id, phone, patient_name, title, body: pushBody, url, check } = body;
+    const isCheck = check === true;
 
-    if (!title || !pushBody) {
+    if (!isCheck && (!title || !pushBody)) {
         return NextResponse.json({ error: 'Missing required fields: title, body' }, { status: 400 });
     }
     if (!prodentis_id && !phone) {
@@ -78,6 +83,21 @@ export async function POST(req: Request) {
         if (data && data.length > 0) patientUserId = data[0].id;
     }
 
+    // Sprawdź, czy pacjent ma tokeny push (web FCM lub mobilny Expo). Tylko gdy jest konto.
+    let hasTokens = false;
+    if (patientUserId) {
+        const [{ data: fcmRows }, { data: expoRows }] = await Promise.all([
+            supabase.from('fcm_tokens').select('id').eq('user_id', patientUserId).eq('user_type', 'patient'),
+            supabase.from('patient_push_tokens').select('id').eq('user_id', patientUserId),
+        ]);
+        hasTokens = (fcmRows?.length || 0) + (expoRows?.length || 0) > 0;
+    }
+
+    // Preflight — apka pyta o status konta PRZED otwarciem kompozytora (bez wysyłki).
+    if (isCheck) {
+        return NextResponse.json({ hasAccount: !!patientUserId, hasPush: hasTokens });
+    }
+
     if (!patientUserId) {
         return NextResponse.json({
             success: false,
@@ -85,12 +105,6 @@ export async function POST(req: Request) {
         });
     }
 
-    // Sprawdź, czy pacjent ma tokeny push (web FCM lub mobilny Expo).
-    const [{ data: fcmRows }, { data: expoRows }] = await Promise.all([
-        supabase.from('fcm_tokens').select('id').eq('user_id', patientUserId).eq('user_type', 'patient'),
-        supabase.from('patient_push_tokens').select('id').eq('user_id', patientUserId),
-    ]);
-    const hasTokens = (fcmRows?.length || 0) + (expoRows?.length || 0) > 0;
     if (!hasTokens) {
         return NextResponse.json({
             success: false,
@@ -98,6 +112,10 @@ export async function POST(req: Request) {
             hasPush: false,
             error: 'Pacjent ma konto, ale nie włączył powiadomień push',
         });
+    }
+
+    if (!title || !pushBody) {
+        return NextResponse.json({ error: 'Missing required fields: title, body' }, { status: 400 });
     }
 
     const payload: PushPayload = { title, body: pushBody, url: url || '/strefa-pacjenta/powiadomienia' };
