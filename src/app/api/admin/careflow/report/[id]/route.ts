@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/authGuards';
 import { hasRole } from '@/lib/roles';
-import { generateCareflowReport } from '@/lib/careflowPdf';
+import { generateCareflowReport, summarizeCareflowCompliance, careflowExportBlockReason } from '@/lib/careflowPdf';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { getProdentisKey } from '@/lib/pmsConfig';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
+
+const GENERIC_ERROR = 'Nie udało się wygenerować raportu';
 
 /**
  * GET /api/admin/careflow/report/[id]
@@ -139,7 +141,32 @@ export async function GET(
         });
 
         // ── Auto-export to Prodentis ──
-        const prodentisKey = (await getProdentisKey()) ?? '';
+        // Ta sama bramka co w cronie raportującym: raport z zapisu, w którym pacjentowi
+        // nie zlecono ANI JEDNEGO kroku (wszystkie zamknął system, bo ich termin minął
+        // przed uruchomieniem protokołu), nie opisuje przebiegu leczenia — opisuje moment
+        // kliknięcia „zapisz". Do dokumentacji medycznej nie może trafić automatem, bo
+        // później nikt nie odróżni go od realnego zaniedbania, a korygować ją wolno
+        // wyłącznie z adnotacją. PDF nadal wraca do przeglądarki i zostaje w panelu.
+        const exportSummary = summarizeCareflowCompliance(tasks || [], auditLog || []);
+        const exportBlockReason = careflowExportBlockReason(exportSummary);
+
+        if (exportBlockReason) {
+            await supabase.from('care_audit_log').insert({
+                enrollment_id: id,
+                action: 'report_export_blocked',
+                actor: user.email || 'admin',
+                details: {
+                    reason: exportBlockReason,
+                    manual: true,
+                    tasks_total: exportSummary.total,
+                    tasks_asked: exportSummary.asked,
+                    report_available_in_panel: true,
+                },
+            });
+            console.warn(`[CareFlow Report] Eksport wstrzymany (zapis ${id.slice(0, 8)}): ${exportBlockReason}`);
+        }
+
+        const prodentisKey = exportBlockReason ? '' : ((await getProdentisKey()) ?? '');
         if (prodentisKey && enrollment.patient_id) {
             try {
                 const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
@@ -188,6 +215,6 @@ export async function GET(
         });
     } catch (err: any) {
         console.error('[CareFlow Report] Error:', err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json({ error: GENERIC_ERROR }, { status: 500 });
     }
 }

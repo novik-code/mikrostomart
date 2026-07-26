@@ -14,6 +14,14 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+/** Dane pacjenta — nic nie może osiąść w cache CDN ani przeglądarki. */
+const NO_STORE: Record<string, string> = {
+    'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+};
+
+/** Wartość wchodzi do filtra PostgREST `or=` — przecinek/nawias rozwaliłby zapytanie. */
+const SAFE_ID = /^[A-Za-z0-9_-]+$/;
+
 /**
  * GET /api/patients/export-data
  *
@@ -38,7 +46,7 @@ const supabase = createClient(
  *   - cancelled_appointments (S8-6, by patient_prodentis_id lub patient_phone)
  *   - birthday_wishes (S8-6, by prodentis_id)
  *   - fcm_tokens (S8-6, by user_id + user_type='patient')
- *   - careflow_enrollments + tasks + reports (S8-6, by patient_id)
+ *   - care_enrollments + care_tasks (S8-6, by prodentis_id ORAZ patient_db_id)
  *   - email_compose_drafts + email_ai_drafts (S8-6, gdy patient.email match)
  *
  * Storage downloads:
@@ -50,7 +58,7 @@ export async function GET(request: NextRequest) {
     try {
         const payload = verifyTokenFromRequest(request);
         if (!payload) {
-            return NextResponse.json({ error: 'Nie jesteś zalogowany' }, { status: 401 });
+            return NextResponse.json({ error: 'Nie jesteś zalogowany' }, { status: 401, headers: NO_STORE });
         }
 
         const patientId = payload.userId;
@@ -64,7 +72,7 @@ export async function GET(request: NextRequest) {
 
         if (patientError || !patient) {
             console.error('[ExportData] Patient fetch error:', patientError, 'userId:', patientId);
-            return NextResponse.json({ error: 'Nie znaleziono danych' }, { status: 404 });
+            return NextResponse.json({ error: 'Nie znaleziono danych' }, { status: 404, headers: NO_STORE });
         }
 
         // notification_preferences (column may not exist on older deployments)
@@ -212,27 +220,43 @@ export async function GET(request: NextRequest) {
             console.warn('[ExportData] fcm_tokens fetch failed:', err);
         }
 
-        // ── 12. CareFlow enrollments + related (S8-6) ──
+        // ── 12. CareFlow enrollments + tasks (S8-6) ──
+        // `care_enrollments.patient_id` to PRODENTIS ID (TEXT), a nie `patients.id` (UUID) —
+        // filtr po samym UUID nigdy nie trafiał i sekcja opieki wychodziła ZAWSZE pusta.
+        // Zapis bywa związany jednym albo drugim kluczem, więc pytamy o oba.
         let careflowEnrollments: unknown[] = [];
         let careflowTasks: unknown[] = [];
         try {
-            const { data: enrollments } = await supabase
-                .from('care_enrollments')
-                .select('id, template_id, appointment_id, appointment_date, status, prescription_code, report_pdf_url, report_generated_at, created_at, completed_at')
-                .eq('patient_id', patientId);
-            careflowEnrollments = enrollments || [];
+            const careFilters: string[] = [];
+            if (patient.prodentis_id && SAFE_ID.test(patient.prodentis_id)) {
+                careFilters.push(`patient_id.eq.${patient.prodentis_id}`);
+            }
+            if (SAFE_ID.test(String(patientId))) {
+                careFilters.push(`patient_db_id.eq.${patientId}`);
+            }
 
-            const enrollmentIds = (enrollments || []).map(e => e.id);
-            if (enrollmentIds.length > 0) {
-                const { data: tasks } = await supabase
-                    .from('care_tasks')
-                    .select('id, enrollment_id, scheduled_at, push_sent_count, completed_at, sms_sent, push_message')
-                    .in('enrollment_id', enrollmentIds)
-                    .order('scheduled_at', { ascending: true });
-                careflowTasks = tasks || [];
+            if (careFilters.length > 0) {
+                const { data: enrollments } = await supabase
+                    .from('care_enrollments')
+                    .select('id, template_id, template_name, doctor_name, appointment_id, appointment_date, status, prescription_code, custom_medications, custom_notes, report_pdf_url, report_generated_at, created_at, completed_at, cancelled_at')
+                    .or(careFilters.join(','))
+                    .order('appointment_date', { ascending: false });
+                careflowEnrollments = enrollments || [];
+
+                const enrollmentIds = (enrollments || []).map(e => e.id);
+                if (enrollmentIds.length > 0) {
+                    // Nazwa i dawka leku to dane pacjenta — bez nich eksport nie odpowiada
+                    // na pytanie „co mi zlecono".
+                    const { data: tasks } = await supabase
+                        .from('care_tasks')
+                        .select('id, enrollment_id, title, description, icon, scheduled_at, completed_at, skipped_at, medication_name, medication_dose, medication_description, push_sent_count, sms_sent, push_message')
+                        .in('enrollment_id', enrollmentIds)
+                        .order('scheduled_at', { ascending: true });
+                    careflowTasks = tasks || [];
+                }
             }
         } catch (err) {
-            console.warn('[ExportData] careflow_* fetch failed (table may not exist):', err);
+            console.warn('[ExportData] care_* fetch failed (table may not exist):', err);
         }
 
         // ── 13. Email drafts (S8-6, gdy patient.email == sender lub recipient) ──
@@ -373,6 +397,7 @@ Prawa przysługujące Ci zgodnie z RODO:
 
         return new NextResponse(zipBlob, {
             headers: {
+                ...NO_STORE,
                 'Content-Type': 'application/zip',
                 'Content-Disposition': `attachment; filename="${filename}"`,
                 'Content-Length': String(zipBlob.size),
@@ -381,6 +406,6 @@ Prawa przysługujące Ci zgodnie z RODO:
 
     } catch (err) {
         console.error('[ExportData] Error:', err);
-        return NextResponse.json({ error: 'Błąd serwera' }, { status: 500 });
+        return NextResponse.json({ error: 'Błąd serwera' }, { status: 500, headers: NO_STORE });
     }
 }

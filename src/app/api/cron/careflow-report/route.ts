@@ -1,11 +1,13 @@
 import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { generateCareflowReport } from '@/lib/careflowPdf';
+import { generateCareflowReport, summarizeCareflowCompliance, careflowExportBlockReason } from '@/lib/careflowPdf';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { getProdentisKey } from '@/lib/pmsConfig';
 
 export const maxDuration = 60;
+
+const GENERIC_ERROR = 'Nie udało się wygenerować raportów CareFlow';
 
 /**
  * CareFlow Report Generation Cron
@@ -19,6 +21,8 @@ export const maxDuration = 60;
  * 4. Upload to Supabase Storage (careflow-reports bucket)
  * 5. Update enrollment with report_pdf_url + report_generated_at
  * 6. Log to care_audit_log
+ * 7. Eksport do kartoteki Prodentis — TYLKO gdy raport niesie tresc kliniczna
+ *    (patrz `careflowExportBlockReason`)
  */
 export async function GET(req: Request) {
     if (isDemoMode) {
@@ -39,6 +43,7 @@ export async function GET(req: Request) {
 
     let generated = 0;
     let errors = 0;
+    let exportsBlocked = 0;
 
     try {
         // 1. Find completed enrollments without a report
@@ -50,7 +55,10 @@ export async function GET(req: Request) {
             .order('completed_at', { ascending: true })
             .limit(10); // Process max 10 per run to stay within time limits
 
-        if (eErr) throw new Error(eErr.message);
+        if (eErr) {
+            console.error('📄 [CareFlow Report] care_enrollments query error:', eErr);
+            return NextResponse.json({ success: false, error: GENERIC_ERROR }, { status: 500 });
+        }
 
         if (!enrollments || enrollments.length === 0) {
             console.log('📄 [CareFlow Report] No completed enrollments without reports.');
@@ -74,6 +82,15 @@ export async function GET(req: Request) {
                     .select('*')
                     .eq('enrollment_id', enrollment.id)
                     .order('created_at', { ascending: true });
+
+                // 3a. Rozdziel kroki pominięte PRZEZ SYSTEM (termin minął przed zapisem
+                // protokołu — pacjent nigdy ich nie dostał) od pominiętych PRZEZ PACJENTA.
+                // Generator PDF liczy to samo z tych samych danych; tutaj potrzebujemy
+                // wyniku do wpisu audytowego i do bramki eksportu.
+                // Sygnał główny: wpisy 'task_skipped_past_due' w `auditLog` (stąd MUSI
+                // trafić do generatora); zapasowy: PAST_DUE_NOTE w opisie zadania.
+                const summary = summarizeCareflowCompliance(tasks || [], auditLog || []);
+                const exportBlockReason = careflowExportBlockReason(summary);
 
                 // 4. Generate PDF
                 const pdfBytes = await generateCareflowReport({
@@ -140,15 +157,48 @@ export async function GET(req: Request) {
                     details: {
                         file_name: fileName,
                         file_path: filePath,
-                        tasks_count: tasks?.length || 0,
-                        compliance: tasks && tasks.length > 0
-                            ? Math.round((tasks.filter((t: any) => t.completed_at).length / tasks.length) * 100)
-                            : 0,
+                        tasks_count: summary.total,
+                        // Mianownik zgodności: kroki, o które pacjent realnie był proszony.
+                        tasks_asked: summary.asked,
+                        tasks_completed: summary.completed,
+                        tasks_skipped_by_patient: summary.skippedByPatient,
+                        tasks_skipped_by_system: summary.skippedBySystem,
+                        // `null` (NIE 0%) przy zerowym mianowniku — zgodności nie liczymy.
+                        compliance: summary.compliance,
+                        skip_signal: summary.signal,
                     },
                 });
 
                 generated++;
                 console.log(`   ✅ Report generated for ${enrollment.patient_name} (${fileName})`);
+
+                // Bramka eksportu do kartoteki: raport, w którym pacjenta nie poproszono
+                // o ANI JEDEN krok (wszystkie zamknął system, bo termin minął przed
+                // uruchomieniem protokołu), jest artefaktem systemowym — nie opisuje
+                // przebiegu leczenia. Do dokumentacji medycznej NIE trafia automatem;
+                // PDF zostaje w panelu (report_pdf_url ustawione wyżej), a powód ląduje
+                // w audycie, żeby personel mógł go świadomie wyeksportować ręcznie.
+                if (exportBlockReason) {
+                    exportsBlocked++;
+                    console.log(`   ⛔ Eksport do Prodentis wstrzymany (${enrollment.patient_name}): ${exportBlockReason}`);
+                    const { error: blockAuditErr } = await supabase.from('care_audit_log').insert({
+                        enrollment_id: enrollment.id,
+                        action: 'report_export_blocked',
+                        actor: 'careflow-report-cron',
+                        details: {
+                            reason: exportBlockReason,
+                            file_name: fileName,
+                            tasks_count: summary.total,
+                            tasks_asked: summary.asked,
+                            tasks_skipped_by_system: summary.skippedBySystem,
+                            report_available_in_panel: true,
+                        },
+                    });
+                    if (blockAuditErr) {
+                        console.error('   ⚠️ Nie zapisano audytu wstrzymania eksportu:', blockAuditErr.message);
+                    }
+                    continue;
+                }
 
                 // Auto-export to Prodentis
                 const prodentisKey = (await getProdentisKey()) ?? '';
@@ -194,10 +244,10 @@ export async function GET(req: Request) {
             }
         }
 
-        console.log(`📄 [CareFlow Report] Done: ${generated} generated, ${errors} errors`);
-        return NextResponse.json({ success: true, generated, errors });
+        console.log(`📄 [CareFlow Report] Done: ${generated} generated, ${errors} errors, ${exportsBlocked} eksportow wstrzymanych`);
+        return NextResponse.json({ success: true, generated, errors, exportsBlocked });
     } catch (err: any) {
         console.error('📄 [CareFlow Report] Fatal error:', err);
-        return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: GENERIC_ERROR }, { status: 500 });
     }
 }

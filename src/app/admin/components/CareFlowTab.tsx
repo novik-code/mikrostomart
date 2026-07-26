@@ -45,9 +45,9 @@ interface Enrollment {
     status: string;
     enrolled_by: string;
     enrolled_at: string;
-    access_token: string;
     prescription_code: string | null;
-    report_pdf_url: string | null;
+    /** Token pacjenta i signed URL raportu nie jadą już w liście — patrz trasy /link i /report-link. */
+    hasReport: boolean;
     report_generated_at: string | null;
     report_exported_to_prodentis: boolean;
     stats: { total: number; completed: number; pending: number; progress: number };
@@ -554,6 +554,40 @@ function TemplateEditor({ template, onSave, onCancel }: { template?: Template; o
 // ENROLLMENTS SUB-TAB
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+/** Serwer i tak przycina do 500 — trzymamy tę samą wartość, żeby wiedzieć, kiedy lista się urwała. */
+const ENROLLMENTS_LIMIT = 500;
+
+function errorMessage(err: unknown, fallback = 'błąd połączenia'): string {
+    return err instanceof Error && err.message ? err.message : fallback;
+}
+
+/**
+ * Generator harmonogramu tworzy kroki, których termin minął przed uruchomieniem protokołu,
+ * OD RAZU jako pominięte (inaczej najbliższy przebieg crona wysłałby pacjentowi wszystkie
+ * zaległe dawki w jednej minucie). Te kroki NIE zostaną wysłane, więc samo „Protokół
+ * uruchomiony (15 zadań)" obiecuje przypomnienia, których część nigdy nie poleci — lekarz
+ * dowiaduje się o tym dopiero z raportu zgodności.
+ *
+ * Gdy serwer nie poda liczby (starsza wersja trasy), MILCZYMY — nie wolno napisać
+ * „0 po terminie", bo to twierdzenie o tym, co pacjent dostanie.
+ */
+function pastDueSuffix(data: unknown): string {
+    const payload = (data ?? {}) as { tasksSkippedPastDue?: unknown; enrollment?: { tasksSkippedPastDue?: unknown } | null };
+    const raw = payload.tasksSkippedPastDue ?? payload.enrollment?.tasksSkippedPastDue;
+    if (typeof raw !== 'number' || !Number.isFinite(raw) || raw <= 0) return '';
+    return `, w tym ${raw} po terminie — te kroki NIE będą wysyłane`;
+}
+
+/** Komunikat dla 409 `all_steps_past_due` — zamiast surowego kodu błędu. */
+const ALL_STEPS_PAST_DUE_MESSAGE =
+    'Cały protokół jest po terminie — wszystkie kroki mają termin w przeszłości, więc pacjent nie dostałby ani jednego przypomnienia. Zmień datę zabiegu albo wybierz protokół z krokami po zabiegu.';
+
+/** Czy odpowiedź błędu to „cały protokół po terminie"? Kod ma pierwszeństwo nad tekstem. */
+function isAllStepsPastDue(data: unknown): boolean {
+    const payload = (data ?? {}) as { code?: unknown; error?: unknown };
+    return payload.code === 'all_steps_past_due' || payload.error === 'all_steps_past_due';
+}
+
 function EnrollmentsSubTab() {
     const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
     const [loading, setLoading] = useState(true);
@@ -562,11 +596,13 @@ function EnrollmentsSubTab() {
     const [generatingReport, setGeneratingReport] = useState<string | null>(null);
     const [exportingProdentis, setExportingProdentis] = useState<string | null>(null);
     const [sendingSms, setSendingSms] = useState<string | null>(null);
+    const [copyingLink, setCopyingLink] = useState<string | null>(null);
+    const [decidingProposal, setDecidingProposal] = useState<string | null>(null);
 
     const fetchEnrollments = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/employee/careflow/enrollments?status=${filter}`);
+            const res = await fetch(`/api/employee/careflow/enrollments?status=${filter}&limit=${ENROLLMENTS_LIMIT}`);
             const data = await res.json();
             setEnrollments(data.enrollments || []);
         } catch { }
@@ -574,6 +610,84 @@ function EnrollmentsSubTab() {
     }, [filter]);
 
     useEffect(() => { fetchEnrollments(); }, [fetchEnrollments]);
+
+    // Token pacjenta nie jest już częścią listy — bierzemy go punktowo z trasy /link
+    // (serwer odnotowuje wydanie w audycie) i dopiero potem piszemy do schowka.
+    const handleCopyLink = async (id: string) => {
+        setCopyingLink(id);
+        try {
+            const res = await fetch(`/api/employee/careflow/enrollments/${id}/link`);
+            const data = await res.json();
+            if (!res.ok || !data.patientUrl) throw new Error(data.error || 'Nie udało się pobrać linku');
+            try {
+                await navigator.clipboard.writeText(data.patientUrl);
+                alert('🔗 Link skopiowany!');
+            } catch {
+                // Część przeglądarek blokuje schowek po await — pokazujemy link do ręcznego skopiowania.
+                window.prompt('Skopiuj link pacjenta:', data.patientUrl);
+            }
+        } catch (err) {
+            alert(`❌ Nie udało się pobrać linku: ${errorMessage(err)}`);
+        }
+        setCopyingLink(null);
+    };
+
+    const handleDownloadReport = async (id: string) => {
+        setGeneratingReport(id);
+        try {
+            const res = await fetch(`/api/employee/careflow/enrollments/${id}/report-link`);
+            const data = await res.json();
+            if (!res.ok || !data.url) {
+                throw new Error(data.error === 'no_report' ? 'Raport nie został jeszcze wygenerowany' : (data.error || 'Błąd pobierania raportu'));
+            }
+            // Signed URL ma Content-Disposition: attachment — kliknięcie kotwicy pobiera plik,
+            // bez opuszczania panelu i bez blokady popupów.
+            const a = document.createElement('a');
+            a.href = data.url; a.rel = 'noopener';
+            a.click();
+        } catch (err) {
+            alert(`❌ ${errorMessage(err, 'Błąd pobierania raportu')}`);
+        }
+        setGeneratingReport(null);
+    };
+
+    // Akceptacja propozycji auto-kwalifikacji — dopiero ona tworzy zadania protokołu.
+    const handleAcceptProposal = async (id: string, patientName: string) => {
+        if (!confirm(`Zaakceptować protokół CareFlow dla: ${patientName}?\n\nZadania i przypomnienia zostaną utworzone od razu.`)) return;
+        setDecidingProposal(id);
+        try {
+            const res = await fetch(`/api/employee/careflow/enrollments/${id}/accept`, { method: 'POST' });
+            const data = await res.json();
+            if (!res.ok) {
+                if (isAllStepsPastDue(data)) throw new Error(ALL_STEPS_PAST_DUE_MESSAGE);
+                throw new Error(data.error === 'not_proposed' ? 'Ta propozycja została już rozpatrzona' : (data.error || 'Błąd akceptacji'));
+            }
+            alert(`✅ Protokół uruchomiony: ${data.enrollment?.tasksCreated ?? 0} zadań${pastDueSuffix(data)}.`);
+            fetchEnrollments();
+        } catch (err) {
+            alert(`❌ ${errorMessage(err, 'Błąd akceptacji')}`);
+        }
+        setDecidingProposal(null);
+    };
+
+    const handleRejectProposal = async (id: string, patientName: string) => {
+        if (!confirm(`Odrzucić propozycję CareFlow dla: ${patientName}?\n\nPacjent nie dostanie żadnych przypomnień.`)) return;
+        const reason = window.prompt('Powód odrzucenia (opcjonalnie):', '') ?? '';
+        setDecidingProposal(id);
+        try {
+            const res = await fetch(`/api/employee/careflow/enrollments/${id}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason: reason.trim() || undefined }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error === 'not_proposed' ? 'Ta propozycja została już rozpatrzona' : (data.error || 'Błąd odrzucenia'));
+            fetchEnrollments();
+        } catch (err) {
+            alert(`❌ ${errorMessage(err, 'Błąd odrzucenia')}`);
+        }
+        setDecidingProposal(null);
+    };
 
     const handleCancel = async (id: string) => {
         if (!confirm('Anulować CareFlow tego pacjenta?')) return;
@@ -617,8 +731,6 @@ function EnrollmentsSubTab() {
         setSendingSms(null);
     };
 
-    const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
-
     // Show editor when editingId is set
     if (editingId) {
         return (
@@ -633,9 +745,9 @@ function EnrollmentsSubTab() {
     return (
         <div>
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                {['active', 'completed', 'cancelled', 'all'].map(f => (
+                {['proposed', 'active', 'completed', 'cancelled', 'all'].map(f => (
                     <button key={f} style={{ ...btnSecondary, background: filter === f ? 'rgba(99,102,241,0.2)' : undefined, borderColor: filter === f ? '#6366f1' : undefined }} onClick={() => setFilter(f)}>
-                        {f === 'active' ? '🟢 Aktywne' : f === 'completed' ? '✅ Zakończone' : f === 'cancelled' ? '❌ Anulowane' : '📊 Wszystkie'}
+                        {f === 'proposed' ? '💡 Propozycje' : f === 'active' ? '🟢 Aktywne' : f === 'completed' ? '✅ Zakończone' : f === 'cancelled' ? '❌ Anulowane' : '📊 Wszystkie'}
                     </button>
                 ))}
             </div>
@@ -658,10 +770,10 @@ function EnrollmentsSubTab() {
                                         marginLeft: '0.5rem',
                                         padding: '0.15rem 0.5rem',
                                         borderRadius: '6px',
-                                        background: e.status === 'active' ? 'rgba(16,185,129,0.2)' : e.status === 'completed' ? 'rgba(99,102,241,0.2)' : 'rgba(239,68,68,0.2)',
-                                        color: e.status === 'active' ? '#10b981' : e.status === 'completed' ? '#6366f1' : '#ef4444',
+                                        background: e.status === 'active' ? 'rgba(16,185,129,0.2)' : e.status === 'completed' ? 'rgba(99,102,241,0.2)' : e.status === 'proposed' ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)',
+                                        color: e.status === 'active' ? '#10b981' : e.status === 'completed' ? '#6366f1' : e.status === 'proposed' ? '#fbbf24' : '#ef4444',
                                     }}>
-                                        {e.status === 'active' ? '🟢 Aktywny' : e.status === 'completed' ? '✅ Zakończony' : '❌ Anulowany'}
+                                        {e.status === 'active' ? '🟢 Aktywny' : e.status === 'completed' ? '✅ Zakończony' : e.status === 'proposed' ? '💡 Propozycja — czeka na akceptację' : '❌ Anulowany'}
                                     </span>
                                     {e.report_exported_to_prodentis && (
                                         <span style={{
@@ -707,15 +819,36 @@ function EnrollmentsSubTab() {
                                 >
                                     ✏️ Edytuj
                                 </button>
-                                <button
-                                    style={{ ...btnSecondary, fontSize: '0.75rem' }}
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(`${siteUrl}/opieka/${e.access_token}`);
-                                        alert('Link skopiowany!');
-                                    }}
-                                >
-                                    🔗 Kopiuj link
-                                </button>
+                                {/* Link pacjenta — nie dla propozycji: przed akceptacją lekarza nic nie idzie do pacjenta */}
+                                {e.status !== 'proposed' && (
+                                    <button
+                                        style={{ ...btnSecondary, fontSize: '0.75rem' }}
+                                        disabled={copyingLink === e.id}
+                                        onClick={() => handleCopyLink(e.id)}
+                                    >
+                                        {copyingLink === e.id ? '⏳ Pobieram...' : '🔗 Kopiuj link'}
+                                    </button>
+                                )}
+
+                                {/* Decyzja lekarza o propozycji auto-kwalifikacji */}
+                                {e.status === 'proposed' && (
+                                    <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                        <button
+                                            style={{ ...btnSecondary, fontSize: '0.75rem', background: 'rgba(16,185,129,0.15)', borderColor: '#10b981', color: '#10b981' }}
+                                            disabled={decidingProposal === e.id}
+                                            onClick={() => handleAcceptProposal(e.id, e.patient_name)}
+                                        >
+                                            {decidingProposal === e.id ? '⏳' : '✅ Akceptuj'}
+                                        </button>
+                                        <button
+                                            style={{ ...btnDanger, fontSize: '0.75rem' }}
+                                            disabled={decidingProposal === e.id}
+                                            onClick={() => handleRejectProposal(e.id, e.patient_name)}
+                                        >
+                                            ❌ Odrzuć
+                                        </button>
+                                    </div>
+                                )}
 
                                 {/* Manual SMS trigger — only for active enrollments with phone */}
                                 {e.status === 'active' && e.patient_phone && (
@@ -728,25 +861,51 @@ function EnrollmentsSubTab() {
                                     </button>
                                 )}
 
-                                {/* PDF report actions */}
+                                {/* PDF report actions — o istnieniu raportu mówi flaga hasReport;
+                                    sam signed URL wydaje punktowo trasa /report-link */}
                                 {(e.status === 'completed' || e.status === 'cancelled') && (
-                                    e.report_pdf_url ? (
-                                        <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                            <a
-                                                href={e.report_pdf_url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                style={{ ...btnSecondary, fontSize: '0.75rem', textDecoration: 'none', display: 'inline-block', background: 'rgba(16,185,129,0.15)', borderColor: '#10b981', color: '#10b981' }}
-                                            >
-                                                📄 Pobierz PDF
-                                            </a>
+                                    <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                        {e.hasReport ? (
+                                            <>
+                                                <button
+                                                    style={{ ...btnSecondary, fontSize: '0.75rem', background: 'rgba(16,185,129,0.15)', borderColor: '#10b981', color: '#10b981' }}
+                                                    disabled={generatingReport === e.id}
+                                                    onClick={() => handleDownloadReport(e.id)}
+                                                >
+                                                    {generatingReport === e.id ? '⏳ Pobieram...' : '📄 Pobierz PDF'}
+                                                </button>
+                                                <button
+                                                    style={{ ...btnSecondary, fontSize: '0.7rem', padding: '0.3rem 0.5rem' }}
+                                                    disabled={generatingReport === e.id}
+                                                    onClick={async () => {
+                                                        setGeneratingReport(e.id);
+                                                        try {
+                                                            const res = await fetch(`/api/admin/careflow/report/${e.id}?regenerate=true`);
+                                                            if (res.ok) {
+                                                                const blob = await res.blob();
+                                                                const url = URL.createObjectURL(blob);
+                                                                const a = document.createElement('a');
+                                                                a.href = url; a.download = `careflow-${e.patient_name.replace(/\s+/g, '-')}.pdf`;
+                                                                a.click(); URL.revokeObjectURL(url);
+                                                                fetchEnrollments();
+                                                            } else {
+                                                                alert('Błąd generowania raportu');
+                                                            }
+                                                        } catch { alert('Błąd'); }
+                                                        setGeneratingReport(null);
+                                                    }}
+                                                >
+                                                    🔄
+                                                </button>
+                                            </>
+                                        ) : (
                                             <button
-                                                style={{ ...btnSecondary, fontSize: '0.7rem', padding: '0.3rem 0.5rem' }}
+                                                style={{ ...btnSecondary, fontSize: '0.75rem', background: 'rgba(99,102,241,0.15)', borderColor: '#6366f1', color: '#a5b4fc' }}
                                                 disabled={generatingReport === e.id}
                                                 onClick={async () => {
                                                     setGeneratingReport(e.id);
                                                     try {
-                                                        const res = await fetch(`/api/admin/careflow/report/${e.id}?regenerate=true`);
+                                                        const res = await fetch(`/api/admin/careflow/report/${e.id}`);
                                                         if (res.ok) {
                                                             const blob = await res.blob();
                                                             const url = URL.createObjectURL(blob);
@@ -761,44 +920,20 @@ function EnrollmentsSubTab() {
                                                     setGeneratingReport(null);
                                                 }}
                                             >
-                                                🔄
+                                                {generatingReport === e.id ? '⏳ Generuję...' : '📄 Generuj PDF'}
                                             </button>
-                                            {/* Export to Prodentis */}
-                                            {!e.report_exported_to_prodentis && (
-                                                <button
-                                                    style={{ ...btnSecondary, fontSize: '0.7rem', padding: '0.3rem 0.6rem', background: 'rgba(99,102,241,0.15)', borderColor: '#6366f1', color: '#a5b4fc' }}
-                                                    disabled={exportingProdentis === e.id}
-                                                    onClick={() => handleExportProdentis(e.id)}
-                                                >
-                                                    {exportingProdentis === e.id ? '⏳' : '📤 Prodentis'}
-                                                </button>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <button
-                                            style={{ ...btnSecondary, fontSize: '0.75rem', background: 'rgba(99,102,241,0.15)', borderColor: '#6366f1', color: '#a5b4fc' }}
-                                            disabled={generatingReport === e.id}
-                                            onClick={async () => {
-                                                setGeneratingReport(e.id);
-                                                try {
-                                                    const res = await fetch(`/api/admin/careflow/report/${e.id}`);
-                                                    if (res.ok) {
-                                                        const blob = await res.blob();
-                                                        const url = URL.createObjectURL(blob);
-                                                        const a = document.createElement('a');
-                                                        a.href = url; a.download = `careflow-${e.patient_name.replace(/\s+/g, '-')}.pdf`;
-                                                        a.click(); URL.revokeObjectURL(url);
-                                                        fetchEnrollments();
-                                                    } else {
-                                                        alert('Błąd generowania raportu');
-                                                    }
-                                                } catch { alert('Błąd'); }
-                                                setGeneratingReport(null);
-                                            }}
-                                        >
-                                            {generatingReport === e.id ? '⏳ Generuję...' : '📄 Generuj PDF'}
-                                        </button>
-                                    )
+                                        )}
+                                        {/* Eksport do kartoteki — osobno, nie w gałęzi przycisku PDF */}
+                                        {e.hasReport && !e.report_exported_to_prodentis && (
+                                            <button
+                                                style={{ ...btnSecondary, fontSize: '0.7rem', padding: '0.3rem 0.6rem', background: 'rgba(99,102,241,0.15)', borderColor: '#6366f1', color: '#a5b4fc' }}
+                                                disabled={exportingProdentis === e.id}
+                                                onClick={() => handleExportProdentis(e.id)}
+                                            >
+                                                {exportingProdentis === e.id ? '⏳' : '📤 Prodentis'}
+                                            </button>
+                                        )}
+                                    </div>
                                 )}
                                 {e.status === 'active' && (
                                     <button style={{ ...btnDanger, fontSize: '0.75rem' }} onClick={() => handleCancel(e.id)}>Anuluj</button>
@@ -807,6 +942,14 @@ function EnrollmentsSubTab() {
                         </div>
                     </div>
                 ))
+            )}
+
+            {/* Lista urywa się na limicie serwera — bez tej informacji brakujące zapisy
+                wyglądałyby jak nieistniejące. */}
+            {!loading && enrollments.length >= ENROLLMENTS_LIMIT && (
+                <p style={{ textAlign: 'center', color: '#fbbf24', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+                    ⚠️ Pokazano pierwsze {ENROLLMENTS_LIMIT} procesów (najnowsze zabiegi). Zawęź filtr, aby zobaczyć pozostałe.
+                </p>
             )}
         </div>
     );

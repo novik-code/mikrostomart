@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { PAST_DUE_NOTE } from '@/lib/careflowSchedule';
 
 interface Task {
     id: string;
@@ -27,7 +28,6 @@ interface EnrollmentDetail {
     doctor_name: string;
     status: string;
     enrolled_by: string;
-    access_token: string;
     prescription_code: string | null;
     custom_notes: string | null;
 }
@@ -127,6 +127,7 @@ export default function CareFlowEnrollmentEditor({ enrollmentId, onClose, onSave
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [savingTask, setSavingTask] = useState<string | null>(null);
+    const [copyingLink, setCopyingLink] = useState(false);
     const [toast, setToast] = useState<string | null>(null);
 
     // Editable fields
@@ -223,13 +224,82 @@ export default function CareFlowEnrollmentEditor({ enrollmentId, onClose, onSave
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
 
-            showToast('✅ Godzina zadania zapisana');
+            // Zmiana godziny na termin w przyszłości zdejmuje znacznik pominięcia (serwer
+            // odpowiada `restored`) — personel musi wiedzieć, że krok znów pójdzie do pacjenta.
+            showToast(data.restored
+                ? '✅ Godzina zapisana — krok przywrócony, zostanie wysłany pacjentowi'
+                : '✅ Godzina zadania zapisana');
             setTaskEdits(prev => { const n = { ...prev }; delete n[taskId]; return n; });
             fetchData();
         } catch (err: any) {
             showToast(`❌ ${err.message}`);
         }
         setSavingTask(null);
+    };
+
+    // Krok pominięty nie wyjdzie do pacjenta — cron pomija zadania ze znacznikiem pominięcia.
+    // Przywrócenie wymaga terminu w przyszłości: odblokowanie kroku z minioną godziną
+    // wypuściłoby zaległą dawkę natychmiast przy najbliższym przebiegu crona.
+    const handleRestoreTask = async (task: Task) => {
+        const localValue = taskEdits[task.id] ?? toLocalDatetimeValue(task.scheduled_at);
+        const targetIso = fromLocalDatetimeValue(localValue);
+        const target = new Date(targetIso);
+        if (Number.isNaN(target.getTime())) {
+            showToast('❌ Nieprawidłowa godzina zadania');
+            return;
+        }
+        if (target.getTime() <= Date.now()) {
+            showToast('⚠️ Najpierw ustaw termin w przyszłości — krok z minioną godziną poszedłby do pacjenta od razu.');
+            return;
+        }
+
+        const when = target.toLocaleString('pl-PL', { timeZone: 'Europe/Warsaw' });
+        const medNote = task.medication_name
+            ? `\n\n💊 To krok z lekiem: ${task.medication_name}${task.medication_dose ? ` — ${task.medication_dose}` : ''}. Potwierdź z lekarzem, że dawka jest nadal zalecana.`
+            : '';
+        if (!window.confirm(
+            `Przywrócić krok „${task.title}"?\n\nNowy termin: ${when}\nKrok znów będzie wysyłany pacjentowi, przypomnienia ruszą od nowa.${medNote}`
+        )) return;
+
+        setSavingTask(task.id);
+        try {
+            const res = await fetch(`/api/employee/careflow/tasks/${task.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheduledAt: targetIso }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Nie udało się przywrócić kroku');
+            showToast(data.restored
+                ? `✅ Krok przywrócony — zostanie wysłany ${when}`
+                : '✅ Godzina zadania zapisana');
+            setTaskEdits(prev => { const n = { ...prev }; delete n[task.id]; return n; });
+            fetchData();
+        } catch (err) {
+            showToast(`❌ ${err instanceof Error ? err.message : 'Błąd połączenia'}`);
+        }
+        setSavingTask(null);
+    };
+
+    // Token pacjenta nie jest już częścią odpowiedzi z danymi zapisu — pobieramy go
+    // punktowo (serwer odnotowuje to w audycie) i dopiero wtedy piszemy do schowka.
+    const handleCopyLink = async () => {
+        setCopyingLink(true);
+        try {
+            const res = await fetch(`/api/employee/careflow/enrollments/${enrollmentId}/link`);
+            const data = await res.json();
+            if (!res.ok || !data.patientUrl) throw new Error(data.error || 'Nie udało się pobrać linku');
+            try {
+                await navigator.clipboard.writeText(data.patientUrl);
+                showToast('🔗 Link skopiowany!');
+            } catch {
+                // Część przeglądarek blokuje schowek po await — pokazujemy link do ręcznego skopiowania.
+                window.prompt('Skopiuj link pacjenta:', data.patientUrl);
+            }
+        } catch (err) {
+            showToast(`❌ Nie udało się pobrać linku: ${err instanceof Error ? err.message : 'błąd połączenia'}`);
+        }
+        setCopyingLink(false);
     };
 
     if (loading) {
@@ -249,8 +319,6 @@ export default function CareFlowEnrollmentEditor({ enrollmentId, onClose, onSave
         );
     }
 
-    const siteUrl = typeof window !== 'undefined' ? window.location.origin : '';
-
     return (
         <div>
             {/* Header */}
@@ -265,23 +333,25 @@ export default function CareFlowEnrollmentEditor({ enrollmentId, onClose, onSave
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{
                     padding: '0.2rem 0.6rem', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 600,
-                    background: enrollment.status === 'active' ? 'rgba(16,185,129,0.2)' : enrollment.status === 'completed' ? 'rgba(99,102,241,0.2)' : 'rgba(239,68,68,0.2)',
-                    color: enrollment.status === 'active' ? '#10b981' : enrollment.status === 'completed' ? '#6366f1' : '#ef4444',
+                    background: enrollment.status === 'active' ? 'rgba(16,185,129,0.2)' : enrollment.status === 'completed' ? 'rgba(99,102,241,0.2)' : enrollment.status === 'proposed' ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)',
+                    color: enrollment.status === 'active' ? '#10b981' : enrollment.status === 'completed' ? '#6366f1' : enrollment.status === 'proposed' ? '#fbbf24' : '#ef4444',
                 }}>
-                    {enrollment.status === 'active' ? '🟢 Aktywny' : enrollment.status === 'completed' ? '✅ Zakończony' : '❌ Anulowany'}
+                    {enrollment.status === 'active' ? '🟢 Aktywny' : enrollment.status === 'completed' ? '✅ Zakończony' : enrollment.status === 'proposed' ? '💡 Propozycja — czeka na akceptację' : '❌ Anulowany'}
                 </span>
                 <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.75rem' }}>
                     Szablon: {enrollment.template_name} • Enrollment: {enrollment.enrolled_by}
                 </span>
-                <button
-                    style={{ ...btnSecondary, fontSize: '0.7rem', padding: '0.25rem 0.6rem' }}
-                    onClick={() => {
-                        navigator.clipboard.writeText(`${siteUrl}/opieka/${enrollment.access_token}`);
-                        showToast('🔗 Link skopiowany!');
-                    }}
-                >
-                    🔗 Kopiuj link pacjenta
-                </button>
+                {/* Propozycja nie ma jeszcze ważnego linku pacjenta — tak samo jak na liście
+                    w CareFlowTab. Wysłanie linku przed akceptacją lekarza obchodzi bramkę. */}
+                {enrollment.status !== 'proposed' && (
+                    <button
+                        style={{ ...btnSecondary, fontSize: '0.7rem', padding: '0.25rem 0.6rem' }}
+                        onClick={handleCopyLink}
+                        disabled={copyingLink}
+                    >
+                        {copyingLink ? '⏳ Pobieram...' : '🔗 Kopiuj link pacjenta'}
+                    </button>
+                )}
             </div>
 
             {/* Enrollment fields */}
@@ -354,6 +424,9 @@ export default function CareFlowEnrollmentEditor({ enrollmentId, onClose, onSave
                     const isDone = !!task.completed_at;
                     const isSkipped = !!task.skipped_at;
                     const hasEdit = taskEdits[task.id] !== undefined;
+                    // Pominięcie ustawione przez generator (termin minął przed zapisaniem protokołu)
+                    // to co innego niż pominięcie kroku przez pacjenta — dopisek w opisie je rozróżnia.
+                    const isPastDueSkip = isSkipped && (task.description || '').includes(PAST_DUE_NOTE);
 
                     return (
                         <div

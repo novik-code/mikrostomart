@@ -8,6 +8,8 @@ import { getProdentisKey } from '@/lib/pmsConfig';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
+const GENERIC_ERROR = 'Nie udało się wyeksportować raportu do Prodentis';
+
 /**
  * POST /api/admin/careflow/export-prodentis/[id]
  * Manually export CareFlow compliance PDF to patient's Prodentis documents.
@@ -71,7 +73,7 @@ export async function POST(
             pdfBytes = Buffer.from(arrayBuffer);
         } catch (dlErr: any) {
             console.error('[CareFlow Export] PDF download error:', dlErr.message);
-            return NextResponse.json({ error: `Failed to download PDF: ${dlErr.message}` }, { status: 500 });
+            return NextResponse.json({ error: 'Nie udało się pobrać pliku PDF raportu' }, { status: 500 });
         }
 
         // 3. POST to Prodentis /api/patients/{id}/documents
@@ -103,7 +105,7 @@ export async function POST(
             console.log(`[CareFlow Export] PDF exported to Prodentis for ${enrollment.patient_name} (patient ${enrollment.patient_id})`);
         } catch (prodErr: any) {
             console.error('[CareFlow Export] Prodentis upload error:', prodErr.message);
-            return NextResponse.json({ error: `Prodentis export failed: ${prodErr.message}` }, { status: 502 });
+            return NextResponse.json({ error: GENERIC_ERROR }, { status: 502 });
         }
 
         // 4. Mark as exported
@@ -131,6 +133,6 @@ export async function POST(
         });
     } catch (err: any) {
         console.error('[CareFlow Export] Error:', err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json({ error: GENERIC_ERROR }, { status: 500 });
     }
 }

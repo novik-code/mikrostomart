@@ -50,17 +50,21 @@ async function getSupabaseUser(): Promise<User | null> {
     return user;
 }
 
+/** Odmowa dostępu nigdy nie może osiąść w cache przeglądarki ani proxy —
+ *  inaczej 401/403 z jednej sesji trafia do kolejnej. */
+const NO_STORE = { "Cache-Control": "no-store, no-cache, must-revalidate, private" };
+
 function unauthorized(): AuthFailure {
     return {
         ok: false,
-        response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+        response: NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: NO_STORE }),
     };
 }
 
 function forbidden(): AuthFailure {
     return {
         ok: false,
-        response: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+        response: NextResponse.json({ error: "Forbidden" }, { status: 403, headers: NO_STORE }),
     };
 }
 

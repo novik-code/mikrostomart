@@ -22,7 +22,9 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        let patientData: any;
+        // Kartoteka z Prodentisa/Supabase — kod czyta z niej tylko email i telefon,
+        // reszta pól idzie do klienta bez zmian.
+        let patientData: Record<string, unknown> & { email?: string | null; phone?: string | null };
 
         if (isDemoMode) {
             // In demo mode, fetch patient data from Supabase directly
@@ -112,7 +114,7 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(mergedData);
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('[Me] Error:', error);
         return NextResponse.json(
             { error: 'Server error' },
@@ -137,7 +139,7 @@ export async function PATCH(request: NextRequest) {
         const { email, phone, locale, notification_preferences, avatar } = body;
 
         // Build update object (only update provided fields)
-        const updates: any = {};
+        const updates: Record<string, unknown> = {};
 
         if (email !== undefined) {
             // Validate email format
@@ -167,7 +169,47 @@ export async function PATCH(request: NextRequest) {
         }
 
         if (notification_preferences !== undefined) {
-            updates.notification_preferences = notification_preferences;
+            // Kształt: PŁASKI obiekt wartości logicznych. Cokolwiek innego odrzucamy,
+            // żeby do JSONB nie wpadła zagnieżdżona struktura ani śmieciowe klucze.
+            const isFlatBooleanMap =
+                notification_preferences !== null &&
+                typeof notification_preferences === 'object' &&
+                !Array.isArray(notification_preferences) &&
+                Object.keys(notification_preferences).length <= 40 &&
+                Object.entries(notification_preferences).every(
+                    ([key, value]) => /^[a-z0-9_]{1,40}$/.test(key) && typeof value === 'boolean'
+                );
+
+            if (!isFlatBooleanMap) {
+                return NextResponse.json(
+                    { error: 'Nieprawidłowe preferencje powiadomień' },
+                    { status: 400 }
+                );
+            }
+
+            // MERGE, nie podmiana. Web wysyła tylko swoje 5 kluczy, a apka swoje —
+            // przy podmianie całego obiektu zapis preferencji na webie kasował wyciszenie
+            // CareFlow ustawione w apce (D6) i przypomnienia wracały bez zgody pacjenta.
+            const { data: currentRow, error: currentErr } = await supabase
+                .from('patients')
+                .select('notification_preferences')
+                .eq('prodentis_id', payload.prodentisId)
+                .maybeSingle();
+
+            // FAIL-CLOSED: bez znajomości stanu bieżącego merge zamienia się w PODMIANĘ
+            // całego obiektu i kasuje np. wyciszenie CareFlow ustawione w apce. Przy błędzie
+            // odczytu nie zapisujemy NICZEGO — pacjent ponowi, zamiast stracić ustawienia.
+            if (currentErr) {
+                console.error('[Me PATCH] Preferences read error:', currentErr);
+                return NextResponse.json(
+                    { error: 'Nie udało się zaktualizować profilu' },
+                    { status: 500 }
+                );
+            }
+
+            const current = currentRow?.notification_preferences;
+            const base = current && typeof current === 'object' && !Array.isArray(current) ? current : {};
+            updates.notification_preferences = { ...base, ...notification_preferences };
         }
 
         if (avatar !== undefined) {
@@ -205,10 +247,13 @@ export async function PATCH(request: NextRequest) {
                 phone: data.phone,
                 locale: data.locale,
                 avatar: data.avatar,
+                // Dokładany klucz (nie zmienia istniejących) — po merge'u klient musi
+                // zobaczyć STAN PO scaleniu, a nie to, co sam wysłał.
+                notification_preferences: data.notification_preferences ?? null,
             }
         });
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('[Me PATCH] Error:', error);
         return NextResponse.json(
             { error: 'Server error' },
