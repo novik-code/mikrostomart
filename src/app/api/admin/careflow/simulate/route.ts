@@ -2,21 +2,68 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/authGuards';
 import { hasRole } from '@/lib/roles';
-import { pushToUser } from '@/lib/pushService';
 import { sendSMS, toGSM7 } from '@/lib/smsService';
 import { generateCareflowReport } from '@/lib/careflowPdf';
+import { pushToPatientAll } from '@/lib/pushService';
+import { buildTasks, warsawIso, PAST_DUE_NOTE, type CareStepRow } from '@/lib/careflowSchedule';
 
 export const maxDuration = 60;
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.mikrostomart.pl';
 
 /**
+ * Treść pusha, jaką NAPRAWDĘ wysyła cron (`/api/cron/careflow-push`): neutralna,
+ * bez tytułu zadania i bez tokenu w URL, bo `pushService` loguje title/body/url do
+ * push_notifications_log czytanego przez cały personel (RODO art. 9). Symulator
+ * pokazuje dokładnie te stałe — inaczej „podgląd pusha" reklamowałby treść, która
+ * nigdy nie poleci, i uczyłby, że nazwa leku na ekranie blokady jest w porządku.
+ */
+const PUSH_TITLE = 'Mikrostomart';
+const PUSH_BODY = 'Masz przypomnienie w planie opieki. Otwórz aplikację.';
+const PUSH_LANDING_PATH = '/strefa-pacjenta/dashboard';
+
+type SupabaseLike = ReturnType<typeof createClient>;
+
+/**
+ * Każda akcja modyfikująca musi trafić w zapis symulatora. Bez tego ręczne
+ * wywołanie z `enrollmentId` REALNEGO pacjenta fabrykowało potwierdzenia zadań
+ * (aktor 'simulator') i zamykało prawdziwy protokół — czyli wstawiało do
+ * dokumentacji medycznej twierdzenie, że pacjent coś wykonał.
+ */
+async function loadSimulatorEnrollment(supabase: SupabaseLike, enrollmentId: string) {
+    const { data } = await supabase
+        .from('care_enrollments')
+        .select('*')
+        .eq('id', enrollmentId)
+        .eq('enrolled_by', 'simulator')
+        .maybeSingle();
+    return data || null;
+}
+
+const notSimulatorResponse = () =>
+    NextResponse.json({ error: 'Nie znaleziono zapisu symulatora o tym identyfikatorze' }, { status: 404 });
+
+/**
+ * Ta sama interpretacja daty co w `/api/employee/careflow/enroll` — bez tego symulator
+ * czytałby `2026-07-27T15:30:00` jako czas SERWERA (na Vercelu UTC) i pokazywał plan
+ * przesunięty o 1-2 h względem tego, co realnie dostanie pacjent.
+ */
+function parseAppointmentDate(value: string): Date {
+    const raw = String(value).trim();
+    const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/.test(raw);
+    const match = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/.exec(raw);
+    if (match && !hasZone) return new Date(warsawIso(match[1], match[2]));
+    return new Date(raw);
+}
+
+/**
  * CareFlow Simulator API
  * POST /api/admin/careflow/simulate
  * 
- * A standalone testing tool that replicates the CareFlow pipeline
- * without modifying any existing CareFlow code.
- * 
+ * Narzędzie testowe przechodzące pełny cykl CareFlow na danych symulacyjnych.
+ * Harmonogram liczy TYM SAMYM `buildTasks` co realny zapis pacjenta — inaczej
+ * „test protokołu" pokazywałby plan, który nigdy nie powstanie.
+ *
  * Actions: setup, push, complete, complete_all, report, cleanup, status
  */
 export async function POST(req: NextRequest) {
@@ -53,9 +100,10 @@ export async function POST(req: NextRequest) {
             default:
                 return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
         }
-    } catch (err: any) {
+    } catch (err) {
+        // Surowy komunikat Postgresa nie wychodzi na zewnątrz — zostaje w logach.
         console.error('[CareFlow Simulator] Error:', err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        return NextResponse.json({ error: 'Symulator nie mógł wykonać operacji' }, { status: 500 });
     }
 }
 
@@ -81,8 +129,9 @@ async function handleSetup(supabase: any, body: any) {
         templateQuery = templateQuery.ilike('name', '%chirurgiczny%');
     }
     const { data: templates, error: tErr } = await templateQuery;
+    if (tErr) console.error('[CareFlow Simulator] Template lookup failed:', tErr);
     if (tErr || !templates?.length) {
-        return NextResponse.json({ error: `No matching template found. Error: ${tErr?.message || 'none'}` }, { status: 404 });
+        return NextResponse.json({ error: 'Nie znaleziono pasującego protokołu' }, { status: 404 });
     }
     const template = templates[0];
 
@@ -112,19 +161,14 @@ async function handleSetup(supabase: any, body: any) {
         }, { status: 409 });
     }
 
-    // Smart-snap helper
-    function smartSnap(date: Date, quietStart = 22, quietEnd = 7): Date {
-        const h = date.getHours();
-        const result = new Date(date);
-        if (h >= quietStart) result.setHours(quietStart, 0, 0, 0);
-        else if (h < quietEnd) result.setHours(quietEnd, 0, 0, 0);
-        return result;
+    const appointmentDateObj = parseAppointmentDate(appointmentDate);
+    if (Number.isNaN(appointmentDateObj.getTime())) {
+        return NextResponse.json({ error: 'Nieprawidłowa data zabiegu' }, { status: 400 });
     }
 
-    const appointmentDateObj = new Date(appointmentDate);
     const pushSettings = template.push_settings || {};
-    const quietStart = pushSettings.quiet_hours_start || 22;
-    const quietEnd = pushSettings.quiet_hours_end || 7;
+    const quietStart = pushSettings.quiet_hours_start ?? 22;
+    const quietEnd = pushSettings.quiet_hours_end ?? 7;
     const medications = template.default_medications || [];
 
     // Create enrollment
@@ -138,7 +182,7 @@ async function handleSetup(supabase: any, body: any) {
             template_id: template.id,
             template_name: template.name,
             appointment_id: 'SIM-APT-' + Date.now(),
-            appointment_date: appointmentDate,
+            appointment_date: appointmentDateObj.toISOString(),
             doctor_name: doctorName,
             enrolled_by: 'simulator',
         })
@@ -147,45 +191,29 @@ async function handleSetup(supabase: any, body: any) {
 
     if (eErr) throw new Error(eErr.message);
 
-    // Generate tasks from template steps
-    const taskRows = steps.map((step: any) => {
-        let scheduledAt = new Date(appointmentDateObj.getTime() + step.offset_hours * 60 * 60 * 1000);
-        if (step.smart_snap) {
-            scheduledAt = smartSnap(scheduledAt, quietStart, quietEnd);
-        }
+    // Zadania generuje ten sam `buildTasks` co realny zapis pacjenta (enroll, akceptacja
+    // propozycji, cron). Wcześniej symulator miał własną kopię pętli i własny smart-snap,
+    // więc „test protokołu" pokazywał inny plan niż ten, który naprawdę powstawał:
+    // bez rekurencji kroków, z sort_order z kroku i ze strefą serwera zamiast Europe/Warsaw.
+    //
+    // `now` JEST OBOWIĄZKOWE: to wiersze w PRODUKCYJNEJ tabeli care_tasks, a produkcyjny
+    // cron nie filtruje po `enrolled_by`. Bez `now` symulacja z dzisiejszą datą tworzyła
+    // aktywne zadania po terminie, które cron zaraz rozsyłał serią realnych SMS-ów na
+    // numer wpisany w formularzu. Z `now` kroki zaległe powstają od razu pominięte —
+    // dokładnie tak jak przy realnym zapisie (patrz PAST_GRACE_HOURS).
+    const generatedAt = new Date();
+    const taskRows = buildTasks({
+        steps: steps as CareStepRow[],
+        medications,
+        appointmentDate: appointmentDateObj,
+        quietStart,
+        quietEnd,
+        now: generatedAt,
+    }).map((row) => ({ ...row, enrollment_id: enrollment.id }));
 
-        let visibleFrom = null;
-        if (step.visible_hours_before) {
-            visibleFrom = new Date(scheduledAt.getTime() - step.visible_hours_before * 60 * 60 * 1000);
-        }
-
-        let medName = null, medDose = null, medDesc = null;
-        if (step.medication_index !== null && step.medication_index !== undefined && medications[step.medication_index]) {
-            const med = medications[step.medication_index];
-            medName = med.name;
-            medDose = med.dose;
-            medDesc = med.description;
-        }
-
-        return {
-            enrollment_id: enrollment.id,
-            step_id: step.id,
-            sort_order: step.sort_order,
-            title: step.title,
-            description: step.description,
-            icon: step.icon,
-            scheduled_at: scheduledAt.toISOString(),
-            original_offset_hours: step.offset_hours,
-            push_max_count: step.reminder_max_count || 6,
-            push_interval_minutes: step.reminder_interval_minutes || 30,
-            push_message: step.push_message || null,
-            medication_name: medName,
-            medication_dose: medDose,
-            medication_description: medDesc,
-            visible_from: visibleFrom?.toISOString() || null,
-            requires_confirmation: step.requires_confirmation ?? true,
-        };
-    });
+    // Rozdzielamy „pominięte przez system, bo termin minął przed zapisem" od zadań do
+    // wykonania — inaczej tester zobaczy w statusie „skipped" i uzna, że pacjent odpuścił.
+    const pastDueSkipped = taskRows.filter((row) => row.skipped_at !== null).length;
 
     const { error: taskErr } = await supabase.from('care_tasks').insert(taskRows);
     if (taskErr) throw new Error(`Task creation: ${taskErr.message}`);
@@ -278,13 +306,18 @@ async function handlePush(supabase: any, enrollmentId: string, dryRun: boolean) 
             // REAL SEND — push first, SMS fallback
             let sent = false;
 
-            // Try push if patient has DB ID
+            // Try push if patient has DB ID.
+            // Treść MUSI być neutralna i BEZ tokenu — tak jak w produkcyjnym cronie:
+            // pushService.logPush zapisuje title/body/url do push_notifications_log,
+            // czytanego przez cały personel. Symulator nie może być tylną furtką,
+            // którą nazwa leku i bezhasłowy link wracają do historii powiadomień.
             if (enrollment.patient_db_id) {
                 try {
-                    const pushResult = await pushToUser(enrollment.patient_db_id, 'patient', {
-                        title: pushTitle,
-                        body: pushBody,
-                        url: landingUrl,
+                    const pushResult = await pushToPatientAll(enrollment.patient_db_id, {
+                        title: PUSH_TITLE,
+                        body: PUSH_BODY,
+                        url: PUSH_LANDING_PATH,
+                        data: { type: 'careflow', enrollmentId, taskId: task.id },
                     });
                     sent = pushResult.sent > 0;
                 } catch (e: any) {

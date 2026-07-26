@@ -10,6 +10,34 @@ import type { Badge, ScheduleAppointment, Visit, ScheduleDay, ScheduleData } fro
 import type { EmployeeTask } from './TaskTypes';
 import { PRODENTIS_COLORS, DEFAULT_COLOR, BADGE_LETTERS, getBadgeLetter, getAppointmentColor, TIME_SLOTS, timeToSlotIndex, timeToMinutes, getMonday, formatDateShort } from './ScheduleTypes';
 
+// ─── CareFlow: kroki po terminie ──────────────────────────────
+/**
+ * Generator harmonogramu tworzy kroki, których termin minął przed zapisaniem protokołu,
+ * OD RAZU jako pominięte (inaczej najbliższy przebieg crona wysłałby pacjentowi wszystkie
+ * zaległe dawki w jednej minucie). Te kroki NIE zostaną wysłane, więc komunikat „Protokół
+ * uruchomiony: 15 zadań" bez tej informacji obiecuje przypomnienia, których część nigdy
+ * nie poleci — a personel dowiaduje się o tym dopiero z raportu zgodności.
+ *
+ * Gdy serwer nie poda liczby (starsza wersja trasy), MILCZYMY — nie wolno napisać
+ * „0 po terminie", bo to twierdzenie o tym, co pacjent dostanie.
+ */
+function pastDueSuffix(data: unknown): string {
+    const payload = (data ?? {}) as { tasksSkippedPastDue?: unknown; enrollment?: { tasksSkippedPastDue?: unknown } | null };
+    const raw = payload.tasksSkippedPastDue ?? payload.enrollment?.tasksSkippedPastDue;
+    if (typeof raw !== 'number' || !Number.isFinite(raw) || raw <= 0) return '';
+    return `, w tym ${raw} po terminie — te kroki NIE będą wysyłane`;
+}
+
+/** Komunikat dla 409 `all_steps_past_due` — zamiast surowego kodu błędu. */
+const ALL_STEPS_PAST_DUE_MESSAGE =
+    'Cały protokół jest po terminie — wszystkie kroki mają termin w przeszłości, więc pacjent nie dostałby ani jednego przypomnienia. Zmień datę zabiegu albo wybierz protokół z krokami po zabiegu.';
+
+/** Czy odpowiedź błędu to „cały protokół po terminie"? Kod ma pierwszeństwo nad tekstem. */
+function isAllStepsPastDue(data: unknown): boolean {
+    const payload = (data ?? {}) as { code?: unknown; error?: unknown };
+    return payload.code === 'all_steps_past_due' || payload.error === 'all_steps_past_due';
+}
+
 // ─── Props ────────────────────────────────────────────────────
 interface ScheduleTabProps {
     scheduleData: ScheduleData | null;
@@ -1353,21 +1381,44 @@ export default function ScheduleTab({
                                     setCareflowExisting(null);
                                     if (!careflowOpen) {
                                         try {
-                                            const [tRes, eRes] = await Promise.all([
-                                                fetch('/api/admin/careflow/templates'),
-                                                selectedAppointment.patientId
-                                                    ? fetch(`/api/employee/careflow/enrollments?patientId=${selectedAppointment.patientId}&status=active`)
+                                            const patientId = selectedAppointment.patientId;
+                                            // Trasa personelu (requireEmployeeOrAdmin) i wyłącznie aktywne protokoły.
+                                            // Adminowa /api/admin/careflow/templates zwracała pracownikowi 403,
+                                            // więc lista protokołów była po cichu pusta.
+                                            const [tRes, activeRes, proposedRes] = await Promise.all([
+                                                fetch('/api/employee/careflow/templates'),
+                                                // `.catch` na sprawdzeniu zapisów: jego awaria nie może zabrać
+                                                // personelowi listy protokołów.
+                                                patientId
+                                                    ? fetch(`/api/employee/careflow/enrollments?patientId=${patientId}&status=active`).catch(() => null)
+                                                    : Promise.resolve(null),
+                                                // Propozycja z auto-kwalifikacji czeka na akceptację lekarza i nie ma
+                                                // jeszcze zadań — bez tego personel zakładałby drugi protokół lekowy.
+                                                patientId
+                                                    ? fetch(`/api/employee/careflow/enrollments?patientId=${patientId}&status=proposed`).catch(() => null)
                                                     : Promise.resolve(null),
                                             ]);
+
+                                            if (!tRes.ok) throw new Error('templates');
                                             const tData = await tRes.json();
-                                            setCareflowTemplates((tData.templates || []).filter((t: any) => t.is_active));
-                                            if (eRes) {
-                                                const eData = await eRes.json();
+                                            setCareflowTemplates(tData.templates || []);
+
+                                            for (const res of [activeRes, proposedRes]) {
+                                                if (!res?.ok) continue;
+                                                const eData = await res.json();
                                                 if (eData.enrollments?.length > 0) {
                                                     setCareflowExisting(eData.enrollments[0]);
+                                                    break;
                                                 }
                                             }
-                                        } catch { }
+                                        } catch {
+                                            // Cichy catch dawał pusty wybór protokołu bez śladu, że coś padło.
+                                            setCareflowTemplates([]);
+                                            setCareflowResult({
+                                                success: false,
+                                                message: 'Nie udało się pobrać listy protokołów. Odśwież stronę i spróbuj ponownie.',
+                                            });
+                                        }
                                     }
                                 }}
                                 style={{
@@ -1439,10 +1490,17 @@ export default function ScheduleTab({
                                         fontSize: '0.8rem',
                                         color: '#f59e0b',
                                     }}>
-                                        ⚠️ Pacjent ma aktywny CareFlow: <strong>{careflowExisting.template_name}</strong>
+                                        {careflowExisting.status === 'proposed'
+                                            ? '⏳ Czeka propozycja do akceptacji: '
+                                            : '⚠️ Pacjent ma aktywny CareFlow: '}
+                                        <strong>{careflowExisting.template_name}</strong>
                                         <br />
                                         <span style={{ fontSize: '0.75rem', color: 'rgba(245,158,11,0.7)' }}>
-                                            Postęp: {careflowExisting.stats?.completed || 0}/{careflowExisting.stats?.total || 0} • Zabieg: {new Date(careflowExisting.appointment_date).toLocaleDateString('pl-PL')}
+                                            {careflowExisting.status === 'proposed'
+                                                ? 'Zadania powstaną dopiero po akceptacji lekarza'
+                                                : `Postęp: ${careflowExisting.stats?.completed || 0}/${careflowExisting.stats?.total || 0}`}
+                                            {' • Zabieg: '}
+                                            {new Date(careflowExisting.appointment_date).toLocaleDateString('pl-PL')}
                                         </span>
                                     </div>
                                 )}
@@ -1502,7 +1560,7 @@ export default function ScheduleTab({
                                             >
                                                 <option value="">— Wybierz szablon —</option>
                                                 {careflowTemplates.map((t: any) => (
-                                                    <option key={t.id} value={t.id}>🏥 {t.name} ({t.step_count} kroków)</option>
+                                                    <option key={t.id} value={t.id}>🏥 {t.name} ({t.stepCount} kroków)</option>
                                                 ))}
                                             </select>
                                         </div>
@@ -1583,9 +1641,11 @@ export default function ScheduleTab({
                                                     if (res.ok) {
                                                         setCareflowResult({
                                                             success: true,
-                                                            message: `Pacjent zakwalifikowany! ${data.tasksCreated} zadań utworzonych.`,
+                                                            message: `Pacjent zakwalifikowany! ${data.tasksCreated} zadań utworzonych${pastDueSuffix(data)}.`,
                                                             token: data.accessToken,
                                                         });
+                                                    } else if (isAllStepsPastDue(data)) {
+                                                        setCareflowResult({ success: false, message: ALL_STEPS_PAST_DUE_MESSAGE });
                                                     } else {
                                                         setCareflowResult({ success: false, message: data.error || 'Błąd' });
                                                     }

@@ -23,6 +23,19 @@ export interface PushPayload {
     icon?: string;
     tag?: string;
     requireInteraction?: boolean;
+    /** Metadane wyłącznie dla kanału Expo (apka mobilna). FCM ignoruje — jego kształt wiadomości bez zmian. */
+    data?: Record<string, unknown>;
+}
+
+/**
+ * Payload danych dla Expo: `url` zostaje dla wstecznej zgodności (deep-link),
+ * `payload.data` dopełnia/nadpisuje.
+ */
+function buildExpoData(payload: PushPayload): Record<string, unknown> {
+    return {
+        ...(payload.url ? { url: payload.url } : {}),
+        ...(payload.data ?? {}),
+    };
 }
 
 export type PushGroup = 'patients' | 'doctors' | 'hygienists' | 'reception' | 'assistant' | 'admin';
@@ -176,7 +189,7 @@ export async function pushToUser(
         sendExpoPushToPatient(userId, {
             title: payload.title,
             body: payload.body,
-            data: payload.url ? { url: payload.url } : {},
+            data: buildExpoData(payload),
         }).catch(err => console.error('[Push] Expo push error:', err));
     } else {
         // Personel: dodatkowo push do aplikacji mobilnej (Expo — staff_push_tokens, mig 179).
@@ -184,7 +197,7 @@ export async function pushToUser(
         sendExpoPushToStaffMany([userId], {
             title: payload.title,
             body: payload.body,
-            data: payload.url ? { url: payload.url } : {},
+            data: buildExpoData(payload),
         }).catch(err => console.error('[Push] Expo staff push error:', err));
     }
 
@@ -198,6 +211,64 @@ export async function pushToUser(
     if (tokens.length === 0) return { sent: 0, failed: 0 };
 
     return sendToTokens(tokens, payload);
+}
+
+/**
+ * Push do pacjenta na OBA kanały, z policzalnym wynikiem (CareFlow).
+ *
+ * Różnica wobec pushToUser: kanał Expo (apka mobilna) jest AWAITOWANY i wliczany
+ * do sent/failed. pushToUser liczy wyłącznie FCM, więc pacjent mający samą apkę
+ * (token Expo, zero FCM) dostawał sent:0 — wołający uznawał push za nieudany
+ * i eskalował do SMS-a. Tu sent = fcm.sent + expo.sent.
+ *
+ * Awaria jednego kanału nie przerywa drugiego — funkcja nigdy nie rzuca.
+ * logPush() wykonuje się DOKŁADNIE RAZ (jak w pushToUser).
+ */
+export async function pushToPatientAll(
+    userId: string,
+    payload: PushPayload
+): Promise<{ fcm: { sent: number; failed: number }; expo: { sent: number; failed: number }; sent: number; failed: number }> {
+    // Historia niezależnie od dostarczenia — jeden wpis na wywołanie
+    await logPush(userId, 'patient', payload);
+
+    const [fcmRes, expoRes] = await Promise.all([
+        (async () => {
+            let tokens: string[] = [];
+            try {
+                const { data: tokenRows } = await supabase
+                    .from('fcm_tokens')
+                    .select('fcm_token')
+                    .eq('user_id', userId)
+                    .eq('user_type', 'patient');
+
+                tokens = (tokenRows || []).map(r => r.fcm_token);
+                if (tokens.length === 0) return { sent: 0, failed: 0 };
+
+                return await sendToTokens(tokens, payload);
+            } catch (err) {
+                console.error('[Push] pushToPatientAll FCM error:', err instanceof Error ? err.message : err);
+                return { sent: 0, failed: tokens.length };
+            }
+        })(),
+        (async () => {
+            try {
+                return await sendExpoPushToPatient(userId, {
+                    title: payload.title,
+                    body: payload.body,
+                    data: buildExpoData(payload),
+                });
+            } catch (err) {
+                console.error('[Push] pushToPatientAll Expo error:', err instanceof Error ? err.message : err);
+                return { sent: 0, failed: 0 };
+            }
+        })(),
+    ]);
+
+    const sent = fcmRes.sent + expoRes.sent;
+    const failed = fcmRes.failed + expoRes.failed;
+    console.log(`[Push] pushToPatientAll ${userId}: fcm=${fcmRes.sent}/${fcmRes.failed} expo=${expoRes.sent}/${expoRes.failed} → sent=${sent} failed=${failed}`);
+
+    return { fcm: fcmRes, expo: expoRes, sent, failed };
 }
 
 /**
@@ -233,7 +304,7 @@ export async function pushToUsers(
     sendExpoPushToStaffMany(userIds, {
         title: payload.title,
         body: payload.body,
-        data: payload.url ? { url: payload.url } : {},
+        data: buildExpoData(payload),
     }).catch(err => console.error('[Push] Expo staff push error:', err));
 
     const { data: tokenRows } = await supabase

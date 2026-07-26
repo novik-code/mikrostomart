@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import { verifyTokenFromRequest } from '@/lib/jwt';
+import { anonymizeCareflowForPatient } from '@/lib/careflowLifecycle';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,39 +11,48 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+/** Dane pacjenta — nic nie może osiąść w cache CDN ani przeglądarki. */
+const NO_STORE: Record<string, string> = {
+    'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+};
+
 /**
  * POST /api/patients/delete-account
  * RODO: Soft-delete patient account — anonymizes PII, sets status to 'deleted'
  * Requires password confirmation for security
+ *
+ * Poza tabelą `patients` czyścimy też ślady poza nią (deklaracja `usunKonto.scopeDeleted`
+ * złożona sklepom): tokeny push i dane osobowe w CareFlow. Dokumentacja medyczna
+ * (zapisy, zadania, leki) ZOSTAJE — 20-letnia retencja, art. 17 ust. 3 lit. b RODO.
  */
 export async function POST(request: NextRequest) {
     try {
         const payload = verifyTokenFromRequest(request);
         if (!payload) {
-            return NextResponse.json({ error: 'Nie jesteś zalogowany' }, { status: 401 });
+            return NextResponse.json({ error: 'Nie jesteś zalogowany' }, { status: 401, headers: NO_STORE });
         }
 
         const { password } = await request.json();
 
         if (!password) {
-            return NextResponse.json({ error: 'Podaj hasło w celu potwierdzenia' }, { status: 400 });
+            return NextResponse.json({ error: 'Podaj hasło w celu potwierdzenia' }, { status: 400, headers: NO_STORE });
         }
 
         // Fetch patient
         const { data: patient, error: fetchError } = await supabase
             .from('patients')
-            .select('id, password_hash, first_name, last_name, phone')
+            .select('id, password_hash, first_name, last_name, phone, prodentis_id')
             .eq('id', payload.userId)
             .single();
 
         if (fetchError || !patient) {
-            return NextResponse.json({ error: 'Pacjent nie znaleziony' }, { status: 404 });
+            return NextResponse.json({ error: 'Pacjent nie znaleziony' }, { status: 404, headers: NO_STORE });
         }
 
         // Verify password
         const isValid = await bcrypt.compare(password, patient.password_hash);
         if (!isValid) {
-            return NextResponse.json({ error: 'Nieprawidłowe hasło' }, { status: 403 });
+            return NextResponse.json({ error: 'Nieprawidłowe hasło' }, { status: 403, headers: NO_STORE });
         }
 
         // Soft-delete: anonymize PII, set status to 'deleted'
@@ -62,14 +72,43 @@ export async function POST(request: NextRequest) {
 
         if (updateError) {
             console.error('[DeleteAccount] Update error:', updateError);
-            return NextResponse.json({ error: 'Nie udało się usunąć konta' }, { status: 500 });
+            return NextResponse.json({ error: 'Nie udało się usunąć konta' }, { status: 500, headers: NO_STORE });
         }
+
+        // ── Tokeny push: bez tego na urządzeniu dalej lądują powiadomienia ──
+        // Nieblokująco względem usunięcia konta — awaria czyszczenia nie może go cofnąć.
+        try {
+            if (patient.prodentis_id) {
+                const { error: expoErr } = await supabase
+                    .from('patient_push_tokens')
+                    .delete()
+                    .eq('patient_id', patient.prodentis_id);
+                if (expoErr) console.error('[DeleteAccount] patient_push_tokens cleanup error:', expoErr);
+            }
+            const { error: fcmErr } = await supabase
+                .from('fcm_tokens')
+                .delete()
+                .eq('user_id', String(payload.userId))
+                .eq('user_type', 'patient');
+            if (fcmErr) console.error('[DeleteAccount] fcm_tokens cleanup error:', fcmErr);
+        } catch (tokenErr) {
+            console.error('[DeleteAccount] Push token cleanup failed:', tokenErr);
+        }
+
+        // ── CareFlow: imię, telefon i powiązanie z kontem znikają, leczenie zostaje ──
+        // Helper sam łapie błędy (nigdy nie rzuca), więc nie wywróci usunięcia konta.
+        await anonymizeCareflowForPatient({
+            patientDbId: String(payload.userId),
+            prodentisId: patient.prodentis_id,
+            patientName: `${patient.first_name || ''} ${patient.last_name || ''}`.trim(),
+            patientPhone: patient.phone,
+        });
 
         // Clear httpOnly cookie
         const response = NextResponse.json({
             success: true,
             message: 'Konto zostało usunięte. Wszystkie dane osobowe zostały zanonimizowane.',
-        });
+        }, { headers: NO_STORE });
         response.headers.set('Set-Cookie', 'patient_token=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0');
 
         console.log('[DeleteAccount] Account deleted:', payload.userId);
@@ -77,6 +116,6 @@ export async function POST(request: NextRequest) {
 
     } catch (err) {
         console.error('[DeleteAccount] Error:', err);
-        return NextResponse.json({ error: 'Błąd serwera' }, { status: 500 });
+        return NextResponse.json({ error: 'Błąd serwera' }, { status: 500, headers: NO_STORE });
     }
 }

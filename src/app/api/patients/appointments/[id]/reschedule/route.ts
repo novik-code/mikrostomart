@@ -8,11 +8,20 @@ import type { RescheduleAppointmentRequest, AppointmentActionResponse, Appointme
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 import { getProdentisKey } from '@/lib/pmsConfig';
+import { rescheduleCareflowForAppointment } from '@/lib/careflowLifecycle';
+import { warsawIso } from '@/lib/careflowSchedule';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+export const dynamic = 'force-dynamic';
+
+/** Dane pacjenta — nic nie może osiąść w cache CDN ani przeglądarki. */
+const NO_STORE: Record<string, string> = {
+    'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+};
 
 const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
@@ -29,14 +38,14 @@ export async function POST(
         const payload = verifyTokenFromRequest(request);
 
         if (!payload) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE });
         }
 
         // Validate required fields
         if (!body.newDate || !body.newStartTime) {
             return NextResponse.json(
                 { error: 'Wymagane pola: newDate i newStartTime' },
-                { status: 400 }
+                { status: 400, headers: NO_STORE }
             );
         }
 
@@ -48,7 +57,7 @@ export async function POST(
             .single();
 
         if (patientError || !patient) {
-            return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Patient not found' }, { status: 404, headers: NO_STORE });
         }
 
         // Get appointment action
@@ -60,7 +69,7 @@ export async function POST(
             .single();
 
         if (actionError || !action) {
-            return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Appointment not found' }, { status: 404, headers: NO_STORE });
         }
 
         const appointmentAction = action as AppointmentAction;
@@ -69,7 +78,7 @@ export async function POST(
         if (appointmentAction.attendance_confirmed) {
             return NextResponse.json(
                 { error: 'Nie można przełożyć wizyty po potwierdzeniu obecności' },
-                { status: 400 }
+                { status: 400, headers: NO_STORE }
             );
         }
 
@@ -80,14 +89,14 @@ export async function POST(
         if (appointmentDate <= now) {
             return NextResponse.json(
                 { error: 'Nie można przełożyć wizyty która już się odbyła' },
-                { status: 400 }
+                { status: 400, headers: NO_STORE }
             );
         }
 
         if (appointmentAction.reschedule_requested) {
             return NextResponse.json(
                 { error: 'Wizyta została już przełożona' },
-                { status: 400 }
+                { status: 400, headers: NO_STORE }
             );
         }
 
@@ -125,33 +134,33 @@ export async function POST(
                     if (rescheduleRes.status === 409) {
                         return NextResponse.json(
                             { error: 'Wybrany termin jest już zajęty. Wybierz inny termin.' },
-                            { status: 409 }
+                            { status: 409, headers: NO_STORE }
                         );
                     }
                     if (rescheduleRes.status === 404) {
                         return NextResponse.json(
                             { error: 'Wizyta nie została znaleziona w systemie Prodentis.' },
-                            { status: 404 }
+                            { status: 404, headers: NO_STORE }
                         );
                     }
 
                     return NextResponse.json(
                         { error: 'Nie udało się przełożyć wizyty w systemie. Spróbuj ponownie.' },
-                        { status: 500 }
+                        { status: 500, headers: NO_STORE }
                     );
                 }
             } catch (prodErr) {
                 console.error('[RESCHEDULE] Prodentis error:', prodErr);
                 return NextResponse.json(
                     { error: 'Błąd połączenia z systemem rezerwacji. Spróbuj ponownie.' },
-                    { status: 500 }
+                    { status: 500, headers: NO_STORE }
                 );
             }
         } else {
             console.warn('[RESCHEDULE] No prodentis_id or API key');
             return NextResponse.json(
                 { error: 'Brak konfiguracji API Prodentis' },
-                { status: 500 }
+                { status: 500, headers: NO_STORE }
             );
         }
 
@@ -177,6 +186,31 @@ export async function POST(
 
         if (updateError) {
             throw updateError;
+        }
+
+        // ── Przelicz CareFlow na nowy termin ──
+        // Punkt zerowy offsetów to moment zabiegu, więc bez tego cały protokół
+        // (leki, kontrola) zostaje przy starej dacie. Datę składamy z jawnym offsetem
+        // Warszawy — Prodentis podaje czas lokalny, a serwer chodzi w UTC.
+        // Awaited, bo praca po zwróceniu odpowiedzi nie jest na Vercelu gwarantowana;
+        // helper sam łapie wszystkie błędy, więc nie wywróci przełożenia wizyty.
+        const careflow = await rescheduleCareflowForAppointment({
+            appointmentId: prodentisAptId || undefined,
+            prodentisId: patient.prodentis_id || undefined,
+            oldDate: appointmentAction.appointment_date,
+            newDate: warsawIso(body.newDate, body.newStartTime),
+            actor: 'patient',
+        });
+
+        // Niejednoznaczne dopasowanie = ŻADEN protokół nie został przesunięty, więc leki i kontrola
+        // zostają przy STARYM terminie. Alarm dla personelu (Telegram + push) wysyła sam helper —
+        // jedno źródło, żeby nie dublować go z trzech tras. Tu dokładamy tylko powiązanie z wizytą
+        // w portalu, którego helper nie zna (ma ID Prodentisa).
+        if (careflow.ambiguousEnrollmentIds.length > 0) {
+            console.warn(
+                `[RESCHEDULE] CareFlow wymaga ręcznej decyzji — wizyta portalu ${appointmentId}, ` +
+                `zapisy: ${careflow.ambiguousEnrollmentIds.join(', ')}`
+            );
         }
 
         // Format old dates
@@ -285,13 +319,13 @@ export async function POST(
             emailSent,
         };
 
-        return NextResponse.json(response);
+        return NextResponse.json(response, { headers: NO_STORE });
 
     } catch (error) {
         console.error('Error rescheduling appointment:', error);
         return NextResponse.json(
             { error: 'Internal server error' },
-            { status: 500 }
+            { status: 500, headers: NO_STORE }
         );
     }
 }

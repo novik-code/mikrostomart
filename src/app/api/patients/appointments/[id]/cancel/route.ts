@@ -8,11 +8,19 @@ import type { CancelAppointmentRequest, AppointmentActionResponse, AppointmentAc
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 import { getProdentisKey } from '@/lib/pmsConfig';
+import { cancelCareflowForAppointment } from '@/lib/careflowLifecycle';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+export const dynamic = 'force-dynamic';
+
+/** Dane pacjenta — nic nie może osiąść w cache CDN ani przeglądarki. */
+const NO_STORE: Record<string, string> = {
+    'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+};
 
 const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
@@ -29,7 +37,7 @@ export async function POST(
         const payload = verifyTokenFromRequest(request);
 
         if (!payload) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE });
         }
 
         // Get patient
@@ -40,7 +48,7 @@ export async function POST(
             .single();
 
         if (patientError || !patient) {
-            return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Patient not found' }, { status: 404, headers: NO_STORE });
         }
 
         // Get appointment action
@@ -52,7 +60,7 @@ export async function POST(
             .single();
 
         if (actionError || !action) {
-            return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
+            return NextResponse.json({ error: 'Appointment not found' }, { status: 404, headers: NO_STORE });
         }
 
         const appointmentAction = action as AppointmentAction;
@@ -61,7 +69,7 @@ export async function POST(
         if (appointmentAction.attendance_confirmed) {
             return NextResponse.json(
                 { error: 'Nie można odwołać wizyty po potwierdzeniu obecności' },
-                { status: 400 }
+                { status: 400, headers: NO_STORE }
             );
         }
 
@@ -72,14 +80,14 @@ export async function POST(
         if (appointmentDate <= now) {
             return NextResponse.json(
                 { error: 'Nie można odwołać wizyty która już się odbyła' },
-                { status: 400 }
+                { status: 400, headers: NO_STORE }
             );
         }
 
         if (appointmentAction.cancellation_requested) {
             return NextResponse.json(
                 { error: 'Wizyta została już odwołana' },
-                { status: 400 }
+                { status: 400, headers: NO_STORE }
             );
         }
 
@@ -160,6 +168,29 @@ export async function POST(
             reason: body.reason || null,
             cancelled_by: 'patient',
         });
+
+        // ── Zamknij CareFlow odwołanego zabiegu ──
+        // Bez tego cron dalej przypomina o lekach do zabiegu, który się nie odbędzie.
+        // Awaited, bo praca po zwróceniu odpowiedzi nie jest na Vercelu gwarantowana;
+        // helper sam łapie wszystkie błędy, więc nie wywróci odwołania wizyty.
+        const careflow = await cancelCareflowForAppointment({
+            appointmentId: prodentisAptId || undefined,
+            prodentisId: patient.prodentis_id || undefined,
+            appointmentDate: appointmentAction.appointment_date,
+            actor: 'patient',
+            reason: body.reason || 'Wizyta odwołana przez pacjenta',
+        });
+
+        // Niejednoznaczne dopasowanie = ŻADEN protokół nie został zamknięty, więc cron dalej
+        // przypomina o osłonie antybiotykowej do zabiegu, którego nie będzie. Alarm dla personelu
+        // (Telegram + push) wysyła sam helper — jedno źródło, żeby nie dublować go z trzech tras.
+        // Tu dokładamy tylko powiązanie z wizytą w portalu, którego helper nie zna (ma ID Prodentisa).
+        if (careflow.ambiguousEnrollmentIds.length > 0) {
+            console.warn(
+                `[CANCEL] CareFlow wymaga ręcznej decyzji — wizyta portalu ${appointmentId}, ` +
+                `zapisy: ${careflow.ambiguousEnrollmentIds.join(', ')}`
+            );
+        }
 
         // Format dates
         const appointmentDateFormatted = appointmentDate.toLocaleDateString('pl-PL', {
@@ -252,13 +283,13 @@ export async function POST(
             telegramSent,
         };
 
-        return NextResponse.json(response);
+        return NextResponse.json(response, { headers: NO_STORE });
 
     } catch (error) {
         console.error('Error canceling appointment:', error);
         return NextResponse.json(
             { error: 'Internal server error' },
-            { status: 500 }
+            { status: 500, headers: NO_STORE }
         );
     }
 }
