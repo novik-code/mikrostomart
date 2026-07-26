@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
-import { sendPushByConfig } from '@/lib/pushService';
+import { sendPushByConfig, pushToUsers } from '@/lib/pushService';
 import { deleteEvent } from '@/lib/googleCalendar';
+import { assigneeUserIds } from '@/lib/taskAssignees';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,6 +94,7 @@ export async function PATCH(
             'patient_id', 'patient_name', 'appointment_type',
             'due_date', 'due_time', 'linked_appointment_date', 'linked_appointment_info',
             'assigned_to_doctor_id', 'assigned_to_doctor_name', 'assigned_to',
+            'label_ids', // mig 180 — jak assigned_to: wysyłana jest CAŁA tablica
         ];
 
         // Fields that must be null (not '') for DB — date/nullable columns
@@ -256,6 +258,25 @@ export async function PATCH(
 
         } catch (pushErr) {
             console.error('[Tasks] Push notification error:', pushErr);
+        }
+
+        // Push IMIENNY do osób NOWO przypisanych (nie do tych, które już były na zadaniu —
+        // inaczej każda edycja przypisania spamowałaby cały zespół zadania).
+        try {
+            if ('assigned_to' in body) {
+                const before = new Set(assigneeUserIds(oldTask?.assigned_to));
+                const added = assigneeUserIds(data.assigned_to).filter(uid => !before.has(uid));
+                if (added.length > 0) {
+                    await pushToUsers(added, {
+                        title: '📌 Przypisano Ci zadanie',
+                        body: `${data.title || oldTask?.title || 'Zadanie'}${data.patient_name ? ` — ${data.patient_name}` : ''}`,
+                        url: `/pracownik?tab=zadania&taskId=${id}`,
+                        tag: `task-assigned-${id}`,
+                    });
+                }
+            }
+        } catch (assignErr) {
+            console.error('[Tasks] Assignee push error:', assignErr);
         }
 
         return NextResponse.json({ task: data });

@@ -12,6 +12,7 @@ export interface TaskFormData {
     checklist_items: ChecklistItem[];
     image_url: string;
     image_urls: string[];
+    label_ids?: string[];
     assigned_to: { id: string; name: string }[];
     due_date: string;
     linked_appointment_date: string;
@@ -97,7 +98,6 @@ export function useTasks({
 
     // ── Labels ───────────────────────────────────────────────────
     const [allLabels, setAllLabels] = useState<{ id: string; name: string; color: string }[]>([]);
-    const [taskLabelMap, setTaskLabelMap] = useState<Record<string, string[]>>({});
 
     // ── Task Type Templates ──────────────────────────────────────
     const [taskTypeTemplates, setTaskTypeTemplates] = useState<TaskTypeTemplate[]>([]);
@@ -532,7 +532,7 @@ export function useTasks({
         taskComments, commentInput, setCommentInput, fetchComments, handlePostComment,
 
         // Labels
-        allLabels, taskLabelMap, setTaskLabelMap,
+        allLabels,
 
         // Task type templates
         taskTypeTemplates, setTaskTypeTemplates,

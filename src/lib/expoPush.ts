@@ -1,11 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 
 /**
- * Expo Push Service — powiadomienia do aplikacji mobilnej pacjenta.
- * Tokeny (ExponentPushToken[...]) rejestruje apka przez POST /api/patients/push-token
- * (tabela patient_push_tokens, mig 173). Wysyłka przez https://exp.host — NIE wymaga
- * kluczy Firebase po stronie serwera (Expo pośredniczy do APNs/FCM).
- * Wpięte w pushService.pushToUser dla userType='patient' (obok web-push FCM).
+ * Expo Push Service — powiadomienia do aplikacji mobilnej (pacjent ORAZ personel).
+ * Tokeny (ExponentPushToken[...]) rejestruje apka:
+ *   · pacjent  → POST /api/patients/push-token  (tabela patient_push_tokens, mig 173)
+ *   · personel → POST /api/employee/push-token  (tabela staff_push_tokens,   mig 179)
+ * Wysyłka przez https://exp.host — NIE wymaga kluczy Firebase po stronie serwera
+ * (Expo pośredniczy do APNs/FCM).
+ * Wpięte w pushService.pushToUser (patient + employee/admin) oraz pushToUsers (personel).
  */
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
@@ -42,6 +44,70 @@ async function resolveProdentisId(patientId: string): Promise<string | null> {
 }
 
 /**
+ * Wspólny rdzeń wysyłki: chunkowanie, tickety Expo, prune tokenów DeviceNotRegistered.
+ * `table` = tabela, z której usuwamy martwe tokeny (kluczowana kolumną `token`).
+ */
+async function deliver(
+    tokens: string[],
+    payload: ExpoPushPayload,
+    table: 'patient_push_tokens' | 'staff_push_tokens',
+    label: string
+): Promise<{ sent: number; failed: number }> {
+    if (tokens.length === 0) return { sent: 0, failed: 0 };
+
+    let sent = 0, failed = 0;
+    const dead: string[] = [];
+
+    for (let i = 0; i < tokens.length; i += CHUNK) {
+        const chunk = tokens.slice(i, i + CHUNK);
+        const messages = chunk.map(to => ({
+            to,
+            title: payload.title,
+            body: payload.body,
+            sound: 'default',
+            data: payload.data ?? {},
+        }));
+
+        const res = await fetch(EXPO_PUSH_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Accept-Encoding': 'gzip, deflate',
+            },
+            body: JSON.stringify(messages),
+        });
+
+        if (!res.ok) {
+            console.error(`[ExpoPush] HTTP ${res.status} for ${label}`);
+            failed += chunk.length;
+            continue;
+        }
+
+        const json = await res.json();
+        const tickets: Array<{ status: string; details?: { error?: string } }> = json?.data ?? [];
+        tickets.forEach((ticket, idx) => {
+            if (ticket.status === 'ok') {
+                sent++;
+            } else {
+                failed++;
+                if (ticket.details?.error === 'DeviceNotRegistered') dead.push(chunk[idx]);
+            }
+        });
+    }
+
+    if (dead.length > 0) {
+        await supabase.from(table).delete().in('token', dead);
+        console.log(`[ExpoPush] Pruned ${dead.length} dead token(s) from ${table}`);
+    }
+
+    if (sent + failed > 0) {
+        console.log(`[ExpoPush] ${label}: sent=${sent} failed=${failed}`);
+    }
+    return { sent, failed };
+}
+
+/**
  * Wyślij push Expo na wszystkie urządzenia pacjenta (web UUID lub prodentisId).
  * Nieblokujące błędy; tokeny DeviceNotRegistered są usuwane z bazy.
  */
@@ -59,60 +125,51 @@ export async function sendExpoPushToPatient(
             .eq('patient_id', prodentisId);
 
         const tokens = (rows || []).map(r => r.token).filter(isExpoToken);
-        if (tokens.length === 0) return { sent: 0, failed: 0 };
-
-        let sent = 0, failed = 0;
-        const dead: string[] = [];
-
-        for (let i = 0; i < tokens.length; i += CHUNK) {
-            const chunk = tokens.slice(i, i + CHUNK);
-            const messages = chunk.map(to => ({
-                to,
-                title: payload.title,
-                body: payload.body,
-                sound: 'default',
-                data: payload.data ?? {},
-            }));
-
-            const res = await fetch(EXPO_PUSH_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Accept-Encoding': 'gzip, deflate',
-                },
-                body: JSON.stringify(messages),
-            });
-
-            if (!res.ok) {
-                console.error(`[ExpoPush] HTTP ${res.status} for patient ${patientId}`);
-                failed += chunk.length;
-                continue;
-            }
-
-            const json = await res.json();
-            const tickets: Array<{ status: string; details?: { error?: string } }> = json?.data ?? [];
-            tickets.forEach((ticket, idx) => {
-                if (ticket.status === 'ok') {
-                    sent++;
-                } else {
-                    failed++;
-                    if (ticket.details?.error === 'DeviceNotRegistered') dead.push(chunk[idx]);
-                }
-            });
-        }
-
-        if (dead.length > 0) {
-            await supabase.from('patient_push_tokens').delete().in('token', dead);
-            console.log(`[ExpoPush] Pruned ${dead.length} dead token(s)`);
-        }
-
-        if (sent + failed > 0) {
-            console.log(`[ExpoPush] patient ${patientId}: sent=${sent} failed=${failed}`);
-        }
-        return { sent, failed };
+        return deliver(tokens, payload, 'patient_push_tokens', `patient ${patientId}`);
     } catch (err) {
         console.error('[ExpoPush] Error:', err);
+        return { sent: 0, failed: 0 };
+    }
+}
+
+/**
+ * Wyślij push Expo na wszystkie urządzenia PRACOWNIKA (auth user_id — to samo id
+ * co `fcm_tokens.user_id`, więc żadnego mapowania nie potrzeba). Mig 179.
+ */
+export async function sendExpoPushToStaff(
+    userId: string,
+    payload: ExpoPushPayload
+): Promise<{ sent: number; failed: number }> {
+    try {
+        const { data: rows } = await supabase
+            .from('staff_push_tokens')
+            .select('token')
+            .eq('user_id', userId);
+
+        const tokens = (rows || []).map(r => r.token).filter(isExpoToken);
+        return deliver(tokens, payload, 'staff_push_tokens', `staff ${userId}`);
+    } catch (err) {
+        console.error('[ExpoPush] Staff error:', err);
+        return { sent: 0, failed: 0 };
+    }
+}
+
+/** Wariant zbiorczy — jeden strzał do Expo dla wielu pracowników naraz. */
+export async function sendExpoPushToStaffMany(
+    userIds: string[],
+    payload: ExpoPushPayload
+): Promise<{ sent: number; failed: number }> {
+    try {
+        if (!userIds?.length) return { sent: 0, failed: 0 };
+        const { data: rows } = await supabase
+            .from('staff_push_tokens')
+            .select('token')
+            .in('user_id', userIds);
+
+        const tokens = (rows || []).map(r => r.token).filter(isExpoToken);
+        return deliver(tokens, payload, 'staff_push_tokens', `staff x${userIds.length}`);
+    } catch (err) {
+        console.error('[ExpoPush] Staff error:', err);
         return { sent: 0, failed: 0 };
     }
 }

@@ -3,7 +3,8 @@ import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
-import { sendPushByConfig } from '@/lib/pushService';
+import { sendPushByConfig, pushToUsers } from '@/lib/pushService';
+import { assigneeUserIds } from '@/lib/taskAssignees';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,6 +108,7 @@ export async function POST(req: Request) {
             assigned_to_doctor_id: body.assigned_to_doctor_id || null,
             assigned_to_doctor_name: body.assigned_to_doctor_name || null,
             assigned_to: body.assigned_to || [],
+            label_ids: Array.isArray(body.label_ids) ? body.label_ids : [], // mig 180
             // Private task support
             is_private: body.is_private === true,
             owner_user_id: body.is_private ? user.id : null,
@@ -155,6 +157,23 @@ export async function POST(req: Request) {
             } catch (tgErr) {
                 console.error('[Tasks] Telegram notification error:', tgErr);
             }
+        }
+
+        // Push IMIENNY do osób przypisanych — także przy zadaniu prywatnym (przypisany ma do niego
+        // dostęp) i także gdy autor przypisał sam siebie. Osobny `tag`, żeby nie nadpisywał ogłoszenia
+        // zespołowego. Fire-and-forget: powiadomienie nie może wywrócić utworzenia zadania.
+        try {
+            const targets = assigneeUserIds(task.assigned_to);
+            if (targets.length > 0) {
+                await pushToUsers(targets, {
+                    title: '📌 Przypisano Ci zadanie',
+                    body: `${task.title}${task.patient_name ? ` — ${task.patient_name}` : ''}`,
+                    url: `/pracownik?tab=zadania&taskId=${data.id}`,
+                    tag: `task-assigned-${data.id}`,
+                });
+            }
+        } catch (assignErr) {
+            console.error('[Tasks] Assignee push error:', assignErr);
         }
 
         return NextResponse.json({ task: data }, { status: 201 });
