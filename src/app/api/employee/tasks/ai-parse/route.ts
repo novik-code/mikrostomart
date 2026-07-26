@@ -132,6 +132,7 @@ export async function POST(req: Request) {
     }
 
     const createdTasks: any[] = [];
+    const failed: string[] = []; // zapisy, które padły — inaczej pusta lista wygląda jak „AI nic nie znalazło”
 
     for (const p of parsed) {
         // Build checklist items
@@ -147,7 +148,10 @@ export async function POST(req: Request) {
                 title: p.title,
                 description: p.description || null,
                 status: 'todo',
-                priority: 'medium',
+                // 🔑 Kolumna dopuszcza WYŁĄCZNIE low|normal|urgent (employee_tasks_priority_check).
+                // Było 'medium' → KAŻDY insert leciał na constraincie, a endpoint zwracał 200 z pustą
+                // listą, więc szybkie dodawanie nigdy nic nie tworzyło i wyglądało na sukces.
+                priority: 'normal',
                 due_date: p.due_date || null,
                 due_time: p.due_time || null,
                 checklist_items: checklistItems,
@@ -162,6 +166,7 @@ export async function POST(req: Request) {
 
         if (taskErr || !task) {
             console.error('[AI-Parse] Task insert error:', taskErr);
+            failed.push(taskErr?.message || 'insert failed');
             continue;
         }
 
@@ -184,5 +189,14 @@ export async function POST(req: Request) {
     }
 
     console.log(`[AI-Parse] ${user.email} created ${createdTasks.length} private tasks from voice input`);
+
+    // Rozróżniamy „AI nic nie wyciągnęło" (200, pusto) od „AI wyciągnęło, ale ZAPIS padł" (500).
+    // Wcześniej oba przypadki wyglądały identycznie i cicho gubiły zadania.
+    if (createdTasks.length === 0 && failed.length > 0) {
+        return NextResponse.json(
+            { error: 'Nie udało się zapisać zadań: ' + failed[0], tasks: [] },
+            { status: 500 }
+        );
+    }
     return NextResponse.json({ tasks: createdTasks });
 }

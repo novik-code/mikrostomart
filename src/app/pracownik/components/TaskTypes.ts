@@ -18,6 +18,7 @@ export interface EmployeeTask {
     checklist_items: ChecklistItem[];
     image_url: string | null;
     image_urls?: string[];
+    label_ids?: string[];  // mig 180 — etykiety przypisane do zadania (slownik: task_labels)
     patient_id: string | null;
     patient_name: string | null;
     appointment_type: string | null;

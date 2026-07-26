@@ -49,7 +49,7 @@ export default function TasksTab({
         searchPatients,
         editingTask, setEditingTask, editForm, setEditForm, openEditModal, handleSaveEdit,
         taskComments, commentInput, setCommentInput, fetchComments, handlePostComment,
-        allLabels, taskLabelMap, setTaskLabelMap,
+        allLabels,
         taskTypeTemplates, setTaskTypeTemplates,
         showTypeManager, setShowTypeManager,
         typeManagerForm, setTypeManagerForm, typeManagerSaving, setTypeManagerSaving,
@@ -761,6 +761,21 @@ export default function TasksTab({
                                                     {mine && <span style={{ marginLeft: '0.4rem', fontSize: '0.6rem', background: 'rgba(56,189,248,0.2)', color: '#38bdf8', padding: '0.1rem 0.35rem', borderRadius: '0.25rem', fontWeight: '600', verticalAlign: 'middle' }}>Twoje</span>}
                                                 </div>
                                                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.2rem' }}>
+                                                    {/* Etykiety (mig 180: employee_tasks.label_ids) — przypisywane w aplikacji mobilnej */}
+                                                    {(task.label_ids || []).length > 0 && (
+                                                        <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                                                            {(task.label_ids as string[])
+                                                                .map(id => allLabels.find(l => l.id === id))
+                                                                .filter(Boolean)
+                                                                .map((l: any) => (
+                                                                    <span key={l.id} style={{
+                                                                        fontSize: '0.62rem', fontWeight: 600, color: l.color,
+                                                                        border: `1px solid ${l.color}`, background: `${l.color}22`,
+                                                                        padding: '0.05rem 0.4rem', borderRadius: '999px',
+                                                                    }}>{l.name}</span>
+                                                                ))}
+                                                        </div>
+                                                    )}
                                                     {task.patient_name && (
                                                         <span style={{ fontSize: '0.7rem', color: '#38bdf8' }}>👤 {task.patient_name}</span>
                                                     )}

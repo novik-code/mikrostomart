@@ -7,7 +7,7 @@
 import { getMessaging } from './firebase';
 import { createClient } from '@supabase/supabase-js';
 import { getPushTranslation, PushNotificationType } from './pushTranslations';
-import { sendExpoPushToPatient } from './expoPush';
+import { sendExpoPushToPatient, sendExpoPushToStaffMany } from './expoPush';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -178,6 +178,14 @@ export async function pushToUser(
             body: payload.body,
             data: payload.url ? { url: payload.url } : {},
         }).catch(err => console.error('[Push] Expo push error:', err));
+    } else {
+        // Personel: dodatkowo push do aplikacji mobilnej (Expo — staff_push_tokens, mig 179).
+        // Fire-and-forget: brak tabeli/tokenów nie może wywrócić web-pusha.
+        sendExpoPushToStaffMany([userId], {
+            title: payload.title,
+            body: payload.body,
+            data: payload.url ? { url: payload.url } : {},
+        }).catch(err => console.error('[Push] Expo staff push error:', err));
     }
 
     const { data: tokenRows } = await supabase
@@ -220,6 +228,13 @@ export async function pushToUsers(
     for (const uid of userIds) {
         await logPush(uid, 'employee', payload);
     }
+
+    // Aplikacja mobilna personelu (Expo — staff_push_tokens, mig 179), obok web-pusha FCM.
+    sendExpoPushToStaffMany(userIds, {
+        title: payload.title,
+        body: payload.body,
+        data: payload.url ? { url: payload.url } : {},
+    }).catch(err => console.error('[Push] Expo staff push error:', err));
 
     const { data: tokenRows } = await supabase
         .from('fcm_tokens')
