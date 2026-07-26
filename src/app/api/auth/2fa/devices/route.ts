@@ -1,8 +1,50 @@
+import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
-import { listDevices, addDevice } from '@/lib/twoFactorService';
+import { MFA_COOKIE_NAME, verifyMfaSessionToken } from '@/lib/mfaSession';
+import {
+    listDevices,
+    addDevice,
+    getTwoFactorStatus,
+    verifyChallenge,
+    verifyBackupChallenge,
+} from '@/lib/twoFactorService';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * Dowód posiadania AKTUALNEGO drugiego czynnika.
+ *
+ * 🔒 Powód istnienia: `/api/auth/2fa/` jest w `SKIP_2FA_PATHS` (middleware), więc middleware
+ * NIE egzekwuje tu 2FA. Bez tej kontroli sesja zdobyta SAMYM HASŁEM mogła dodać nowe
+ * urządzenie TOTP, odczytać z odpowiedzi `secret`, policzyć z niego kod i przejść challenge —
+ * czyli obejść drugi czynnik w całości.
+ *
+ * Akceptujemy trzy dowody, w tej kolejności:
+ *   1. ważną sesję MFA — nagłówek `X-MFA-Session` (apka) albo cookie (web),
+ *   2. kod TOTP z któregokolwiek AKTYWNEGO urządzenia,
+ *   3. kod zapasowy (jednorazowy — zużywa się).
+ *
+ * Web nie wymaga zmian: pracownik, który przeszedł 2FA przy logowaniu, ma cookie.
+ */
+async function hasCurrentFactorProof(
+    request: NextRequest,
+    userId: string,
+    code?: string
+): Promise<boolean> {
+    const header = request.headers.get('x-mfa-session') ?? undefined;
+    if (verifyMfaSessionToken(header)?.userId === userId) return true;
+
+    const cookie = (await cookies()).get(MFA_COOKIE_NAME)?.value;
+    if (verifyMfaSessionToken(cookie)?.userId === userId) return true;
+
+    const trimmed = typeof code === 'string' ? code.trim() : '';
+    if (!trimmed) return false;
+
+    if ((await verifyChallenge(userId, trimmed)).ok) return true;
+    // Dopiero na końcu — kod zapasowy jest jednorazowy i zużywa się przy weryfikacji.
+    return (await verifyBackupChallenge(userId, trimmed)).ok;
+}
 
 /**
  * GET /api/auth/2fa/devices
@@ -42,11 +84,20 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'user_has_no_email' }, { status: 400 });
     }
 
-    let body: { deviceName?: string } = {};
+    let body: { deviceName?: string; code?: string } = {};
     try {
         body = await request.json();
     } catch {
         // Empty body is valid — defaults will apply
+    }
+
+    // Konto, które MA już aktywne 2FA, nie może dorzucić kolejnego urządzenia
+    // na podstawie samego hasła — patrz `hasCurrentFactorProof`.
+    const status = await getTwoFactorStatus(auth.user.id);
+    if (status?.enabled) {
+        if (!(await hasCurrentFactorProof(request, auth.user.id, body.code))) {
+            return NextResponse.json({ error: 'proof_required' }, { status: 403 });
+        }
     }
 
     const result = await addDevice(auth.user.id, email, body.deviceName);
