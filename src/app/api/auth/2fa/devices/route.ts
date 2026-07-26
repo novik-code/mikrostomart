@@ -93,8 +93,12 @@ export async function POST(request: NextRequest) {
 
     // Konto, które MA już aktywne 2FA, nie może dorzucić kolejnego urządzenia
     // na podstawie samego hasła — patrz `hasCurrentFactorProof`.
+    // FAIL-CLOSED: `getTwoFactorStatus` zwraca null zarowno gdy pracownika nie ma, jak i gdy
+    // zapytanie do bazy padnie (supabase-js nie rzuca wyjatku). `status?.enabled` byloby wtedy
+    // undefined i kontrola zostalaby POMINIETA — czyli blad bazy otwieralby dziure z powrotem.
+    // Nie potrafimy ustalic stanu => wymagamy dowodu.
     const status = await getTwoFactorStatus(auth.user.id);
-    if (status?.enabled) {
+    if (status === null || status.enabled) {
         if (!(await hasCurrentFactorProof(request, auth.user.id, body.code))) {
             return NextResponse.json({ error: 'proof_required' }, { status: 403 });
         }

@@ -73,6 +73,13 @@ describe("POST /api/auth/2fa/devices — dowód posiadania", () => {
         expect(JSON.stringify(await res.json())).not.toContain("S3CRET");
     });
 
+    it("FAIL-CLOSED: odmawia, gdy nie da się ustalić stanu 2FA (null z bazy)", async () => {
+        getTwoFactorStatusMock.mockResolvedValue(null);
+        const res = await post({ deviceName: "Nowe" });
+        expect(res.status).toBe(403);
+        expect(addDeviceMock).not.toHaveBeenCalled();
+    });
+
     it("PRZEPUSZCZA pierwsze urządzenie, gdy 2FA nie jest jeszcze włączone", async () => {
         getTwoFactorStatusMock.mockResolvedValue({ enabled: false });
         const res = await post({ deviceName: "Pierwsze" });
