@@ -131,13 +131,15 @@ export async function POST(request: NextRequest) {
             'admin',
             'chat_patient_to_admin',
             { name: patientName, message: content.trim().substring(0, 100) },
-            '/pracownik?tab=czat'
+            '/pracownik?tab=czat',
+            { alsoApp: true }, // czat MUSI dzwonić na telefonie recepcji
         ).catch(console.error);
         broadcastPush(
             'employee',
             'chat_patient_to_admin',
             { name: patientName, message: content.trim().substring(0, 100) },
-            '/pracownik?tab=czat'
+            '/pracownik?tab=czat',
+            { alsoApp: true }, // czat MUSI dzwonić na telefonie recepcji
         ).catch(console.error);
 
         return NextResponse.json({ message });

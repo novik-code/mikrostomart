@@ -834,24 +834,53 @@ export const broadcastPush = async (
     userType: 'patient' | 'employee' | 'admin',
     notificationType: PushNotificationType,
     params: Record<string, string> = {},
-    url?: string
+    url?: string,
+    opts: { alsoApp?: boolean } = {}
 ): Promise<{ sent: number; failed: number }> => {
     const { title, body } = getPushTranslation(notificationType, 'pl', params);
     const payload = { title, body, url };
 
     // Log for ALL users of this type (regardless of FCM tokens)
+    const appTargets: string[] = [];
     if (userType === 'employee') {
         const { data: allEmps } = await supabase
             .from('employees').select('user_id').eq('is_active', true);
         for (const emp of allEmps || []) {
-            if (emp.user_id) await logPush(emp.user_id, 'employee', payload);
+            if (emp.user_id) {
+                appTargets.push(emp.user_id);
+                await logPush(emp.user_id, 'employee', payload);
+            }
         }
     } else {
         const { data: allUsers } = await supabase
             .from('user_roles').select('user_id').eq('role', userType);
         for (const u of allUsers || []) {
-            if (u.user_id) await logPush(u.user_id, userType, payload);
+            if (u.user_id) {
+                appTargets.push(u.user_id);
+                await logPush(u.user_id, userType, payload);
+            }
         }
+    }
+
+    /**
+     * 🔑 KANAŁ APLIKACJI MOBILNEJ — opt-in przez `alsoApp`.
+     *
+     * `broadcastPush` historycznie wysyła WYŁĄCZNIE web-push FCM, więc powiadomienie
+     * nigdy nie docierało na telefon personelu. Objaw zgłoszony z produkcji: wiadomość
+     * pacjenta do recepcji NIE generuje żadnego pusha w apce, mimo że pojawia się
+     * w historii Alertów (bo `logPush` wykonuje się niezależnie od dostarczenia).
+     *
+     * Flaga zamiast zmiany domyślnej: tę funkcję woła ~15 typów powiadomień
+     * (rezerwacje, odwołania, zamówienia, zadania). Włączenie ich wszystkich naraz
+     * zalałoby zespół banerami i jest osobną, świadomą decyzją — a nie skutkiem
+     * ubocznym naprawy czatu.
+     */
+    if (opts.alsoApp && userType !== 'patient' && appTargets.length > 0) {
+        void sendExpoPushToStaffMany(appTargets, {
+            title,
+            body,
+            data: url ? { url } : {},
+        }).catch(err => console.error('[Push] broadcastPush Expo error:', err));
     }
 
     // Send push only to those with FCM tokens

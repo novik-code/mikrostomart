@@ -129,8 +129,9 @@ export async function POST(req: NextRequest) {
     sendTelegramNotification(telegramMsg, 'messages').catch(console.error);
 
     const pushParams = { name: senderName, message: content.substring(0, 100) };
-    broadcastPush('admin', 'chat_patient_to_admin', pushParams, '/pracownik?tab=czat').catch(console.error);
-    broadcastPush('employee', 'chat_patient_to_admin', pushParams, '/pracownik?tab=czat').catch(console.error);
+    // `alsoApp` — czat MUSI dzwonić na telefonie recepcji; bez tego szedł wyłącznie web-push.
+    broadcastPush('admin', 'chat_patient_to_admin', pushParams, '/pracownik?tab=czat', { alsoApp: true }).catch(console.error);
+    broadcastPush('employee', 'chat_patient_to_admin', pushParams, '/pracownik?tab=czat', { alsoApp: true }).catch(console.error);
 
     return NextResponse.json({ message });
 }
