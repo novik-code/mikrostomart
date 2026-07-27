@@ -28,7 +28,10 @@ export type PushNotificationType =
     | 'new_reservation'
     | 'new_contact_message'
     | 'new_treatment_lead'
-    | 'careflow_enrolled';
+    | 'careflow_enrolled'
+    | 'staff_chat_dm'
+    | 'staff_chat_dm_generic'
+    | 'staff_chat_channel';
 
 interface PushTemplate {
     title: string;
@@ -129,6 +132,18 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
             title: '❌ Rezerwacja nie mogła zostać potwierdzona',
             body: 'Prosimy o kontakt w celu ustalenia nowego terminu.',
         },
+        staff_chat_dm: {
+            title: '💬 {sender}',
+            body: 'Nowa wiadomość — otwórz aplikację.',
+        },
+        staff_chat_dm_generic: {
+            title: '💬 Nowa wiadomość',
+            body: 'Wiadomość od współpracownika — otwórz aplikację.',
+        },
+        staff_chat_channel: {
+            title: '📣 Kanał zespołu',
+            body: 'Nowe ogłoszenie — otwórz aplikację.',
+        },
     },
     en: {
         chat_patient_to_admin: {
@@ -222,6 +237,18 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
         booking_rejected: {
             title: '❌ Your booking could not be confirmed',
             body: 'Please contact us to schedule a new appointment.',
+        },
+        staff_chat_dm: {
+            title: '💬 {sender}',
+            body: 'New message — open the app.',
+        },
+        staff_chat_dm_generic: {
+            title: '💬 New message',
+            body: 'A message from a coworker — open the app.',
+        },
+        staff_chat_channel: {
+            title: '📣 Team channel',
+            body: 'New announcement — open the app.',
         },
     },
     de: {
@@ -317,6 +344,18 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
             title: '❌ Ihre Buchung konnte nicht bestätigt werden',
             body: 'Bitte kontaktieren Sie uns, um einen neuen Termin zu vereinbaren.',
         },
+        staff_chat_dm: {
+            title: '💬 {sender}',
+            body: 'Neue Nachricht — App öffnen.',
+        },
+        staff_chat_dm_generic: {
+            title: '💬 Neue Nachricht',
+            body: 'Nachricht aus dem Team — App öffnen.',
+        },
+        staff_chat_channel: {
+            title: '📣 Teamkanal',
+            body: 'Neue Ankündigung — App öffnen.',
+        },
     },
     ua: {
         chat_patient_to_admin: {
@@ -411,6 +450,18 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
             title: '❌ Бронювання не було підтверджено',
             body: 'Будь ласка, зверніться до нас для запису на новий термін.',
         },
+        staff_chat_dm: {
+            title: '💬 {sender}',
+            body: 'Нове повідомлення — відкрийте застосунок.',
+        },
+        staff_chat_dm_generic: {
+            title: '💬 Нове повідомлення',
+            body: 'Повідомлення від колеги — відкрийте застосунок.',
+        },
+        staff_chat_channel: {
+            title: '📣 Канал команди',
+            body: 'Нове оголошення — відкрийте застосунок.',
+        },
     },
 };
 
@@ -434,4 +485,55 @@ export function getPushTranslation(
     }
 
     return { title, body };
+}
+
+// ─── Czat wewnętrzny personelu ───────────────────────────────
+
+/**
+ * TREŚĆ WIADOMOŚCI NIGDY NIE TRAFIA DO POWIADOMIENIA — ani do tytułu, ani do body.
+ *
+ * Powód: wiadomość może zawierać wzmiankę o pacjencie (hashtag `#`) albo ustalenia
+ * kliniczne. Push wisi na ZABLOKOWANYM ekranie (widzi go każdy, kto ma telefon w ręku)
+ * i dodatkowo ląduje w `push_notifications_log`, który personel czyta w Alertach bez
+ * filtra po odbiorcy. Jedno i drugie dyskwalifikuje przenoszenie treści (RODO art. 9,
+ * a dla DM także D5 — admin nie ma wglądu w rozmowy prywatne).
+ *
+ * IMIĘ NADAWCY w tytule DM jest świadomym wyjątkiem: to komunikacja wewnętrzna między
+ * pracownikami, nazwisko współpracownika nie jest daną wrażliwą i bez niego powiadomienie
+ * („Nowa wiadomość") jest bezużyteczne — nie wiadomo, czy warto odblokowywać telefon.
+ * Kanał grupowy nazwiska NIE pokazuje: push wychodzi tam wyłącznie od admina (D1),
+ * więc nadawca i tak jest jednoznaczny.
+ */
+export type StaffChatPushType = 'dm' | 'channel';
+
+/** Nazwisko na ekranie blokady musi się zmieścić — iOS ucina tytuł ok. 40 znaków. */
+const SENDER_MAX = 40;
+
+/** Locale apki personelu to `uk` (ISO), tabela tłumaczeń trzyma klucz `ua`. */
+function normalizeLocale(locale: string): string {
+    return locale === 'uk' ? 'ua' : locale;
+}
+
+/**
+ * Treść pusha czatu wewnętrznego. `senderName` to snapshot nadawcy
+ * (`staff_messages.sender_name_snapshot`) — po anonimizacji odchodzącego pracownika (D6)
+ * bywa pusty, wtedy schodzimy na wariant bez imienia zamiast wysyłać goły placeholder.
+ */
+export function getStaffChatPush(
+    type: StaffChatPushType,
+    locale: string,
+    senderName?: string | null
+): PushTemplate {
+    const loc = normalizeLocale(locale);
+    if (type === 'channel') return getPushTranslation('staff_chat_channel', loc);
+
+    const sender = (senderName ?? '')
+        .replace(/\s+/g, ' ')   // nowa linia w nazwisku rozbiłaby układ powiadomienia
+        .trim()
+        .slice(0, SENDER_MAX)
+        .trim();
+
+    return sender
+        ? getPushTranslation('staff_chat_dm', loc, { sender })
+        : getPushTranslation('staff_chat_dm_generic', loc);
 }

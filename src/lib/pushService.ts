@@ -8,6 +8,7 @@ import { getMessaging } from './firebase';
 import { createClient } from '@supabase/supabase-js';
 import { getPushTranslation, PushNotificationType } from './pushTranslations';
 import { sendExpoPushToPatient, sendExpoPushToStaffMany } from './expoPush';
+import { assigneeUserIds } from './taskAssignees';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,13 +41,65 @@ function buildExpoData(payload: PushPayload): Record<string, unknown> {
 
 export type PushGroup = 'patients' | 'doctors' | 'hygienists' | 'reception' | 'assistant' | 'admin';
 
+// ─── Powiadomienia czatu wewnętrznego: znacznik i wykluczenie z historii ─────
+
+/** `payload.data.type` powiadomienia czatu zespołu (staffMessaging.notifyNewMessage). */
+export const STAFF_CHAT_PUSH_TYPE = 'staff_chat_message';
+/** `tag` powiadomienia czatu: `staff-chat-<conversationId>`. */
+export const STAFF_CHAT_TAG_PREFIX = 'staff-chat-';
+/** Deep-link czatu zespołu (DEEP_LINK_PREFIX w staffMessaging.ts). */
+export const STAFF_CHAT_URL_PREFIX = '/czat-zespolu';
+
+/**
+ * Czy to powiadomienie czatu wewnętrznego zespołu?
+ *
+ * Rozpoznajemy po TRZECH niezależnych znacznikach, bo pierwszy (`data.type`) istnieje
+ * tylko w locie, a do bazy zapisują się `tag` i `url` — ta sama funkcja odsiewa więc
+ * zarówno wysyłkę, jak i wiersze, które trafiły do historii przed tą zmianą.
+ */
+export function isStaffChatPush(payload: {
+    url?: string | null;
+    tag?: string | null;
+    data?: Record<string, unknown> | null;
+}): boolean {
+    if (payload?.data?.type === STAFF_CHAT_PUSH_TYPE) return true;
+    if ((payload?.tag ?? '').startsWith(STAFF_CHAT_TAG_PREFIX)) return true;
+    const url = payload?.url ?? '';
+    return url === STAFF_CHAT_URL_PREFIX || url.startsWith(`${STAFF_CHAT_URL_PREFIX}/`);
+}
+
 // ─── Log Push (AWAITED — fixes empty alerts tab) ─────────────
+
+type HistoryPayload = {
+    title: string;
+    body: string;
+    url?: string | null;
+    tag?: string | null;
+    data?: Record<string, unknown>;
+};
+
+/**
+ * Zakładka „Alerty" to WSPÓLNY feed zdarzeń gabinetu (wnioski urlopowe, anulowania
+ * czasu pracy, rezerwacje) — każdy pracownik czyta go w całości, patrz
+ * GET /api/employee/push/history.
+ *
+ * Dlatego powiadomienia czatu wewnętrznego NIE MOGĄ tam wpaść: tytuł powiadomienia
+ * o wiadomości prywatnej zawiera nazwisko nadawcy, a to ujawniłoby CAŁEMU zespołowi
+ * (i adminowi, który do DM wglądu mieć nie może — D5), kto z kim koresponduje.
+ * Wybraliśmy niezapisywanie zamiast filtrowania przy odczycie: wpis, którego w tabeli
+ * nie ma, nie wycieknie żadną inną trasą, kopią zapasową ani zapytaniem SQL.
+ * Feed nic nie traci — „masz nową wiadomość" i tak dubluje ekran czatu.
+ */
+function skipHistory(payload: HistoryPayload): boolean {
+    return isStaffChatPush(payload);
+}
 
 async function logPush(
     userId: string,
     userType: string,
-    payload: { title: string; body: string; url?: string; tag?: string }
+    payload: HistoryPayload
 ): Promise<void> {
+    if (skipHistory(payload)) return;
     try {
         const { error } = await supabase.from('push_notifications_log').insert({
             user_id: userId,
@@ -59,9 +112,160 @@ async function logPush(
         if (error) {
             console.error('[Push] Log insert error:', error.message);
         }
-    } catch (err: any) {
-        console.error('[Push] Log exception:', err.message);
+    } catch (err) {
+        console.error('[Push] Log exception:', err instanceof Error ? err.message : err);
     }
+}
+
+/** Wariant zbiorczy logu — jeden INSERT zamiast N round-tripów (kanał zespołu = kilkanaście osób). */
+async function logPushMany(
+    userIds: string[],
+    userType: string,
+    payload: HistoryPayload
+): Promise<void> {
+    if (userIds.length === 0) return;
+    if (skipHistory(payload)) return;
+    try {
+        const { error } = await supabase.from('push_notifications_log').insert(
+            userIds.map(uid => ({
+                user_id: uid,
+                user_type: userType,
+                title: payload.title,
+                body: payload.body,
+                url: payload.url ?? null,
+                tag: payload.tag ?? null,
+            }))
+        );
+        if (error) {
+            console.error('[Push] Log bulk insert error:', error.message);
+        }
+    } catch (err) {
+        console.error('[Push] Log bulk exception:', err instanceof Error ? err.message : err);
+    }
+}
+
+// ─── Bramka aktywności pracownika ────────────────────────────
+
+/** Paczka id w zapytaniach `.in()` — długa lista UUID rozdyma URL PostgREST. */
+const ID_CHUNK = 60;
+
+function chunkIds(ids: string[]): string[][] {
+    const out: string[][] = [];
+    for (let i = 0; i < ids.length; i += ID_CHUNK) out.push(ids.slice(i, i + ID_CHUNK));
+    return out;
+}
+
+interface EmployeeActivityRow {
+    user_id: string | null;
+    email: string | null;
+    is_active: boolean | null;
+}
+
+/**
+ * Rozstrzygnięcie „czy ta osoba jest aktywnym pracownikiem" — JEDNO dla całego kodu.
+ * Odpytaj przez loadStaffActivity() i pytaj indeks, zamiast pisać własny warunek na
+ * `employees.is_active`.
+ */
+export interface StaffActivityIndex {
+    /** Czy do tej osoby wolno pisać / wysyłać powiadomienia. Nieznana = aktywna. */
+    isActive(userId?: string | null, email?: string | null): boolean;
+    /** Gotowa deny-lista: id JAWNIE nieaktywnych, małymi literami. */
+    inactiveUserIds: Set<string>;
+    /** false = zapytanie padło i pracujemy fail-open (wszyscy uznani za aktywnych). */
+    resolved: boolean;
+}
+
+/**
+ * Reguły — celowo w jednym miejscu, bo dotąd każda warstwa rozstrzygała inaczej:
+ * katalog czatu (`/api/employee/messaging/directory`) czytał NULL jako AKTYWNY,
+ * bramka wysyłki DM (`listActiveStaffUserIds` w staffMessaging.ts) jako NIEAKTYWNY,
+ * a deny-lista push jako AKTYWNY. Osoba z NULL widniała więc w katalogu jako dostępna,
+ * a próba napisania do niej kończyła się błędem.
+ *
+ *  1. `is_active = NULL` → AKTYWNY. NULL to brak decyzji (stary wiersz sprzed kolumny),
+ *     a nie zwolnienie; kolumna ma domyślnie `true`, offboarding wpisuje jawne `false`.
+ *  2. Brak wiersza w `employees` → AKTYWNY. Tak wygląda samo konto administratora
+ *     i konta założone przed kartoteką; allow-lista uciszyłaby pracujące osoby.
+ *  3. DUPLIKATY: osoba jest nieaktywna dopiero wtedy, gdy KAŻDY jej wiersz mówi `false`.
+ *     Kartoteka ma zdublowane wpisy (patrz `sprzatanie_employees_2026-05-08.txt`,
+ *     gdzie duplikaty dezaktywowano), a poprzednia deny-lista brała `is_active = false`
+ *     z DOWOLNEGO wiersza — jeden zapomniany duplikat odcinał pracownika od wszystkich
+ *     powiadomień, także o przypisanych zadaniach, bez błędu i bez logu.
+ *  4. Dopasowanie po `user_id`, a gdy kartoteka nie ma wpiętego konta — po e-mailu
+ *     (tak wiąże je `/api/employee/staff`). Wiersz po `user_id` ma pierwszeństwo.
+ *  5. Błąd zapytania → fail-open. Awaria bazy nie może uciszyć całej kliniki, a treść
+ *     pusha personelu jest neutralna (patrz komentarz w pushTranslations.ts).
+ *
+ * Po co w ogóle odsiew: `/api/admin/employees/deactivate` kasuje rolę `employee` i
+ * porzucone `push_subscriptions`, ale NIE rusza `fcm_tokens`, `staff_push_tokens` ani
+ * roli `admin` — bez tego zwolniona osoba dostawałaby powiadomienia dalej.
+ */
+function buildStaffActivityIndex(rows: EmployeeActivityRow[], resolved: boolean): StaffActivityIndex {
+    const byUser = new Map<string, boolean>();
+    const byEmail = new Map<string, boolean>();
+
+    for (const row of rows) {
+        const active = row.is_active !== false; // reguła 1: NULL = aktywny
+        const userKey = row.user_id ? row.user_id.trim().toLowerCase() : '';
+        // reguła 3: sklejamy wiersze przez OR — wystarczy JEDEN aktywny.
+        if (userKey) byUser.set(userKey, (byUser.get(userKey) ?? false) || active);
+        const emailKey = row.email ? row.email.trim().toLowerCase() : '';
+        if (emailKey) byEmail.set(emailKey, (byEmail.get(emailKey) ?? false) || active);
+    }
+
+    const inactiveUserIds = new Set<string>();
+    for (const [userKey, active] of byUser) {
+        if (!active) inactiveUserIds.add(userKey);
+    }
+
+    return {
+        resolved,
+        inactiveUserIds,
+        isActive(userId?: string | null, email?: string | null): boolean {
+            // Porównanie bez względu na wielkość liter: Postgres oddaje UUID małymi,
+            // ale apka potrafi przysłać id przepisane wielkimi.
+            const userKey = userId ? userId.trim().toLowerCase() : '';
+            if (userKey && byUser.has(userKey)) return byUser.get(userKey)!;
+            const emailKey = email ? email.trim().toLowerCase() : '';
+            if (emailKey && byEmail.has(emailKey)) return byEmail.get(emailKey)!;
+            return true; // reguła 2
+        },
+    };
+}
+
+/** Wczytuje kartotekę i zwraca indeks aktywności (zasady — patrz buildStaffActivityIndex). */
+export async function loadStaffActivity(): Promise<StaffActivityIndex> {
+    try {
+        const { data, error } = await supabase
+            .from('employees')
+            .select('user_id, email, is_active');
+        if (error) {
+            console.error('[Push] loadStaffActivity error (fail-open):', error.message);
+            return buildStaffActivityIndex([], false);
+        }
+        return buildStaffActivityIndex((data || []) as EmployeeActivityRow[], true);
+    } catch (err) {
+        console.error('[Push] loadStaffActivity exception (fail-open):', err instanceof Error ? err.message : err);
+        return buildStaffActivityIndex([], false);
+    }
+}
+
+/**
+ * Odsiew nieaktywnych z listy odbiorców. Odcięcie ZAWSZE zostawia ślad w logu —
+ * cicha utrata powiadomienia (np. przez zdublowany wiersz kartoteki) była wcześniej
+ * nie do odróżnienia od „nikt nie miał urządzenia".
+ */
+function filterActive(userIds: string[], activity: StaffActivityIndex, label: string): string[] {
+    const kept: string[] = [];
+    const dropped: string[] = [];
+    for (const id of userIds) {
+        if (activity.isActive(id)) kept.push(id);
+        else dropped.push(id);
+    }
+    if (dropped.length > 0) {
+        console.warn(`[Push] ${label}: pominięto ${dropped.length} nieaktywnych odbiorców: ${dropped.join(', ')}`);
+    }
+    return kept;
 }
 
 // ─── Core: Send to FCM tokens ────────────────────────────────
@@ -124,8 +328,8 @@ async function sendToTokens(
                     }
                 }
             });
-        } catch (err: any) {
-            console.error('[Push] Batch send error:', err.message);
+        } catch (err) {
+            console.error('[Push] Batch send error:', err instanceof Error ? err.message : err);
             failed += batch.length;
         }
     }
@@ -151,9 +355,16 @@ async function resolveGroupUsers(group: PushGroup): Promise<{ user_id: string; u
     }
     if (group === 'admin') {
         const { data } = await supabase
-            .from('user_roles').select('user_id')
+            .from('user_roles').select('user_id, email')
             .eq('role', 'admin');
-        return (data || []).map(r => ({ user_id: r.user_id, user_type: 'admin' }));
+        // Rola `admin` PRZEŻYWA dezaktywację (deactivate kasuje wyłącznie rolę `employee`),
+        // a to zapytanie — inaczej niż podgrupy pracownicze niżej — nie dotyka `employees`.
+        // Bez tego odsiewu zwolniony admin dostawał powiadomienia dalej. `email` bierzemy
+        // po to, żeby trafić też w kartotekę bez wpiętego `user_id` (reguła 4 indeksu).
+        const activity = await loadStaffActivity();
+        return (data || [])
+            .filter(r => r.user_id && activity.isActive(r.user_id, r.email))
+            .map(r => ({ user_id: r.user_id, user_type: 'admin' }));
     }
     // Employee sub-groups
     const groupMap: Record<string, string> = {
@@ -295,13 +506,20 @@ export async function pushToUsers(
 ): Promise<{ sent: number; failed: number }> {
     if (!userIds || userIds.length === 0) return { sent: 0, failed: 0 };
 
+    // Bramka aktywności: zwolniony pracownik nie może dostawać powiadomień ANI wpisów
+    // w historii alertów (dezaktywacja odbiera mu też dostęp do strefy — push i tak
+    // trafiałby w próżnię, a wpis w logu sugerowałby, że ktoś go czyta).
+    const activity = await loadStaffActivity();
+    const targets = filterActive(userIds, activity, 'pushToUsers');
+    if (targets.length === 0) return { sent: 0, failed: 0 };
+
     // Log for ALL target users regardless of FCM tokens
-    for (const uid of userIds) {
+    for (const uid of targets) {
         await logPush(uid, 'employee', payload);
     }
 
     // Aplikacja mobilna personelu (Expo — staff_push_tokens, mig 179), obok web-pusha FCM.
-    sendExpoPushToStaffMany(userIds, {
+    sendExpoPushToStaffMany(targets, {
         title: payload.title,
         body: payload.body,
         data: buildExpoData(payload),
@@ -310,17 +528,141 @@ export async function pushToUsers(
     const { data: tokenRows } = await supabase
         .from('fcm_tokens')
         .select('fcm_token, user_id, user_type')
-        .in('user_id', userIds);
+        .in('user_id', targets);
 
     const tokens = (tokenRows || []).map(r => r.fcm_token);
     if (tokens.length === 0) {
-        console.log(`[Push] pushToUsers: ${userIds.length} users (logged), no FCM tokens`);
+        console.log(`[Push] pushToUsers: ${targets.length} users (logged), no FCM tokens`);
         return { sent: 0, failed: 0 };
     }
 
     const result = await sendToTokens(tokens, payload);
-    console.log(`[Push] pushToUsers: ${userIds.length} users → sent=${result.sent} failed=${result.failed}`);
+    console.log(`[Push] pushToUsers: ${targets.length} users → sent=${result.sent} failed=${result.failed}`);
     return result;
+}
+
+export interface PushToStaffOptions {
+    /** Autor wiadomości — nie dostaje powiadomienia o własnym wpisie. */
+    excludeUserId?: string;
+    /** Domyślnie true. `false` tylko dla powiadomień, które MUSZĄ dojść mimo dezaktywacji. */
+    skipInactive?: boolean;
+    /** Kanał powiadomień Androida (patrz STAFF_CHAT_CHANNEL w expoPush.ts). */
+    androidChannelId?: string;
+    priority?: 'default' | 'normal' | 'high';
+    /**
+     * Zwijanie serii powiadomień z jednego wątku w jedno (Expo collapseId).
+     * Domyślnie `payload.tag` — wołający i tak nadaje tag per rozmowa.
+     */
+    collapseId?: string;
+}
+
+export interface PushToStaffResult {
+    fcm: { sent: number; failed: number };
+    expo: { sent: number; failed: number };
+    sent: number;
+    failed: number;
+    /** Realni odbiorcy po odsiewie — wołający ma czym uzasadnić „wysłano do N osób". */
+    recipients: string[];
+}
+
+function emptyStaffResult(): PushToStaffResult {
+    return { fcm: { sent: 0, failed: 0 }, expo: { sent: 0, failed: 0 }, sent: 0, failed: 0, recipients: [] };
+}
+
+/**
+ * Push do WSKAZANYCH pracowników (czat wewnętrzny zespołu), z policzalnym wynikiem.
+ *
+ * Różnica wobec pushToUsers: kanał Expo (apka personelu) jest AWAITOWANY i wliczany do
+ * sent/failed — pracownik mający samą apkę (token Expo, zero FCM) dawał tam `sent: 0`,
+ * czyli wołający nie odróżniał „nikt nie ma urządzenia" od „wysyłka padła”.
+ * Awaria jednego kanału nie przerywa drugiego; funkcja nigdy nie rzuca.
+ *
+ * ODSIEW ODBIORCÓW (dwa niezależne powody):
+ *  1. `emp-<id>` z /api/employee/staff to pracownik BEZ konta — nie ma czym odebrać pusha,
+ *     a wpis w `push_notifications_log` KŁAMAŁBY, że powiadomienie wyszło (wzorzec i regex
+ *     z lib/taskAssignees.ts; kolumny UUID w mig 183 odbiłyby to zresztą błędem 22P02),
+ *  2. kartoteka mówi, że osoba jest nieaktywna — rozstrzyga wyłącznie loadStaffActivity()
+ *     (NULL, brak wiersza i zdublowany wiersz `false` obok aktywnego = AKTYWNY; każde
+ *     odcięcie ląduje w logu, żeby cicho zgubione powiadomienie dało się wyśledzić).
+ * logPush wykonuje się WYŁĄCZNIE dla odbiorców, którzy przeszli oba filtry, i NIGDY dla
+ * powiadomień czatu wewnętrznego (skipHistory() — uzasadnienie przy tej funkcji).
+ *
+ * Treść `payload` musi być NEUTRALNA (bez treści wiadomości i bez nazwiska pacjenta) —
+ * buduj ją przez getStaffChatPush() z pushTranslations.ts, tam jest uzasadnienie.
+ */
+export async function pushToStaffMembers(
+    userIds: string[],
+    payload: PushPayload,
+    opts: PushToStaffOptions = {}
+): Promise<PushToStaffResult> {
+    // Deduplikacja + odsiew nie-UUID w jednym miejscu (ten sam filtr co przy zadaniach).
+    let recipients = assigneeUserIds((userIds || []).map(id => ({ id })));
+    if (opts.excludeUserId) recipients = recipients.filter(id => id !== opts.excludeUserId);
+    if (recipients.length === 0) return emptyStaffResult();
+
+    if (opts.skipInactive !== false) {
+        const activity = await loadStaffActivity();
+        recipients = filterActive(recipients, activity, 'pushToStaffMembers');
+        if (recipients.length === 0) return emptyStaffResult();
+    }
+
+    // Historia niezależnie od dostarczenia — jeden wpis na odbiorcę, jak w pushToUsers.
+    // Powiadomienia czatu wewnętrznego logPushMany odrzuca (skipHistory) i to jest
+    // JEDYNY powód, dla którego wspólny feed „Alertów" może zostać wspólny.
+    await logPushMany(recipients, 'employee', payload);
+
+    const collapseId = opts.collapseId ?? payload.tag;
+
+    const [fcmRes, expoRes] = await Promise.all([
+        (async () => {
+            try {
+                const rows: Array<{ fcm_token: string }> = [];
+                for (const part of chunkIds(recipients)) {
+                    const { data } = await supabase
+                        .from('fcm_tokens')
+                        .select('fcm_token')
+                        .in('user_id', part)
+                        // Bez tego warunku wiadomość personelu poszłaby na token zarejestrowany
+                        // jako pacjencki, gdyby ktoś miał konto w obu rolach.
+                        .in('user_type', ['employee', 'admin']);
+                    rows.push(...(data || []));
+                }
+                const tokens = Array.from(new Set(rows.map(r => r.fcm_token).filter(Boolean)));
+                if (tokens.length === 0) return { sent: 0, failed: 0 };
+                return await sendToTokens(tokens, payload);
+            } catch (err) {
+                console.error('[Push] pushToStaffMembers FCM error:', err instanceof Error ? err.message : err);
+                return { sent: 0, failed: 0 };
+            }
+        })(),
+        (async () => {
+            try {
+                let sent = 0, failed = 0;
+                for (const part of chunkIds(recipients)) {
+                    const res = await sendExpoPushToStaffMany(part, {
+                        title: payload.title,
+                        body: payload.body,
+                        data: buildExpoData(payload),
+                        ...(opts.androidChannelId ? { channelId: opts.androidChannelId } : {}),
+                        ...(opts.priority ? { priority: opts.priority } : {}),
+                        ...(collapseId ? { collapseId } : {}),
+                    });
+                    sent += res.sent;
+                    failed += res.failed;
+                }
+                return { sent, failed };
+            } catch (err) {
+                console.error('[Push] pushToStaffMembers Expo error:', err instanceof Error ? err.message : err);
+                return { sent: 0, failed: 0 };
+            }
+        })(),
+    ]);
+
+    const sent = fcmRes.sent + expoRes.sent;
+    const failed = fcmRes.failed + expoRes.failed;
+    console.log(`[Push] pushToStaffMembers: ${recipients.length} recipients fcm=${fcmRes.sent}/${fcmRes.failed} expo=${expoRes.sent}/${expoRes.failed} → sent=${sent} failed=${failed}`);
+
+    return { fcm: fcmRes, expo: expoRes, sent, failed, recipients };
 }
 
 /**
@@ -352,7 +694,12 @@ export async function pushToAllEmployees(
     }
 
     const { data: tokenRows } = await query;
-    const tokens = (tokenRows || []).map(r => r.fcm_token);
+    // Log wyżej filtruje po `is_active`, ale zapytanie o tokeny FCM już nie — zwolniony
+    // pracownik dostawał więc pusha, tyle że bez wpisu w historii (log kłamał w drugą stronę).
+    const activity = await loadStaffActivity();
+    const tokens = (tokenRows || [])
+        .filter(r => activity.isActive(r.user_id))
+        .map(r => r.fcm_token);
     return sendToTokens(tokens, payload);
 }
 
@@ -381,7 +728,7 @@ export async function pushToGroups(
 
         // 2. Find FCM tokens for delivery
         const userIds = allUsers.map(u => u.user_id);
-        let tokenRows: any[] = [];
+        let tokenRows: Array<{ fcm_token: string; user_id: string | null; user_type: string | null }> = [];
         if (userIds.length > 0) {
             const { data } = await supabase
                 .from('fcm_tokens').select('fcm_token, user_id, user_type')
@@ -513,6 +860,10 @@ export const broadcastPush = async (
         .select('fcm_token, user_id, user_type')
         .eq('user_type', userType);
 
-    const tokens = (tokenRows || []).map(r => r.fcm_token);
+    // Ta sama bramka aktywności co w pushToAllEmployees — dotyczy wyłącznie personelu.
+    const activity = userType === 'patient' ? null : await loadStaffActivity();
+    const tokens = (tokenRows || [])
+        .filter(r => !activity || activity.isActive(r.user_id))
+        .map(r => r.fcm_token);
     return sendToTokens(tokens, payload);
 };

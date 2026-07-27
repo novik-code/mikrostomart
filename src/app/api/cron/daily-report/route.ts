@@ -185,11 +185,19 @@ export async function GET(req: NextRequest) {
         // ═══════════════════════════════════════════════════
         // 5. UNREAD CHAT MESSAGES
         // ═══════════════════════════════════════════════════
-        const { count: unreadChats } = await supabase
+        // chat_messages NIE ma kolumny `is_admin` (mig 032) — autora rozróżnia
+        // `sender_role` ('patient' | 'reception'). Filtr po nieistniejącej kolumnie
+        // zwracał błąd PostgREST, a `count` po cichu wychodził null → raport nigdy
+        // nie pokazywał nieprzeczytanych wiadomości od pacjentów.
+        const { count: unreadChats, error: unreadChatsError } = await supabase
             .from('chat_messages')
             .select('id', { count: 'exact', head: true })
-            .eq('is_admin', false)
+            .eq('sender_role', 'patient')
             .eq('read', false);
+
+        if (unreadChatsError) {
+            console.error('[DailyReport] Unread chat count error:', unreadChatsError.message);
+        }
 
         if (unreadChats && unreadChats > 0) {
             msg += `💬 <b>Nieprzeczytane wiadomości: ${unreadChats}</b>\n\n`;

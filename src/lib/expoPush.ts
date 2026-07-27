@@ -18,10 +18,36 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+/**
+ * Kanał powiadomień Androida dla czatu wewnętrznego personelu. Apka MUSI utworzyć
+ * kanał o dokładnie tym id (`Notifications.setNotificationChannelAsync`) — dopóki tego
+ * nie zrobi, system wrzuci powiadomienie do kanału domyślnego (degradacja, nie błąd).
+ * Osobny kanał jest po to, żeby wyciszenie czatu nie wyciszało przypomnień o wizytach.
+ */
+export const STAFF_CHAT_CHANNEL = 'staff-chat';
+
+/** Limit APNs `apns-collapse-id` (64 bajty) — dłuższy identyfikator Apple odrzuca. */
+const COLLAPSE_ID_MAX = 64;
+
+/** Ile znaków odpowiedzi bramki Expo trafia do logu przy błędzie HTTP. */
+const ERROR_BODY_MAX = 500;
+
 export interface ExpoPushPayload {
     title: string;
     body: string;
     data?: Record<string, unknown>;
+    /**
+     * Kanał Androida (patrz STAFF_CHAT_CHANNEL). Pominięcie = kanał domyślny, czyli
+     * zachowanie sprzed dodania tego pola — istniejące wywołania działają bez zmian.
+     */
+    channelId?: string;
+    /** Domyślnie Expo używa 'default'; 'high' budzi urządzenie (wiadomość 1:1). */
+    priority?: 'default' | 'normal' | 'high';
+    /**
+     * Zwijanie serii powiadomień z jednego wątku w JEDNO (iOS apns-collapse-id,
+     * Android collapse_key). Bez tego dziesięć wiadomości = dziesięć wpisów na pasku.
+     */
+    collapseId?: string;
 }
 
 function isExpoToken(token: string): boolean {
@@ -58,6 +84,13 @@ async function deliver(
     let sent = 0, failed = 0;
     const dead: string[] = [];
 
+    // Pola opcjonalne dokładane warunkowo — wywołania bez channelId/priority/collapseId
+    // wysyłają dokładnie taką wiadomość jak przed dodaniem tych pól.
+    const extras: Record<string, string> = {};
+    if (payload.channelId) extras.channelId = payload.channelId;
+    if (payload.priority) extras.priority = payload.priority;
+    if (payload.collapseId) extras.collapseId = payload.collapseId.slice(0, COLLAPSE_ID_MAX);
+
     for (let i = 0; i < tokens.length; i += CHUNK) {
         const chunk = tokens.slice(i, i + CHUNK);
         const messages = chunk.map(to => ({
@@ -66,6 +99,7 @@ async function deliver(
             body: payload.body,
             sound: 'default',
             data: payload.data ?? {},
+            ...extras,
         }));
 
         const res = await fetch(EXPO_PUSH_URL, {
@@ -79,7 +113,14 @@ async function deliver(
         });
 
         if (!res.ok) {
-            console.error(`[ExpoPush] HTTP ${res.status} for ${label}`);
+            // Bez treści odpowiedzi awaria WALIDACJI (400: zły `channelId`, za długi
+            // `collapseId`, nieznane pole) jest nie do odróżnienia od awarii sieci czy
+            // limitu (429/5xx) — a to zupełnie inne działania naprawcze. Expo zwraca
+            // powód w `errors[].message`; obcinamy, żeby jedna zła wysyłka nie zalała logu.
+            const detail = await res.text().catch(() => '<treść odpowiedzi nieczytelna>');
+            console.error(
+                `[ExpoPush] HTTP ${res.status} ${res.statusText} for ${label}: ${detail.slice(0, ERROR_BODY_MAX) || '<pusta odpowiedź>'}`
+            );
             failed += chunk.length;
             continue;
         }
