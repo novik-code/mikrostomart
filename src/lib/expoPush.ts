@@ -174,6 +174,42 @@ export async function sendExpoPushToPatient(
 }
 
 /**
+ * Czy pacjent ma choć jeden token aplikacji mobilnej?
+ *
+ * Przyjmuje to samo id co `sendExpoPushToPatient` (UUID konta ALBO prodentisId) —
+ * mapowanie zostaje w tym module, żeby wołający nie musiał wiedzieć, że
+ * `patient_push_tokens` jest kluczowana `prodentis_id`, a `fcm_tokens` UUID-em.
+ * To rozróżnienie już raz kosztowało: bramka wysyłki pytała wyłącznie o `fcm_tokens`
+ * i pacjent z samą apką dostawał SMS-a.
+ *
+ * Zwraca też `error`, bo supabase-js nie rzuca — a dla diagnostyki „nie wiemy"
+ * musi być odróżnialne od „nie ma tokenu".
+ */
+export async function hasPatientAppToken(
+    patientId: string
+): Promise<{ has: boolean; error: boolean }> {
+    try {
+        const prodentisId = await resolveProdentisId(patientId);
+        if (!prodentisId) return { has: false, error: false };
+
+        const { data: rows, error } = await supabase
+            .from('patient_push_tokens')
+            .select('token')
+            .eq('patient_id', prodentisId);
+
+        if (error) {
+            console.error('[ExpoPush] hasPatientAppToken lookup error:', error.message);
+            return { has: false, error: true };
+        }
+
+        return { has: (rows || []).some(r => isExpoToken(r.token)), error: false };
+    } catch (err) {
+        console.error('[ExpoPush] hasPatientAppToken error:', err);
+        return { has: false, error: true };
+    }
+}
+
+/**
  * Wyślij push Expo na wszystkie urządzenia PRACOWNIKA (auth user_id — to samo id
  * co `fcm_tokens.user_id`, więc żadnego mapowania nie potrzeba). Mig 179.
  */
