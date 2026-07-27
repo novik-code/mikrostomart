@@ -53,6 +53,14 @@
             "schedule": "15 3 * * *"
         },
         {
+            "path": "/api/cron/push-receipts",
+            "schedule": "*/20 * * * *"
+        },
+        {
+            "path": "/api/cron/push-health-alert",
+            "schedule": "0 9 * * *"
+        },
+        {
             "path": "/api/cron/birthday-wishes",
             "schedule": "0 8 * * *"
         },

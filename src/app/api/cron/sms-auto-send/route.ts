@@ -5,6 +5,7 @@ import { deliverToPatient, hasPatientResponded, updateDeliveryStatus } from '@/l
 import type { PushPayload } from '@/lib/pushService';
 import { brand } from '@/lib/brandConfig';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
+import { recordPushPath } from '@/lib/pushHealth';
 
 export const maxDuration = 120; // Vercel function timeout
 
@@ -170,6 +171,17 @@ export async function GET(req: Request) {
                 });
 
                 await updateDeliveryStatus(draft.id, deliveryResult);
+
+                // Rejestr zdrowia ścieżki: liczy się WYŁĄCZNIE realne dostarczenie pushem.
+                // SMS jako fallback jest sukcesem dla pacjenta, ale NIE dowodem, że kanał
+                // aplikacji działa — a to on jest tu monitorowany.
+                if (deliveryResult.patientHasPush) {
+                    void recordPushPath('appointment_reminder', {
+                        sent: deliveryResult.pushSent ? 1 : 0,
+                        failed: deliveryResult.pushSent ? 0 : 1,
+                        error: deliveryResult.pushError,
+                    });
+                }
 
                 if (deliveryResult.pushSent && !deliveryResult.smsSent) {
                     pushCount++;

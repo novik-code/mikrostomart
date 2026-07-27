@@ -77,12 +77,14 @@ async function deliver(
     tokens: string[],
     payload: ExpoPushPayload,
     table: 'patient_push_tokens' | 'staff_push_tokens',
-    label: string
+    label: string,
+    pathKey?: string
 ): Promise<{ sent: number; failed: number }> {
     if (tokens.length === 0) return { sent: 0, failed: 0 };
 
     let sent = 0, failed = 0;
     const dead: string[] = [];
+    const pending: Array<{ ticket_id: string; token: string }> = [];
 
     // Pola opcjonalne dokładane warunkowo — wywołania bez channelId/priority/collapseId
     // wysyłają dokładnie taką wiadomość jak przed dodaniem tych pól.
@@ -126,15 +128,30 @@ async function deliver(
         }
 
         const json = await res.json();
-        const tickets: Array<{ status: string; details?: { error?: string } }> = json?.data ?? [];
+        const tickets: Array<{ status: string; id?: string; details?: { error?: string } }> = json?.data ?? [];
         tickets.forEach((ticket, idx) => {
             if (ticket.status === 'ok') {
                 sent++;
+                // 🔑 TICKET „ok" NIE ZNACZY „DOSTARCZONE" — znaczy tylko, że Expo przyjęło
+                // żądanie. Prawdziwy wynik (w tym `DeviceNotRegistered`, przez który martwe
+                // tokeny odkładały się miesiącami) przychodzi dopiero w RECEIPCIE, dostępnym
+                // wyłącznie po identyfikatorze ticketu. Dlatego go zapisujemy — bez tego
+                // cron receiptów nie ma czego odpytać.
+                if (ticket.id) pending.push({ ticket_id: ticket.id, token: chunk[idx] });
             } else {
                 failed++;
                 if (ticket.details?.error === 'DeviceNotRegistered') dead.push(chunk[idx]);
             }
         });
+    }
+
+    if (pending.length > 0) {
+        // Zapis biletów nie może wywrócić wysyłki — powiadomienie już poszło.
+        const { error } = await supabase.from('push_receipts').upsert(
+            pending.map(p => ({ ...p, token_table: table, path_key: pathKey ?? null })),
+            { onConflict: 'ticket_id' }
+        );
+        if (error) console.error('[ExpoPush] Nie zapisano biletów do push_receipts:', error.message);
     }
 
     if (dead.length > 0) {

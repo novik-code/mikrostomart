@@ -2,6 +2,7 @@ import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { pushToPatientAll } from '@/lib/pushService';
+import { recordPushPath } from '@/lib/pushHealth';
 import { sendSMS, toGSM7 } from '@/lib/smsService';
 
 export const dynamic = 'force-dynamic';
@@ -386,6 +387,8 @@ export async function GET(req: Request) {
                         taskId: task.id,
                     },
                 });
+
+                void recordPushPath('careflow_task', { sent: result.sent, failed: result.failed });
 
                 if (result.sent > 0) {
                     pushSent++;
