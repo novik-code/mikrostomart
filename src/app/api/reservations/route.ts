@@ -194,10 +194,10 @@ export async function POST(req: NextRequest) {
         if (!isDemoMode) {
             broadcastPush('admin', 'new_reservation', {
                 name, specialist: specialistName || '', date: date || '', time: time || '',
-            }, '/admin').catch(console.error);
+            }, '/admin', { alsoApp: true }).catch(console.error);
             broadcastPush('employee', 'new_reservation', {
                 name, specialist: specialistName || '', date: date || '', time: time || '',
-            }, '/pracownik').catch(console.error);
+            }, '/pracownik', { alsoApp: true }).catch(console.error);
         }
 
         // Send Emails (skip in demo — don't spam real gabinet inbox from demo deployment)

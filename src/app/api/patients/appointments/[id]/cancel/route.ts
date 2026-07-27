@@ -261,8 +261,8 @@ export async function POST(
             doctor: appointmentAction.doctor_name || '',
             reason: body.reason || 'Nie podano',
         };
-        broadcastPush('admin', 'appointment_cancelled', pushParams, '/admin').catch(console.error);
-        broadcastPush('employee', 'appointment_cancelled', pushParams, '/pracownik').catch(console.error);
+        broadcastPush('admin', 'appointment_cancelled', pushParams, '/admin', { alsoApp: true }).catch(console.error);
+        broadcastPush('employee', 'appointment_cancelled', pushParams, '/pracownik', { alsoApp: true }).catch(console.error);
 
         // ── SMS confirmation to patient ──
         if (patient.phone) {

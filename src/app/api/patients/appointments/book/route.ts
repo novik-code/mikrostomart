@@ -138,8 +138,8 @@ export async function POST(req: NextRequest) {
             date: date || '',
             time: time || '',
         };
-        broadcastPush('admin', 'new_reservation', pushParams, '/admin').catch(console.error);
-        broadcastPush('employee', 'new_reservation', pushParams, '/pracownik').catch(console.error);
+        broadcastPush('admin', 'new_reservation', pushParams, '/admin', { alsoApp: true }).catch(console.error);
+        broadcastPush('employee', 'new_reservation', pushParams, '/pracownik', { alsoApp: true }).catch(console.error);
 
         console.log(`[PatientBook] Booking created: ${booking.id} for patient ${payload.prodentisId} (${patientName})`);
 
