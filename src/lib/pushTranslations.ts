@@ -27,7 +27,8 @@ export type PushNotificationType =
     | 'new_order'
     | 'new_reservation'
     | 'new_contact_message'
-    | 'new_treatment_lead';
+    | 'new_treatment_lead'
+    | 'careflow_enrolled';
 
 interface PushTemplate {
     title: string;
@@ -79,6 +80,10 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
         task_status: {
             title: '🔄 Zmiana statusu zadania',
             body: '{title} → {status}',
+        },
+        careflow_enrolled: {
+            title: 'Mikrostomart',
+            body: 'Twój lekarz przygotował dla Ciebie plan opieki — otwórz aplikację.',
         },
         task_assigned: {
             title: '👤 Przypisano zadanie',
@@ -170,6 +175,10 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
             title: '🔄 Task status change',
             body: '{title} → {status}',
         },
+        careflow_enrolled: {
+            title: 'Mikrostomart',
+            body: 'Your dentist has prepared a care plan for you — open the app.',
+        },
         task_assigned: {
             title: '👤 Task assigned to you',
             body: '{title}',
@@ -260,6 +269,10 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
             title: '🔄 Aufgabenstatus geändert',
             body: '{title} → {status}',
         },
+        careflow_enrolled: {
+            title: 'Mikrostomart',
+            body: 'Ihr Zahnarzt hat einen Behandlungsplan für Sie vorbereitet — öffnen Sie die App.',
+        },
         task_assigned: {
             title: '👤 Aufgabe zugewiesen',
             body: '{title}',
@@ -349,6 +362,10 @@ const translations: Record<string, Record<PushNotificationType, PushTemplate>> =
         task_status: {
             title: '🔄 Зміна статусу завдання',
             body: '{title} → {status}',
+        },
+        careflow_enrolled: {
+            title: 'Mikrostomart',
+            body: 'Ваш лікар підготував для вас план догляду — відкрийте застосунок.',
         },
         task_assigned: {
             title: '👤 Призначене завдання',

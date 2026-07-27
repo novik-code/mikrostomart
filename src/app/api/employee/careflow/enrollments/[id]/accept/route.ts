@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { logAudit } from '@/lib/auditLog';
 import { buildTasks, warsawIso, PAST_GRACE_HOURS, type CareMedication, type CareStepRow, type CareTaskRow } from '@/lib/careflowSchedule';
-import { warsawDayRange } from '@/lib/careflowLifecycle';
+import { warsawDayRange, notifyPatientProtocolStarted } from '@/lib/careflowLifecycle';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -147,7 +147,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
         const { data: enrollment } = await supabase
             .from('care_enrollments')
-            .select('id, status, template_id, template_name, patient_id, patient_name, appointment_date, custom_medications, doctor_id, doctor_name')
+            .select('id, status, template_id, template_name, patient_id, patient_db_id, patient_name, appointment_date, custom_medications, doctor_id, doctor_name')
             .eq('id', id)
             .maybeSingle();
 
@@ -389,12 +389,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             request: req,
         });
 
+        // Pacjent dowiaduje się, że plan czeka — dopiero AKCEPTACJA go uruchamia, więc
+        // to jest właściwy moment (propozycja jest przed pacjentem ukryta).
+        // Nieblokujące: akceptacja protokołu nie może paść przez powiadomienie.
+        const notified = await notifyPatientProtocolStarted({
+            enrollmentId: id,
+            patientId: enrollment.patient_id,
+            patientDbId: enrollment.patient_db_id,
+        });
+
         return NextResponse.json({
             success: true,
             // Płaskie aliasy: interfejs ma pokazać lekarzowi, ile kroków powstało już zamkniętych
             // (termin minął PRZED akceptacją) — to pominięcia systemowe, nie odmowy pacjenta.
             tasksCreated: taskRows.length,
             tasksSkippedPastDue,
+            /** Czy pacjent dostał powiadomienie o uruchomieniu planu (i jeśli nie — dlaczego). */
+            patientNotified: notified.sent,
+            patientNotifyReason: notified.reason,
             enrollment: {
                 id,
                 accessToken: accepted.access_token,

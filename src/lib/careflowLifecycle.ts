@@ -14,7 +14,8 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
-import { sendPushToGroups, type PushGroup } from '@/lib/pushService';
+import { sendPushToGroups, pushToPatientAll, type PushGroup } from '@/lib/pushService';
+import { getPushTranslation } from '@/lib/pushTranslations';
 import {
     buildTasks,
     warsawIso,
@@ -112,6 +113,18 @@ function warsawDay(date: Date): string {
     const parts = warsawDayFormatter.formatToParts(date);
     const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
     return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
+const warsawHourFormatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/Warsaw',
+    hour: '2-digit',
+    hourCycle: 'h23',
+});
+
+/** Godzina warszawska (0-23). Ta sama podstawa co cisza nocna w cronie przypomnień. */
+function warsawHour(date: Date): number {
+    const raw = warsawHourFormatter.formatToParts(date).find((p) => p.type === 'hour')?.value ?? '0';
+    return Number(raw) % 24;
 }
 
 /**
@@ -575,6 +588,97 @@ export async function rescheduleCareflowForAppointment(params: {
 }
 
 /** Podmiana danych osobowych w zapisie po usunięciu konta. */
+/** Cisza nocna — te same godziny co w cronie przypomnień. */
+const QUIET_START = 22;
+const QUIET_END = 7;
+
+/**
+ * Powiadomienie dla pacjenta o URUCHOMIENIU protokołu opieki.
+ *
+ * Dotąd pacjent nie dostawał NIC w momencie zapisania — pierwszy sygnał przychodził
+ * dopiero z cronem, gdy nadchodził termin pierwszego kroku (a przy protokole zapisanym
+ * z wyprzedzeniem mogło to być nazajutrz). Tymczasem to właśnie moment zapisu jest
+ * chwilą, w której pacjent powinien zajrzeć do planu: są tam zalecenia PRZED zabiegiem.
+ *
+ * Zasady (te same, co w cronie przypomnień):
+ * - treść bez nazwy leku i bez dawki — na ekranie blokady ma być tylko sygnał, że plan
+ *   czeka w aplikacji; szczegóły pacjent widzi po odblokowaniu,
+ * - wyciszenie `careflow_reminders` obowiązuje; przy BŁĘDZIE odczytu preferencji
+ *   milczymy (fail-closed) — lepiej nie wysłać niż wysłać wbrew sprzeciwowi,
+ * - cisza nocna 22–7: nie budzimy pacjenta informacją, która może poczekać do rana,
+ * - brak żywego tokenu = brak wysyłki. ŚWIADOMIE bez fallbacku SMS: to informacja
+ *   organizacyjna, nie przypomnienie o dawce, a SMS kosztuje i bywa nachalny.
+ *
+ * Funkcja NIGDY nie rzuca — zapis pacjenta do protokołu nie może paść przez powiadomienie.
+ */
+export async function notifyPatientProtocolStarted(params: {
+    enrollmentId: string;
+    /** Prodentis ID — tym kluczem są kluczowane tokeny apki mobilnej. */
+    patientId: string;
+    /** patients.id — tym kluczem są kluczowane tokeny web-push. Bywa NULL (pacjent bez konta). */
+    patientDbId?: string | null;
+    now?: Date;
+}): Promise<{ sent: boolean; reason?: string }> {
+    try {
+        const now = params.now ?? new Date();
+        const hour = warsawHour(now);
+        if (hour >= QUIET_START || hour < QUIET_END) {
+            return { sent: false, reason: 'quiet_hours' };
+        }
+
+        // Preferencje i język pacjenta czytamy jednym zapytaniem.
+        const { data: patient, error: patientErr } = await supabase
+            .from('patients')
+            .select('id, locale, notification_preferences')
+            .eq('prodentis_id', params.patientId)
+            .maybeSingle();
+
+        if (patientErr) {
+            console.error('[CareFlow] notify: blad odczytu pacjenta — milczymy (fail-closed)');
+            return { sent: false, reason: 'prefs_error' };
+        }
+        if (!patient) return { sent: false, reason: 'no_account' };
+
+        const prefs = (patient.notification_preferences ?? {}) as Record<string, unknown>;
+        if (prefs.careflow_reminders === false) return { sent: false, reason: 'muted' };
+
+        // Żywy kanał: apka mobilna (Expo, klucz = prodentisId) albo web-push (FCM, klucz = patients.id).
+        const dbId = params.patientDbId ?? (patient.id as string | undefined) ?? null;
+        const [expo, fcm] = await Promise.all([
+            supabase.from('patient_push_tokens').select('id').eq('patient_id', params.patientId).limit(1),
+            dbId
+                ? supabase.from('fcm_tokens').select('id').eq('user_id', dbId).eq('user_type', 'patient').limit(1)
+                : Promise.resolve({ data: [], error: null } as { data: unknown[]; error: null }),
+        ]);
+        if (expo.error || fcm.error) {
+            console.error('[CareFlow] notify: blad odczytu tokenow — milczymy (fail-closed)');
+            return { sent: false, reason: 'tokens_error' };
+        }
+        const hasChannel = (expo.data?.length ?? 0) > 0 || (fcm.data?.length ?? 0) > 0;
+        if (!hasChannel) return { sent: false, reason: 'no_token' };
+
+        const locale = typeof patient.locale === 'string' && patient.locale ? patient.locale : 'pl';
+        const { title, body } = getPushTranslation('careflow_enrolled', locale);
+
+        const result = await pushToPatientAll(dbId ?? params.patientId, {
+            title,
+            body,
+            // Ścieżka BEZ sekretu (access_token trafiłby do push_notifications_log).
+            url: '/strefa-pacjenta/dashboard',
+            // Apka routuje po type i otwiera KONKRETNY plan.
+            data: { type: 'careflow', enrollmentId: params.enrollmentId },
+        });
+
+        console.log(
+            `[CareFlow] notify protocol started (zapis ${params.enrollmentId.slice(0, 8)}): sent=${result.sent}`
+        );
+        return { sent: result.sent > 0, reason: result.sent > 0 ? undefined : 'delivery_failed' };
+    } catch (err) {
+        console.error('[CareFlow] notify: nieoczekiwany blad (nieblokujacy):', err);
+        return { sent: false, reason: 'error' };
+    }
+}
+
 const ANON_NAME = '[usunięte konto]';
 const ANON_VALUE = '[usunięte]';
 

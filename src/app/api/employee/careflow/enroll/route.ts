@@ -4,7 +4,7 @@ import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
 import { buildTasks, warsawIso, PAST_GRACE_HOURS, type CareMedication, type CareStepRow, type CareTaskRow } from '@/lib/careflowSchedule';
-import { warsawDayRange } from '@/lib/careflowLifecycle';
+import { warsawDayRange, notifyPatientProtocolStarted } from '@/lib/careflowLifecycle';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -369,12 +369,23 @@ export async function POST(req: NextRequest) {
             request: req,
         });
 
+        // Pacjent dowiaduje się, że plan czeka w aplikacji — zalecenia PRZED zabiegiem
+        // są bezwartościowe, jeśli nikt o nich nie powie. Nieblokujące.
+        const notified = await notifyPatientProtocolStarted({
+            enrollmentId: enrollment.id,
+            patientId,
+            patientDbId: enrollment.patient_db_id,
+        });
+
         return NextResponse.json({
             success: true,
             // Płaskie aliasy dla panelu web (ScheduleTab czyta `data.accessToken` i
             // `data.tasksCreated`) — nowi konsumenci czytają `enrollment.*`.
             accessToken: enrollment.access_token,
             tasksCreated: taskRows.length,
+            /** Czy pacjent dostał powiadomienie o uruchomieniu planu (i jeśli nie — dlaczego). */
+            patientNotified: notified.sent,
+            patientNotifyReason: notified.reason,
             // Ile kroków powstało już zamkniętych, bo ich termin minął przed zapisem.
             // BEZ tego pola recepcja widziała „10 zadań utworzonych" dla protokołu,
             // w którym 4 kroki (w tym osłona antybiotykowa sprzed zabiegu) są martwe
