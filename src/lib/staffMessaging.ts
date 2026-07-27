@@ -26,6 +26,7 @@ import {
     isEncryptionConfigured,
 } from '@/lib/fieldEncryption';
 import { logAudit } from '@/lib/auditLog';
+import type { AttachmentDto } from '@/lib/chatAttachments';
 import { checkRateLimit } from '@/lib/rateLimit';
 import { pushToStaffMembers, loadStaffActivity } from '@/lib/pushService';
 import { getStaffChatPush } from '@/lib/pushTranslations';
@@ -157,7 +158,18 @@ export interface MessageDto {
     refAppointmentId: string | null;
     refAppointmentAt: string | null;
     clientMsgId: string | null;
+    /**
+     * Deklaracja klienta z chwili wysyłki. ZOSTAJE w kontrakcie mimo pola `attachments`,
+     * bo buildy 1.1.0 ze sklepów renderują po niej dymek „[załącznik]" — usunięcie
+     * złamałoby zainstalowane apki.
+     */
     hasAttachments: boolean;
+    /**
+     * Metadane załączników. Nigdy URL — ten wybija osobna trasa `/attachments/[id]`,
+     * żeby każde OTWARCIE pliku (a nie pobranie listy) zostawiło ślad w audycie.
+     * Pusta tablica dla wiadomości skasowanej: soft-delete nie kaskaduje na pliki.
+     */
+    attachments: AttachmentDto[];
     createdAt: string;
     editedAt: string | null;
     isDeleted: boolean;
@@ -744,7 +756,15 @@ export async function describeConversations(
     });
 }
 
-export function mapMessageRow(row: MessageRow, viewerUserId: string): MessageDto {
+/**
+ * @param attachments metadane załączników tej wiadomości; domyślnie puste, żeby
+ *        istniejące wywołania kompilowały się bez zmian.
+ */
+export function mapMessageRow(
+    row: MessageRow,
+    viewerUserId: string,
+    attachments: AttachmentDto[] = [],
+): MessageDto {
     const isDeleted = !!row.deleted_at;
     const decrypted = isDeleted ? { text: '', unavailable: false } : decryptMessageText(row.content);
     return {
@@ -762,6 +782,9 @@ export function mapMessageRow(row: MessageRow, viewerUserId: string): MessageDto
         refAppointmentAt: row.ref_appointment_at,
         clientMsgId: row.client_msg_id,
         hasAttachments: row.has_attachments,
+        // Skasowana wiadomość nie wydaje plików — trasa odczytu odmawia im podpisu,
+        // więc lista też nie może ich obiecywać.
+        attachments: isDeleted ? [] : attachments,
         createdAt: row.created_at,
         editedAt: row.edited_at,
         isDeleted,

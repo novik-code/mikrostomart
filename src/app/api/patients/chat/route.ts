@@ -3,11 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyTokenFromRequest } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/pushService';
+import { loadAttachmentsByMessage } from '@/lib/chatAttachments';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+/** Ten sam limit co w czacie zespołowym — jedna miara długości wiadomości w całym projekcie. */
+const MAX_PATIENT_MESSAGE_LENGTH = 4000;
 
 // POST — patient sends a message
 export async function POST(request: NextRequest) {
@@ -16,9 +21,31 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { content } = await request.json();
+    // Limit wysyłki per pacjent. Do tej pory trasa nie miała ŻADNEGO — ani tu, ani na
+    // długości treści — więc jedno konto mogło zalać recepcję (a od Fazy 4 także Storage).
+    const rl = await checkRateLimit(`patient-chat:${payload.prodentisId}`, 20, 60_000);
+    if (!rl.allowed) {
+        return NextResponse.json(
+            { error: 'Zbyt wiele wiadomości. Odczekaj chwilę.' },
+            { status: 429, headers: { 'Retry-After': '60' } },
+        );
+    }
+
+    // `request.json()` MUSI być w try: przy nieparsowalnym ciele Next rzucał surowym 500.
+    let content: unknown;
+    try {
+        ({ content } = await request.json());
+    } catch {
+        return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
+    }
     if (!content || typeof content !== 'string' || content.trim().length === 0) {
         return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
+    }
+    if (content.length > MAX_PATIENT_MESSAGE_LENGTH) {
+        return NextResponse.json(
+            { error: `Wiadomość jest za długa (limit ${MAX_PATIENT_MESSAGE_LENGTH} znaków)` },
+            { status: 400 },
+        );
     }
 
     try {
@@ -174,8 +201,19 @@ export async function GET(request: NextRequest) {
 
         if (error) throw error;
 
+        // Załączniki jednym zapytaniem dla całego wątku (nie N+1). Klient renderuje po
+        // DŁUGOŚCI tej tablicy — stara tabela `chat_messages` nie ma flagi `has_attachments`.
+        const rows = messages || [];
+        const attachments = await loadAttachmentsByMessage(
+            'chat_message_id',
+            rows.map((m: { id: string }) => m.id),
+        );
+
         return NextResponse.json({
-            messages: messages || [],
+            messages: rows.map((m: { id: string }) => ({
+                ...m,
+                attachments: attachments.get(m.id) ?? [],
+            })),
             conversationId: conversation.id,
         });
     } catch (error) {

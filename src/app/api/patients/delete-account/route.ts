@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import { verifyTokenFromRequest } from '@/lib/jwt';
 import { anonymizeCareflowForPatient } from '@/lib/careflowLifecycle';
+import { removeAttachmentFiles } from '@/lib/chatAttachments';
 
 export const dynamic = 'force-dynamic';
 
@@ -93,6 +94,46 @@ export async function POST(request: NextRequest) {
             if (fcmErr) console.error('[DeleteAccount] fcm_tokens cleanup error:', fcmErr);
         } catch (tokenErr) {
             console.error('[DeleteAccount] Push token cleanup failed:', tokenErr);
+        }
+
+        // ── Załączniki pacjenta: art. 17 (prawo do usunięcia) ─────────────────
+        // Zdjęcia przysłane na czacie to dane o zdrowiu. Kaskada z `chat_messages` NIE
+        // zabiera plików ze Storage (kasuje tylko wiersze), a tu w ogóle nie ma kaskady:
+        // usunięcie konta jest MIĘKKIE (nadpisujemy PII), więc `ON DELETE CASCADE` nigdy
+        // się nie odpala. Bez tego bloku zdjęcia zostają w buckecie bezterminowo.
+        try {
+            const { data: convIds } = await supabase
+                .from('chat_conversations')
+                .select('id')
+                .eq('patient_id', payload.userId);
+            const ids = (convIds ?? []).map((c: { id: string }) => c.id);
+            if (ids.length > 0) {
+                const { data: msgIds } = await supabase
+                    .from('chat_messages')
+                    .select('id')
+                    .in('conversation_id', ids);
+                const mIds = (msgIds ?? []).map((m: { id: string }) => m.id);
+                if (mIds.length > 0) {
+                    const { data: atts } = await supabase
+                        .from('chat_attachments')
+                        .select('id, storage_path, thumb_path')
+                        .in('chat_message_id', mIds);
+                    const rows = (atts ?? []) as { id: string; storage_path: string; thumb_path: string | null }[];
+                    if (rows.length > 0) {
+                        await removeAttachmentFiles(
+                            rows.flatMap((r) => (r.thumb_path ? [r.storage_path, r.thumb_path] : [r.storage_path])),
+                        );
+                        const { error: attDelErr } = await supabase
+                            .from('chat_attachments')
+                            .delete()
+                            .in('id', rows.map((r) => r.id));
+                        if (attDelErr) console.error('[DeleteAccount] chat_attachments cleanup error:', attDelErr);
+                    }
+                }
+            }
+        } catch (attErr) {
+            // Nieblokująco — awaria sprzątania plików nie może cofnąć usunięcia konta.
+            console.error('[DeleteAccount] Attachment cleanup failed:', attErr);
         }
 
         // ── CareFlow: imię, telefon i powiązanie z kontem znikają, leczenie zostaje ──

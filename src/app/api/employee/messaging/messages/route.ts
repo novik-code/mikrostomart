@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { loadAttachmentsByMessage } from '@/lib/chatAttachments';
 import {
     AUDIT,
     AUDIT_RESOURCE_MESSAGE,
@@ -111,7 +112,12 @@ export async function GET(req: NextRequest) {
         const rows = ((data ?? []) as unknown as MessageRow[]).slice();
         if (!ascending) rows.reverse();
 
-        const messages = rows.map((row) => mapMessageRow(row, userId));
+        // Jedno zapytanie po załączniki CAŁEJ strony — nie N+1 po wiadomości.
+        const attachments = await loadAttachmentsByMessage(
+            'staff_message_id',
+            rows.map((r) => r.id),
+        );
+        const messages = rows.map((row) => mapMessageRow(row, userId, attachments.get(row.id) ?? []));
 
         // D5: każdy odczyt treści DM zostawia ślad. Pusta odpowiedź (odpytywanie w pętli
         // bez nowych wiadomości) śladu nie generuje — inaczej audyt zapchałby się szumem.
@@ -283,8 +289,12 @@ export async function POST(req: NextRequest) {
                 .eq('client_msg_id', clientMsgId)
                 .maybeSingle();
             if (dupe) {
+                // 🔑 Powtórka po zerwanej sieci MUSI oddać wiadomość z załącznikami. Inaczej
+                // apka pokaże pusty dymek mimo wgranego pliku i człowiek wgra zdjęcie DRUGI RAZ.
+                const dupeRow = dupe as unknown as MessageRow;
+                const dupeAtt = await loadAttachmentsByMessage('staff_message_id', [dupeRow.id]);
                 return jsonNoStore({
-                    message: mapMessageRow(dupe as unknown as MessageRow, userId),
+                    message: mapMessageRow(dupeRow, userId, dupeAtt.get(dupeRow.id) ?? []),
                     deduplicated: true,
                     pushed: false,
                 });
@@ -343,8 +353,10 @@ export async function POST(req: NextRequest) {
                     .eq('client_msg_id', clientMsgId)
                     .maybeSingle();
                 if (raced) {
+                    const racedRow = raced as unknown as MessageRow;
+                    const racedAtt = await loadAttachmentsByMessage('staff_message_id', [racedRow.id]);
                     return jsonNoStore({
-                        message: mapMessageRow(raced as unknown as MessageRow, userId),
+                        message: mapMessageRow(racedRow, userId, racedAtt.get(racedRow.id) ?? []),
                         deduplicated: true,
                         pushed: false,
                     });
@@ -407,7 +419,9 @@ export async function POST(req: NextRequest) {
 
         return jsonNoStore(
             {
-                message: mapMessageRow(row, userId),
+                // Świeży zapis: pliki dopiero polecą (baza wymaga kolejności wiadomość→plik),
+                // więc pusta tablica jest tu stanem POPRAWNYM, nie brakiem.
+                message: mapMessageRow(row, userId, []),
                 deduplicated: false,
                 pushed: push.pushed,
                 /** D1: w kanale zespołu push wychodzi wyłącznie od admina. */

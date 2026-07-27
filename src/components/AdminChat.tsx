@@ -18,6 +18,15 @@ interface Conversation {
     unreadCount: number;
 }
 
+interface Attachment {
+    id: string;
+    mime: string;
+    width: number | null;
+    height: number | null;
+    sizeBytes: number;
+    createdAt: string;
+}
+
 interface Message {
     id: string;
     conversation_id: string;
@@ -26,6 +35,79 @@ interface Message {
     content: string;
     read: boolean;
     created_at: string;
+    /** Zdjęcia przysłane przez pacjenta (mig 183/184). Puste dla starszych wiadomości. */
+    attachments?: Attachment[];
+}
+
+/**
+ * Miniatura załącznika w wątku recepcji.
+ *
+ * 🔒 Obraz NIE ma stałego URL-a — bucket jest prywatny, a każdy podgląd wymaga świeżego
+ * signed URL-a o 5-minutowym TTL. Miniatury nie są audytowane (leci ich tyle, ile dymków
+ * na ekranie); dopiero OTWARCIE pełnego zdjęcia zostawia wpis `view_chat_attachment`
+ * z nazwiskiem pacjenta — bo to jest ten dostęp, który podlega rozliczeniu.
+ */
+function ChatAttachmentThumb({ id }: { id: string }) {
+    const [thumb, setThumb] = useState<string | null>(null);
+    const [opening, setOpening] = useState(false);
+
+    useEffect(() => {
+        let alive = true;
+        fetch(`/api/employee/messaging/attachments/${id}?thumb=1`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((d) => {
+                if (alive && d?.url) setThumb(d.url as string);
+            })
+            .catch(() => {});
+        return () => {
+            alive = false;
+        };
+    }, [id]);
+
+    async function openFull() {
+        setOpening(true);
+        try {
+            const r = await fetch(`/api/employee/messaging/attachments/${id}`);
+            const d = r.ok ? await r.json() : null;
+            if (d?.url) window.open(d.url as string, '_blank', 'noopener,noreferrer');
+        } catch {
+            // brak sieci — użytkownik zobaczy, że nic się nie otworzyło i spróbuje ponownie
+        } finally {
+            setOpening(false);
+        }
+    }
+
+    return (
+        <button
+            type="button"
+            onClick={openFull}
+            disabled={opening}
+            title="Otwórz zdjęcie"
+            style={{
+                display: 'block',
+                marginTop: '0.5rem',
+                padding: 0,
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: '0.6rem',
+                overflow: 'hidden',
+                background: 'rgba(255,255,255,0.04)',
+                cursor: opening ? 'wait' : 'zoom-in',
+                width: 140,
+                height: 140,
+            }}
+        >
+            {thumb ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                    src={thumb}
+                    alt="Załącznik od pacjenta"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+            ) : (
+                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>Ładowanie…</span>
+            )}
+        </button>
+    );
 }
 
 // Admin panel labels — centralized for i18n. Admin panel is always PL.
@@ -586,6 +668,9 @@ export default function AdminChat() {
                                             }}>
                                                 {msg.content}
                                             </p>
+                                            {(msg.attachments ?? []).map((att) => (
+                                                <ChatAttachmentThumb key={att.id} id={att.id} />
+                                            ))}
                                             <div style={{
                                                 fontSize: '0.65rem',
                                                 color: 'var(--color-text-muted)',

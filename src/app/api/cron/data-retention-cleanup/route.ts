@@ -6,6 +6,7 @@ import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 // Jedno źródło prawdy o oknie retencji czatu wewnętrznego (sekcja 13). Apka chowa
 // wiadomości dokładnie tym rachunkiem — cron musi kasować tym samym, nie własnym.
 import { retentionCutoffIso } from '@/lib/staffMessaging';
+import { ATTACHMENT_BUCKET } from '@/lib/chatAttachments';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -294,24 +295,49 @@ export async function GET(req: NextRequest) {
             for (const part of chunk(dmIds, CHAT_CHUNK)) {
                 // Pliki liczymy PRZED kasowaniem — po kaskadzie nie ma już czego liczyć.
                 const orphansSoFar = staffDmOrphanFiles;
+                // Ścieżki pobieramy PRZED kasowaniem — po kaskadzie wiersze znikają i nie
+                // ma już czym trafić do Storage. Kaskada w bazie kasuje WIERSZ, nie PLIK.
+                let pathsToRemove: string[] = [];
                 if (orphansSoFar !== null) {
-                    const { count, error: attError } = await supabase
+                    const { data: attRows, error: attError } = await supabase
                         .from('chat_attachments')
-                        .select('id, staff_messages!inner(conversation_id, created_at)', { count: 'exact', head: true })
+                        .select('storage_path, thumb_path, staff_messages!inner(conversation_id, created_at)')
                         .in('staff_messages.conversation_id', part)
                         .lt('staff_messages.created_at', chatCutoff);
                     // Nieudane policzenie DŁUGU nie jest błędem retencji (nie wywracamy
                     // przebiegu), ale nie wolno go raportować jako zero — stąd null.
-                    if (attError) staffDmOrphanFiles = null;
-                    else staffDmOrphanFiles = orphansSoFar + (count ?? 0);
+                    if (attError) {
+                        staffDmOrphanFiles = null;
+                    } else {
+                        const rows = (attRows ?? []) as unknown as {
+                            storage_path: string;
+                            thumb_path: string | null;
+                        }[];
+                        staffDmOrphanFiles = orphansSoFar + rows.length;
+                        pathsToRemove = rows.flatMap((r) =>
+                            r.thumb_path ? [r.storage_path, r.thumb_path] : [r.storage_path],
+                        );
+                    }
                 }
 
                 const query: FilterBuilder = dryRun
                     ? supabase.from('staff_messages').select('*', { count: 'exact', head: true })
                     : supabase.from('staff_messages').delete({ count: 'exact' });
                 const { count, error } = await query.in('conversation_id', part).lt('created_at', chatCutoff);
-                if (error) errs.push(error.message);
-                else deleted += count ?? 0;
+                if (error) {
+                    errs.push(error.message);
+                } else {
+                    deleted += count ?? 0;
+                    // Dopiero teraz pliki: kasujemy je PO udanym usunięciu wierszy, żeby
+                    // nieudana kaskada nie zostawiła wiadomości wskazującej na nieistniejący
+                    // obiekt. W przebiegu próbnym niczego nie ruszamy.
+                    if (!dryRun && pathsToRemove.length > 0) {
+                        const { error: rmErr } = await supabase.storage
+                            .from(ATTACHMENT_BUCKET)
+                            .remove(pathsToRemove);
+                        if (rmErr) errs.push(`storage: ${rmErr.message}`);
+                    }
+                }
             }
 
             results[key] = {

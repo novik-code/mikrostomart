@@ -5,6 +5,7 @@ import { demoSanitize } from '@/lib/brandConfig';
 import { getUserAIConversations } from '@/lib/aiConversationLog';
 import JSZip from 'jszip';
 import { readIntakeSubmissionPii } from '@/lib/encryptedPiiFields';
+import { loadAttachmentsByMessage } from '@/lib/chatAttachments';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -102,7 +103,18 @@ export async function GET(request: NextRequest) {
                     .select('id, conversation_id, sender_role, content, read, created_at')
                     .in('conversation_id', conversationIds)
                     .order('created_at', { ascending: true });
-                chatMessages = messages || [];
+                const rows = messages || [];
+                // Art. 15: eksport MUSI objąć także zdjęcia przysłane przez pacjenta.
+                // Same bajty nie idą do paczki (to byłby plik na dziesiątki MB) — idą
+                // metadane i identyfikator, po którym pacjent może plik pobrać z aplikacji.
+                const attachments = await loadAttachmentsByMessage(
+                    'chat_message_id',
+                    rows.map((m: { id: string }) => m.id),
+                );
+                chatMessages = rows.map((m: { id: string }) => ({
+                    ...m,
+                    attachments: attachments.get(m.id) ?? [],
+                }));
             }
         } catch (err) {
             console.warn('[ExportData] chat_messages fetch failed:', err);

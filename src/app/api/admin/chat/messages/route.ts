@@ -4,6 +4,7 @@ import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { sendTranslatedPushToUser } from '@/lib/pushService';
 import { sendChatReplyEmail } from '@/lib/emailService';
 import { logAudit } from '@/lib/auditLog';
+import { loadAttachmentsByMessage } from '@/lib/chatAttachments';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -63,7 +64,20 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        return NextResponse.json({ messages: messages || [] });
+        // Recepcja MUSI widzieć zdjęcie przysłane przez pacjenta — bez tego pacjent
+        // wysyła plik w próżnię. Metadane tutaj, sam obraz dopiero przez signed URL.
+        const rows = messages || [];
+        const attachments = await loadAttachmentsByMessage(
+            'chat_message_id',
+            rows.map((m: { id: string }) => m.id),
+        );
+
+        return NextResponse.json({
+            messages: rows.map((m: { id: string }) => ({
+                ...m,
+                attachments: attachments.get(m.id) ?? [],
+            })),
+        });
     } catch (error) {
         console.error('[AdminChat] Messages error:', error);
         return NextResponse.json({ error: 'Failed to load messages' }, { status: 500 });
