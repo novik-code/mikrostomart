@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS, getSMSTemplate, formatSMSMessage } from '@/lib/smsService';
 import { mapAppointmentTypeToSlug } from '@/lib/appointmentTypeMapper';
-import { deliverToPatient, updateDeliveryStatus } from '@/lib/patientDelivery';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { randomUUID } from 'crypto';
 import { nanoid } from 'nanoid';
@@ -101,8 +100,7 @@ export async function GET(req: Request) {
     let processedCount = 0;
     let draftsCreated = 0;
     let skippedCount = 0;
-    let pushSentCount = 0;
-    let smsSentCount = 0;
+    let linksCreated = 0;
     const errors: Array<{ appointment: string; error: string }> = [];
     const skippedPatients: Array<{
         patientName: string;
@@ -456,36 +454,15 @@ export async function GET(req: Request) {
 
                 draftsCreated++;
 
-                // Push-first delivery: try push → SMS fallback
-                // SMS will be sent automatically if push fails or patient has no push.
-                // If push succeeds, draft is marked 'push_sent' and auto-send cron will skip it.
-                try {
-                    const deliveryResult = await deliverToPatient({
-                        patientId,
-                        prodentisPatientId: String(appointment.patientId),
-                        phone: appointment.patientPhone,
-                        pushPayload: {
-                            title: `Przypomnienie o wizycie`,
-                            body: `Wizyta ${appointmentTime} — ${doctorName} (${appointmentType})`,
-                            url: '/strefa-pacjenta/powiadomienia',
-                            tag: `appointment-${appointment.id}`,
-                        },
-                        smsMessage: message,
-                        smsType: 'reminder',
-                        skipSms: true, // Don't send SMS now — auto-send cron handles remaining drafts
-                    });
-
-                    // Update draft with delivery info
-                    await updateDeliveryStatus(draftId, deliveryResult);
-
-                    if (deliveryResult.pushSent) pushSentCount++;
-                    if (deliveryResult.smsSent) smsSentCount++;
-
-                    console.log(`   📨 Delivery: channel=${deliveryResult.channel} push=${deliveryResult.pushSent} pushErr=${deliveryResult.pushError || 'none'}`);
-                } catch (deliveryErr: any) {
-                    console.error(`   ⚠️  Delivery error (non-critical):`, deliveryErr.message);
-                }
-
+                // 🔑 TEN CRON NIC NIE WYSYŁA — wyłącznie przygotowuje.
+                // Dostarczaniem (push-first → SMS fallback) zajmuje się `sms-auto-send`
+                // godzinę później. Dwa powody, oba twarde:
+                //  1. PARYTET GODZIN — push ma iść wtedy, co SMS. Wysyłka stąd wyprzedzała
+                //     SMS-a o godzinę i pacjenci dostawali powiadomienia o różnych porach
+                //     zależnie od tego, czy mają apkę.
+                //  2. KOLEJNOŚĆ — `confirmation_token` i short link powstają DOPIERO poniżej.
+                //     Push wysyłany w tym miejscu fizycznie nie mógł nieść linku
+                //     potwierdzenia i kierował na ogólną listę powiadomień.
                 try {
                     const appointmentActionId = randomUUID();
 
@@ -596,6 +573,7 @@ export async function GET(req: Request) {
                             console.error(`   ⚠️  Failed to create short link:`, shortLinkError);
                         } else {
                             const shortUrl = `${brand.appUrl}/s/${shortCode}`;
+                            linksCreated++;
                             console.log(`   ✅ Short link created: ${shortUrl}`);
 
                             // Update SMS draft with short link
@@ -628,8 +606,7 @@ export async function GET(req: Request) {
         console.log(`\n📊 [SMS Reminders] Summary:`);
         console.log(`   Total appointments: ${processedCount}`);
         console.log(`   Drafts created: ${draftsCreated}`);
-        console.log(`   Push sent: ${pushSentCount}`);
-        console.log(`   SMS sent: ${smsSentCount}`);
+        console.log(`   Confirmation links created: ${linksCreated}`);
         console.log(`   Skipped: ${skippedCount}`);
         console.log(`   Errors: ${errors.length}`);
         console.log(`   Duration: ${duration}s`);
@@ -638,14 +615,23 @@ export async function GET(req: Request) {
             console.error(`\n❌ [SMS Reminders] Errors:`, errors);
         }
 
-        await logCronHeartbeat('appointment-reminders', 'ok', `Drafts: ${draftsCreated}, Push: ${pushSentCount}, SMS pending: ${draftsCreated - pushSentCount}`, Date.now() - startTime);
+        // Draft BEZ linku potwierdzenia to cichy błąd: wiadomość i tak wyjdzie,
+        // ale pacjent nie będzie miał czym potwierdzić. Raportujemy jako degradację,
+        // żeby diagnostyka to złapała, zamiast pokazywać zielone „ok".
+        const missingLinks = draftsCreated - linksCreated;
+        await logCronHeartbeat(
+            'appointment-reminders',
+            missingLinks > 0 ? 'warn' : 'ok',
+            `Drafts: ${draftsCreated}, links: ${linksCreated}${missingLinks > 0 ? `, BRAK LINKU: ${missingLinks}` : ''} (wysyłka: sms-auto-send)`,
+            Date.now() - startTime
+        );
 
         return NextResponse.json({
             success: true,
             processed: processedCount,
             draftsCreated: draftsCreated,
-            pushSent: pushSentCount,
-            smsPending: draftsCreated - pushSentCount,
+            linksCreated,
+            missingLinks,
             skipped: skippedCount,
             skippedPatients: skippedPatients.length > 0 ? skippedPatients : undefined,
             failed: errors.length,

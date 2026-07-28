@@ -1,8 +1,11 @@
 import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { sendSMS } from '@/lib/smsService';
-import { hasPatientResponded } from '@/lib/patientDelivery';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { deliverToPatient, hasPatientResponded, updateDeliveryStatus } from '@/lib/patientDelivery';
+import type { PushPayload } from '@/lib/pushService';
+import { brand } from '@/lib/brandConfig';
+import { logCronHeartbeat } from '@/lib/cronHeartbeat';
+import { recordPushPath } from '@/lib/pushHealth';
 
 export const maxDuration = 120; // Vercel function timeout
 
@@ -45,6 +48,7 @@ export async function GET(req: Request) {
 
     let processedCount = 0;
     let sentCount = 0;
+    let pushCount = 0;
     let failedCount = 0;
     let skippedCount = 0;
     const errors: Array<{ id: string; phone: string; error: string }> = [];
@@ -140,38 +144,66 @@ export async function GET(req: Request) {
                     }
                 }
 
-                // 5a. Send SMS
-                const smsResult = await sendSMS({
-                    to: draft.phone,
-                    message: draft.sms_message
+                // 5a. Dostarczenie: push-first → SMS fallback, w JEDNYM kroku.
+                //
+                // Ten cron jest jedynym punktem wysyłki przypomnień, więc push
+                // wychodzi dokładnie w tej samej godzinie co SMS. Wcześniej push
+                // szedł z `appointment-reminders` godzinę wcześniej.
+                //
+                // Link potwierdzenia bierzemy z `appointment_actions` — powstał
+                // w cronie przygotowującym. Unikat (prodentis_id, appointment_date)
+                // gwarantuje jeden wiersz. UWAGA: `sms_reminders.prodentis_id`
+                // przechowuje id WIZYTY (nie pacjenta) — i po tym samym polu
+                // kluczowana jest `appointment_actions`, więc dopasowanie jest 1:1.
+                const confirmLink = await loadConfirmationLink(
+                    supabase,
+                    draft.prodentis_id,
+                    draft.appointment_date
+                );
+
+                const deliveryResult = await deliverToPatient({
+                    patientId: draft.patient_id || null,
+                    prodentisPatientId: String(draft.prodentis_id || ''),
+                    phone: draft.phone,
+                    pushPayload: buildReminderPush(draft, confirmLink),
+                    smsMessage: draft.sms_message,
+                    smsType: 'reminder',
                 });
 
-                // 5b. Update draft status
-                const updateData: any = {
-                    sent_at: new Date().toISOString()
-                };
+                await updateDeliveryStatus(draft.id, deliveryResult);
 
-                if (smsResult.success) {
-                    updateData.status = 'sent';
-                    updateData.sms_message_id = smsResult.messageId;
-                    sentCount++;
-                    console.log(`   ✅ Sent successfully (ID: ${smsResult.messageId})`);
-                } else {
-                    updateData.status = 'failed';
-                    updateData.send_error = smsResult.error;
-                    failedCount++;
-                    console.error(`   ❌ Send failed: ${smsResult.error}`);
-                    errors.push({
-                        id: draft.id,
-                        phone: draft.phone,
-                        error: smsResult.error || 'Unknown error'
+                // Rejestr zdrowia ścieżki: liczy się WYŁĄCZNIE realne dostarczenie pushem.
+                // SMS jako fallback jest sukcesem dla pacjenta, ale NIE dowodem, że kanał
+                // aplikacji działa — a to on jest tu monitorowany.
+                if (deliveryResult.patientHasPush) {
+                    void recordPushPath('appointment_reminder', {
+                        sent: deliveryResult.pushSent ? 1 : 0,
+                        failed: deliveryResult.pushSent ? 0 : 1,
+                        error: deliveryResult.pushError,
                     });
                 }
 
-                await supabase
-                    .from('sms_reminders')
-                    .update(updateData)
-                    .eq('id', draft.id);
+                if (deliveryResult.pushSent && !deliveryResult.smsSent) {
+                    pushCount++;
+                    console.log(`   📲 Push delivered (SMS niepotrzebny) — link: ${confirmLink ? 'tak' : 'BRAK'}`);
+                } else if (deliveryResult.smsSent) {
+                    sentCount++;
+                    console.log(`   ✅ SMS sent (ID: ${deliveryResult.smsMessageId})`);
+                } else {
+                    failedCount++;
+                    const why = deliveryResult.smsError || deliveryResult.pushError || 'Unknown error';
+                    console.error(`   ❌ Nie dostarczono żadnym kanałem: ${why}`);
+                    errors.push({ id: draft.id, phone: draft.phone, error: why });
+
+                    await supabase
+                        .from('sms_reminders')
+                        .update({
+                            status: 'failed',
+                            send_error: why,
+                            sent_at: new Date().toISOString(),
+                        })
+                        .eq('id', draft.id);
+                }
 
             } catch (draftError) {
                 failedCount++;
@@ -199,31 +231,125 @@ export async function GET(req: Request) {
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         console.log(`\n📊 [SMS Auto-Send] Job completed in ${duration}s`);
         console.log(`   Processed: ${processedCount}`);
-        console.log(`   Sent: ${sentCount}`);
-        console.log(`   Failed: ${failedCount}`);
+        console.log(`   Push:      ${pushCount}`);
+        console.log(`   SMS:       ${sentCount}`);
+        console.log(`   Failed:    ${failedCount}`);
+
+        await logCronHeartbeat(
+            'sms-auto-send',
+            failedCount > 0 ? 'warn' : 'ok',
+            `Push: ${pushCount}, SMS: ${sentCount}, pominięte: ${skippedCount}, błędy: ${failedCount}`,
+            Date.now() - startTime
+        );
 
         return NextResponse.json({
             success: true,
             processed: processedCount,
+            push: pushCount,
             sent: sentCount,
+            skipped: skippedCount,
             failed: failedCount,
             errors: errors,
             duration: `${duration}s`,
-            message: `Auto-sent ${sentCount} SMS reminders`
+            message: `Dostarczono: push ${pushCount}, SMS ${sentCount}`
         });
 
     } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         console.error('❌ [SMS Auto-Send] Fatal error:', errorMsg);
 
+        await logCronHeartbeat('sms-auto-send', 'error', errorMsg, Date.now() - startTime);
+
         return NextResponse.json({
             success: false,
             error: errorMsg,
             processed: processedCount,
+            push: pushCount,
             sent: sentCount,
             failed: failedCount
         }, { status: 500 });
     }
+}
+
+/**
+ * Odczytaj token potwierdzenia i short link dla przypomnienia.
+ *
+ * Oba powstają w `appointment-reminders`. Zwracamy `null`, gdy wiersza nie ma
+ * albo brakuje tokenu — wtedy push idzie BEZ akcji potwierdzenia (SMS też jej
+ * nie ma, więc kanały pozostają równoważne), a cron raportuje to w podsumowaniu.
+ */
+async function loadConfirmationLink(
+    supabase: SupabaseClient,
+    appointmentProdentisId: string | number | null,
+    appointmentDate: string | null
+): Promise<{ token: string; url: string } | null> {
+    if (!appointmentProdentisId || !appointmentDate) return null;
+
+    const day = String(appointmentDate).split('T')[0];
+    const { data, error } = await supabase
+        .from('appointment_actions')
+        .select('id, confirmation_token')
+        .eq('prodentis_id', String(appointmentProdentisId))
+        .gte('appointment_date', `${day}T00:00:00.000Z`)
+        .lte('appointment_date', `${day}T23:59:59.999Z`)
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+        console.error(`   ⚠️ Nie udało się odczytać tokenu potwierdzenia: ${error.message}`);
+        return null;
+    }
+
+    const action = data as { id?: string; confirmation_token?: string } | null;
+    const token = action?.confirmation_token;
+    if (!token || !action?.id) return null;
+
+    // Bierzemy DOKŁADNIE ten short link, który poszedł SMS-em — zamiast składać
+    // adres z kawałków. Slug w `/wizyta/[type]` pochodzi z mapowania typu wizyty,
+    // więc zgadywanie go tutaj rozjechałoby oba kanały przy pierwszym nietypowym
+    // rodzaju wizyty. Ten sam link = ta sama strona i ta sama telemetria.
+    const { data: linkRow } = await supabase
+        .from('short_links')
+        .select('short_code')
+        .eq('appointment_id', action.id)
+        .limit(1)
+        .maybeSingle();
+
+    const shortCode = (linkRow as { short_code?: string } | null)?.short_code;
+    if (!shortCode) return null;
+
+    return { token, url: `${brand.appUrl}/s/${shortCode}` };
+}
+
+/**
+ * Payload pusha o wizycie.
+ *
+ * `url` zostaje webowy (kanał FCM w przeglądarce otwiera stronę potwierdzenia),
+ * a apka rozpoznaje powiadomienie po `data.type` i przechwytuje je NATYWNIE,
+ * używając tego samego `confirmationToken` co link w SMS-ie. Dzięki temu oba
+ * kanały prowadzą do tej samej akcji na tym samym wierszu `appointment_actions`.
+ */
+function buildReminderPush(
+    draft: { appointment_date?: string | null; doctor_name?: string | null; appointment_type?: string | null; prodentis_id?: string | number | null },
+    confirm: { token: string; url: string } | null
+): PushPayload {
+    const time = draft.appointment_date
+        ? String(draft.appointment_date).slice(11, 16)
+        : '';
+    const parts = [time && `Wizyta ${time}`, draft.doctor_name, draft.appointment_type]
+        .filter(Boolean)
+        .join(' — ');
+
+    return {
+        title: 'Przypomnienie o wizycie',
+        body: parts || 'Masz zaplanowaną wizytę',
+        url: confirm ? confirm.url : '/strefa-pacjenta/powiadomienia',
+        tag: `appointment-${draft.prodentis_id ?? 'unknown'}`,
+        data: {
+            type: 'appointment_reminder',
+            ...(confirm ? { confirmationToken: confirm.token } : {}),
+        },
+    };
 }
 
 /**

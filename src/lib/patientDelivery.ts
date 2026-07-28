@@ -2,7 +2,14 @@
  * Patient Delivery Service — Push-First, SMS Fallback
  *
  * Central module for delivering notifications to patients.
- * Logic: Check patient account → check FCM tokens → push first → SMS fallback.
+ * Logic: Check patient account → check push tokens → push first → SMS fallback.
+ *
+ * 🔑 DWA NIEZALEŻNE KANAŁY PUSH, DWIE RÓŻNE TABELE:
+ *   · `fcm_tokens`          — web-push z przeglądarki (PWA), kluczowana `patients.id` (UUID),
+ *   · `patient_push_tokens` — aplikacja mobilna (Expo, mig 173), kluczowana `prodentis_id`.
+ * Bramka MUSI pytać o obie. Wcześniej czytała wyłącznie `fcm_tokens`, więc pacjent
+ * mający TYLKO apkę wyglądał na „bez pusha" i dostawał SMS-a — mimo działającego
+ * tokenu Expo. To ta sama klasa błędu co w `broadcastPush` (naprawione osobno).
  *
  * Used by all patient-facing cron jobs:
  *   - appointment-reminders (reminder)
@@ -10,7 +17,8 @@
  *   - week-after-visit-sms (week_after_visit)
  */
 import { createClient } from '@supabase/supabase-js';
-import { pushToUser, PushPayload } from './pushService';
+import { pushToPatientAll, PushPayload } from './pushService';
+import { hasPatientAppToken } from './expoPush';
 import { sendSMS } from './smsService';
 
 const supabase = createClient(
@@ -40,10 +48,18 @@ export interface DeliveryResult {
 }
 
 export interface DeliveryOptions {
-    /** Supabase patient UUID (from patients table) */
+    /**
+     * Supabase patient UUID (from patients table).
+     * JEDYNY wiarygodny klucz pacjenta w tym module — po nim idzie wyszukanie
+     * obu rodzajów tokenów push.
+     */
     patientId: string | null;
-    /** Prodentis patient ID */
-    prodentisPatientId: string;
+    /**
+     * Prodentis ID — WYŁĄCZNIE do logów i śledzenia.
+     * ⚠️ NIE używać do adresowania powiadomień: część wołających przekazuje tu
+     * id WIZYTY zamiast id pacjenta (patrz `post-visit-sms`, `week-after-visit-sms`).
+     */
+    prodentisPatientId?: string;
     /** Patient phone number (for SMS fallback) */
     phone: string;
     /** Push notification content */
@@ -88,43 +104,76 @@ export async function deliverToPatient(options: DeliveryOptions): Promise<Delive
         patientHasPush: false,
     };
 
-    // ─── Step 1: Check for FCM tokens ─────────────────────────
+    // ─── Step 1: Check for push tokens on BOTH channels ───────
+    // Zapytania są niezależne: awaria jednego nie może ukryć drugiego kanału.
+    // supabase-js NIE rzuca — błąd wraca w `error`, więc sprawdzamy go jawnie,
+    // inaczej awaria bazy wygląda identycznie jak „pacjent nie ma pusha".
     let hasFcmTokens = false;
+    let hasAppTokens = false;
+    let tokenLookupFailed = false;
 
     if (patientId) {
         result.patientHasAccount = true;
 
-        const { data: tokenRows } = await supabase
+        const { data: tokenRows, error: fcmErr } = await supabase
             .from('fcm_tokens')
             .select('fcm_token')
             .eq('user_id', patientId)
             .eq('user_type', 'patient');
 
+        if (fcmErr) {
+            tokenLookupFailed = true;
+            console.error(`  ⚠️ [Delivery] fcm_tokens lookup error: ${fcmErr.message}`);
+        }
         hasFcmTokens = (tokenRows && tokenRows.length > 0) || false;
-        result.patientHasPush = hasFcmTokens;
     }
 
+    // Apka mobilna. Mapowanie UUID→prodentisId siedzi w expoPush.ts.
+    //
+    // 🔴 KLUCZEM JEST WYŁĄCZNIE `patientId` (UUID konta) — NIGDY `prodentisPatientId`.
+    // To pole jest w praktyce niewiarygodne: `post-visit-sms` i `week-after-visit-sms`
+    // przekazują w nim id WIZYTY, nie pacjenta. Oba są numerycznymi ciągami, więc
+    // `resolveProdentisId` puściłby je dalej bez mrugnięcia i zapytanie o
+    // `patient_push_tokens` mogłoby trafić w KONTO INNEGO PACJENTA.
+    // Brak konta = brak apki (logowanie wymaga konta), więc nic na tym nie tracimy.
+    if (patientId) {
+        const appTokens = await hasPatientAppToken(patientId);
+        hasAppTokens = appTokens.has;
+        if (appTokens.error) tokenLookupFailed = true;
+    }
+
+    result.patientHasPush = hasFcmTokens || hasAppTokens;
+
     // ─── Step 2: Try push (if patient has tokens) ─────────────
-    if (patientId && hasFcmTokens) {
+    // Wysyłka idzie przez pushToPatientAll: AWAITUJE oba kanały i sumuje `sent`.
+    // pushToUser liczył wyłącznie FCM (kanał Expo szedł fire-and-forget), więc
+    // pacjent z samą apką dostawał sent:0 i był eskalowany do SMS-a.
+    if (patientId && result.patientHasPush) {
         try {
-            const pushResult = await pushToUser(patientId, 'patient', pushPayload);
+            const pushResult = await pushToPatientAll(patientId, pushPayload);
 
             if (pushResult.sent > 0) {
                 result.pushSent = true;
                 result.channel = 'push';
-                console.log(`  📲 [Delivery] Push sent to patient ${patientId} (${pushResult.sent} devices)`);
+                console.log(
+                    `  📲 [Delivery] Push sent to patient ${patientId} ` +
+                    `(fcm=${pushResult.fcm.sent} app=${pushResult.expo.sent})`
+                );
             } else {
-                result.pushError = `Push sent to 0/${pushResult.failed} devices`;
+                result.pushError = `Push sent to 0 devices (fcm failed=${pushResult.fcm.failed}, app failed=${pushResult.expo.failed})`;
                 console.log(`  ⚠️ [Delivery] Push failed: ${result.pushError}`);
             }
         } catch (err: any) {
             result.pushError = err.message || 'Push exception';
             console.error(`  ❌ [Delivery] Push error: ${result.pushError}`);
         }
-    } else if (patientId && !hasFcmTokens) {
-        result.pushError = 'Brak FCM tokenu (pacjent nie włączył powiadomień push)';
-    } else {
+    } else if (!patientId) {
         result.pushError = 'Pacjent nie ma konta w portalu';
+    } else if (tokenLookupFailed) {
+        // Rozróżnienie jest istotne dla diagnostyki: „nie wiemy" ≠ „nie ma".
+        result.pushError = 'Nie udało się odczytać tokenów push (błąd bazy) — wysyłam SMS';
+    } else {
+        result.pushError = 'Brak tokenu push (pacjent nie ma apki ani powiadomień w przeglądarce)';
     }
 
     // ─── Step 3: SMS fallback / force ─────────────────────────

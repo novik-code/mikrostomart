@@ -24,7 +24,10 @@ const supabase = createClient(
  */
 export async function logCronHeartbeat(
     cronName: string,
-    status: 'ok' | 'error' = 'ok',
+    // 'warn' = przebieg się udał, ale wynik jest zdegradowany (np. przypomnienia
+    // powstały bez linku potwierdzenia). Kolumna to zwykły TEXT bez CHECK-a —
+    // seed migracji 069 używa nawet 'unknown', więc nowa wartość jest bezpieczna.
+    status: 'ok' | 'warn' | 'error' = 'ok',
     message?: string,
     durationMs?: number
 ): Promise<void> {

@@ -77,12 +77,14 @@ async function deliver(
     tokens: string[],
     payload: ExpoPushPayload,
     table: 'patient_push_tokens' | 'staff_push_tokens',
-    label: string
+    label: string,
+    pathKey?: string
 ): Promise<{ sent: number; failed: number }> {
     if (tokens.length === 0) return { sent: 0, failed: 0 };
 
     let sent = 0, failed = 0;
     const dead: string[] = [];
+    const pending: Array<{ ticket_id: string; token: string }> = [];
 
     // Pola opcjonalne dokładane warunkowo — wywołania bez channelId/priority/collapseId
     // wysyłają dokładnie taką wiadomość jak przed dodaniem tych pól.
@@ -126,15 +128,30 @@ async function deliver(
         }
 
         const json = await res.json();
-        const tickets: Array<{ status: string; details?: { error?: string } }> = json?.data ?? [];
+        const tickets: Array<{ status: string; id?: string; details?: { error?: string } }> = json?.data ?? [];
         tickets.forEach((ticket, idx) => {
             if (ticket.status === 'ok') {
                 sent++;
+                // 🔑 TICKET „ok" NIE ZNACZY „DOSTARCZONE" — znaczy tylko, że Expo przyjęło
+                // żądanie. Prawdziwy wynik (w tym `DeviceNotRegistered`, przez który martwe
+                // tokeny odkładały się miesiącami) przychodzi dopiero w RECEIPCIE, dostępnym
+                // wyłącznie po identyfikatorze ticketu. Dlatego go zapisujemy — bez tego
+                // cron receiptów nie ma czego odpytać.
+                if (ticket.id) pending.push({ ticket_id: ticket.id, token: chunk[idx] });
             } else {
                 failed++;
                 if (ticket.details?.error === 'DeviceNotRegistered') dead.push(chunk[idx]);
             }
         });
+    }
+
+    if (pending.length > 0) {
+        // Zapis biletów nie może wywrócić wysyłki — powiadomienie już poszło.
+        const { error } = await supabase.from('push_receipts').upsert(
+            pending.map(p => ({ ...p, token_table: table, path_key: pathKey ?? null })),
+            { onConflict: 'ticket_id' }
+        );
+        if (error) console.error('[ExpoPush] Nie zapisano biletów do push_receipts:', error.message);
     }
 
     if (dead.length > 0) {
@@ -170,6 +187,42 @@ export async function sendExpoPushToPatient(
     } catch (err) {
         console.error('[ExpoPush] Error:', err);
         return { sent: 0, failed: 0 };
+    }
+}
+
+/**
+ * Czy pacjent ma choć jeden token aplikacji mobilnej?
+ *
+ * Przyjmuje to samo id co `sendExpoPushToPatient` (UUID konta ALBO prodentisId) —
+ * mapowanie zostaje w tym module, żeby wołający nie musiał wiedzieć, że
+ * `patient_push_tokens` jest kluczowana `prodentis_id`, a `fcm_tokens` UUID-em.
+ * To rozróżnienie już raz kosztowało: bramka wysyłki pytała wyłącznie o `fcm_tokens`
+ * i pacjent z samą apką dostawał SMS-a.
+ *
+ * Zwraca też `error`, bo supabase-js nie rzuca — a dla diagnostyki „nie wiemy"
+ * musi być odróżnialne od „nie ma tokenu".
+ */
+export async function hasPatientAppToken(
+    patientId: string
+): Promise<{ has: boolean; error: boolean }> {
+    try {
+        const prodentisId = await resolveProdentisId(patientId);
+        if (!prodentisId) return { has: false, error: false };
+
+        const { data: rows, error } = await supabase
+            .from('patient_push_tokens')
+            .select('token')
+            .eq('patient_id', prodentisId);
+
+        if (error) {
+            console.error('[ExpoPush] hasPatientAppToken lookup error:', error.message);
+            return { has: false, error: true };
+        }
+
+        return { has: (rows || []).some(r => isExpoToken(r.token)), error: false };
+    } catch (err) {
+        console.error('[ExpoPush] hasPatientAppToken error:', err);
+        return { has: false, error: true };
     }
 }
 

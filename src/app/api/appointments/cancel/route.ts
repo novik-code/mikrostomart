@@ -178,8 +178,8 @@ export async function POST(req: NextRequest) {
             time: appointmentTime,
             doctor: action.doctor_name || '',
         };
-        broadcastPush('admin', 'appointment_cancelled', pushParams, '/admin').catch(console.error);
-        broadcastPush('employee', 'appointment_cancelled', pushParams, '/pracownik').catch(console.error);
+        broadcastPush('admin', 'appointment_cancelled', pushParams, '/admin', { alsoApp: true }).catch(console.error);
+        broadcastPush('employee', 'appointment_cancelled', pushParams, '/pracownik', { alsoApp: true }).catch(console.error);
 
         console.log('[CANCEL-PUBLIC] Success:', { telegramSent });
 
