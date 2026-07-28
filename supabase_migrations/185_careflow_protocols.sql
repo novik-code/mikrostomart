@@ -260,12 +260,13 @@ COMMIT;
 --   SELECT name, is_active, jsonb_array_length(default_medications) AS leki
 --     FROM care_templates ORDER BY name;
 --
--- Liczba zadań lekowych na pacjenta (amoksycylina + ewentualny metronidazol):
---   4 dni  → 12 + 2 okołozabiegowe = 14
---   7 dni  → 21 + 2 = 23
---   10 dni → 30 + 30 metronidazolu + 2 = 62
---   alergia (3 dni) → 9 + 2 = 11
+-- Liczba zadań lekowych na pacjenta (POTWIERDZONE na wgranej bazie):
+--   4 dni   → 12 osłony + 2 okołozabiegowe + 4 przeciwbólowe = 18
+--   7 dni   → 21 + 2 + 4 = 27
+--   10 dni  → 30 + 30 metronidazolu + 2 + 4 = 66
+--   alergia → 9 + 2 + 4 = 15
+-- (wcześniejsza wersja tego komentarza liczyła sam antybiotyk i zaniżała o 4)
 --
--- ⚠️ Wariant 10-dniowy to 62 zadania lekowe. Lekarz o tym wie i zaakceptował
+-- ⚠️ Wariant 10-dniowy to 66 zadań lekowych. Lekarz o tym wie i zaakceptował
 --    schemat; sposób ograniczenia (np. łączenie obu leków w jedno zadanie) jest
 --    otwartym tematem, celowo NIE rozstrzygniętym w tej migracji.
