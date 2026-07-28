@@ -1,4 +1,4 @@
--- Migracja 185: protokoły CareFlow — jeden schemat, trzy długości
+-- Migracja 185: protokoły CareFlow — jeden schemat, cztery warianty
 --
 -- Zastępuje sześć odrębnych szkiców z `PROTOKOLY_CAREFLOW_DO_AKCEPTACJI_2026-07-26.md`.
 -- Decyzja lekarza (2026-07-28): schemat jest JEDEN, różni się WYŁĄCZNIE długością.
@@ -22,12 +22,14 @@
 -- ─── CO WCHODZI ──────────────────────────────────────────────────────────────
 -- 1. Kolumna `dose_snap` na `care_template_steps`.
 -- 2. Wyłączenie starego seeda „Zabieg chirurgiczny" (bloker B1) — MUSI być pierwsze.
--- 3. Trzy protokoły różniące się wyłącznie liczbą dawek: 4, 7 i 10 dni.
+-- 3. Cztery protokoły: 4, 7 i 10 dni (amoksycylina) + wariant dla alergii na penicyliny.
 --
--- ⚠️ NIE WCHODZĄ warianty dla alergii na penicyliny — czekają na decyzję lekarza,
---    czym zastąpić klindamycynę w profilaktyce IZW (AHA 2021 / ESC 2023 ją wycofały;
---    kandydaci: azytromycyna, klarytromycyna, doksycyklina). Bez tej odpowiedzi
---    wariant alergiczny byłby zgadywaniem antybiotyku.
+-- ⚠️ WARIANT ALERGICZNY = KLINDAMYCYNA 600 mg → 300 mg co 8 h, MAKSYMALNIE 3 DOBY.
+--    Limit jest farmakologiczny (ryzyko C. difficile), nie zależy od rozległości zabiegu —
+--    dlatego jeden wariant, a nie trzy długości. Opis KAŻDEJ dawki niesie ostrzeżenie
+--    o biegunce. Klindamycyna NIE nadaje się do profilaktyki infekcyjnego zapalenia
+--    wsierdzia — AHA 2021 i ESC 2023 wycofały ją z tego wskazania; ten protokół jest
+--    osłoną okołozabiegową, nie profilaktyką IZW.
 
 BEGIN;
 
@@ -60,7 +62,7 @@ UPDATE care_templates
        updated_at = NOW()
  WHERE name = 'Zabieg chirurgiczny';
 
--- ─── 3. Trzy protokoły ───────────────────────────────────────────────────────
+-- ─── 3. Cztery protokoły ─────────────────────────────────────────────────────
 DO $$
 DECLARE
     v_variant   RECORD;
@@ -73,7 +75,11 @@ BEGIN
             -- (dni, nazwa, wskazania, czy metronidazol)
             (4,  'Opieka pozabiegowa — 4 dni',  'Ekstrakcje zębów zatrzymanych, proste implantacje', false),
             (7,  'Opieka pozabiegowa — 7 dni',  'Przeszczepy, prostsze augmentacje',                  false),
-            (10, 'Opieka pozabiegowa — 10 dni', 'Duże augmentacje, podniesienie zatoki',              true)
+            (10, 'Opieka pozabiegowa — 10 dni', 'Duże augmentacje, podniesienie zatoki',              true),
+            -- Alergia na penicyliny: klindamycyna, MAKSYMALNIE 3 doby (ryzyko C. difficile).
+            -- Dlatego jeden wariant, a nie trzy długości — limit jest farmakologiczny,
+            -- nie zależy od rozległości zabiegu.
+            (3,  'Opieka pozabiegowa — alergia na penicyliny', 'Alergia na penicyliny; osłona 3 doby', false)
         ) AS t(days, tpl_name, indications, with_metro)
     LOOP
         -- 3 dawki na dobę (siatka 07/15/23) przez `days` dób.
@@ -82,17 +88,37 @@ BEGIN
         -- Leki. Dawka nasycająca i podtrzymująca to DWIE ODRĘBNE pozycje: pole `dose`
         -- kopiuje się dosłownie do każdej dawki, więc jedna pozycja sprawiłaby, że przy
         -- dawce 6/12 pacjent czytałby „2 g jednorazowo przed zabiegiem".
-        v_meds := jsonb_build_array(
-            jsonb_build_object(
-                'name', 'Amoksycylina',
-                'dose', '2 g jednorazowo',
-                'description', 'Dawka nasycająca przed zabiegiem.',
-                'frequency', 'jednorazowo'),
-            jsonb_build_object(
-                'name', 'Amoksycylina',
-                'dose', '1 g',
-                'description', 'Osłona antybiotykowa.',
-                'frequency', 'co 8 godzin'),
+        -- Wariant alergiczny: klindamycyna zamiast amoksycyliny.
+        -- ⚠️ Klindamycyna NIE nadaje się do profilaktyki infekcyjnego zapalenia wsierdzia
+        -- (AHA 2021 / ESC 2023 ją z tego wskazania wycofały) i wymaga jawnego ostrzeżenia
+        -- o C. difficile przy KAŻDEJ dawce — stąd limit 3 dób.
+        v_meds := CASE WHEN v_variant.tpl_name LIKE '%alergia%' THEN
+            jsonb_build_array(
+                jsonb_build_object(
+                    'name', 'Klindamycyna',
+                    'dose', '600 mg jednorazowo',
+                    'description', 'Dawka nasycająca przed zabiegiem (alergia na penicyliny). Przy biegunce w trakcie lub po kuracji odstaw lek i natychmiast skontaktuj się z nami.',
+                    'frequency', 'jednorazowo'),
+                jsonb_build_object(
+                    'name', 'Klindamycyna',
+                    'dose', '300 mg',
+                    'description', 'Osłona antybiotykowa (alergia na penicyliny). Przy biegunce w trakcie lub po kuracji odstaw lek i natychmiast skontaktuj się z nami.',
+                    'frequency', 'co 8 godzin')
+            )
+        ELSE
+            jsonb_build_array(
+                jsonb_build_object(
+                    'name', 'Amoksycylina',
+                    'dose', '2 g jednorazowo',
+                    'description', 'Dawka nasycająca przed zabiegiem.',
+                    'frequency', 'jednorazowo'),
+                jsonb_build_object(
+                    'name', 'Amoksycylina',
+                    'dose', '1 g',
+                    'description', 'Osłona antybiotykowa.',
+                    'frequency', 'co 8 godzin')
+            )
+        END || jsonb_build_array(
             jsonb_build_object(
                 'name', 'Nimesulid',
                 'dose', '100 mg',
@@ -230,7 +256,7 @@ END $$;
 COMMIT;
 
 -- ─── KONTROLA PO WGRANIU ─────────────────────────────────────────────────────
--- Powinny wyjść trzy protokoły i zero aktywnych starych seedów:
+-- Powinny wyjść CZTERY protokoły i zero aktywnych starych seedów:
 --   SELECT name, is_active, jsonb_array_length(default_medications) AS leki
 --     FROM care_templates ORDER BY name;
 --
@@ -238,6 +264,7 @@ COMMIT;
 --   4 dni  → 12 + 2 okołozabiegowe = 14
 --   7 dni  → 21 + 2 = 23
 --   10 dni → 30 + 30 metronidazolu + 2 = 62
+--   alergia (3 dni) → 9 + 2 = 11
 --
 -- ⚠️ Wariant 10-dniowy to 62 zadania lekowe. Lekarz o tym wie i zaakceptował
 --    schemat; sposób ograniczenia (np. łączenie obu leków w jedno zadanie) jest
