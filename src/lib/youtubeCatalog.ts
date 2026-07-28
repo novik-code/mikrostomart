@@ -39,6 +39,47 @@ interface YtVideoRow {
     synced_at: string;
 }
 
+/**
+ * Minimalne kształty odpowiedzi YouTube Data API v3 — tylko pola, których
+ * faktycznie używamy. Wszystko opcjonalne, bo API bywa niekompletne
+ * (np. brak statistics przy ukrytych licznikach) i kod i tak defensywnie
+ * fallbackuje.
+ */
+interface YtThumbnail {
+    url?: string;
+}
+
+interface YtThumbnails {
+    default?: YtThumbnail;
+    medium?: YtThumbnail;
+    high?: YtThumbnail;
+}
+
+interface YtChannelsResponse {
+    items?: Array<{
+        contentDetails?: { relatedPlaylists?: { uploads?: string } };
+    }>;
+}
+
+interface YtPlaylistItemsResponse {
+    items?: Array<{ contentDetails?: { videoId?: string } }>;
+    nextPageToken?: string;
+}
+
+interface YtVideosResponse {
+    items?: Array<{
+        id: string;
+        contentDetails?: { duration?: string };
+        snippet?: {
+            title?: string;
+            description?: string;
+            publishedAt?: string;
+            thumbnails?: YtThumbnails;
+        };
+        statistics?: { viewCount?: string };
+    }>;
+}
+
 export interface SyncResult {
     ok: boolean;
     total?: number;
@@ -57,7 +98,7 @@ export function parseIsoDuration(iso: string | undefined | null): number {
     return (Number(h) || 0) * 3600 + (Number(min) || 0) * 60 + (Number(s) || 0);
 }
 
-async function fetchJson(url: string): Promise<any> {
+async function fetchJson<T>(url: string): Promise<T> {
     const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) {
         const body = await res.text().catch(() => '');
@@ -86,7 +127,7 @@ export async function syncYoutubeCatalog(): Promise<SyncResult> {
     let quotaCost = 0;
     try {
         // 1. Uploads playlist id (może być też wyliczony UC→UU, ale wołanie jest pewne).
-        const chan = await fetchJson(
+        const chan = await fetchJson<YtChannelsResponse>(
             `${API_BASE}/channels?part=contentDetails&id=${channelId}&key=${apiKey}`,
         );
         quotaCost += 1;
@@ -100,7 +141,7 @@ export async function syncYoutubeCatalog(): Promise<SyncResult> {
         const videoIds: string[] = [];
         let pageToken = '';
         do {
-            const page = await fetchJson(
+            const page = await fetchJson<YtPlaylistItemsResponse>(
                 `${API_BASE}/playlistItems?part=contentDetails&playlistId=${uploads}` +
                     `&maxResults=50&key=${apiKey}${pageToken ? `&pageToken=${pageToken}` : ''}`,
             );
@@ -121,14 +162,14 @@ export async function syncYoutubeCatalog(): Promise<SyncResult> {
         const rows: YtVideoRow[] = [];
         for (let i = 0; i < videoIds.length; i += 50) {
             const chunk = videoIds.slice(i, i + 50);
-            const details = await fetchJson(
+            const details = await fetchJson<YtVideosResponse>(
                 `${API_BASE}/videos?part=contentDetails,snippet,statistics` +
                     `&id=${chunk.join(',')}&maxResults=50&key=${apiKey}`,
             );
             quotaCost += 1;
             for (const v of details.items ?? []) {
                 const seconds = parseIsoDuration(v?.contentDetails?.duration);
-                const th = v?.snippet?.thumbnails ?? {};
+                const th: YtThumbnails = v?.snippet?.thumbnails ?? {};
                 rows.push({
                     video_id: v.id,
                     title: v?.snippet?.title ?? '',
@@ -151,7 +192,7 @@ export async function syncYoutubeCatalog(): Promise<SyncResult> {
             const batch = rows.slice(i, i + 200);
             const { error } = await supabase
                 .from('youtube_videos')
-                .upsert(batch as any, { onConflict: 'video_id' });
+                .upsert(batch, { onConflict: 'video_id' });
             if (error) {
                 return { ok: false, error: `upsert: ${error.message}`, quotaCost };
             }
@@ -168,7 +209,7 @@ export async function syncYoutubeCatalog(): Promise<SyncResult> {
         for (const o of (overrides ?? []) as Array<{ video_id: string; is_short_override: boolean }>) {
             await supabase
                 .from('youtube_videos')
-                .update({ is_short: o.is_short_override } as any)
+                .update({ is_short: o.is_short_override })
                 .eq('video_id', o.video_id);
         }
 

@@ -9,6 +9,18 @@ import { brand } from '@/lib/brandConfig';
  * niego (uniknięcie błędów GSC). Cache 24h (next revalidate). W pełni graceful: brak
  * API key / demo / błąd API → [] → brak schematu (może tylko pomóc, nigdy nie zaszkodzić).
  */
+/** Fragment `snippet` z playlistItems.list — tylko pola, których używamy. */
+interface YtSnippet {
+    title?: string;
+    description?: string;
+    publishedAt?: string;
+    resourceId?: { videoId?: string };
+    thumbnails?: {
+        high?: { url?: string };
+        medium?: { url?: string };
+    };
+}
+
 interface VideoMeta {
     id: string;
     title: string;
@@ -41,8 +53,8 @@ export async function fetchYouTubeVideosForSchema(): Promise<VideoMeta[]> {
         const plData = await plRes.json();
 
         return (plData.items || [])
-            .map((i: { snippet?: Record<string, unknown> }): VideoMeta => {
-                const s = (i.snippet || {}) as Record<string, any>;
+            .map((i: { snippet?: YtSnippet }): VideoMeta => {
+                const s: YtSnippet = i.snippet || {};
                 return {
                     id: s.resourceId?.videoId || '',
                     title: s.title || '',

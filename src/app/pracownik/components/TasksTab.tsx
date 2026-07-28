@@ -24,6 +24,48 @@ interface TasksTabProps {
     isMobile: boolean;
 }
 
+// ─── Lokalne modele widoku (ksztalty payloadow z /api/employee/tasks/*) ───
+
+/** Etykieta zadania — slownik `task_labels` (jak useTasks().allLabels). */
+type TaskLabel = { id: string; name: string; color: string };
+
+/** Osoba przypisana do zadania — element `employee_tasks.assigned_to` (JSONB). */
+type TaskAssignee = EmployeeTask['assigned_to'][number];
+
+/** Wiersz `task_comments` z GET /api/employee/tasks/[id]/comments. */
+interface TaskComment {
+    id: string;
+    author_name: string | null;
+    author_email: string | null;
+    content: string;
+    created_at: string;
+}
+
+/**
+ * Pojedyncza zmiana pola w `task_history.changes` (JSONB).
+ * `old`/`new` sa deklarowane jako string, bo tak sa renderowane — w bazie moga
+ * byc rowniez tablicami URL-i albo null, dlatego kod nizej broni sie
+ * `Array.isArray(...)` i sprawdzeniem falsy przed uzyciem.
+ * `done`/`item` wystepuja wylacznie dla `change_type === 'checklist'`.
+ */
+interface TaskHistoryChange {
+    // `unknown`, nie `string`: kolumna JSONB realnie bywa tablica (historia zdjec:
+    // image_url/image_urls) albo null. Typ `string` czynil galaz Array.isArray()
+    // nieosiagalna wedlug typow — a to JEDYNA sciezka renderujaca historie zdjec.
+    old: unknown;
+    new: unknown;
+    done?: boolean;
+    item?: string;
+}
+
+/** Wiersz `task_history` z GET /api/employee/tasks/[id]?history=true. */
+interface TaskHistoryEntry {
+    changed_by: string | null;
+    changed_at: string;
+    change_type: string;
+    changes: Record<string, TaskHistoryChange> | null;
+}
+
 export default function TasksTab({
     tasks,
     setTasks,
@@ -71,7 +113,7 @@ export default function TasksTab({
     const [zoomedImage, setZoomedImage] = useState<string | null>(null);
     const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
     const [selectedViewTask, setSelectedViewTask] = useState<EmployeeTask | null>(null);
-    const [taskHistory, setTaskHistory] = useState<any[]>([]);
+    const [taskHistory, setTaskHistory] = useState<TaskHistoryEntry[]>([]);
     const [taskHistoryLoading, setTaskHistoryLoading] = useState(false);
     const [taskHistoryExpanded, setTaskHistoryExpanded] = useState(false);
     const [taskViewMode, setTaskViewMode] = useState<'list' | 'kanban' | 'calendar'>('kanban');
@@ -419,7 +461,7 @@ export default function TasksTab({
                                                 setPushSendGroups([]);
                                                 setPushSendIndividuals([]);
                                             }
-                                        } catch (e: any) { setPushSendResult({ error: e.message }); }
+                                        } catch (e) { setPushSendResult({ error: e instanceof Error ? e.message : String(e) }); }
                                         finally { setPushSending(false); }
                                     }}
                                     style={{ flex: 1, padding: '0.6rem', background: 'linear-gradient(135deg,#fb923c,#f97316)', border: 'none', borderRadius: '0.4rem', color: '#fff', fontWeight: '600', cursor: 'pointer', opacity: pushSending || !pushSendTitle || !pushSendBody || (pushSendGroups.length === 0 && pushSendIndividuals.length === 0) ? 0.5 : 1 }}
@@ -766,8 +808,8 @@ export default function TasksTab({
                                                         <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                                                             {(task.label_ids as string[])
                                                                 .map(id => allLabels.find(l => l.id === id))
-                                                                .filter(Boolean)
-                                                                .map((l: any) => (
+                                                                .filter((l): l is TaskLabel => Boolean(l))
+                                                                .map(l => (
                                                                     <span key={l.id} style={{
                                                                         fontSize: '0.62rem', fontWeight: 600, color: l.color,
                                                                         border: `1px solid ${l.color}`, background: `${l.color}22`,
@@ -1090,7 +1132,7 @@ export default function TasksTab({
                                                 {/* 💬 Comments */}
                                                 <div style={{ marginTop: '0.5rem' }}>
                                                     <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.3rem' }}>💬 Komentarze ({(taskComments[task.id] || []).length})</div>
-                                                    {(taskComments[task.id] || []).map((c: any, ci: number) => (
+                                                    {((taskComments[task.id] || []) as TaskComment[]).map((c, ci) => (
                                                         <div key={ci} style={{ padding: '0.3rem 0', borderBottom: ci < (taskComments[task.id] || []).length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                                                             <span style={{ fontSize: '0.65rem', color: '#38bdf8', fontWeight: '600' }}>{c.author_name || c.author_email}</span>
                                                             <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.25)', marginLeft: '0.4rem' }}>{new Date(c.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
@@ -1151,7 +1193,7 @@ export default function TasksTab({
                                                             ) : taskHistory.length === 0 ? (
                                                                 <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '0.5rem' }}>Brak historii zmian</div>
                                                             ) : (
-                                                                taskHistory.map((h: any, idx: number) => {
+                                                                taskHistory.map((h, idx) => {
                                                                     const changedByName = staffList.find(s => s.email === h.changed_by)?.name || h.changed_by;
                                                                     const dateStr = new Date(h.changed_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
                                                                     const fieldLabels: Record<string, string> = {
@@ -1172,7 +1214,7 @@ export default function TasksTab({
                                                                                 <strong>{changedByName}</strong> • {dateStr}
                                                                             </div>
                                                                             <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.55)' }}>
-                                                                                {Object.entries(h.changes || {}).map(([key, val]: [string, any]) => {
+                                                                                {Object.entries(h.changes || ({} as Record<string, TaskHistoryChange>)).map(([key, val]) => {
                                                                                     if (h.change_type === 'checklist') {
                                                                                         return (
                                                                                             <div key={key}>
@@ -1182,7 +1224,7 @@ export default function TasksTab({
                                                                                     }
                                                                                     const label = fieldLabels[key] || key;
                                                                                     // Safely convert any value to a displayable string
-                                                                                    const toStr = (v: any): string => {
+                                                                                    const toStr = (v: unknown): string => {
                                                                                         if (v === null || v === undefined) return '—';
                                                                                         if (Array.isArray(v)) {
                                                                                             if (key === 'image_urls' || key === 'image_url') return v.length > 0 ? `📷 ×${v.length}` : '—';
@@ -1191,20 +1233,24 @@ export default function TasksTab({
                                                                                         if (typeof v === 'object') return JSON.stringify(v).substring(0, 60);
                                                                                         return String(v) || '—';
                                                                                     };
-                                                                                    let oldDisplay: string = toStr(val.old);
-                                                                                    let newDisplay: string = toStr(val.new);
+                                                                                    // Zawezenie raz: pole historii jest JSONB (bywa tablica), a ponizsze galezie
+                                                                                    // potrzebuja tekstu. Galaz zdjec czyta surowa wartosc przez Array.isArray.
+                                                                                    const oldStr = toStr(val.old);
+                                                                                    const newStr = toStr(val.new);
+                                                                                    let oldDisplay: string = oldStr;
+                                                                                    let newDisplay: string = newStr;
                                                                                     if (key === 'status') {
-                                                                                        oldDisplay = statusLabels[val.old] || val.old || '—';
-                                                                                        newDisplay = statusLabels[val.new] || val.new || '—';
+                                                                                        oldDisplay = statusLabels[oldStr] || oldStr || '—';
+                                                                                        newDisplay = statusLabels[newStr] || newStr || '—';
                                                                                     } else if (key === 'priority') {
-                                                                                        oldDisplay = priorityLabels[val.old] || val.old || '—';
-                                                                                        newDisplay = priorityLabels[val.new] || val.new || '—';
+                                                                                        oldDisplay = priorityLabels[oldStr] || oldStr || '—';
+                                                                                        newDisplay = priorityLabels[newStr] || newStr || '—';
                                                                                     } else if (key === 'image_url' || key === 'image_urls') {
                                                                                         oldDisplay = Array.isArray(val.old) ? (val.old.length > 0 ? `📷 ×${val.old.length}` : '—') : (val.old ? '📷' : '—');
                                                                                         newDisplay = Array.isArray(val.new) ? (val.new.length > 0 ? `📷 ×${val.new.length}` : '—') : (val.new ? '📷' : '—');
                                                                                     } else if (key === 'due_date') {
-                                                                                        oldDisplay = val.old ? new Date(val.old).toLocaleDateString('pl-PL') : '—';
-                                                                                        newDisplay = val.new ? new Date(val.new).toLocaleDateString('pl-PL') : '—';
+                                                                                        oldDisplay = val.old ? new Date(oldStr).toLocaleDateString('pl-PL') : '—';
+                                                                                        newDisplay = val.new ? new Date(newStr).toLocaleDateString('pl-PL') : '—';
                                                                                     }
                                                                                     // Skip internal IDs
                                                                                     if (key === 'assigned_to_doctor_id' || key === 'patient_id' || key === 'linked_appointment_info') return null;
@@ -1237,8 +1283,8 @@ export default function TasksTab({
                         /* Horizontal scroll container — columns scroll inside, NOT the whole page */
                         overflowX: 'auto',
                         overflowY: 'visible',
-                        WebkitOverflowScrolling: 'touch' as any,
-                        overscrollBehaviorX: 'contain' as any,
+                        WebkitOverflowScrolling: 'touch',
+                        overscrollBehaviorX: 'contain',
                         marginLeft: '-0.5rem',
                         marginRight: '-0.5rem',
                         paddingLeft: '0.5rem',
@@ -1724,7 +1770,7 @@ export default function TasksTab({
                                         <label style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem', display: 'block' }}>Priorytet</label>
                                         <select
                                             value={taskForm.priority}
-                                            onChange={e => setTaskForm(p => ({ ...p, priority: e.target.value as any }))}
+                                            onChange={e => setTaskForm(p => ({ ...p, priority: e.target.value as EmployeeTask['priority'] }))}
                                             style={{
                                                 width: '100%',
                                                 background: 'rgba(255,255,255,0.06)',
@@ -2088,7 +2134,7 @@ export default function TasksTab({
                                         {/* Selected chips */}
                                         {(editForm.assigned_to || []).length > 0 && (
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginBottom: '0.4rem' }}>
-                                                {(editForm.assigned_to || []).map((a: any, i: number) => (
+                                                {((editForm.assigned_to || []) as TaskAssignee[]).map((a, i) => (
                                                     <span key={i} style={{
                                                         display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
                                                         background: 'rgba(56,189,248,0.15)', border: '1px solid rgba(56,189,248,0.3)',
@@ -2097,7 +2143,7 @@ export default function TasksTab({
                                                         {a.name}
                                                         <button
                                                             type="button"
-                                                            onClick={() => setEditForm((p: any) => ({ ...p, assigned_to: (p.assigned_to || []).filter((_: any, idx: number) => idx !== i) }))}
+                                                            onClick={() => setEditForm(p => ({ ...p, assigned_to: ((p.assigned_to || []) as TaskAssignee[]).filter((_, idx) => idx !== i) }))}
                                                             style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.7rem', padding: 0, lineHeight: 1 }}
                                                         >✕</button>
                                                     </span>
@@ -2108,14 +2154,14 @@ export default function TasksTab({
                                             value=""
                                             onChange={e => {
                                                 const selectedStaff = staffList.find(s => s.id === e.target.value);
-                                                if (selectedStaff && !(editForm.assigned_to || []).some((a: any) => a.id === selectedStaff.id)) {
-                                                    setEditForm((p: any) => ({ ...p, assigned_to: [...(p.assigned_to || []), { id: selectedStaff.id, name: selectedStaff.name }] }));
+                                                if (selectedStaff && !((editForm.assigned_to || []) as TaskAssignee[]).some(a => a.id === selectedStaff.id)) {
+                                                    setEditForm(p => ({ ...p, assigned_to: [...((p.assigned_to || []) as TaskAssignee[]), { id: selectedStaff.id, name: selectedStaff.name }] }));
                                                 }
                                             }}
                                             style={{ width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '0.5rem', padding: '0.6rem 0.85rem', color: '#fff', fontSize: '0.85rem', outline: 'none' }}
                                         >
                                             <option value="">+ Dodaj pracownika...</option>
-                                            {staffList.filter(s => !(editForm.assigned_to || []).some((a: any) => a.id === s.id)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                            {staffList.filter(s => !((editForm.assigned_to || []) as TaskAssignee[]).some(a => a.id === s.id)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                         </select>
                                     </div>
                                 </div>
@@ -2130,7 +2176,7 @@ export default function TasksTab({
                                             borderRadius: '0.5rem', padding: '0.5rem 0.85rem',
                                         }}>
                                             <span style={{ fontSize: '0.82rem', color: '#38bdf8', fontWeight: '600', flex: 1 }}>👤 {editForm.patient_name}</span>
-                                            <button type="button" onClick={() => { setEditForm((p: any) => ({ ...p, patient_id: '', patient_name: '' })); setEditPatientSearchQuery(''); setEditPatientSearchResults([]); }}
+                                            <button type="button" onClick={() => { setEditForm(p => ({ ...p, patient_id: '', patient_name: '' })); setEditPatientSearchQuery(''); setEditPatientSearchResults([]); }}
                                                 style={{ background: 'none', border: 'none', color: '#38bdf8', cursor: 'pointer', fontSize: '0.8rem' }}>✕</button>
                                         </div>
                                     ) : (
@@ -2157,7 +2203,7 @@ export default function TasksTab({
                                                     {editPatientSearchResults.map(p => (
                                                         <button key={p.id} type="button"
                                                             onClick={() => {
-                                                                setEditForm((prev: any) => ({ ...prev, patient_id: p.id, patient_name: p.fullName }));
+                                                                setEditForm(prev => ({ ...prev, patient_id: p.id, patient_name: p.fullName }));
                                                                 setEditPatientSearchQuery('');
                                                                 setEditPatientSearchResults([]);
                                                             }}
@@ -2198,7 +2244,7 @@ export default function TasksTab({
                                         {((editForm.image_urls || []) as string[]).map((url: string, idx: number) => (
                                             <div key={idx} style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
                                                 <img src={url} alt="" onClick={() => setZoomedImage(url)} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.4rem', border: '1px solid rgba(255,255,255,0.12)', cursor: 'zoom-in' }} />
-                                                <button onClick={() => setEditForm((p: any) => { const urls = ((p.image_urls || []) as string[]).filter((_: string, i: number) => i !== idx); return { ...p, image_urls: urls, image_url: urls[0] || '' }; })} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.8)', border: 'none', color: '#fff', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: '0.6rem', lineHeight: '18px', textAlign: 'center', padding: 0 }}>✕</button>
+                                                <button onClick={() => setEditForm(p => { const urls = ((p.image_urls || []) as string[]).filter((_: string, i: number) => i !== idx); return { ...p, image_urls: urls, image_url: urls[0] || '' }; })} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.8)', border: 'none', color: '#fff', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: '0.6rem', lineHeight: '18px', textAlign: 'center', padding: 0 }}>✕</button>
                                             </div>
                                         ))}
                                         {((editForm.image_urls || []) as string[]).length < 5 && (
@@ -2782,12 +2828,12 @@ export default function TasksTab({
                             {selectedViewTask.due_date && (
                                 <span style={{ color: new Date(selectedViewTask.due_date) < new Date() && selectedViewTask.status !== 'done' ? '#ef4444' : 'rgba(255,255,255,0.5)' }}>
                                     📅 {new Date(selectedViewTask.due_date).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' })}
-                                    {(selectedViewTask as any).due_time && ` o ${(selectedViewTask as any).due_time}`}
+                                    {selectedViewTask.due_time && ` o ${selectedViewTask.due_time}`}
                                 </span>
                             )}
                             {selectedViewTask.patient_name && <span>👤 {selectedViewTask.patient_name}</span>}
                             {selectedViewTask.assigned_to && selectedViewTask.assigned_to.length > 0 && (
-                                <span>👥 {selectedViewTask.assigned_to.map((a: any) => a.name || a).join(', ')}</span>
+                                <span>👥 {selectedViewTask.assigned_to.map(a => a.name || a).join(', ')}</span>
                             )}
                         </div>
 
@@ -2833,7 +2879,7 @@ export default function TasksTab({
                             <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.4rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                 💬 Komentarze ({(taskComments[selectedViewTask.id] || []).length})
                             </div>
-                            {(taskComments[selectedViewTask.id] || []).map((c: any) => (
+                            {((taskComments[selectedViewTask.id] || []) as TaskComment[]).map((c) => (
                                 <div key={c.id} style={{ padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.04)', borderRadius: '0.4rem', marginBottom: '0.3rem', fontSize: '0.78rem' }}>
                                     <span style={{ color: '#38bdf8', fontWeight: '600', fontSize: '0.7rem' }}>{c.author_name || c.author_email?.split('@')[0]}</span>
                                     <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.65rem', marginLeft: '0.4rem' }}>{new Date(c.created_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
@@ -2876,7 +2922,7 @@ export default function TasksTab({
                                         {taskHistory.length === 0 ? (
                                             <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: '0.5rem' }}>Brak historii zmian</div>
                                         ) : (
-                                            taskHistory.map((h: any, idx: number) => {
+                                            taskHistory.map((h, idx) => {
                                                 const changedByName = staffList.find(s => s.email === h.changed_by)?.name || h.changed_by;
                                                 const dateStr = new Date(h.changed_at).toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
                                                 const fieldLabels: Record<string, string> = {
@@ -2891,11 +2937,11 @@ export default function TasksTab({
                                                             {h.change_type === 'status' ? '🔄' : h.change_type === 'checklist' ? '☑️' : '✏️'} <strong>{changedByName}</strong> • {dateStr}
                                                         </div>
                                                         <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.55)' }}>
-                                                            {Object.entries(h.changes || {}).map(([key, val]: [string, any]) => {
+                                                            {Object.entries(h.changes || ({} as Record<string, TaskHistoryChange>)).map(([key, val]) => {
                                                                 if (h.change_type === 'checklist') return <div key={key}>{val.done ? '✅' : '⬜'} {val.item}</div>;
                                                                 if (key === 'assigned_to_doctor_id' || key === 'patient_id' || key === 'linked_appointment_info') return null;
                                                                 const label = fieldLabels[key] || key;
-                                                                const toStr = (v: any): string => {
+                                                                const toStr = (v: unknown): string => {
                                                                     if (v === null || v === undefined) return '—';
                                                                     if (Array.isArray(v)) {
                                                                         if (key === 'image_urls' || key === 'image_url') return v.length > 0 ? `📷 ×${v.length}` : '—';
@@ -2904,15 +2950,19 @@ export default function TasksTab({
                                                                     if (typeof v === 'object') return JSON.stringify(v).substring(0, 60);
                                                                     return String(v) || '—';
                                                                 };
-                                                                let oldDisplay: string = toStr(val.old);
-                                                                let newDisplay: string = toStr(val.new);
-                                                                if (key === 'status') { oldDisplay = statusLabels[val.old] || val.old || '—'; newDisplay = statusLabels[val.new] || val.new || '—'; }
-                                                                else if (key === 'priority') { oldDisplay = priorityLabels[val.old] || val.old || '—'; newDisplay = priorityLabels[val.new] || val.new || '—'; }
+                                                                // Zawezenie raz: pole historii jest JSONB (bywa tablica), a ponizsze galezie
+                                                                                    // potrzebuja tekstu. Galaz zdjec czyta surowa wartosc przez Array.isArray.
+                                                                                    const oldStr = toStr(val.old);
+                                                                                    const newStr = toStr(val.new);
+                                                                                    let oldDisplay: string = oldStr;
+                                                                let newDisplay: string = newStr;
+                                                                if (key === 'status') { oldDisplay = statusLabels[oldStr] || oldStr || '—'; newDisplay = statusLabels[newStr] || newStr || '—'; }
+                                                                else if (key === 'priority') { oldDisplay = priorityLabels[oldStr] || oldStr || '—'; newDisplay = priorityLabels[newStr] || newStr || '—'; }
                                                                 else if (key === 'image_url' || key === 'image_urls') {
                                                                     oldDisplay = Array.isArray(val.old) ? (val.old.length > 0 ? `📷 ×${val.old.length}` : '—') : (val.old ? '📷' : '—');
                                                                     newDisplay = Array.isArray(val.new) ? (val.new.length > 0 ? `📷 ×${val.new.length}` : '—') : (val.new ? '📷' : '—');
                                                                 }
-                                                                else if (key === 'due_date') { oldDisplay = val.old ? new Date(val.old).toLocaleDateString('pl-PL') : '—'; newDisplay = val.new ? new Date(val.new).toLocaleDateString('pl-PL') : '—'; }
+                                                                else if (key === 'due_date') { oldDisplay = val.old ? new Date(oldStr).toLocaleDateString('pl-PL') : '—'; newDisplay = val.new ? new Date(newStr).toLocaleDateString('pl-PL') : '—'; }
                                                                 return <div key={key}>{label}: {oldDisplay} → {newDisplay}</div>;
                                                             })}
                                                         </div>

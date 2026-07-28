@@ -76,14 +76,16 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    let body: any;
+    let body: { token?: unknown; content?: unknown } | null = null;
     try {
         body = await req.json();
     } catch {
         return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
     }
-    const token = typeof body?.token === 'string' ? body.token.trim() : '';
-    const content = typeof body?.content === 'string' ? body.content.trim() : '';
+    const rawToken = body?.token;
+    const rawContent = body?.content;
+    const token = typeof rawToken === 'string' ? rawToken.trim() : '';
+    const content = typeof rawContent === 'string' ? rawContent.trim() : '';
     if (!content) {
         return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
     }

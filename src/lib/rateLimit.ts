@@ -13,7 +13,7 @@
  * Migrations required: 068_rate_limit_table.sql, 174_rate_limit_atomic.sql
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 interface RateLimitResult {
     allowed: boolean;
@@ -43,8 +43,10 @@ interface RateLimitEntry {
 }
 const memoryStore = new Map<string, RateLimitEntry>();
 
-// Supabase client (service role — bypasses RLS)
-let supabase: ReturnType<typeof createClient> | null = null;
+// Supabase client (service role — bypasses RLS).
+// UWAGA: gołe `SupabaseClient`, a NIE `ReturnType<typeof createClient>` — to drugie
+// degeneruje typ schematu i każdy payload `.update()/.upsert()` rozjeżdża się do `never`.
+let supabase: SupabaseClient | null = null;
 function getSupabase() {
     if (!supabase) {
         const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -80,7 +82,7 @@ export async function checkRateLimit(
     // Two concurrent lambdas can no longer both read the same count and each
     // write count+1, which previously let daily caps be exceeded under load.
     try {
-        const { data, error } = await (db as any).rpc('increment_rate_limit', {
+        const { data, error } = await db.rpc('increment_rate_limit', {
             p_key: key,
             p_window_ms: windowMs,
         });
@@ -133,7 +135,7 @@ export async function checkRateLimit(
             // No entry or expired — create/reset.
             const { error: upErr } = await db
                 .from('rate_limit_entries')
-                .upsert({ key, count: 1, reset_at: resetAt.toISOString() } as any, { onConflict: 'key' });
+                .upsert({ key, count: 1, reset_at: resetAt.toISOString() }, { onConflict: 'key' });
             if (upErr) {
                 return degrade(key, maxRequests, windowMs, options, `upsert: ${errText(upErr)}`);
             }
@@ -142,8 +144,8 @@ export async function checkRateLimit(
 
         // Increment count.
         const newCount = existing.count + 1;
-        const { error: updErr } = await (db
-            .from('rate_limit_entries') as any)
+        const { error: updErr } = await db
+            .from('rate_limit_entries')
             .update({ count: newCount })
             .eq('key', key);
         if (updErr) {

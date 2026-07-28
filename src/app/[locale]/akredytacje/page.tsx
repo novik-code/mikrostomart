@@ -56,7 +56,7 @@ export default async function AkredytacjeIndex({ params }: { params: Promise<{ l
                     return (
                         <Link
                             key={acc.slug}
-                            href={`/akredytacje/${acc.slug}` as any}
+                            href={`/akredytacje/${acc.slug}`}
                             style={{ textDecoration: 'none' }}
                         >
                             <article

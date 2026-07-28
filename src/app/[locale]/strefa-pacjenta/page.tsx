@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function StrefaPacjentaRoot() {
@@ -40,12 +41,15 @@ export default function StrefaPacjentaRoot() {
             <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>Przekierowanie...</p>
             {showFallback && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center', marginTop: '1rem' }}>
-                    <a href="/strefa-pacjenta/login" style={{ color: 'var(--color-primary)', textDecoration: 'underline', fontSize: '0.9rem' }}>
+                    {/* `next/link` (nie `@/i18n/navigation`) — te fallbacki duplikują cele
+                        `router.replace()` powyżej, który też używa nielokalizowanego
+                        `next/navigation`, więc URL-e muszą zostać identyczne. */}
+                    <Link href="/strefa-pacjenta/login" style={{ color: 'var(--color-primary)', textDecoration: 'underline', fontSize: '0.9rem' }}>
                         Zaloguj się do Strefy Pacjenta →
-                    </a>
-                    <a href="/" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '0.8rem' }}>
+                    </Link>
+                    <Link href="/" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: '0.8rem' }}>
                         Wróć na stronę główną
-                    </a>
+                    </Link>
                 </div>
             )}
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

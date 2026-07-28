@@ -19,6 +19,19 @@ function db() {
     return createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 }
 
+/**
+ * Komunikat z nieznanego błędu (catch (e) → unknown).
+ * Obsługuje zarówno Error, jak i obiekty błędów Supabase (PostgrestError — NIE jest instancją Error,
+ * ale ma pole `message`). `undefined` dla wartości bez komunikatu — tak jak wcześniej `error.message`.
+ */
+function errMessage(e: unknown): string | undefined {
+    if (e instanceof Error) return e.message;
+    if (typeof e === 'object' && e !== null && 'message' in e && typeof e.message === 'string') {
+        return e.message;
+    }
+    return undefined;
+}
+
 // Generuje obrazek (Flux Dev → DALL-E fallback) i commituje do repo public/kb-<slug>.png.
 // Zwraca publiczny URL albo null (obrazek opcjonalny — artykuł publikuje się i bez niego).
 async function generateAndUploadImage(slug: string, title: string): Promise<string | null> {
@@ -27,12 +40,14 @@ async function generateAndUploadImage(slug: string, title: string): Promise<stri
         + `professional photography, depth of field. Canon R5, 50mm lens. High texture realism.`;
     let imageBase64: string | undefined;
     try {
-        const Replicate = require("replicate");
+        const Replicate = (await import("replicate")).default;
         const replicate = new Replicate({ auth: process.env.REPLICATE_API_TOKEN });
-        const output: any = await replicate.run("black-forest-labs/flux-dev", {
+        const output = await replicate.run("black-forest-labs/flux-dev", {
             input: { prompt, go_fast: true, output_format: "png", aspect_ratio: "16:9", output_quality: 100 },
         });
-        const imageUrl = Array.isArray(output) ? output[0] : output;
+        const first: unknown = Array.isArray(output) ? output[0] : output;
+        // fetch() i tak rzutuje argument na string — jawne String() zachowuje to zachowanie przy typach.
+        const imageUrl = typeof first === 'string' ? first : String(first);
         const imgRes = await fetch(imageUrl);
         imageBase64 = Buffer.from(await imgRes.arrayBuffer()).toString('base64');
     } catch {
@@ -53,7 +68,7 @@ async function generateAndUploadImage(slug: string, title: string): Promise<stri
 }
 
 // GET: List all articles
-export async function GET(req: NextRequest) {
+export async function GET() {
     const auth = await requireAdmin();
     if (!auth.ok) return auth.response;
 
@@ -72,8 +87,8 @@ export async function GET(req: NextRequest) {
         if (error) throw error;
 
         return NextResponse.json(data);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: errMessage(error) }, { status: 500 });
     }
 }
 
@@ -117,8 +132,8 @@ export async function DELETE(req: NextRequest) {
         }
 
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: errMessage(error) }, { status: 500 });
     }
 }
 
@@ -195,8 +210,8 @@ export async function POST(req: NextRequest) {
                         status: 'published',
                     });
                     translations.push(lang.code);
-                } catch (e: any) {
-                    console.error(`[articles publish] translate ${lang.code}:`, e?.message);
+                } catch (e) {
+                    console.error(`[articles publish] translate ${lang.code}:`, errMessage(e));
                 }
             }
 
@@ -204,8 +219,8 @@ export async function POST(req: NextRequest) {
         }
 
         return NextResponse.json({ error: "Nieznana akcja" }, { status: 400 });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: errMessage(error) }, { status: 500 });
     }
 }
 
@@ -216,7 +231,7 @@ export async function PUT(req: NextRequest) {
     try {
         const { id, title, excerpt, content, slug } = (await req.json()) || {};
         if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
-        const patch: Record<string, any> = {};
+        const patch: Record<string, string> = {};
         if (typeof title === 'string') patch.title = title;
         if (typeof excerpt === 'string') patch.excerpt = excerpt;
         if (typeof content === 'string') patch.content = content;
@@ -225,7 +240,7 @@ export async function PUT(req: NextRequest) {
         const { error } = await db().from('articles').update(patch).eq('id', id);
         if (error) throw error;
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error) {
+        return NextResponse.json({ error: errMessage(error) }, { status: 500 });
     }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
 
@@ -42,8 +43,8 @@ export default function EmployeeLoginPage() {
 
             // Full page navigation to ensure cookies are sent fresh (PWA-safe)
             window.location.href = "/pracownik";
-        } catch (err: any) {
-            const msg = err.message || '';
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : '';
             if (msg.includes('Invalid login credentials')) {
                 setError('Nieprawidłowy email lub hasło.');
             } else if (msg.includes('Email not confirmed')) {
@@ -232,7 +233,7 @@ export default function EmployeeLoginPage() {
                 </form>
 
                 <div style={{ textAlign: "center", marginTop: "1.5rem" }}>
-                    <a
+                    <Link
                         href="/pracownik/reset-haslo"
                         style={{
                             color: "rgba(255, 255, 255, 0.5)",
@@ -241,7 +242,7 @@ export default function EmployeeLoginPage() {
                         }}
                     >
                         Zapomniałeś hasła?
-                    </a>
+                    </Link>
                 </div>
 
                 {/* Back to home */}

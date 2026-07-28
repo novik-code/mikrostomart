@@ -29,6 +29,19 @@ interface RelatedItem {
     title: string;
 }
 
+/**
+ * Wiersz zwracany przez zapytania w `fetchRelated` — wspólny podzbiór kolumn dla
+ * `news` / `blog_posts` / `articles` (zob. listy w .select() poniżej). Czytamy tylko
+ * kolumny tekstowe: `slug`, `title` oraz — dla `news` — tytuł per-locale wybierany
+ * dynamicznie kluczem `title_${locale}` (`title_en` / `title_de` / `title_ua`),
+ * stąd sygnatura indeksu obok jawnie nazwanych kolumn.
+ */
+interface RelatedRow {
+    slug?: string | null;
+    title?: string | null;
+    [column: string]: string | null | undefined;
+}
+
 function localePath(locale: string, path: string): string {
     return locale === 'pl' ? path : `/${locale}${path}`;
 }
@@ -44,7 +57,7 @@ async function fetchRelated(
     const seen = new Set<string>([currentSlug]);
     const items: RelatedItem[] = [];
 
-    const pushRows = (rows: any[] | null | undefined) => {
+    const pushRows = (rows: RelatedRow[] | null | undefined) => {
         for (const r of rows || []) {
             if (!r?.slug || seen.has(r.slug) || items.length >= limit) continue;
             const title = kind === 'news'
@@ -86,10 +99,10 @@ async function fetchRelated(
                 return q;
             };
             if (hasTags && tags && tags.length > 0) {
-                pushRows((await base().overlaps('tags', tags).order(dateCol, { ascending: false, nullsFirst: false }).limit(limit + 4)).data);
+                pushRows((await base().overlaps('tags', tags).order(dateCol, { ascending: false, nullsFirst: false }).limit(limit + 4)).data as unknown as RelatedRow[] | null);
             }
             if (items.length < limit) {
-                pushRows((await base().order(dateCol, { ascending: false, nullsFirst: false }).limit(limit + 6)).data);
+                pushRows((await base().order(dateCol, { ascending: false, nullsFirst: false }).limit(limit + 6)).data as unknown as RelatedRow[] | null);
             }
         }
     } catch {

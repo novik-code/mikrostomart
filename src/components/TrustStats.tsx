@@ -275,7 +275,7 @@ function AccreditationPill({ slug, label, tooltip }: AccreditationProps) {
     const [hover, setHover] = useState(false);
     return (
         <Link
-            href={`/akredytacje/${slug}` as any}
+            href={`/akredytacje/${slug}`}
             onMouseEnter={() => setHover(true)}
             onMouseLeave={() => setHover(false)}
             onClick={() => setHover(false)}

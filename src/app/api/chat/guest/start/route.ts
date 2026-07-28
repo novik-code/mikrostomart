@@ -30,17 +30,21 @@ export async function POST(req: NextRequest) {
         );
     }
 
-    let body: any;
+    let body: { name?: unknown; phone?: unknown; email?: unknown; token?: unknown } | null = null;
     try {
         body = await req.json();
     } catch {
         return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
     }
 
-    const name = typeof body?.name === 'string' ? body.name.trim() : '';
-    const phone = typeof body?.phone === 'string' ? body.phone.trim() : '';
-    const email = typeof body?.email === 'string' ? body.email.trim() : '';
-    const resumeToken = typeof body?.token === 'string' ? body.token.trim() : '';
+    const rawName = body?.name;
+    const rawPhone = body?.phone;
+    const rawEmail = body?.email;
+    const rawToken = body?.token;
+    const name = typeof rawName === 'string' ? rawName.trim() : '';
+    const phone = typeof rawPhone === 'string' ? rawPhone.trim() : '';
+    const email = typeof rawEmail === 'string' ? rawEmail.trim() : '';
+    const resumeToken = typeof rawToken === 'string' ? rawToken.trim() : '';
 
     // Wznowienie istniejącego wątku po tokenie (per-urządzenie)
     if (resumeToken) {

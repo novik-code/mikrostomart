@@ -886,8 +886,8 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                                     <form onSubmit={submitAddPasskey} style={{ marginTop: 12 }}>
                                         <h3 style={{ color: "#fff", marginBottom: 8 }}>Dodaj klucz biometryczny</h3>
                                         <p style={{ color: "#cbd5e1", marginBottom: 8, fontSize: "0.9rem" }}>
-                                            Nazwij klucz (np. <em>„iPhone — FaceID"</em>, <em>„MacBook Touch ID"</em>).
-                                            Następnie zatwierdź biometrycznie w prompt'cie przeglądarki.
+                                            Nazwij klucz (np. <em>„iPhone — FaceID&quot;</em>, <em>„MacBook Touch ID&quot;</em>).
+                                            Następnie zatwierdź biometrycznie w prompt&apos;cie przeglądarki.
                                         </p>
                                         <input
                                             type="text"
@@ -926,7 +926,7 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                                     <div style={{ marginTop: 12, padding: 16, background: "#064e3b", borderRadius: 8 }}>
                                         <h3 style={{ color: "#10b981", marginBottom: 8 }}>✅ Klucz biometryczny dodany</h3>
                                         <p style={{ color: "#cbd5e1", marginBottom: 12 }}>
-                                            Przy następnym logowaniu zobaczysz przycisk <em>„🔐 Zaloguj biometrią"</em>
+                                            Przy następnym logowaniu zobaczysz przycisk <em>„🔐 Zaloguj biometrią&quot;</em>
                                             obok pola TOTP — jeden klik + glance/dotyk i jesteś w środku.
                                         </p>
                                         <button onClick={cancelAddPasskey} style={primaryBtnStyle}>
@@ -1181,7 +1181,7 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                                         ℹ️ To urządzenie nigdy nie zostało aktywowane (setup
                                         został przerwany przed potwierdzeniem kodu). Nikt nie ma
                                         sekretu w aplikacji Authenticator, więc bezpieczne jest
-                                        po prostu usunięcie tego wpisu i rozpoczęcie setup'u od
+                                        po prostu usunięcie tego wpisu i rozpoczęcie setup&apos;u od
                                         nowa.
                                     </div>
                                     <form onSubmit={submitRemove}>
@@ -1387,21 +1387,21 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                         </li>
                         <li>
                             Na tej stronie kliknij niebieski przycisk <strong>„🚀 Rozpocznij
-                            konfigurację 2FA"</strong>.
+                            konfigurację 2FA&quot;</strong>.
                         </li>
                         <li>
                             Pojawi się kod QR. <strong>Otwórz aplikację Authenticator NA
-                            TELEFONIE</strong> (nie aparat telefonu!) → tap <strong>„+"</strong>
-                            → <strong>„Zeskanuj kod QR"</strong> → skieruj kamerę na QR z
+                            TELEFONIE</strong> (nie aparat telefonu!) → tap <strong>„+&quot;</strong>
+                            → <strong>„Zeskanuj kod QR&quot;</strong> → skieruj kamerę na QR z
                             tego ekranu.
                         </li>
                         <li>
-                            Aplikacja doda nowy wpis „Mikrostomart" z 6-cyfrowym kodem
-                            (zmienia się co 30s). Kliknij <strong>„✓ Zeskanowałem — dalej"</strong>
+                            Aplikacja doda nowy wpis „Mikrostomart&quot; z 6-cyfrowym kodem
+                            (zmienia się co 30s). Kliknij <strong>„✓ Zeskanowałem — dalej&quot;</strong>
                             na komputerze.
                         </li>
                         <li>
-                            Wpisz 6-cyfrowy kod z aplikacji → <strong>„Potwierdź kod"</strong>.
+                            Wpisz 6-cyfrowy kod z aplikacji → <strong>„Potwierdź kod&quot;</strong>.
                         </li>
                         <li>
                             <strong style={{ color: "#fbbf24" }}>🚨 KRYTYCZNY KROK:</strong>
@@ -1409,11 +1409,11 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                             <strong> ZAPISZ JE TERAZ</strong> w bezpiecznym miejscu (1Password,
                             sejf na recepcji, kartka). Każdy do użycia raz — gdyby
                             telefon przepadł. Po opuszczeniu tej strony NIE BĘDĄ JUŻ POKAZANE.
-                            Kliknij „📥 Pobierz jako .txt".
+                            Kliknij „📥 Pobierz jako .txt&quot;.
                         </li>
                         <li>
-                            Zaznacz checkbox „Zapisałem kody…" i kliknij <strong>„✅ Gotowe —
-                            włącz 2FA"</strong>.
+                            Zaznacz checkbox „Zapisałem kody…&quot; i kliknij <strong>„✅ Gotowe —
+                            włącz 2FA&quot;</strong>.
                         </li>
                     </ol>
                     <p style={{ marginTop: 8, color: "#94a3b8", fontStyle: "italic" }}>
@@ -1422,7 +1422,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                     <div style={{ marginTop: 10, padding: 10, background: "#064e3b", borderRadius: 6, color: "#a7f3d0", fontSize: "0.85rem" }}>
                         💡 <strong>Tip — żeby nie klepać kodu codziennie</strong>: na ekranie 2FA
                         po wpisaniu kodu zaznacz checkbox <em>„Zaufaj temu urządzeniu na 30
-                        dni"</em>. Przez najbliższy miesiąc nie będziesz musiał wpisywać kodu
+                        dni&quot;</em>. Przez najbliższy miesiąc nie będziesz musiał wpisywać kodu
                         na tej przeglądarce/komputerze. Zaznaczaj TYLKO na <strong>własnym
                         prywatnym</strong> urządzeniu (NIE na publicznym/wspólnym komputerze
                         — wtedy ktoś inny miałby dostęp przez 30 dni).
@@ -1440,20 +1440,20 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                             Na komputerze (NIE na telefonie który dodajesz) wejdź na <code>/pracownik/security</code>.
                         </li>
                         <li>
-                            W sekcji „📱 Twoje urządzenia" kliknij <strong>„+ Dodaj kolejne
-                            urządzenie"</strong>.
+                            W sekcji „📱 Twoje urządzenia&quot; kliknij <strong>„+ Dodaj kolejne
+                            urządzenie&quot;</strong>.
                         </li>
                         <li>
-                            Wpisz <strong>nazwę urządzenia</strong> (np. „Recepcja — Justyna iPhone",
-                            „Recepcja — Samsung Galaxy"). Krótka, opisowa, żeby później wiedzieć
+                            Wpisz <strong>nazwę urządzenia</strong> (np. „Recepcja — Justyna iPhone&quot;,
+                            „Recepcja — Samsung Galaxy&quot;). Krótka, opisowa, żeby później wiedzieć
                             kto jakim się loguje.
                         </li>
                         <li>
-                            Kliknij „Dalej →". Pojawi się <strong>NOWY QR</strong> (inny od
+                            Kliknij „Dalej →&quot;. Pojawi się <strong>NOWY QR</strong> (inny od
                             poprzednich — każde urządzenie ma własny sekret).
                         </li>
                         <li>
-                            Na nowym telefonie otwórz Authenticator → „+" → „Zeskanuj kod QR" →
+                            Na nowym telefonie otwórz Authenticator → „+&quot; → „Zeskanuj kod QR&quot; →
                             skanuj QR z ekranu komputera.
                         </li>
                         <li>
@@ -1461,14 +1461,14 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                             iPhone i Samsunga są RÓŻNE w tym samym czasie — to normalne).
                         </li>
                         <li>
-                            „✅ Urządzenie dodane" → klik „Wróć do listy urządzeń". Nowy telefon
+                            „✅ Urządzenie dodane&quot; → klik „Wróć do listy urządzeń&quot;. Nowy telefon
                             pojawi się na liście z badge ✅.
                         </li>
                     </ol>
                     <p style={{ marginTop: 8, color: "#fbbf24" }}>
                         ❗ <strong>NIE skanuj tego samego QR w dwóch telefonach.</strong> To by
                         zrobiło z nich kopie — brak per-device revoke. Zawsze <em>„+ Dodaj
-                        kolejne urządzenie"</em> = nowy QR = własny sekret.
+                        kolejne urządzenie&quot;</em> = nowy QR = własny sekret.
                     </p>
                 </HelpSection>
 
@@ -1478,14 +1478,14 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                         pozostałe nadal działają.
                     </p>
                     <ol style={listStyle}>
-                        <li>W sekcji „📱 Twoje urządzenia" kliknij <strong>🗑️</strong> obok urządzenia do usunięcia.</li>
+                        <li>W sekcji „📱 Twoje urządzenia&quot; kliknij <strong>🗑️</strong> obok urządzenia do usunięcia.</li>
                         <li>
                             <strong>Dla aktywnego urządzenia (✅)</strong>: wpisz kod TOTP z
-                            <em> dowolnego INNEGO</em> telefonu (lub backup code) → „🗑️ Usuń urządzenie".
+                            <em> dowolnego INNEGO</em> telefonu (lub backup code) → „🗑️ Usuń urządzenie&quot;.
                         </li>
                         <li>
-                            <strong>Dla urządzenia w trakcie setupu (⏳ „setup w toku")</strong>: po prostu
-                            kliknij „Tak, usuń" — bez kodu (bo nikt nie ma jeszcze działającego sekretu).
+                            <strong>Dla urządzenia w trakcie setupu (⏳ „setup w toku&quot;)</strong>: po prostu
+                            kliknij „Tak, usuń&quot; — bez kodu (bo nikt nie ma jeszcze działającego sekretu).
                         </li>
                     </ol>
                     <p style={{ marginTop: 8, color: "#94a3b8" }}>
@@ -1505,22 +1505,22 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                     <p style={{ marginTop: 8 }}><strong>Jak dodać klucz biometryczny:</strong></p>
                     <ol style={listStyle}>
                         <li>
-                            Na stronie security przewiń do sekcji <em>„🔐 Klucze biometryczne"</em>.
+                            Na stronie security przewiń do sekcji <em>„🔐 Klucze biometryczne&quot;</em>.
                         </li>
                         <li>
-                            Kliknij <strong>„+ Dodaj klucz biometryczny"</strong>.
+                            Kliknij <strong>„+ Dodaj klucz biometryczny&quot;</strong>.
                         </li>
                         <li>
-                            Wpisz nazwę (np. <em>„iPhone — FaceID"</em>, <em>„MacBook Touch ID"</em>) →
-                            klik „Dodaj klucz →".
+                            Wpisz nazwę (np. <em>„iPhone — FaceID&quot;</em>, <em>„MacBook Touch ID&quot;</em>) →
+                            klik „Dodaj klucz →&quot;.
                         </li>
                         <li>
                             Przeglądarka/system zapyta o biometrię — pokaż twarz (FaceID) /
                             dotknij czytnika (TouchID/Hello) / wpisz PIN urządzenia.
                         </li>
                         <li>
-                            „✅ Klucz biometryczny dodany". Od teraz na ekranie logowania
-                            zobaczysz duży niebieski przycisk <strong>„🔐 Zaloguj biometrią"</strong>
+                            „✅ Klucz biometryczny dodany&quot;. Od teraz na ekranie logowania
+                            zobaczysz duży niebieski przycisk <strong>„🔐 Zaloguj biometrią&quot;</strong>
                             obok pola TOTP.
                         </li>
                     </ol>
@@ -1542,28 +1542,28 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                         <li>
                             Każdy klucz może być usunięty bez kodu — wystarczy klik 🗑️ (passkey
                             wymaga biometrycznej weryfikacji przy każdym użyciu, więc nie ma
-                            ryzyka „skradzionego klucza").
+                            ryzyka „skradzionego klucza&quot;).
                         </li>
                     </ul>
                 </HelpSection>
 
                 <HelpSection title="🍎 Dla iPhone / iOS">
-                    <p><strong>iPhone obsługuje QR „otpauth://" natywnie</strong> — masz dwie opcje:</p>
+                    <p><strong>iPhone obsługuje QR „otpauth://&quot; natywnie</strong> — masz dwie opcje:</p>
                     <ul style={listStyle}>
                         <li>
                             <strong>Opcja A — Google Authenticator / Authy / 1Password</strong>:
-                            otwórz aplikację → „+" → „Skanuj kod QR". Tak samo jak na Androidzie.
+                            otwórz aplikację → „+&quot; → „Skanuj kod QR&quot;. Tak samo jak na Androidzie.
                         </li>
                         <li>
                             <strong>Opcja B — wbudowany iCloud Keychain</strong> (iOS 15+):
-                            otwórz <em>Aparat</em> iPhone'a → skieruj na QR → tap żółty banner
-                            „Otwórz w Hasła" → potwierdź. Kody pojawią się w
+                            otwórz <em>Aparat</em> iPhone&apos;a → skieruj na QR → tap żółty banner
+                            „Otwórz w Hasła&quot; → potwierdź. Kody pojawią się w
                             <em> Ustawienia → Hasła</em>. Bonus: synchronizacja między iPhone, iPad,
                             Mac przez iCloud.
                         </li>
                     </ul>
                     <p style={{ marginTop: 8 }}>
-                        Możesz też kliknąć <strong>„📲 Otwórz w aplikacji Authenticator"</strong>
+                        Możesz też kliknąć <strong>„📲 Otwórz w aplikacji Authenticator&quot;</strong>
                         {" "}na ekranie setupu — iOS zaproponuje wybór aplikacji jeśli masz kilka.
                     </p>
                 </HelpSection>
@@ -1577,16 +1577,16 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                     <ol style={listStyle}>
                         <li>Zainstaluj <strong>Google Authenticator</strong> z Play Store.</li>
                         <li>
-                            Otwórz aplikację → tap <strong>„+"</strong> w prawym dolnym rogu →
-                            wybierz <strong>„Zeskanuj kod QR"</strong>.
+                            Otwórz aplikację → tap <strong>„+&quot;</strong> w prawym dolnym rogu →
+                            wybierz <strong>„Zeskanuj kod QR&quot;</strong>.
                         </li>
                         <li>Skieruj kamerę telefonu na QR z ekranu komputera.</li>
                         <li>Aplikacja doda wpis i pokaże 6-cyfrowy kod.</li>
                     </ol>
                     <p style={{ marginTop: 8 }}>
                         <strong>Alternatywa</strong> jeśli skaner nie czyta QR: na ekranie setupu
-                        skopiuj „secret" przyciskiem <strong>📋 Kopiuj</strong> → w Authenticator
-                        wybierz „+" → <em>„Wprowadź klucz konfiguracji"</em> → wpisz nazwę konta
+                        skopiuj „secret&quot; przyciskiem <strong>📋 Kopiuj</strong> → w Authenticator
+                        wybierz „+&quot; → <em>„Wprowadź klucz konfiguracji&quot;</em> → wpisz nazwę konta
                         i wklej secret.
                     </p>
                 </HelpSection>
@@ -1607,7 +1607,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                     </ul>
                     <p style={{ marginTop: 8 }}>
                         Gdy zostanie Ci ≤ 2 kody (badge ostrzegawczy w panelu) — wygeneruj nowe
-                        klikiem „🔄 Wygeneruj nowe backup codes" (wymaga kodu TOTP z telefonu —
+                        klikiem „🔄 Wygeneruj nowe backup codes&quot; (wymaga kodu TOTP z telefonu —
                         stare zostaną unieważnione).
                     </p>
                 </HelpSection>
@@ -1622,7 +1622,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                         </li>
                         <li>
                             <strong>Masz backup code</strong> — na ekranie 2FA challenge kliknij
-                            „📱 Zgubiłem phone — użyj backup code", wpisz format <code>XXXXX-XXXXX</code>.
+                            „📱 Zgubiłem phone — użyj backup code&quot;, wpisz format <code>XXXXX-XXXXX</code>.
                             Każdy kod do użycia raz. Po zalogowaniu usuń utracone urządzenie
                             i wygeneruj nowe backup codes.
                         </li>
@@ -1630,7 +1630,7 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                             <strong>Nie masz ani drugiego telefonu ani backup codes</strong> —
                             poproś innego admina (Marcin lub kogokolwiek z dostępem do panelu
                             admin) o reset Twojego 2FA. Idą do <em>Admin → 🔒 Bezpieczeństwo (2FA)</em>
-                            → klik „🔄 Reset" obok Twojego konta → wpisują swój kod TOTP +
+                            → klik „🔄 Reset&quot; obok Twojego konta → wpisują swój kod TOTP +
                             powód (audit log RODO). Po tym Twoje 2FA jest zerowane — przy
                             następnym logowaniu robisz pełny setup od nowa.
                         </li>
@@ -1640,25 +1640,25 @@ function HelpModal({ onClose }: { onClose: () => void }) {
                 <HelpSection title="🛠 Częste problemy (FAQ)">
                     <p><strong>Czy muszę za każdym razem wpisywać kod 6 cyfr?</strong></p>
                     <ul style={listStyle}>
-                        <li>Domyślnie tak — co 8 godzin (typowy dzień pracy). ALE: jeśli na ekranie 2FA zaznaczysz checkbox <em>„Zaufaj temu urządzeniu na 30 dni"</em>, na tej przeglądarce/komputerze nie będziesz musiał wpisywać kodu przez miesiąc. Robisz to TYLKO na własnym prywatnym urządzeniu.</li>
+                        <li>Domyślnie tak — co 8 godzin (typowy dzień pracy). ALE: jeśli na ekranie 2FA zaznaczysz checkbox <em>„Zaufaj temu urządzeniu na 30 dni&quot;</em>, na tej przeglądarce/komputerze nie będziesz musiał wpisywać kodu przez miesiąc. Robisz to TYLKO na własnym prywatnym urządzeniu.</li>
                     </ul>
-                    <p style={{ marginTop: 10 }}><strong>Kod 6-cyfrowy „nieprawidłowy" mimo że dobrze przepisuję:</strong></p>
+                    <p style={{ marginTop: 10 }}><strong>Kod 6-cyfrowy „nieprawidłowy&quot; mimo że dobrze przepisuję:</strong></p>
                     <ul style={listStyle}>
                         <li>Sprawdź czas na telefonie — musi być sync z internetem (Ustawienia → Data i godzina → Automatycznie). TOTP toleruje ±30s odchyłki, dłuższe psuje kody.</li>
                         <li>Kod się zmienia co 30s — wpisuj szybko, nie czekaj.</li>
                         <li>Sprawdź czy wpisujesz kod z DOBREGO wpisu w Authenticator (jeśli masz wiele kont).</li>
                     </ul>
-                    <p style={{ marginTop: 10 }}><strong>Widzę „Urządzenie 1 (setup w toku)" i nie mogę dokończyć:</strong></p>
+                    <p style={{ marginTop: 10 }}><strong>Widzę „Urządzenie 1 (setup w toku)&quot; i nie mogę dokończyć:</strong></p>
                     <ul style={listStyle}>
-                        <li>Kliknij 🗑️ obok tego urządzenia → „Tak, usuń" (bez kodu). Potem rozpocznij setup od nowa „🚀 Rozpocznij konfigurację".</li>
+                        <li>Kliknij 🗑️ obok tego urządzenia → „Tak, usuń&quot; (bez kodu). Potem rozpocznij setup od nowa „🚀 Rozpocznij konfigurację&quot;.</li>
                     </ul>
                     <p style={{ marginTop: 10 }}><strong>Aparat na Samsungu nie reaguje na QR:</strong></p>
                     <ul style={listStyle}>
-                        <li>Nie używaj aparatu — otwórz NAJPIERW Google Authenticator, dopiero potem „+" → „Skanuj QR".</li>
+                        <li>Nie używaj aparatu — otwórz NAJPIERW Google Authenticator, dopiero potem „+&quot; → „Skanuj QR&quot;.</li>
                     </ul>
                     <p style={{ marginTop: 10 }}><strong>Backup codes mi się skończyły:</strong></p>
                     <ul style={listStyle}>
-                        <li>Zaloguj się TOTP-em z telefonu → /pracownik/security → „🔄 Wygeneruj nowe backup codes" → wpisz aktualny kod → zapisz nowe 8 kodów.</li>
+                        <li>Zaloguj się TOTP-em z telefonu → /pracownik/security → „🔄 Wygeneruj nowe backup codes&quot; → wpisz aktualny kod → zapisz nowe 8 kodów.</li>
                     </ul>
                 </HelpSection>
 
@@ -1750,13 +1750,13 @@ function QrSetupBlock({ data }: { data: SetupData }) {
         <>
             <div style={infoBoxStyle}>
                 📱 <strong>Otwórz aplikację Authenticator</strong> (Google Authenticator / Authy / 1Password)
-                na urządzeniu, które ma generować kody → wybierz <em>„+&nbsp;Dodaj konto"</em>
-                lub <em>„Skanuj kod QR"</em> → następnie zeskanuj kod poniżej.
+                na urządzeniu, które ma generować kody → wybierz <em>„+&nbsp;Dodaj konto&quot;</em>
+                lub <em>„Skanuj kod QR&quot;</em> → następnie zeskanuj kod poniżej.
             </div>
             <div style={warningBoxStyle}>
                 🚨 <strong>Android (Samsung): NIE używaj domyślnego aparatu telefonu</strong> ani Bixby Vision —
                 ten QR otwiera się TYLKO w aplikacji Authenticator. Jeśli aparat zamiast Authentcatora
-                wraca do podglądu zdjęć, użyj przycisku „Otwórz w aplikacji" poniżej lub wpisz secret ręcznie.
+                wraca do podglądu zdjęć, użyj przycisku „Otwórz w aplikacji&quot; poniżej lub wpisz secret ręcznie.
             </div>
             <div style={{ textAlign: "center", marginBottom: 16, padding: 16, background: "#fff", borderRadius: 8 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}

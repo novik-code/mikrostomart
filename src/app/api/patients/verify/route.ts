@@ -3,13 +3,33 @@ import { signRegistrationToken } from '@/lib/registrationToken';
 
 export const dynamic = 'force-dynamic';
 
+/** Pacjent zwracany przez Prodentis (/api/patient/verify oraz /api/patients/search). */
+interface ProdentisPatient {
+    id: string | number;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    pesel?: string;
+}
+
+/** Odpowiedź Prodentisa na weryfikację pacjenta (+ token dopinany przez withVerificationToken). */
+interface ProdentisVerifyResponse {
+    success?: boolean;
+    message?: string;
+    patient?: ProdentisPatient;
+    verificationToken?: string;
+}
+
 /**
  * Attach a signed verification token to a successful match response.
  * S10-2: register endpoint requires this token (bound to prodentisId+phone)
  * — atakujący nie może POST'ować dowolnego prodentisId do /register bez
  * uprzedniego Prodentis match przez /verify.
  */
-function withVerificationToken(prodentisData: any, phone: string): any {
+function withVerificationToken(
+    prodentisData: ProdentisVerifyResponse,
+    phone: string
+): ProdentisVerifyResponse {
     if (!prodentisData?.success || !prodentisData?.patient?.id) return prodentisData;
     const p = prodentisData.patient;
     const verificationToken = signRegistrationToken({
@@ -124,7 +144,7 @@ export async function POST(request: Request) {
 
                 if (Array.isArray(patients)) {
                     // Find patient matching firstName and PESEL
-                    const match = patients.find((p: any) => {
+                    const match = patients.find((p: ProdentisPatient) => {
                         const pPhone = (p.phone || '').replace(/\D/g, '');
                         const inputPhone = normalizedPhone.replace(/\D/g, '');
                         const phoneMatch = pPhone.endsWith(inputPhone) || inputPhone.endsWith(pPhone) || pPhone === inputPhone;
@@ -158,7 +178,7 @@ export async function POST(request: Request) {
             message: 'Nie znaleziono pacjenta o podanych danych. Sprawdź numer telefonu, imię i PESEL.'
         });
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('[Verify] Error:', error);
         return NextResponse.json(
             {

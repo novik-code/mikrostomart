@@ -13,7 +13,8 @@ interface SocialPlatform {
     access_token: string | null;
     token_expires_at: string | null;
     is_active: boolean;
-    config: any;
+    /** JSONB `social_platforms.config` — ksztalt zalezny od platformy. */
+    config: Record<string, unknown> | null;
     created_at: string;
 }
 
@@ -45,8 +46,10 @@ interface SocialPost {
     video_url: string | null;
     scheduled_for: string | null;
     published_at: string | null;
-    platform_post_ids: any;
-    publish_errors: any;
+    /** JSONB — mapa platforma → id posta zwrocone przez API platformy. */
+    platform_post_ids: Record<string, unknown> | null;
+    /** JSONB — mapa platforma → blad publikacji (string lub obiekt bledu API). */
+    publish_errors: Record<string, unknown> | null;
     admin_notes: string | null;
     original_ai_text: string | null;
     edit_feedback: string | null;
@@ -63,6 +66,24 @@ interface MediaItem {
     description: string | null;
     is_used: boolean;
     created_at: string;
+}
+
+/**
+ * Odpowiedz batchowych endpointow komentarzy
+ * (/api/social/comments/fetch i /api/social/comments/publish).
+ * Wszystkie pola opcjonalne — odpowiedz jest parsowana z tekstu i moze byc
+ * zastapiona lokalnym `{ error }` gdy serwer zwroci nie-JSON.
+ */
+interface SocialCommentsActionResult {
+    error?: string;
+    fetched?: number;
+    generated?: number;
+    published?: number;
+    skipped?: number;
+    total?: number;
+    stopped_early?: boolean;
+    debug?: string[];
+    errors?: string[];
 }
 
 type SubTab = 'schedules' | 'drafts' | 'library' | 'platforms' | 'topics' | 'comments';
@@ -373,7 +394,7 @@ export default function SocialMediaTab() {
             if (!res.ok) throw new Error('Błąd zapisu');
             resetScheduleForm();
             fetchSchedules();
-        } catch (e: any) { alert(e.message); }
+        } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
     };
 
     const handleToggleSchedule = async (s: SocialSchedule) => {
@@ -411,7 +432,7 @@ export default function SocialMediaTab() {
     };
 
     // ── Post actions ──────────────────────────────────────────────────
-    const handlePostAction = async (id: string, action: string, extra?: any) => {
+    const handlePostAction = async (id: string, action: string, extra?: Record<string, unknown>) => {
         try {
             await fetch('/api/social/posts', {
                 method: 'PUT',
@@ -470,8 +491,8 @@ export default function SocialMediaTab() {
             setShowGenerateForm(false);
             setGenerateForm({ content_type: 'post_text_image', custom_prompt: '', with_image: true });
             fetchPosts();
-        } catch (e: any) {
-            alert('❌ Błąd: ' + e.message);
+        } catch (e) {
+            alert('❌ Błąd: ' + (e instanceof Error ? e.message : String(e)));
         }
         setGenerating(false);
     };
@@ -491,8 +512,8 @@ export default function SocialMediaTab() {
             const summary = data.summary;
             alert(`Publikacja: ${summary.published}/${summary.total} platform OK${summary.failed > 0 ? `, ${summary.failed} błędów` : ''}`);
             fetchPosts();
-        } catch (e: any) {
-            alert('❌ Błąd publikacji: ' + e.message);
+        } catch (e) {
+            alert('❌ Błąd publikacji: ' + (e instanceof Error ? e.message : String(e)));
         }
         setPublishingId(null);
     };
@@ -513,7 +534,7 @@ export default function SocialMediaTab() {
             setPlatformForm({ platform: 'facebook', account_name: '', account_url: '', content_type: 'all' });
             setShowPlatformForm(false);
             fetchPlatforms();
-        } catch (e: any) { alert(e.message); }
+        } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
     };
 
     const handleTogglePlatform = async (p: SocialPlatform) => {
@@ -882,7 +903,7 @@ export default function SocialMediaTab() {
                     ) : posts.length === 0 ? (
                         <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
                             <p style={{ color: 'var(--color-text-muted)', fontSize: '1.1rem' }}>📝 Brak postów</p>
-                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Kliknij "🤖 Generuj post AI" aby wygenerować pierwszy post.</p>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Kliknij &quot;🤖 Generuj post AI&quot; aby wygenerować pierwszy post.</p>
                         </div>
                     ) : (
                         posts.map(post => (
@@ -941,7 +962,7 @@ export default function SocialMediaTab() {
                                                         if (data.error) { alert('❌ ' + data.error); return; }
                                                         alert(`✅ AI przeanalizowało edycję!\n\n${data.feedback}\n\nNowe zasady stylu (${data.style_notes?.length || 0}):\n${(data.style_notes || []).join('\n')}`);
                                                         fetchPosts();
-                                                    } catch (e: any) { alert('❌ ' + e.message); }
+                                                    } catch (e) { alert('❌ ' + (e instanceof Error ? e.message : String(e))); }
                                                 }}
                                                 style={{ ...btnStyle('#8b5cf6'), padding: '0.3rem 0.6rem', fontSize: '0.78rem', color: 'white' }}
                                                 title="Wyślij edycję do analizy AI"
@@ -958,7 +979,7 @@ export default function SocialMediaTab() {
                                 {post.publish_errors && Object.keys(post.publish_errors).length > 0 && (
                                     <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '0.4rem', padding: '0.5rem 0.75rem', marginBottom: '0.5rem', fontSize: '0.78rem' }}>
                                         <strong style={{ color: '#f87171' }}>❌ Błędy publikacji:</strong>
-                                        {Object.entries(post.publish_errors).map(([platform, error]: [string, any]) => (
+                                        {Object.entries(post.publish_errors).map(([platform, error]) => (
                                             <div key={platform} style={{ marginTop: '0.2rem', color: 'var(--color-text-muted)' }}>
                                                 <strong>{platform}:</strong> {typeof error === 'string' ? error : JSON.stringify(error)}
                                             </div>
@@ -1295,7 +1316,7 @@ export default function SocialMediaTab() {
                                                 await fetch('/api/social/topics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(topicForm) });
                                             }
                                             setShowTopicForm(false); setEditingTopic(null); setTopicForm({ topic: '', category: 'ogólne' }); fetchTopics();
-                                        } catch (e: any) { alert(e.message); }
+                                        } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
                                     }} style={btnStyle()}>
                                         {editingTopic ? 'Zapisz zmiany' : 'Dodaj temat'}
                                     </button>
@@ -1363,7 +1384,7 @@ export default function SocialMediaTab() {
                                 try {
                                     const res = await fetch('/api/social/comments/fetch', { method: 'POST' });
                                     const text = await res.text();
-                                    let data: any = {};
+                                    let data: SocialCommentsActionResult = {};
                                     try { data = JSON.parse(text); } catch { data = { error: text || 'Brak odpowiedzi z serwera' }; }
                                     if (data.error) {
                                         alert('Błąd: ' + data.error);
@@ -1371,7 +1392,7 @@ export default function SocialMediaTab() {
                                         alert(`Pobrano ${data.fetched || 0} nowych komentarzy\nWygenerowano: ${data.generated || 0} odpowiedzi AI\nOpublikowano automatycznie: ${data.published || 0}${data.skipped ? `\nPominięto (spam): ${data.skipped}` : ''}${data.stopped_early ? '\n\n⚠️ Zatrzymano wcześniej (limit budżetu)' : ''}${data.debug?.length ? `\n\n📊 Debug:\n${data.debug.join('\n')}` : ''}${data.errors?.length ? `\n\n❌ Błędy:\n${data.errors.join('\n')}` : ''}`);
                                     }
                                     fetchCommentReplies();
-                                } catch (e: any) { alert('Błąd połączenia: ' + e.message); }
+                                } catch (e) { alert('Błąd połączenia: ' + (e instanceof Error ? e.message : String(e))); }
                                 clearInterval(timer);
                                 setFetchElapsed(0);
                                 setFetchingComments(false);
@@ -1394,11 +1415,11 @@ export default function SocialMediaTab() {
                                         body: JSON.stringify({ publish_all: true }),
                                     });
                                     const text = await res.text();
-                                    let data: any = {};
+                                    let data: SocialCommentsActionResult = {};
                                     try { data = JSON.parse(text); } catch { data = { error: text || 'Brak odpowiedzi' }; }
                                     alert(`Opublikowano: ${data.published || 0}/${data.total || 0}${data.errors?.length ? `\nBłędy:\n${data.errors.join('\n')}` : ''}`);
                                     fetchCommentReplies();
-                                } catch (e: any) { alert('Błąd: ' + e.message); }
+                                } catch (e) { alert('Błąd: ' + (e instanceof Error ? e.message : String(e))); }
                                 setPublishingAllReplies(false);
                             }}
                             disabled={publishingAllReplies || commentReplies.filter(c => c.status === 'draft' || c.status === 'approved').length === 0}
@@ -1436,7 +1457,7 @@ export default function SocialMediaTab() {
                     ) : commentReplies.length === 0 ? (
                         <div style={{ ...cardStyle, textAlign: 'center', padding: '3rem' }}>
                             <p style={{ color: 'var(--color-text-muted)', fontSize: '1.1rem' }}>💬 Brak komentarzy</p>
-                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Kliknij "Pobierz nowe komentarze" aby pobrać komentarze z opublikowanych postów.</p>
+                            <p style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>Kliknij &quot;Pobierz nowe komentarze&quot; aby pobrać komentarze z opublikowanych postów.</p>
                         </div>
                     ) : (
                         <div style={{ display: 'grid', gap: '0.75rem' }}>
@@ -1500,7 +1521,7 @@ export default function SocialMediaTab() {
                                                                     });
                                                                     setEditingReplyId(null);
                                                                     fetchCommentReplies();
-                                                                } catch (e: any) { alert(e.message); }
+                                                                } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
                                                             }} style={{ ...btnStyle(), padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>💾 Zapisz</button>
                                                             <button onClick={() => setEditingReplyId(null)} style={{ ...btnStyle('#555'), padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'white' }}>Anuluj</button>
                                                         </div>
@@ -1533,7 +1554,7 @@ export default function SocialMediaTab() {
                                                                     body: JSON.stringify({ id: cr.id, action: 'approve' }),
                                                                 });
                                                                 fetchCommentReplies();
-                                                            } catch (e: any) { alert(e.message); }
+                                                            } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
                                                         }} style={{ ...btnStyle('#22c55e'), padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'white' }}>✅ Zatwierdź</button>
                                                         <button onClick={async () => {
                                                             try {
@@ -1543,7 +1564,7 @@ export default function SocialMediaTab() {
                                                                     body: JSON.stringify({ id: cr.id, action: 'reject' }),
                                                                 });
                                                                 fetchCommentReplies();
-                                                            } catch (e: any) { alert(e.message); }
+                                                            } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
                                                         }} style={{ ...btnStyle('#ef4444'), padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'white' }}>❌ Odrzuć</button>
                                                     </>
                                                 )}
@@ -1564,7 +1585,7 @@ export default function SocialMediaTab() {
                                                                 const data = await res.json();
                                                                 if (data.error) alert('Błąd: ' + data.error);
                                                                 fetchCommentReplies();
-                                                            } catch (e: any) { alert(e.message); }
+                                                            } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
                                                             setPublishingReplyId(null);
                                                         }}
                                                         style={{ ...btnStyle(), padding: '0.3rem 0.6rem', fontSize: '0.75rem', opacity: isPublishing ? 0.5 : 1 }}
@@ -1581,7 +1602,7 @@ export default function SocialMediaTab() {
                                                                 body: JSON.stringify({ id: cr.id, status: 'draft' }),
                                                             });
                                                             fetchCommentReplies();
-                                                        } catch (e: any) { alert(e.message); }
+                                                        } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
                                                     }} style={{ ...btnStyle('#3b82f6'), padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'white' }}>♻️ Przywróć</button>
                                                 )}
                                                 <button onClick={async () => {
@@ -1589,7 +1610,7 @@ export default function SocialMediaTab() {
                                                     try {
                                                         await fetch(`/api/social/comments?id=${cr.id}`, { method: 'DELETE' });
                                                         fetchCommentReplies();
-                                                    } catch (e: any) { alert(e.message); }
+                                                    } catch (e) { alert(e instanceof Error ? e.message : String(e)); }
                                                 }} style={{ ...btnStyle('#555'), padding: '0.3rem 0.6rem', fontSize: '0.75rem', color: 'white' }}>🗑️</button>
                                             </div>
                                         )}
@@ -1604,7 +1625,7 @@ export default function SocialMediaTab() {
                         <strong style={{ color: '#60a5fa' }}>💬 Jak działają komentarze?</strong><br />
                         Co 15 minut cron pobiera nowe komentarze z opublikowanych postów (ostatnie 7 dni) na Facebooku, Instagramie i YouTube.<br />
                         AI generuje odpowiedzi w trybie <strong>Draft</strong> — przeglądasz, edytujesz i zatwierdzasz przed publikacją.<br />
-                        Spam i nieistotne komentarze są automatycznie oznaczane jako "Pominięte".
+                        Spam i nieistotne komentarze są automatycznie oznaczane jako &quot;Pominięte&quot;.
                     </div>
                 </div>
             )}

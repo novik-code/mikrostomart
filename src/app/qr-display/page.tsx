@@ -5,6 +5,7 @@
 // UX: iPad zalogowany raz w recepcji, strona auto-fetchuje świeży QR na bieżąco.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface QrCurrent {
@@ -56,12 +57,18 @@ export default function QrDisplayPage() {
         return () => clearInterval(t);
     }, []);
 
+    // `scheduleRefresh` i `fetchQr` wołają się wzajemnie (fetch → zaplanuj kolejny fetch).
+    // Bezpośrednie odwołanie do `fetchQr` wewnątrz `scheduleRefresh` czytało zmienną przed
+    // jej deklaracją (TDZ) i uniemożliwiało React Compilerowi zachowanie memoizacji, więc
+    // callback timera sięga po aktualną wersję przez ref (synchronizowany w efekcie niżej).
+    const fetchQrRef = useRef<(() => Promise<void>) | null>(null);
+
     const scheduleRefresh = useCallback((nextValidUntil: number) => {
         if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
         // Odśwież ~3 sekundy przed wygaśnięciem (mała tolerancja synchronizacji)
         const wait = Math.max(2000, nextValidUntil - Date.now() - 3000);
         refreshTimerRef.current = setTimeout(() => {
-            void fetchQr();
+            void fetchQrRef.current?.();
         }, wait);
     }, []);
 
@@ -91,6 +98,7 @@ export default function QrDisplayPage() {
     }, [scheduleRefresh]);
 
     useEffect(() => {
+        fetchQrRef.current = fetchQr;
         void fetchQr();
         return () => {
             if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
@@ -158,7 +166,11 @@ export default function QrDisplayPage() {
                     <p style={{ color: '#aaa', marginBottom: '2rem' }}>
                         Zaloguj się jako administrator, żeby ekran QR mógł generować świeże tokeny.
                     </p>
-                    <a
+                    {/* /admin/login jest poza segmentem [locale] (NON_LOCALE_PATHS w middleware),
+                        więc zwykły next/link — bez prefixu locale. prefetch={false} zachowuje
+                        zachowanie dotychczasowego <a>: żadnych requestów zanim ktoś kliknie. */}
+                    <Link
+                        prefetch={false}
                         href="/admin/login?redirectTo=/qr-display"
                         style={{
                             display: 'inline-block',
@@ -171,7 +183,7 @@ export default function QrDisplayPage() {
                         }}
                     >
                         Zaloguj się
-                    </a>
+                    </Link>
                 </div>
             </FullScreen>
         );

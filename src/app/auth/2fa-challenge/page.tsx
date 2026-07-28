@@ -1,7 +1,15 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+
+// Detekcja wsparcia WebAuthn czytana przez useSyncExternalStore: wartość zależy od
+// przeglądarki, więc SSR (i pierwszy, hydratacyjny render) dostaje `false`, a klient
+// właściwy snapshot — bez setState w efekcie i bez ryzyka hydration mismatch.
+// Brak subskrypcji, bo dostępność `PublicKeyCredential` nie zmienia się w czasie życia strony.
+const subscribeNoop = () => () => {};
+const getPasskeySupport = () => typeof window !== "undefined" && "PublicKeyCredential" in window;
+const getPasskeySupportServer = () => false;
 
 function ChallengeForm() {
     const router = useRouter();
@@ -15,16 +23,13 @@ function ChallengeForm() {
     const [backupRemaining, setBackupRemaining] = useState<number | null>(null);
     const [remember, setRemember] = useState(false);
 
-    // Passkey support detection
-    const [passkeyAvailable, setPasskeyAvailable] = useState(false);
+    // Passkey support detection — czy WebAuthn jest dostępny w przeglądarce
+    const passkeyAvailable = useSyncExternalStore(
+        subscribeNoop,
+        getPasskeySupport,
+        getPasskeySupportServer,
+    );
     const [passkeySubmitting, setPasskeySubmitting] = useState(false);
-
-    useEffect(() => {
-        // Sprawdź czy WebAuthn jest dostępny w przeglądarce
-        if (typeof window !== "undefined" && "PublicKeyCredential" in window) {
-            setPasskeyAvailable(true);
-        }
-    }, []);
 
     async function handlePasskeyLogin() {
         setError("");

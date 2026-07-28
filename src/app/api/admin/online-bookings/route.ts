@@ -5,7 +5,6 @@ import { requireAdmin } from '@/lib/authGuards';
 import { sendTranslatedPushToUser } from '@/lib/pushService';
 import { sendSMS } from '@/lib/smsService';
 import { sendBookingConfirmedEmail, sendBookingRejectedEmail } from '@/lib/emailService';
-import { demoSanitize } from '@/lib/brandConfig';
 import { getProdentisKey } from '@/lib/pmsConfig';
 import { logAudit } from '@/lib/auditLog';
 
@@ -19,10 +18,57 @@ const supabase = createClient(
 const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
+ * Wiersz tabeli `online_bookings` — pola używane w tym module.
+ * Kolumny zgodne z zapisem w POST /api/reservations.
+ */
+interface OnlineBookingRow {
+    id?: string;
+    patient_name?: string | null;
+    patient_phone?: string | null;
+    patient_email?: string | null;
+    prodentis_patient_id?: string | null;
+    specialist_id: string;
+    specialist_name?: string | null;
+    doctor_prodentis_id?: string | null;
+    appointment_date?: string | null;
+    appointment_time?: string | null;
+    duration?: number | null;
+    description?: string | null;
+    schedule_status?: string | null;
+    prodentis_appointment_id?: string | null;
+}
+
+/** Pola aktualizowane w `online_bookings` przez akcje panelu admina. */
+interface BookingUpdate {
+    updated_at: string;
+    approved_by?: string;
+    approved_at?: string;
+    schedule_status?: string;
+    schedule_error?: string | null;
+    prodentis_appointment_id?: string;
+    prodentis_patient_id?: string;
+    patient_match_method?: string;
+    is_new_patient?: boolean;
+}
+
+/**
+ * Komunikat z nieznanego błędu (catch (e) → unknown).
+ * Obsługuje Error oraz obiekty błędów Supabase/PMS (nie są instancjami Error, ale mają `message`).
+ * `undefined` dla wartości bez komunikatu — dokładnie jak wcześniejsze `err.message`.
+ */
+function errMessage(e: unknown): string | undefined {
+    if (e instanceof Error) return e.message;
+    if (typeof e === 'object' && e !== null && 'message' in e && typeof e.message === 'string') {
+        return e.message;
+    }
+    return undefined;
+}
+
+/**
  * Try to schedule a booking in Prodentis
  * Returns { success, appointmentId?, error? }
  */
-async function scheduleInProdentis(booking: any): Promise<{ success: boolean; appointmentId?: string; error?: string }> {
+async function scheduleInProdentis(booking: OnlineBookingRow): Promise<{ success: boolean; appointmentId?: string; error?: string }> {
     // Need both doctor and patient Prodentis IDs
     const doctorProdentisId = booking.doctor_prodentis_id;
     const patientProdentisId = booking.prodentis_patient_id;
@@ -50,7 +96,7 @@ async function scheduleInProdentis(booking: any): Promise<{ success: boolean; ap
  * (np. double-submit: 1. wywołanie utworzyło wizytę, 2. dostaje 409 na zajęty już slot).
  * Read-only; w razie błędu zwraca null (zachowanie jak dotąd — realny konflikt).
  */
-async function findExistingAppointment(patientId: string, booking: any): Promise<string | null> {
+async function findExistingAppointment(patientId: string, booking: OnlineBookingRow): Promise<string | null> {
     try {
         const res = await fetch(`${PRODENTIS_API}/api/patient/${patientId}/future-appointments?days=180`, {
             headers: { 'Content-Type': 'application/json' },
@@ -76,7 +122,7 @@ async function findExistingAppointment(patientId: string, booking: any): Promise
     }
 }
 
-async function scheduleWithIds(doctorId: string, patientId: string, booking: any) {
+async function scheduleWithIds(doctorId: string, patientId: string | null | undefined, booking: OnlineBookingRow) {
     if (!patientId) {
         return { success: false, error: 'MISSING_PATIENT_ID' };
     }
@@ -124,8 +170,8 @@ async function scheduleWithIds(doctorId: string, patientId: string, booking: any
             return { success: false, error: `NOT_FOUND: ${data.message}` };
         }
         return { success: false, error: `API_ERROR_${res.status}: ${data.message || JSON.stringify(data)}` };
-    } catch (err: any) {
-        return { success: false, error: `NETWORK_ERROR: ${err.message}` };
+    } catch (err) {
+        return { success: false, error: `NETWORK_ERROR: ${errMessage(err)}` };
     }
 }
 
@@ -137,7 +183,6 @@ export async function GET(request: Request) {
     try {
         const auth = await requireAdmin();
         if (!auth.ok) return auth.response;
-        const user = auth.user;
 
         const { searchParams } = new URL(request.url);
         const status = searchParams.get('status');
@@ -159,8 +204,8 @@ export async function GET(request: Request) {
         }
 
         return NextResponse.json({ bookings: data || [] });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+    } catch (err) {
+        return NextResponse.json({ error: errMessage(err) }, { status: 500 });
     }
 }
 
@@ -183,7 +228,7 @@ export async function PUT(request: Request) {
         }
 
         const now = new Date().toISOString();
-        let updateData: Record<string, any> = { updated_at: now };
+        const updateData: BookingUpdate = { updated_at: now };
         let scheduleResult: { success: boolean; appointmentId?: string; error?: string } | null = null;
         const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
 
@@ -304,8 +349,8 @@ export async function PUT(request: Request) {
         });
 
         return NextResponse.json({ booking: data });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+    } catch (err) {
+        return NextResponse.json({ error: errMessage(err) }, { status: 500 });
     }
 }
 
@@ -356,8 +401,8 @@ export async function DELETE(request: Request) {
         });
 
         return NextResponse.json({ success: true });
-    } catch (err: any) {
-        return NextResponse.json({ error: err.message }, { status: 500 });
+    } catch (err) {
+        return NextResponse.json({ error: errMessage(err) }, { status: 500 });
     }
 }
 
@@ -365,7 +410,7 @@ export async function DELETE(request: Request) {
 // Notify patient about booking status change (push + SMS)
 // ═══════════════════════════════════════════════════════════
 
-async function notifyPatientAboutBooking(booking: any, action: 'approve' | 'reject') {
+async function notifyPatientAboutBooking(booking: OnlineBookingRow, action: 'approve' | 'reject') {
     const prodentisId = booking.prodentis_patient_id;
     const phone = booking.patient_phone;
     const patientName = booking.patient_name || '';

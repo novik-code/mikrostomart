@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useTranslations, useLocale } from 'next-intl';
 import { Link } from '@/i18n/navigation';
+// Osobny, NIE-locale-aware Link dla tras spoza segmentu [locale] (/pracownik, /admin).
 import AnimatedPhone from "@/components/AnimatedPhone";
 import AnimatedAt from "@/components/AnimatedAt";
 import NovikCodeCredit from "@/components/NovikCodeCredit";
@@ -253,8 +254,17 @@ export default function Footer() {
                         padding: '0.3rem 0',
                     }}>
                         {/* Internal staff routes — NIE locale-aware (poza [locale] segment),
-                            używamy zwykłego anchor `<a>` żeby uniknąć dodawania prefixu. */}
+                            dlatego NextLink z `next/link`, a NIE Link z `@/i18n/navigation`
+                            (ten dokleiłby prefix locale). `prefetch={false}` zachowuje
+                            dotychczasowe zachowanie zwykłego `<a>` — zero requestów do
+                            stref pracowniczych, dopóki ktoś w nie faktycznie nie kliknie. */}
+                        {/* Twarda nawigacja do stref logowanych — CELOWO, nie przeoczenie.
+                            Ten projekt ma udokumentowany problem z service workerem PWA serwujacym
+                            app-shell dla nowych URL-i; pelne przeladowanie gwarantuje swieze ciasteczka
+                            i przejscie przez middleware. */}
+                        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
                         <a href="/pracownik" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.7rem', opacity: 0.5, padding: '0.3rem 0.5rem' }}>{t('employee')}</a>
+                        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
                         <a href="/admin" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.7rem', opacity: 0.5, padding: '0.3rem 0.5rem' }}>{t('admin')}</a>
                     </div>
                 </details>

@@ -81,6 +81,32 @@ function multiLocaleEntries(
     }));
 }
 
+// Row shapes for the dynamic DB-driven parts of the sitemap. The Supabase client
+// is untyped (no generated `Database` schema), so `.select()` results come back as
+// `any`. These interfaces mirror the column lists in the `.select(...)` calls below
+// 1:1 so the mapping code type-checks instead of relying on `any`.
+interface NewsRow {
+    // .select('slug, date, image, title_en, title_de, title_ua')
+    slug: string | null;
+    date: string;
+    image: string | null;
+    title_en: string | null;
+    title_de: string | null;
+    title_ua: string | null;
+}
+
+interface BlogRow {
+    // .select('slug, date, locale, group_id, image, is_published')
+    // `slug`/`locale` are the routing key of a post (NOT NULL in DB) — the runtime
+    // `b.locale && b.slug` guard below stays as a defensive belt-and-braces check.
+    slug: string;
+    date: string | null;
+    locale: string;
+    group_id: string | null;
+    image: string | null;
+    is_published: boolean | null;
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Demo deployment (demo.densflow.ai) must not be indexed: it would cannibalize
     // mikrostomart.pl in Google. Robots.txt blocks crawling, sitemap returns empty.
@@ -305,7 +331,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // S10-4: same defensywny filter dla news slugs (na wszelki wypadek — news
     // slug pattern jest historycznie URL-safe ale prewencja regresji).
-    const newsRows = (newsRowsRaw || []).filter((n: any) => {
+    const newsRows = ((newsRowsRaw || []) as unknown as NewsRow[]).filter((n) => {
         if (!isSafeSlug(n.slug)) {
             console.warn(`[sitemap] Skipping news article with unsafe slug: "${n.slug}"`);
             return false;
@@ -313,7 +339,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         return true;
     });
 
-    const newsRoutes: MetadataRoute.Sitemap = newsRows.flatMap((post: any) => {
+    const newsRoutes: MetadataRoute.Sitemap = newsRows.flatMap((post) => {
         if (!post.slug) return [];
 
         // Build alternates for this article. PL is always present; others only if translated.
@@ -389,7 +415,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         .from('blog_posts')
         .select('slug, date, locale, group_id, image, is_published');
 
-    const blogRows = (blogRowsRaw || []).filter((b: any) => {
+    const blogRows = ((blogRowsRaw || []) as unknown as BlogRow[]).filter((b) => {
         if (!b.is_published) return false;
         if (!isSafeSlug(b.slug)) {
             console.warn(`[sitemap] Skipping blog post with unsafe slug: "${b.slug}" (locale=${b.locale})`);
@@ -398,7 +424,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         return true;
     });
 
-    const groupedBlog = new Map<string, any[]>();
+    const groupedBlog = new Map<string, BlogRow[]>();
     for (const b of blogRows) {
         if (!b.group_id) continue;
         const list = groupedBlog.get(b.group_id) || [];
@@ -407,8 +433,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
 
     const blogRoutes: MetadataRoute.Sitemap = blogRows
-        .filter((b: any) => b.locale && b.slug)
-        .map((post: any) => {
+        .filter((b) => b.locale && b.slug)
+        .map((post) => {
             const url = `${BASE_URL}${localePath(post.locale, `/nowosielski/${post.slug}`)}`;
 
             const groupRows = post.group_id ? groupedBlog.get(post.group_id) || [post] : [post];
@@ -418,7 +444,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
                 const hreflang = HREFLANG_MAP[row.locale] || row.locale;
                 languages[hreflang] = `${BASE_URL}${localePath(row.locale, `/nowosielski/${row.slug}`)}`;
             }
-            const plRow = groupRows.find((r: any) => r.locale === 'pl');
+            const plRow = groupRows.find((r) => r.locale === 'pl');
             if (plRow?.slug) {
                 languages['x-default'] = `${BASE_URL}/nowosielski/${plRow.slug}`;
             }

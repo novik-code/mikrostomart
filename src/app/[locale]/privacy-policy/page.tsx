@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Shield, Mail, Globe, Video, Brain, Lock, Trash2, FileText, ExternalLink } from "lucide-react";
 import { brand, demoSanitize } from "@/lib/brandConfig";
 import { formatPhoneForTel, formatPhoneDisplay } from "@/lib/phoneFormat";
@@ -50,7 +51,10 @@ export default function PrivacyPolicyPage() {
                         Last updated: {lastUpdated}
                     </p>
                     <div style={{ marginTop: "1rem", display: "flex", justifyContent: "center", gap: "0.75rem" }}>
-                        <a
+                        {/* Celowo `next/link` (nie `@/i18n/navigation`): to jest link do
+                            POLSKIEJ wersji dokumentu, więc URL musi zostać bez prefiksu
+                            locale (`/rodo`), a nie `/en/rodo` na stronie EN. */}
+                        <Link
                             href="/rodo"
                             style={{
                                 display: "inline-flex", alignItems: "center", gap: "0.4rem",
@@ -60,7 +64,7 @@ export default function PrivacyPolicyPage() {
                         >
                             <FileText size={14} />
                             Wersja polska (RODO)
-                        </a>
+                        </Link>
                     </div>
                 </div>
             </section>

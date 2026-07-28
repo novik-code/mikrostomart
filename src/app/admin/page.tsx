@@ -37,7 +37,8 @@ import {
     Share2,
     Plug,
     Banknote,
-    QrCode
+    QrCode,
+    type LucideIcon
 } from "lucide-react";
 import { Product } from './components/AdminTypes';
 import SocialMediaTab from './components/SocialMediaTab';
@@ -59,6 +60,181 @@ import CareFlowTab from './components/CareFlowTab';
 import EmployeeWizard from './components/EmployeeWizard';
 import EmployeeRow, { type EmployeeData } from './components/EmployeeRow';
 import { demoSanitize } from '@/lib/brandConfig';
+
+
+// ─── Ksztalty wierszy zwracanych przez endpointy /api/admin/* ────────────
+// (pola odpowiadaja temu, co panel faktycznie czyta z odpowiedzi)
+
+type AdminTab =
+    | 'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders'
+    | 'reservations' | 'blog' | 'patients' | 'appointment-instructions'
+    | 'employees' | 'chat' | 'theme' | 'page-builder' | 'booking-settings'
+    | 'online-bookings' | 'cancelled-appointments' | 'social-media'
+    | 'pms-settings' | 'sms-provider' | 'stripe-settings' | 'p24-settings'
+    | 'payu-settings' | 'ai-education' | 'patient-communication' | 'careflow'
+    | 'schedule-editor' | 'time-tracking' | 'leaves' | 'security' | 'audit-log';
+
+/** Wiersz z GET /api/admin/questions (Zapytaj Eksperta). */
+interface ExpertQuestion {
+    id: string;
+    question: string;
+    status: string;
+    created_at: string;
+}
+
+/** Wiersz z GET /api/admin/articles (Baza Wiedzy). */
+interface KnowledgeArticle {
+    id: string;
+    title: string;
+    slug: string;
+    excerpt: string | null;
+    content: string | null;
+    status: string;
+    locale: string | null;
+    published_date: string | null;
+}
+
+/** Bufor edycji artykulu KB w modalu (wszystkie pola juz znormalizowane do string). */
+interface ArticleEditDraft {
+    id: string;
+    title: string;
+    slug: string;
+    excerpt: string;
+    content: string;
+}
+
+/** Wiersz z GET /api/admin/news. */
+interface NewsItem {
+    id: string;
+    title: string;
+    date: string;
+    excerpt: string;
+    content: string;
+    image: string;
+}
+
+/** Wiersz z GET /api/admin/blog (blog /nowosielski). */
+interface BlogPostRow {
+    id: string;
+    title: string;
+    slug: string;
+    date: string;
+    excerpt: string | null;
+    content: string | null;
+    image: string | null;
+    tags: string[] | null;
+}
+
+interface OrderLineItem {
+    name: string;
+    quantity?: number;
+    price: number;
+}
+
+interface OrderCustomerDetails {
+    name: string;
+    email: string;
+    phone: string;
+    street: string;
+    houseNumber: string;
+    apartmentNumber?: string | null;
+    zipCode: string;
+    city: string;
+}
+
+/** Wiersz z GET /api/admin/orders (sklep). */
+interface AdminOrder {
+    id: string;
+    created_at: string;
+    status: string;
+    total_amount: number;
+    payment_id: string;
+    items: OrderLineItem[];
+    customer_details: OrderCustomerDetails;
+}
+
+/** Wiersz z GET /api/admin/reservations (formularz rezerwacji). */
+interface AdminReservation {
+    id: string;
+    date: string;
+    time: string;
+    created_at: string;
+    name: string;
+    service: string;
+    specialist: string;
+    description: string | null;
+    has_attachment: boolean;
+    phone: string;
+    email: string;
+}
+
+/** Wiersz z GET /api/admin/patients (Strefa Pacjenta). */
+interface AdminPatient {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    email: string | null;
+    phone: string | null;
+    accountStatus: string | null;
+    createdAt: string;
+}
+
+/** Kandydat dopasowania pacjenta przy `patient_match_method === 'needs_review'`. */
+interface BookingMatchCandidate {
+    id: string;
+    firstName: string;
+    lastName: string;
+    score: number;
+}
+
+/** Wiersz z GET /api/admin/online-bookings. */
+interface OnlineBooking {
+    id: string;
+    appointment_date: string;
+    appointment_time: string | null;
+    is_new_patient: boolean;
+    patient_name: string;
+    patient_phone: string;
+    patient_email: string | null;
+    specialist_name: string;
+    service_type: string | null;
+    description: string | null;
+    intake_url: string | null;
+    prodentis_appointment_id: string | null;
+    schedule_status: string;
+    schedule_error: string | null;
+    match_confidence: number | null;
+    patient_match_method: string | null;
+    match_candidates: BookingMatchCandidate[] | null;
+    created_at: string;
+}
+
+/** Slownik kolorow/ikon grafiku Prodentis. */
+interface ProdentisColor { id: string; name: string; }
+interface ProdentisIcon { id: string; name: string; }
+
+/** Wiersz z GET /api/admin/cancelled-appointments. */
+interface CancelledAppointment {
+    id: string;
+    patient_name: string | null;
+    patient_phone: string | null;
+    appointment_date: string | null;
+    doctor_name: string | null;
+    reason: string | null;
+    cancelled_at: string | null;
+}
+
+/** Props pozycji nawigacji w sidebarze panelu. */
+interface NavItemProps {
+    /** Pusty string dla pozycji, ktore sa zwyklym linkiem (`href`), a nie zakladka. */
+    id: AdminTab | '';
+    label: string;
+    icon: LucideIcon;
+    badge?: number;
+    onClick?: () => void;
+    href?: string;
+    target?: string;
+}
 
 export default function AdminPage() {
     const [loading, setLoading] = useState(false);
@@ -84,17 +260,19 @@ export default function AdminPage() {
     const [products, setProducts] = useState<Product[]>([]);
     const [error, setError] = useState<string | null>(null);
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'questions' | 'articles' | 'news' | 'orders' | 'reservations' | 'blog' | 'patients' | 'appointment-instructions' | 'employees' | 'chat' | 'theme' | 'page-builder' | 'booking-settings' | 'online-bookings' | 'cancelled-appointments' | 'social-media' | 'pms-settings' | 'sms-provider' | 'stripe-settings' | 'p24-settings' | 'payu-settings' | 'ai-education' | 'patient-communication' | 'careflow' | 'schedule-editor' | 'time-tracking' | 'leaves' | 'security' | 'audit-log'>('dashboard');
+    const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
     // Cancelled appointments state
-    const [cancelledAppointments, setCancelledAppointments] = useState<any[]>([]);
+    const [cancelledAppointments, setCancelledAppointments] = useState<CancelledAppointment[]>([]);
     const [cancelledLoading, setCancelledLoading] = useState(false);
-    const [questions, setQuestions] = useState<any[]>([]);
-    const [articles, setArticles] = useState<any[]>([]);
-    const [blogPosts, setBlogPosts] = useState<any[]>([]); // New Blog Posts state
-    const [generationStatus, setGenerationStatus] = useState<Record<string, string>>({});
-    const [orders, setOrders] = useState<any[]>([]);
-    const [reservations, setReservations] = useState<any[]>([]);
-    const [patients, setPatients] = useState<any[]>([]);
+    const [questions, setQuestions] = useState<ExpertQuestion[]>([]);
+    const [articles, setArticles] = useState<KnowledgeArticle[]>([]);
+    const [blogPosts, setBlogPosts] = useState<BlogPostRow[]>([]); // New Blog Posts state
+    // Wartosc `undefined` jest UZYWANA celowo — tak kod czysci status po sukcesie i po bledzie.
+    // Typ bez `| undefined` byl wezszy niz rzeczywiste dane i wywracal tsc.
+    const [generationStatus, setGenerationStatus] = useState<Record<string, string | undefined>>({});
+    const [orders, setOrders] = useState<AdminOrder[]>([]);
+    const [reservations, setReservations] = useState<AdminReservation[]>([]);
+    const [patients, setPatients] = useState<AdminPatient[]>([]);
 
     // Employees state (Phase 3 — unified employee management)
     const [employeesList, setEmployeesList] = useState<EmployeeData[]>([]);
@@ -110,8 +288,8 @@ export default function AdminPage() {
     const [manualGenerationStatus, setManualGenerationStatus] = useState<string | null>(null);
 
     // Appointment Instructions state
-    const [appointmentInstructions, setAppointmentInstructions] = useState<any[]>([]);
-    const [editingInstruction, setEditingInstruction] = useState<any | null>(null);
+    const [appointmentInstructions, setAppointmentInstructions] = useState<Record<string, unknown>[]>([]);
+    const [editingInstruction, setEditingInstruction] = useState<Record<string, unknown> | null>(null);
     const [savingInstruction, setSavingInstruction] = useState(false);
 
 
@@ -121,12 +299,12 @@ export default function AdminPage() {
     const [bookingSettingsMsg, setBookingSettingsMsg] = useState<string | null>(null);
 
     // Online Bookings state
-    const [onlineBookings, setOnlineBookings] = useState<any[]>([]);
+    const [onlineBookings, setOnlineBookings] = useState<OnlineBooking[]>([]);
     const [onlineBookingsLoading, setOnlineBookingsLoading] = useState(false);
     const [onlineBookingsFilter, setOnlineBookingsFilter] = useState<string>('pending');
     const [onlineBookingsPendingCount, setOnlineBookingsPendingCount] = useState(0);
-    const [prodentisColors, setProdentisColors] = useState<any[]>([]);
-    const [prodentisIcons, setProdentisIcons] = useState<any[]>([]);
+    const [prodentisColors, setProdentisColors] = useState<ProdentisColor[]>([]);
+    const [prodentisIcons, setProdentisIcons] = useState<ProdentisIcon[]>([]);
 
     // Responsive State
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -289,7 +467,7 @@ export default function AdminPage() {
     };
 
     // --- KB DRAFT REVIEW (silnik treści Klasy A) ---
-    const [editingArticle, setEditingArticle] = useState<any | null>(null);
+    const [editingArticle, setEditingArticle] = useState<ArticleEditDraft | null>(null);
     const [articleActionId, setArticleActionId] = useState<string | null>(null);
 
     const handlePublishArticle = async (id: string) => {
@@ -337,7 +515,7 @@ export default function AdminPage() {
     };
 
     // --- NEWS HANDLERS ---
-    const [news, setNews] = useState<any[]>([]);
+    const [news, setNews] = useState<NewsItem[]>([]);
     const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
     const [newsFormData, setNewsFormData] = useState({
         title: "",
@@ -376,7 +554,7 @@ export default function AdminPage() {
     const handleSaveBlogPost = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const payload: any = { ...blogFormData };
+            const payload: Record<string, unknown> = { ...blogFormData };
             if (editingBlogPostId) payload.id = editingBlogPostId;
             // Handle tags split
             if (typeof payload.tags === 'string') {
@@ -406,7 +584,7 @@ export default function AdminPage() {
         } catch (e) { alert("Błąd"); }
     };
 
-    const handleEditBlogPost = (p: any) => {
+    const handleEditBlogPost = (p: BlogPostRow) => {
         setEditingBlogPostId(p.id);
         setBlogFormData({
             title: p.title,
@@ -434,7 +612,7 @@ export default function AdminPage() {
     const handleSaveNews = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const payload: any = { ...newsFormData };
+            const payload: Record<string, unknown> = { ...newsFormData };
             if (editingNewsId) payload.id = editingNewsId;
 
             const method = editingNewsId ? "PUT" : "POST";
@@ -460,7 +638,7 @@ export default function AdminPage() {
         } catch (e) { alert("Błąd"); }
     };
 
-    const handleEditNews = (n: any) => {
+    const handleEditNews = (n: NewsItem) => {
         setEditingNewsId(n.id);
         setNewsFormData({
             title: n.title,
@@ -512,8 +690,8 @@ export default function AdminPage() {
             });
 
             alert("Wygenerowano pomyślnie! Sprawdź formularz poniżej.");
-        } catch (e: any) {
-            alert("Błąd: " + e.message);
+        } catch (e) {
+            alert("Błąd: " + (e instanceof Error ? e.message : String(e)));
         } finally {
             setIsGenerating(false);
         }
@@ -556,8 +734,8 @@ export default function AdminPage() {
             });
 
             alert("Wygenerowano pomyślnie! Sprawdź formularz poniżej.");
-        } catch (e: any) {
-            alert("Błąd: " + e.message);
+        } catch (e) {
+            alert("Błąd: " + (e instanceof Error ? e.message : String(e)));
         } finally {
             setIsGenerating(false);
         }
@@ -610,8 +788,8 @@ export default function AdminPage() {
                     }
                 }
             }
-        } catch (e: any) {
-            alert("Błąd połączenia: " + e.message);
+        } catch (e) {
+            alert("Błąd połączenia: " + (e instanceof Error ? e.message : String(e)));
             setManualGenerationStatus(null);
         }
     };
@@ -712,7 +890,7 @@ export default function AdminPage() {
     };
 
     const handleApproveAllBookings = async () => {
-        const pending = onlineBookings.filter((b: any) => b.schedule_status === 'pending');
+        const pending = onlineBookings.filter(b => b.schedule_status === 'pending');
         if (pending.length === 0) return;
         if (!confirm(`Zatwierdzić wszystkie ${pending.length} oczekujące wizyty?`)) return;
         for (const b of pending) {
@@ -745,7 +923,7 @@ export default function AdminPage() {
         }
     };
 
-    const handleChangeColor = async (appointmentId: string, colorId: string, colorName: string) => {
+    const handleChangeColor = async (appointmentId: string | null, colorId: string, colorName: string) => {
         try {
             const res = await fetch('/api/admin/prodentis-schedule/color', {
                 method: 'PUT',
@@ -763,7 +941,7 @@ export default function AdminPage() {
         }
     };
 
-    const handleAddIcon = async (appointmentId: string, iconId: string, iconName: string) => {
+    const handleAddIcon = async (appointmentId: string | null, iconId: string, iconName: string) => {
         try {
             const res = await fetch('/api/admin/prodentis-schedule/icon', {
                 method: 'POST',
@@ -1024,7 +1202,7 @@ export default function AdminPage() {
                         border: '1px solid var(--color-border)',
                         color: 'var(--color-text-muted)',
                     }}>
-                        Brak pracowników. Kliknij „Dodaj pracownika" aby utworzyć pierwszego.
+                        Brak pracowników. Kliknij „Dodaj pracownika&quot; aby utworzyć pierwszego.
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -1060,13 +1238,11 @@ export default function AdminPage() {
         setError(null);
 
         try {
-            const payload: any = { ...formData };
+            const payload: Record<string, unknown> = { ...formData };
             // Convert gallery string back to array
-            if (payload.gallery) {
-                payload.gallery = payload.gallery.split(",").map((s: string) => s.trim()).filter(Boolean);
-            } else {
-                payload.gallery = [];
-            }
+            payload.gallery = formData.gallery
+                ? formData.gallery.split(",").map((s: string) => s.trim()).filter(Boolean)
+                : [];
 
             if (editingId) payload.id = editingId;
             else payload.id = Date.now().toString(); // Simple ID generation
@@ -1086,9 +1262,9 @@ export default function AdminPage() {
 
             await fetchProducts();
             resetForm();
-        } catch (err: any) {
+        } catch (err) {
             console.error(err);
-            setError(err.message || "Wystąpił nieoczekiwany błąd.");
+            setError((err instanceof Error ? err.message : "") || "Wystąpił nieoczekiwany błąd.");
         }
     };
 
@@ -1365,7 +1541,7 @@ export default function AdminPage() {
                         <div>
                             <h4 style={{ marginBottom: '0.5rem', color: 'var(--color-primary)' }}>Produkty:</h4>
                             <ul style={{ paddingLeft: '1.5rem' }}>
-                                {o.items.map((item: any, idx: number) => (
+                                {o.items.map((item, idx) => (
                                     <li key={idx} style={{ marginBottom: '0.3rem' }}>
                                         {item.name} (x{item.quantity || 1}) - {item.price} PLN
                                     </li>
@@ -1757,7 +1933,7 @@ export default function AdminPage() {
                                         <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.3rem' }}>
                                             Pacjent wpisał: <strong style={{ color: 'white' }}>{b.patient_name}</strong> (tel. {b.patient_phone})
                                         </div>
-                                        {(b.match_candidates as any[]).map((c: any, i: number) => (
+                                        {b.match_candidates.map((c, i) => (
                                             <div key={i} style={{
                                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                                                 padding: '0.3rem 0.4rem', marginTop: '0.2rem',
@@ -1864,7 +2040,7 @@ export default function AdminPage() {
                                                 <select
                                                     onChange={(e) => {
                                                         const colorId = e.target.value;
-                                                        const color = prodentisColors.find((c: any) => c.id === colorId);
+                                                        const color = prodentisColors.find(c => c.id === colorId);
                                                         if (color) handleChangeColor(b.prodentis_appointment_id, colorId, color.name);
                                                         e.target.value = '';
                                                     }}
@@ -1877,7 +2053,7 @@ export default function AdminPage() {
                                                     }}
                                                 >
                                                     <option value="" disabled>🎨 Zmień kolor</option>
-                                                    {prodentisColors.map((c: any) => (
+                                                    {prodentisColors.map(c => (
                                                         <option key={c.id} value={c.id} style={{ background: '#1a1a2e' }}>
                                                             {c.name}
                                                         </option>
@@ -1886,7 +2062,7 @@ export default function AdminPage() {
                                             </div>
                                             {/* Icon buttons */}
                                             <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                                                {prodentisIcons.map((icon: any) => (
+                                                {prodentisIcons.map(icon => (
                                                     <button
                                                         key={icon.id}
                                                         onClick={() => handleAddIcon(b.prodentis_appointment_id, icon.id, icon.name)}
@@ -1935,13 +2111,13 @@ export default function AdminPage() {
         </div>
     );
 
-    const NavItem = ({ id, label, icon: Icon, badge, onClick: customOnClick, href, target }: any) => {
+    const NavItem = ({ id, label, icon: Icon, badge, onClick: customOnClick, href, target }: NavItemProps) => {
         const isActive = activeTab === id;
         const content = (
             <>
                 <Icon size={18} />
                 <span style={{ flex: 1 }}>{label}</span>
-                {badge > 0 && (
+                {(badge ?? 0) > 0 && (
                     <span style={{
                         background: '#f59e0b',
                         color: 'black',
@@ -1989,7 +2165,7 @@ export default function AdminPage() {
             );
         }
         return (
-            <button onClick={customOnClick || (() => setActiveTab(id))} style={baseStyle}>
+            <button onClick={customOnClick || (() => setActiveTab(id as AdminTab))} style={baseStyle}>
                 {content}
             </button>
         );
@@ -2253,7 +2429,7 @@ export default function AdminPage() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {reservations.map((res: any) => (
+                                            {reservations.map(res => (
                                                 <tr key={res.id} style={{ borderBottom: "1px solid var(--color-surface-hover)" }}>
                                                     <td style={{ padding: "1rem", verticalAlign: 'top' }}>
                                                         <div>{res.date}</div>
@@ -2270,7 +2446,7 @@ export default function AdminPage() {
                                                     <td style={{ padding: "1rem", verticalAlign: 'top', maxWidth: '300px' }}>
                                                         {res.description && (
                                                             <div style={{ fontStyle: "italic", marginBottom: "0.5rem" }}>
-                                                                "{res.description}"
+                                                                &quot;{res.description}&quot;
                                                             </div>
                                                         )}
                                                         {res.has_attachment && (
@@ -2408,8 +2584,8 @@ export default function AdminPage() {
                                                                 }
                                                             }
                                                         }
-                                                    } catch (e: any) {
-                                                        alert("Błąd połączenia: " + e.message);
+                                                    } catch (e) {
+                                                        alert("Błąd połączenia: " + (e instanceof Error ? e.message : String(e)));
                                                         setGenerationStatus(prev => ({ ...prev, [q.id]: undefined }));
                                                     }
                                                 }}
@@ -2498,7 +2674,7 @@ export default function AdminPage() {
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {cancelledAppointments.map((ca: any) => (
+                                                {cancelledAppointments.map(ca => (
                                                     <tr key={ca.id} style={{ borderBottom: '1px solid var(--color-border)' }}>
                                                         <td style={{ padding: '0.75rem', fontSize: '0.9rem' }}>{ca.patient_name || '—'}</td>
                                                         <td style={{ padding: '0.75rem', fontSize: '0.9rem' }}>

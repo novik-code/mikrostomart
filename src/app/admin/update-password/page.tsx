@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -83,14 +84,15 @@ function UpdatePasswordForm() {
 
             setMessage("✅ Hasło zostało zmienione pomyślnie! Przekierowywanie...");
             setTimeout(() => router.push("/admin"), 2000);
-        } catch (err: any) {
-            const msg = err.message?.toLowerCase();
-            if (msg?.includes("same password")) {
+        } catch (err) {
+            const rawMessage = err instanceof Error ? err.message : String(err);
+            const msg = rawMessage.toLowerCase();
+            if (msg.includes("same password")) {
                 setMessage("Nowe hasło musi się różnić od obecnego.");
-            } else if (msg?.includes("weak")) {
+            } else if (msg.includes("weak")) {
                 setMessage("Hasło jest za słabe. Użyj silniejszego hasła.");
             } else {
-                setMessage("Błąd: " + err.message);
+                setMessage("Błąd: " + rawMessage);
             }
         } finally {
             setLoading(false);
@@ -127,7 +129,7 @@ function UpdatePasswordForm() {
                     <p style={{ color: "rgba(255,255,255,0.6)", marginBottom: "1.5rem", lineHeight: 1.6 }}>
                         Poproś o nowy link do resetowania hasła. Link jest jednorazowy i wygasa po 1 godzinie.
                     </p>
-                    <a
+                    <Link
                         href="/pracownik/reset-haslo"
                         style={{
                             display: "inline-block",
@@ -140,7 +142,7 @@ function UpdatePasswordForm() {
                         }}
                     >
                         Poproś o nowy link
-                    </a>
+                    </Link>
                 </div>
             </main>
         );

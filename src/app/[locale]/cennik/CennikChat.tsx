@@ -95,7 +95,7 @@ export default function CennikChat() {
         recognitionRef.current = recognition;
         recognition.start();
         setIsListening(true);
-    }, [t]);
+    }, [t, setInput]);
 
     const stopListening = useCallback(() => {
         if (recognitionRef.current) {

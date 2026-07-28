@@ -24,6 +24,19 @@ export const dynamic = 'force-dynamic';
 
 const DEFAULT_LIMIT = 24;
 const MAX_LIMIT = 50;
+
+/** Wiersz `youtube_videos` — dokładnie kolumny z `.select()` niżej (mig 175). */
+interface YoutubeVideoRow {
+    video_id: string;
+    title: string;
+    published_at: string | null;
+    duration_seconds: number;
+    is_short: boolean;
+    thumb_medium: string | null;
+    thumb_high: string | null;
+    view_count: number;
+}
+
 // is_short jest już „efektywne": sync wpisuje do niego ewentualny
 // is_short_override, więc endpoint filtruje płasko (bez zagnieżdżonego OR).
 
@@ -72,7 +85,8 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
 
-        const videos = (data ?? []).map((r: any) => ({
+        const rows = (data ?? []) as unknown as YoutubeVideoRow[];
+        const videos = rows.map((r) => ({
             id: r.video_id,
             title: r.title,
             publishedAt: r.published_at,
