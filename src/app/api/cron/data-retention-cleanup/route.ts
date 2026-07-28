@@ -252,6 +252,22 @@ export async function GET(req: NextRequest) {
     /** UUID-y w `.in()` lądują w URL-u zapytania: 100 sztuk to ~4 kB, bezpiecznie pod limitem. */
     const CHAT_CHUNK = 100;
 
+    /**
+     * Ile trzymamy zdjęcia przesłane przez PACJENTA w czacie z recepcją.
+     * Wartość jest tu, a nie w `staffMessaging`, bo dotyczy innego toru i innej podstawy:
+     * tam 12 miesięcy wynika z decyzji o retencji czatu wewnętrznego, tu ze skończonego
+     * horyzontu wymaganego art. 5 ust. 1 lit. e RODO. Zmiana tej liczby MUSI iść razem
+     * ze zmianą `politykaPriv.sec6` w czterech lokalizacjach — tekst podaje ją wprost.
+     */
+    const PATIENT_ATTACHMENT_RETENTION_MONTHS = 24;
+
+    /** Odcięcie w MIESIĄCACH kalendarzowych (nie 30-dniowych oknach). */
+    function monthsAgoIso(from: Date, months: number): string {
+        const d = new Date(from.getTime());
+        d.setMonth(d.getMonth() - months);
+        return d.toISOString();
+    }
+
     function chunk<T>(items: T[], size: number): T[][] {
         const out: T[][] = [];
         for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
@@ -355,6 +371,92 @@ export async function GET(req: NextRequest) {
     }
 
     /**
+     * Załączniki PACJENTA w czacie z recepcją — kasowane po `PATIENT_ATTACHMENT_RETENTION_MONTHS`.
+     *
+     * 🔑 DECYZJA MARCINA (2026-07-28): zdjęcie przesłane przez pacjenta w czacie **NIE jest
+     * dokumentacją medyczną**. Uzasadnienie: kanał „prześlij zdjęcie" przyjmuje cokolwiek —
+     * treść bywa medyczna, ale bywa też paragonem, skierowaniem albo pomyłką. Skoro nie jest
+     * to dokumentacja w rozumieniu ustawy o prawach pacjenta, nie obowiązuje 20 lat, a wiąże
+     * art. 5 ust. 1 lit. e RODO: przechowywanie musi mieć skończony horyzont.
+     *
+     * ⚠️ To NIE znaczy, że zdjęcie przestaje być danymi o zdrowiu — może nimi być, dlatego
+     * podstawą przetwarzania zostaje art. 9 ust. 2 lit. h, a plik dalej żyje w prywatnym
+     * buckecie z audytem dostępu. Zmienia się WYŁĄCZNIE okres przechowywania.
+     * Zdjęcie istotne klinicznie personel przenosi do kartoteki Prodentisa — i TA kopia
+     * podlega 20-letniemu obowiązkowi, niezależnie od tego crona.
+     *
+     * ZAKRES: wyłącznie `origin='patient'`. Załączników `origin='staff'` w torze pacjenta
+     * nie ruszamy — to korespondencja wychodząca gabinetu, inna kategoria (i na dziś recepcja
+     * i tak nie ma trasy do odsyłania plików).
+     *
+     * KOLEJNOŚĆ: ścieżki zbieramy PRZED kasowaniem wierszy (potem nie ma czym trafić do
+     * Storage), a pliki usuwamy PO udanym DELETE — inaczej nieudane kasowanie zostawiłoby
+     * wiersz wskazujący na nieistniejący obiekt. W przebiegu próbnym nie ruszamy niczego.
+     */
+    async function cleanPatientChatAttachments(): Promise<void> {
+        const key = 'patient_chat_attachments_old';
+        const description =
+            `Patient-sent chat attachments > ${PATIENT_ATTACHMENT_RETENTION_MONTHS} months ` +
+            `(nie są dokumentacją medyczną — decyzja 2026-07-28)`;
+        const cutoff = monthsAgoIso(now, PATIENT_ATTACHMENT_RETENTION_MONTHS);
+
+        try {
+            const { data, error } = await supabase
+                .from('chat_attachments')
+                .select('id, storage_path, thumb_path')
+                .eq('origin', 'patient')
+                .lt('created_at', cutoff)
+                .limit(1000);
+
+            if (error) {
+                results[key] = { description, cutoff, deleted: 0, error: error.message };
+                console.error(`[RetentionCleanup] ${key} lookup error:`, error.message);
+                return;
+            }
+
+            const rows = (data ?? []) as { id: string; storage_path: string; thumb_path: string | null }[];
+            if (rows.length === 0) {
+                results[key] = { description, cutoff, deleted: 0, error: null };
+                return;
+            }
+
+            if (dryRun) {
+                results[key] = { description, cutoff, deleted: rows.length, error: null };
+                return;
+            }
+
+            const errs: string[] = [];
+            let deleted = 0;
+
+            for (const part of chunk(rows, CHAT_CHUNK)) {
+                const paths = part.flatMap(r => (r.thumb_path ? [r.storage_path, r.thumb_path] : [r.storage_path]));
+
+                const { count, error: delErr } = await supabase
+                    .from('chat_attachments')
+                    .delete({ count: 'exact' })
+                    .in('id', part.map(r => r.id));
+
+                if (delErr) {
+                    errs.push(delErr.message);
+                    continue;
+                }
+                deleted += count ?? 0;
+
+                const { error: rmErr } = await supabase.storage.from(ATTACHMENT_BUCKET).remove(paths);
+                // Osierocony plik jest mniej groźny niż wiersz bez pliku, ale musi być widoczny.
+                if (rmErr) errs.push(`storage: ${rmErr.message}`);
+            }
+
+            results[key] = { description, cutoff, deleted, error: errs.length > 0 ? errs.join('; ') : null };
+            if (errs.length > 0) console.error(`[RetentionCleanup] ${key} errors:`, errs.join('; '));
+            else console.log(`[RetentionCleanup] ${key}: deleted ${deleted} attachments`);
+        } catch (err) {
+            results[key] = { description, cutoff, deleted: 0, error: (err as Error).message };
+            console.error(`[RetentionCleanup] ${key} exception:`, err);
+        }
+    }
+
+    /**
      * Puste wątki DM po skasowaniu wiadomości. Sam wiersz `staff_conversations` też trzyma
      * treść — `last_message_preview` to SZYFROGRAM podglądu ostatniej wiadomości. Zostawienie
      * go spełnia obietnicę kasowania w połowie. DELETE wątku zabiera kaskadą również
@@ -437,6 +539,7 @@ export async function GET(req: NextRequest) {
 
     await cleanStaffDmMessages();
     await cleanEmptyStaffDmThreads();
+    await cleanPatientChatAttachments();
 
     if (staffDmOrphanFiles === null || staffDmOrphanFiles > 0) {
         console.warn(
