@@ -10,6 +10,12 @@ const supabase = createClient(
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Ile czasu od terminu dawki pacjent ma na jej potwierdzenie (decyzja lekarza 2026-07-28).
+ * Dotyczy WYŁĄCZNIE kroków lekowych — patrz komentarz przy sprawdzeniu.
+ */
+const CONFIRM_WINDOW_MS = 60 * 60 * 1000;
+
 /** Dane medyczne — nic nie może osiąść w cache CDN ani przeglądarki. */
 const NO_STORE: Record<string, string> = {
     'Cache-Control': 'no-store, no-cache, must-revalidate, private',
@@ -75,7 +81,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
         const { data: task, error: taskErr } = await supabase
             .from('care_tasks')
-            .select('id, enrollment_id, title, scheduled_at, visible_from, completed_at, skipped_at, requires_confirmation')
+            .select('id, enrollment_id, title, scheduled_at, visible_from, completed_at, skipped_at, requires_confirmation, medication_name')
             .eq('id', id)
             .maybeSingle();
 
@@ -122,6 +128,31 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         }
         if (task.visible_from && new Date(task.visible_from) > now) {
             return NextResponse.json({ error: 'too_early' }, { status: 409, headers: NO_STORE });
+        }
+
+        // ── OKNO POTWIERDZENIA (decyzja lekarza 2026-07-28) ──────────────────
+        //
+        // Krok LEKOWY można odhaczyć wyłącznie w ciągu godziny od terminu dawki.
+        // Po tym czasie pole jest zamknięte i pacjent nie potwierdzi go wstecz.
+        //
+        // 🔑 PO CO: bez okna pacjent nadrabiał zaległości jednym ciągiem klików —
+        // odhaczał dawki, których nie wziął, a raport zgodności eksportowany do
+        // Prodentisa twierdził, że kuracja przebiegła zgodnie z ordynacją.
+        // Dokumentacja medyczna kłamała, i to w stronę bezpieczną dla pacjenta pozornie,
+        // a groźną klinicznie: lekarz nie widział, że osłona nie została przyjęta.
+        //
+        // 🔑 DLACZEGO TYLKO LEKI: kroki opisowe („nie płucz", „zimny okład", kontrola)
+        // pacjent czyta i odhacza, kiedy dotrze — zamykanie ich po godzinie zostawiałoby
+        // protokół pełen niedomkniętych zadań, a `medication_name` jest jedynym polem,
+        // które jednoznacznie odróżnia dawkę od zalecenia.
+        if (task.medication_name && scheduledAt) {
+            const elapsedMs = now.getTime() - scheduledAt.getTime();
+            if (elapsedMs > CONFIRM_WINDOW_MS) {
+                return NextResponse.json(
+                    { error: 'window_closed', windowMinutes: CONFIRM_WINDOW_MS / 60000 },
+                    { status: 409, headers: NO_STORE }
+                );
+            }
         }
 
         // Atomowo: warunek `completed_at IS NULL` jest po stronie bazy, więc wyścig
