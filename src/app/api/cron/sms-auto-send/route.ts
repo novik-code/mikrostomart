@@ -101,6 +101,17 @@ export async function GET(req: Request) {
 
         if (!drafts || drafts.length === 0) {
             console.log(`ℹ️  [SMS Auto-Send] No draft SMS found${isMondayMode ? ' for Monday' : ''} (likely already sent manually)`);
+            // 🔑 HEARTBEAT TAKŻE NA PUSTYM PRZEBIEGU. Bez tego cron, który się wykonał
+            // i nic nie zastał, jest NIEODRÓŻNIALNY od crona, który w ogóle nie ruszył —
+            // w obu przypadkach rejestr pokazuje stary znacznik. To realnie zmyliło
+            // przy pierwszej weryfikacji tej ścieżki: wyglądało, że cron nie chodzi,
+            // podczas gdy on chodził, a drafty wysyłała wcześniej recepcja z panelu.
+            await logCronHeartbeat(
+                'sms-auto-send',
+                'ok',
+                `Brak draftow do wyslania${isMondayMode ? ' (poniedzialek)' : ''} — prawdopodobnie wyslane recznie z panelu`,
+                Date.now() - startTime
+            );
             return NextResponse.json({
                 success: true,
                 processed: 0,
