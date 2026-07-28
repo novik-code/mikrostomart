@@ -841,7 +841,8 @@
     "sec9Li8": "Firebase / Google (USA, SCC + DPA) — Push-Benachrichtigungen",
     "sec9Li9": "Cloudflare (USA, SCC + DPA) — CDN + DDoS-Schutz + Prodentis-Tunnel",
     "sec9Li10": "Telegram Messenger LLP (EU/USA) — interne operative Benachrichtigungen für das Team über Formularanfragen (können die dort angegebenen Kontaktdaten und Inhalte enthalten; keine medizinische Dokumentation)",
-    "sec9Li11": "Prodentis (lokaler Server in der Klinik, Polen — on-premise) — Terminkalender und medizinische Dokumentation"
+    "sec9Li11": "Prodentis (lokaler Server in der Klinik, Polen — on-premise) — Terminkalender und medizinische Dokumentation",
+    "sec9Li12": "Expo (Expo Application Services, USA, SCC + DPA) — Zustellung von Push-Benachrichtigungen an die mobile App; verarbeitet das Gerätetoken sowie Titel und Text der Benachrichtigung"
   },
   "regulamin": {
     "tagline": "Betriebsordnung",
