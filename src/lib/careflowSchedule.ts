@@ -114,6 +114,84 @@ export function smartSnap(date: Date, quietStart = 22, quietEnd = 7): Date {
     return new Date(warsawIso(dateStr, `${String(targetHour).padStart(2, '0')}:00`));
 }
 
+// ─── Siatka dawkowania ────────────────────────────────────────────────────────
+
+/**
+ * Ludzkie pory brania leków. Wszystkie dawki podtrzymujące siedzą na tej siatce,
+ * dzięki czemu pacjent ma trzy stałe pory na dobę zamiast dryfującego „co 8 h od
+ * godziny zabiegu" (zabieg o 11:40 dawałby dawki o 19:40, 03:40, 11:40…).
+ *
+ * Odstęp siatki to dokładnie 8 h, więc krok „co 8 h" zakotwiczony na slocie
+ * pozostaje na niej bez dalszego snapowania.
+ */
+export const DOSE_GRID_HOURS = [7, 15, 23] as const;
+
+/** Ściana zegara przesunięta o `dayShift` dni, o pełnej godzinie `hour`. */
+function warsawAt(wall: WarsawWallClock, hour: number, dayShift = 0): Date {
+    // Południe jako punkt zaczepienia — odporne na doby zmiany czasu (23 h / 25 h).
+    const anchor = new Date(Date.UTC(wall.year, wall.month - 1, wall.day, 12, 0, 0));
+    anchor.setUTCDate(anchor.getUTCDate() + dayShift);
+    const y = anchor.getUTCFullYear();
+    const m = String(anchor.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(anchor.getUTCDate()).padStart(2, '0');
+    return new Date(warsawIso(`${y}-${m}-${d}`, `${String(hour).padStart(2, '0')}:00`));
+}
+
+/**
+ * Najbliższy slot siatki o tej samej godzinie lub WCZEŚNIEJ (może cofnąć na dzień poprzedni).
+ * Minuty są obcinane — 07:30 należy do slotu 07:00.
+ */
+export function gridFloor(date: Date): Date {
+    const wall = warsawWallClock(date);
+    for (let i = DOSE_GRID_HOURS.length - 1; i >= 0; i--) {
+        if (DOSE_GRID_HOURS[i] <= wall.hour) return warsawAt(wall, DOSE_GRID_HOURS[i]);
+    }
+    return warsawAt(wall, 23, -1);
+}
+
+/** Pierwszy slot siatki ŚCIŚLE PÓŹNIEJ niż podany moment. */
+export function gridNext(date: Date): Date {
+    const wall = warsawWallClock(date);
+    for (const g of DOSE_GRID_HOURS) if (g > wall.hour) return warsawAt(wall, g);
+    return warsawAt(wall, 7, 1);
+}
+
+/**
+ * Tryb dopasowania terminu kroku do siatki dawkowania.
+ *
+ * Reguły wyprowadzone z przykładów lekarza i zweryfikowane testami:
+ * - `loading` — dawka nasycająca: slot siatki w chwili `zabieg − 8 h` LUB WCZEŚNIEJ.
+ *   Zabieg 09:00 → 23:00 dnia poprzedniego; zabieg 15:00 → 07:00 tego samego dnia.
+ * - `pre_op`  — dawka „tuż przed": ostatni slot przed zabiegiem, a gdy zbiegłby się
+ *   z dawką nasycającą — godzina przed zabiegiem (zabieg 15:00 → 14:00, poza siatką).
+ * - `grid`    — dawki podtrzymujące: pierwszy slot ŚCIŚLE PO nominalnym terminie kroku.
+ *   Odstęp wolno w ten sposób SKRÓCIĆ (lek o 10:00 → następna dawka 15:00, nie 18:00),
+ *   nigdy wydłużyć.
+ */
+export type DoseSnapMode = 'loading' | 'pre_op' | 'grid';
+
+/** Godziny wyprzedzenia dawki nasycającej względem zabiegu. */
+const LOADING_LEAD_HOURS = 8;
+
+/**
+ * Termin kroku po dopasowaniu do siatki. `procedure` to moment rozpoczęcia zabiegu,
+ * `nominal` to termin wyliczony z `offset_hours` (dla `grid`).
+ */
+export function snapToDoseGrid(mode: DoseSnapMode, procedure: Date, nominal: Date): Date {
+    if (mode === 'loading') {
+        return gridFloor(new Date(procedure.getTime() - LOADING_LEAD_HOURS * HOUR_MS));
+    }
+    if (mode === 'pre_op') {
+        const candidate = gridFloor(new Date(procedure.getTime() - HOUR_MS));
+        const loading = gridFloor(new Date(procedure.getTime() - LOADING_LEAD_HOURS * HOUR_MS));
+        // Kolizja z dawką nasycającą (zabieg 15:00: oba slot 07:00) → godzina przed zabiegiem.
+        // Bez tego pacjent miałby 2 g i 1 g w tej samej minucie.
+        if (candidate.getTime() === loading.getTime()) return new Date(procedure.getTime() - HOUR_MS);
+        return candidate;
+    }
+    return gridNext(nominal);
+}
+
 /** Lek ze snapshotu protokołu (`care_templates.default_medications` lub nadpisanie przy zapisie). */
 export type CareMedication = {
     name?: string;
@@ -134,6 +212,12 @@ export type CareStepRow = {
     /** Ujemne = przed zabiegiem. */
     offset_hours: number;
     smart_snap?: boolean | null;
+    /**
+     * Dopasowanie do siatki dawkowania 07/15/23. Ma PIERWSZEŃSTWO przed `smart_snap`:
+     * termin z siatki jest kliniczny i nie wolno go dodatkowo przesuwać strażnikiem
+     * ciszy nocnej (to właśnie on zepchnąłby dawkę 23:00 na 22:00).
+     */
+    dose_snap?: DoseSnapMode | null;
     push_message?: string | null;
     is_recurring?: boolean | null;
     recurrence_count?: number | null;
@@ -257,10 +341,27 @@ export function buildTasks(params: {
         const intervalHours = step.recurrence_interval_hours ?? 0;
         const medication = resolveMedication(step, medications);
 
+        // Kotwica dla kroków na siatce: dawkę 0 snapujemy, kolejne odmierzamy od niej
+        // stałym odstępem. Odstęp siatki to 8 h, więc krok „co 8 h" pozostaje na niej sam;
+        // snapowanie KAŻDEJ dawki osobno byłoby błędem — dwie dawki co 6 h wpadłyby
+        // na ten sam slot.
+        const gridAnchorMs = step.dose_snap
+            ? snapToDoseGrid(
+                  step.dose_snap,
+                  appointmentDate,
+                  new Date(baseMs + step.offset_hours * HOUR_MS)
+              ).getTime()
+            : null;
+
         for (let dose = 0; dose < doses; dose++) {
             const offsetHours = step.offset_hours + dose * intervalHours;
-            let scheduled = new Date(baseMs + offsetHours * HOUR_MS);
-            if (step.smart_snap) scheduled = smartSnap(scheduled, quietStart, quietEnd);
+            let scheduled =
+                gridAnchorMs !== null
+                    ? new Date(gridAnchorMs + dose * intervalHours * HOUR_MS)
+                    : new Date(baseMs + offsetHours * HOUR_MS);
+            // `dose_snap` wygrywa ze `smart_snap`: termin z siatki jest kliniczny.
+            // Bez tego warunku strażnik ciszy zepchnąłby dawkę 23:00 na 22:00.
+            if (!step.dose_snap && step.smart_snap) scheduled = smartSnap(scheduled, quietStart, quietEnd);
 
             drafts.push({
                 seq: seq++,
