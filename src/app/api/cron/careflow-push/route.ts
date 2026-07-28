@@ -81,6 +81,24 @@ const PUSH_BODY = 'Masz przypomnienie w planie opieki. Otwórz aplikację.';
  */
 const PUSH_LANDING_PATH = '/strefa-pacjenta/dashboard';
 
+/**
+ * Okno ciszy dla WYSYŁKI przypomnień (godziny warszawskie): milczymy od północy do 07:00.
+ *
+ * 🔑 TO NIE JEST TO SAMO CO `smartSnap` W PLANIŚCIE, mimo podobnej nazwy i podobnych liczb:
+ *  · `smartSnap` (careflowSchedule.ts, domyślnie 22–07) przesuwa TERMIN kroku, żeby nie
+ *    wypadł w nocy. Dotyczy wyłącznie kroków z `smart_snap = true`; kroki lekowe mają
+ *    `false`, bo ich termin jest kliniczny i nie wolno go ruszać.
+ *  · Ten strażnik decyduje, KIEDY WOLNO WYSŁAĆ powiadomienie o kroku, którego termin
+ *    już ustalono.
+ *
+ * ⚠️ Było zaszyte `>= 22`, przez co **dawka o 23:00 nigdy nie dostałaby przypomnienia** —
+ * a w siatce dawkowania 07/15/23 to dawka nasycająca dla każdego zabiegu między 08:00
+ * a 14:00. Zadanie by istniało, pacjent nie zobaczyłby nic. Pacjent bierze tę dawkę
+ * świadomie przed snem, więc powiadomienie o 23:00 jest zamierzone; śpimy dopiero po północy.
+ */
+const PUSH_QUIET_START = 24; // 24 = nie wyciszamy wieczorem wcale (warunek `hour >= 24` nigdy nie zachodzi)
+const PUSH_QUIET_END = 7;
+
 interface EnrollmentRef {
     id: string;
     /** PRODENTIS ID — tym samym kluczem są kluczowane patient_push_tokens. */
@@ -198,8 +216,8 @@ export async function GET(req: Request) {
         const warsawHourStr = new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Warsaw', hour12: false, hour: 'numeric' }).format(now);
         const currentHourWarsaw = parseInt(warsawHourStr);
 
-        // Quiet hours guard (22:00-07:00 Warsaw time)
-        if (currentHourWarsaw >= 22 || currentHourWarsaw < 7) {
+        // Quiet hours guard — patrz PUSH_QUIET_START / PUSH_QUIET_END.
+        if (currentHourWarsaw >= PUSH_QUIET_START || currentHourWarsaw < PUSH_QUIET_END) {
             console.log(`🏥 [CareFlow Push] Quiet hours (Warsaw: ${currentHourWarsaw}:00) — skipping all`);
             return NextResponse.json({ success: true, skipped: 'quiet_hours' }, { headers: NO_STORE });
         }
