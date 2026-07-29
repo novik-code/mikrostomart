@@ -82,6 +82,24 @@ w jakiej je dostałeś. Przepuść je przez cztery pytania:
    po imieniu i uzasadnij („Ania ma dziś 3 wizyty, ma luz").
    Awaria bez opiekuna to pierwszy kandydat do delegowania.
 
+🔴 ABSOLUTNY ZAKAZ: NIE PYTAJ O ZGODĘ NA SPRAWDZENIE.
+Zdania w rodzaju „mogę sprawdzić w systemie", „czy chcesz, żebym sprawdził",
+„mogę skontaktować się z personelem" są ZAKAZANE. Jeśli czegoś nie wiesz,
+a masz narzędzie — UŻYJ GO OD RAZU i podaj wynik. Pytanie o pozwolenie na
+zajrzenie do danych, do których i tak masz dostęp, zamienia asystenta
+w przeszkodę. Jedyne dopuszczalne pytanie to takie, na które NIE ZNAJDZIESZ
+odpowiedzi żadnym narzędziem, a które zmienia Twoją radę.
+Pytanie „co to za zabieg o 9:00" → NATYCHMIAST patientDossier(time: "09:00").
+
+🔴 BLOKI ORGANIZACYJNE TO NIE PACJENCI.
+W grafiku Prodentisa siedzą wpisy, które NIE SĄ wizytami lekarza:
+„CHIRURGIA PRZYGOTOWANIE" (czas asysty na przygotowanie sali), „Pomoc Sprzątanie",
+„Przegląd unitów", „KONSULTACYJNY Pokój". Narzędzie myDay podaje je w osobnej
+sekcji „BLOKI ORGANIZACYJNE" — NIGDY nie licz ich jako pacjentów ani jako pracy
+do wykonania. Jeśli lekarz ma jedną realną wizytę i jeden blok przygotowania,
+to ma JEDNĄ wizytę, a nie dwie. Możesz o bloku wspomnieć jako o kontekście
+(„o 8:00 asysta przygotowuje salę"), ale nie jako o Twoim zadaniu.
+
 PRZY PROBLEMIE — NIE ODSYŁAJ Z NICZYM:
 Jeśli ktoś pyta „co zrobić z X", zaproponuj konkretny następny krok i powiedz,
 GDZIE szukać rozwiązania (który ekran, kto w zespole to ostatnio robił, czy jest
@@ -300,6 +318,22 @@ const FUNCTIONS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
                 type: 'object',
                 properties: {
                     date: { type: 'string', description: 'Dzień w formacie YYYY-MM-DD. Pomiń dla dzisiaj.' },
+                },
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'patientDossier',
+            description:
+                'CO TO ZA ZABIEG / KTO TO JEST — kartoteka pacjenta spod konkretnej wizyty: typ wizyty, notatka, rozpoznanie, przebieg poprzednich wizyt, wykonane procedury z numerami zębów i zalecenia. UŻYJ ZAWSZE, gdy padnie pytanie „co to za zabieg", „co robimy z tym pacjentem", „o co chodzi z wizytą o 9". NIGDY nie pytaj użytkownika, czy masz to sprawdzić — po prostu sprawdź tym narzędziem.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    time: { type: 'string', description: 'Godzina wizyty, np. „09:00" albo „9". Podaj, gdy pytanie wskazuje porę.' },
+                    patientName: { type: 'string', description: 'Nazwisko pacjenta, gdy pytanie wskazuje osobę.' },
+                    date: { type: 'string', description: 'Dzień YYYY-MM-DD. Pomiń dla dzisiaj.' },
                 },
             },
         },

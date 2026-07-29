@@ -754,13 +754,27 @@ async function myDay(args: { date?: string }, userId: string): Promise<ActionRes
             const mine = myName ? all.filter(a => sameDoctor(a, myName)) : [];
             stats.appointmentsMine = mine.length;
 
-            const withMin = mine
+            const parsed = mine
                 .map(a => ({ a, start: toMinutes(prodentisTime(a)), end: apptEndMinutes(a) }))
                 // 🔑 Odsiewamy wpisy sprzed 7:00 — to POZYCJE INFORMACYJNE Prodentisa,
                 // nie wizyty. Bez tego asystent twierdził, że ortodoncja jest o 03:00.
                 // Ten sam próg co w trasie grafiku („skip very early informational entries").
                 .filter(x => x.start >= 7 * 60)
                 .sort((x, y) => x.start - y.start);
+
+            // Bloki organizacyjne WYDZIELAMY, zamiast wliczać w pracę lekarza.
+            const withMin = parsed.filter(x => !isOrganizationalBlock(x.a));
+            const blocks = parsed.filter(x => isOrganizationalBlock(x.a));
+            stats.orgBlocks = blocks.length;
+            if (blocks.length) {
+                sections.push(
+                    `BLOKI ORGANIZACYJNE (NIE Twoja praca — czas asysty/serwisu):\n` +
+                        blocks
+                            .slice(0, 5)
+                            .map(x => `  ${fmtMinutes(x.start)} — ${x.a.patientName || prodentisTypeName(x.a) || 'blok'}`)
+                            .join('\n'),
+                );
+            }
 
             if (!withMin.length) {
                 sections.push(`GRAFIK: nie masz dziś wizyt. W całym gabinecie: ${all.length}.`);
@@ -984,6 +998,27 @@ async function myDay(args: { date?: string }, userId: string): Promise<ActionRes
     };
 }
 
+/**
+ * Czy ta pozycja grafiku to BLOK ORGANIZACYJNY, a nie pacjent do przyjęcia.
+ *
+ * 🔑 Prodentis trzyma w tym samym kalendarzu wpisy, które nie są wizytami:
+ * „CHIRURGIA PRZYGOTOWANIE" to czas zarezerwowany dla ASYSTY na przygotowanie sali,
+ * „Pomoc Sprzątanie" to sprzątanie, „Przegląd unitów" to serwis. Lekarz nie ma tam
+ * nic do zrobienia. Asystent, który wypisuje je jako „Twoi pacjenci", myli człowieka
+ * co do tego, ile realnie ma pracy — i właśnie na tym się przewrócił.
+ */
+const ORG_BLOCK_RE =
+    /przygotowanie|asysta|sprz[aą]tanie|przegl[aą]d|serwis|remont|blokada|przerwa|urlop|szkolenie|konsultacyjn|pok[oó]j|unit[oó]w|dezynfekcj|sterylizacj/i;
+
+function isOrganizationalBlock(apt: any): boolean {
+    const name = String(apt?.patientName ?? apt?.patient?.name ?? '');
+    const type = prodentisTypeName(apt);
+    // Brak identyfikatora pacjenta to najmocniejszy sygnał: realna wizyta zawsze
+    // wskazuje na kartotekę. Sama nazwa bywa myląca, więc łączymy oba warunki.
+    const noPatient = !apt?.patientId && !apt?.patient?.id;
+    return ORG_BLOCK_RE.test(name) || (noPatient && ORG_BLOCK_RE.test(type));
+}
+
 /** „HH:MM" → minuty od północy. `-1`, gdy nie da się odczytać. */
 function toMinutes(hhmm: string): number {
     const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
@@ -1040,6 +1075,125 @@ function sameDoctor(apt: any, myName: string): boolean {
         .filter(Boolean)
         .pop();
     return !!surname && surname.length > 2 && docName.includes(surname);
+}
+
+/**
+ * DOKUMENTACJA PACJENTA spod konkretnej wizyty — „co to za zabieg o 9:00".
+ *
+ * 🔑 DLACZEGO TO ISTNIEJE. Asystent zapytany o zabieg odpowiadał: „mogę sprawdzić
+ * w systemie lub skontaktować się z personelem. Czy chcesz…". Nie z lenistwa —
+ * po prostu NIE MIAŁ CZYM sprawdzić. `checkSchedule` oddaje samą nazwę typu wizyty,
+ * a to, co realnie zaplanowano, siedzi w historii leczenia. Bez tego narzędzia
+ * zakaz „nie pytaj, tylko sprawdź" byłby pustym poleceniem.
+ *
+ * Szuka wizyty po GODZINIE albo po NAZWISKU, pobiera kartotekę z Prodentisa
+ * i streszcza: rozpoznanie, opis, wykonane procedury, zalecenia.
+ */
+async function patientDossier(
+    args: { time?: string; patientName?: string; date?: string },
+    userId: string,
+): Promise<ActionResult> {
+    const date = args.date || new Date().toISOString().slice(0, 10);
+    try {
+        const [res, { data: emp }] = await Promise.all([
+            prodentisFetch(`/api/appointments/by-date?date=${date}`),
+            supabase.from('employees').select('name').eq('user_id', userId).maybeSingle(),
+        ]);
+        if (!res.ok) return { success: false, action: 'patientDossier', message: 'Nie udało się pobrać grafiku z Prodentisa.' };
+        const data = await res.json();
+        const all = (data.appointments || data || []) as any[];
+        const myName = (emp?.name as string | undefined) ?? '';
+
+        const wantTime = args.time ? args.time.replace(/\D/g, '').padStart(4, '0').slice(0, 4) : null;
+        const wantName = args.patientName?.toLowerCase().trim();
+
+        const matches = (a: any): boolean => {
+            if (isOrganizationalBlock(a)) return false;
+            if (wantTime) {
+                const t = prodentisTime(a).replace(':', '');
+                // Dopuszczamy „9" i „09:00" — użytkownik mówi „na dziewiątą".
+                if (t === wantTime || t.slice(0, 2) === wantTime.slice(0, 2)) return true;
+            }
+            if (wantName) {
+                const n = String(a.patientName ?? a.patient?.name ?? '').toLowerCase();
+                if (n.includes(wantName) || wantName.split(/\s+/).some(w => w.length > 2 && n.includes(w))) return true;
+            }
+            return false;
+        };
+
+        /**
+         * 🔑 NAJPIERW MOJE WIZYTY. Pytanie „co to za zabieg o 9" dotyczy grafiku
+         * PYTAJĄCEGO, a o tej samej godzinie w gabinecie przyjmuje kilku lekarzy.
+         * Bez tej kolejności asystent pewnym siebie tonem opisywał pacjenta innego
+         * lekarza — złapane przy weryfikacji: myDay pokazywał „09:00 Kolasa",
+         * a kartoteka wracała z zupełnie inną osobą.
+         */
+        const mine = myName ? all.filter(a => sameDoctor(a, myName) && matches(a)) : [];
+        const hit = mine[0] ?? all.find(matches);
+        const notMine = !!hit && !mine.length;
+
+        if (!hit) {
+            return {
+                success: true,
+                action: 'patientDossier',
+                message: `Nie znalazłem wizyty${args.time ? ` o ${args.time}` : ''}${args.patientName ? ` dla „${args.patientName}"` : ''} w dniu ${date}.`,
+            };
+        }
+
+        const pName = String(hit.patientName ?? hit.patient?.name ?? 'Pacjent');
+        const pid = hit.patientId ?? hit.patient?.id;
+        const doc = String(hit.doctorName ?? hit.doctor?.name ?? '').trim();
+        // Gdy trafiliśmy w cudzą wizytę, mówimy to WPROST — inaczej pytający uzna,
+        // że to jego pacjent, i przyjdzie przygotowany na nie swój zabieg.
+        const whose = notMine && doc ? `\n⚠️ To NIE jest Twoja wizyta — prowadzi ją ${doc}.` : '';
+        const head = `${prodentisTime(hit)} — ${pName}${prodentisTypeName(hit) ? `, typ wizyty: ${prodentisTypeName(hit)}` : ''}${whose}${hit.notes ? `\nNotatka do wizyty: ${String(hit.notes).slice(0, 300)}` : ''}`;
+
+        if (!pid) {
+            return { success: true, action: 'patientDossier', message: `${head}\n\nBrak powiązanej kartoteki — nie mam czego sprawdzić w historii.` };
+        }
+
+        const hRes = await prodentisFetch(`/api/patient/${pid}/appointments?limit=8`);
+        if (!hRes.ok) {
+            return { success: true, action: 'patientDossier', message: `${head}\n\nHistoria leczenia chwilowo niedostępna.` };
+        }
+        const hData = await hRes.json();
+        const visits = (hData.appointments || hData || []) as any[];
+
+        // Bierzemy WYŁĄCZNIE wizyty z realną treścią medyczną — pusty wpis w historii
+        // niczego nie wnosi, a zjada miejsce w odpowiedzi.
+        const past = visits
+            .filter(v => v?.medicalDetails && (v.medicalDetails.diagnosis || v.medicalDetails.visitDescription || v.medicalDetails.procedures?.length))
+            .slice(0, 4)
+            .map(v => {
+                const d = String(v.date ?? '').slice(0, 10);
+                const md = v.medicalDetails ?? {};
+                const proc = (md.procedures ?? [])
+                    .map((p: any) => `${p.name ?? p.procedureName ?? ''}${p.tooth ? ` (ząb ${p.tooth})` : ''}`)
+                    .filter(Boolean)
+                    .slice(0, 6)
+                    .join(', ');
+                return [
+                    `  ${d}${v.doctor?.name ? ` — ${v.doctor.name}` : ''}`,
+                    md.diagnosis ? `    rozpoznanie: ${String(md.diagnosis).slice(0, 200)}` : '',
+                    md.visitDescription ? `    przebieg: ${String(md.visitDescription).slice(0, 300)}` : '',
+                    proc ? `    procedury: ${proc}` : '',
+                    md.recommendations ? `    zalecenia: ${String(md.recommendations).slice(0, 200)}` : '',
+                ]
+                    .filter(Boolean)
+                    .join('\n');
+            });
+
+        return {
+            success: true,
+            action: 'patientDossier',
+            message: past.length
+                ? `${head}\n\nHISTORIA LECZENIA (ostatnie wizyty):\n${past.join('\n')}`
+                : `${head}\n\nW kartotece nie ma jeszcze opisanych wizyt — to prawdopodobnie pierwsza wizyta.`,
+            data: { patientId: pid, time: prodentisTime(hit) },
+        };
+    } catch (err: any) {
+        return { success: false, action: 'patientDossier', message: `Błąd odczytu kartoteki: ${err.message}` };
+    }
 }
 
 /** Moje otwarte zadania: zaległe, na dziś, dalsze. */
@@ -1270,6 +1424,8 @@ export async function executeAction(
         // Narzędzia CZYTAJĄCE — bez nich asystent nie odpowiadał na najczęstsze pytania.
         case 'myDay':
             return myDay(args as any, userId);
+        case 'patientDossier':
+            return patientDossier(args as any, userId);
         case 'listMyTasks':
             return listMyTasks(args as any, userId);
         case 'myWorkTime':
