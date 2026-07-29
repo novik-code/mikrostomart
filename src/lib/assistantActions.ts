@@ -688,6 +688,244 @@ async function updateTask(args: {
 // To jest główna przyczyna wrażenia, że asystent jest bezużyteczny; sama zmiana
 // modelu nic by tu nie dała.
 
+/**
+ * MÓJ DZIEŃ — jedna odpowiedź na pytanie „co mam dziś do zrobienia".
+ *
+ * 🔑 DLACZEGO TO ISTNIEJE. Osobne narzędzia (`listMyTasks`, `checkSchedule`,
+ * `openIncidents`…) wyglądały sensownie na liście funkcji, ale rozjeżdżały się
+ * z tym, jak człowiek pyta. Model wołał JEDNO z nich — zwykle zadania — dostawał
+ * pustą listę i odpowiadał „nic nie masz", mimo że w gabinecie czekał komplet
+ * pacjentów, dwie awarie i wniosek urlopowy do rozpatrzenia. Pytanie jest jedno,
+ * więc narzędzie też musi być jedno.
+ *
+ * Każde źródło jest odpytywane NIEZALEŻNIE i błąd jednego nie psuje reszty —
+ * brak Prodentisa nie może skasować informacji o awariach. Sekcje bez treści
+ * są POMIJANE, żeby odpowiedź nie była listą zer.
+ */
+async function myDay(args: { date?: string }, userId: string): Promise<ActionResult> {
+    const date = args.date || new Date().toISOString().slice(0, 10);
+    const isToday = date === new Date().toISOString().slice(0, 10);
+    const sections: string[] = [];
+    const stats: Record<string, number> = {};
+
+    // Kim jestem — potrzebne do odfiltrowania grafiku i do uprawnień.
+    const [{ data: emp }, { data: roles }] = await Promise.all([
+        supabase.from('employees').select('id, name').eq('user_id', userId).maybeSingle(),
+        supabase.from('user_roles').select('role').eq('user_id', userId),
+    ]);
+    const isAdmin = (roles ?? []).some((r: { role: string }) => r.role === 'admin');
+    const myName = (emp?.name as string | undefined) ?? '';
+
+    /**
+     * Każde źródło z WŁASNYM limitem czasu. Prodentis chodzi przez tunel, a skrzynka
+     * IMAP otwiera świeże połączenie przy każdym zapytaniu — jedno wiszące źródło
+     * nie może zjeść budżetu trasy i zabrać użytkownikowi całego podsumowania.
+     * Brak sekcji jest znośny; brak odpowiedzi nie jest.
+     */
+    const settle = async <T,>(p: Promise<T>, ms = 6000): Promise<T | null> => {
+        try {
+            return await Promise.race([
+                p,
+                new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), ms)),
+            ]);
+        } catch (err) {
+            console.error('[myDay] źródło pominięte:', err instanceof Error ? err.message : err);
+            return null;
+        }
+    };
+
+    // ── 1. Grafik: MOI pacjenci na ten dzień ────────────────────────────────
+    await settle(
+        (async () => {
+            const res = await prodentisFetch(`/api/appointments/by-date?date=${date}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            const all = (data.appointments || data || []) as any[];
+            if (!all.length) return;
+
+            const mine = myName ? all.filter(a => sameDoctor(a, myName)) : [];
+            const list = (mine.length ? mine : []).slice(0, 12);
+            stats.appointmentsMine = mine.length;
+            stats.appointmentsClinic = all.length;
+
+            if (list.length) {
+                const rows = list
+                    .map(a => `  ${prodentisTime(a)} — ${a.patientName || a.patient?.name || '?'}${prodentisTypeName(a) ? ` (${prodentisTypeName(a)})` : ''}`)
+                    .join('\n');
+                sections.push(`TWOI PACJENCI (${mine.length}):\n${rows}${mine.length > 12 ? `\n  …i ${mine.length - 12} więcej` : ''}`);
+            } else {
+                sections.push(`TWOI PACJENCI: brak wizyt. W całym gabinecie: ${all.length}.`);
+            }
+        })(),
+    );
+
+    // ── 2. Zadania: zaległe i na dziś ───────────────────────────────────────
+    await settle(
+        (async () => {
+            const { data } = await supabase
+                .from('employee_tasks')
+                .select('title, due_date, priority')
+                .or(`created_by.eq.${userId},owner_user_id.eq.${userId}`)
+                .in('status', ['todo', 'in_progress'])
+                .lte('due_date', date)
+                .order('due_date', { ascending: true });
+            const rows = (data ?? []) as Array<{ title: string; due_date: string | null; priority: string }>;
+            stats.tasks = rows.length;
+            if (rows.length) {
+                sections.push(
+                    `TWOJE ZADANIA (${rows.length}):\n` +
+                        rows.slice(0, 10).map(r => `  • ${r.priority === 'urgent' ? '‼️ ' : ''}${r.title}${r.due_date && r.due_date < date ? ' — PO TERMINIE' : ''}`).join('\n'),
+                );
+            }
+        })(),
+    );
+
+    // ── 3. Awarie ───────────────────────────────────────────────────────────
+    await settle(
+        (async () => {
+            const { data } = await supabase
+                .from('incidents')
+                .select('title, location, severity, taken_name')
+                .neq('status', 'resolved')
+                .order('created_at', { ascending: false });
+            const rows = (data ?? []) as Array<{ title: string; location: string | null; severity: string; taken_name: string | null }>;
+            stats.incidents = rows.length;
+            if (rows.length) {
+                const rank: Record<string, number> = { blocking: 0, hinders: 1, minor: 2 };
+                rows.sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9));
+                sections.push(
+                    `AWARIE (${rows.length}):\n` +
+                        rows.slice(0, 6).map(r => `  • ${r.severity === 'blocking' ? '🚨 ' : ''}${r.title}${r.location ? ` (${r.location})` : ''}${r.taken_name ? ` — zajmuje się ${r.taken_name}` : ' — NIKT SIĘ NIE ZAJĄŁ'}`).join('\n'),
+                );
+            }
+        })(),
+    );
+
+    // ── 4. Pacjenci czekający na odpowiedź na czacie ────────────────────────
+    await settle(
+        (async () => {
+            const { data } = await supabase
+                .from('chat_conversations')
+                .select('patient_name, last_message_at, unread_by_admin')
+                .eq('status', 'open')
+                .gt('unread_by_admin', 0)
+                .order('last_message_at', { ascending: true });
+            const rows = (data ?? []) as Array<{ patient_name: string | null; last_message_at: string | null }>;
+            stats.chats = rows.length;
+            if (rows.length) {
+                sections.push(
+                    `CZEKAJĄ NA ODPOWIEDŹ NA CZACIE (${rows.length}):\n` +
+                        rows.slice(0, 6).map(r => `  • ${r.patient_name || 'Pacjent'}${r.last_message_at ? ` — od ${r.last_message_at.slice(11, 16)}` : ''}`).join('\n'),
+                );
+            }
+        })(),
+    );
+
+    // ── 5. Wnioski urlopowe do decyzji (tylko admin) ────────────────────────
+    if (isAdmin) {
+        await settle(
+            (async () => {
+                const { data } = await supabase
+                    .from('leave_requests')
+                    .select('date_from, date_to, type, days_count, employees!inner(name)')
+                    .eq('status', 'requested')
+                    .order('date_from', { ascending: true });
+                const rows = (data ?? []) as any[];
+                stats.leaveRequests = rows.length;
+                if (rows.length) {
+                    sections.push(
+                        `WNIOSKI URLOPOWE DO DECYZJI (${rows.length}):\n` +
+                            rows.slice(0, 6).map(r => `  • ${r.employees?.name ?? '?'}: ${r.date_from}–${r.date_to} (${r.days_count} dni)`).join('\n'),
+                    );
+                }
+            })(),
+        );
+    }
+
+    // ── 6. Nowe sugestie zespołu ────────────────────────────────────────────
+    await settle(
+        (async () => {
+            const { data } = await supabase
+                .from('feature_suggestions')
+                .select('content, author_name, category')
+                .eq('status', 'nowa')
+                .order('created_at', { ascending: false });
+            const rows = (data ?? []) as Array<{ content: string; author_name: string; category: string }>;
+            stats.suggestions = rows.length;
+            if (rows.length) {
+                sections.push(
+                    `NOWE SUGESTIE ZESPOŁU (${rows.length}):\n` +
+                        rows.slice(0, 4).map(r => `  • ${r.author_name}: ${String(r.content).replace(/\s+/g, ' ').slice(0, 90)}`).join('\n'),
+                );
+            }
+        })(),
+    );
+
+    // ── 7. Nieprzeczytana poczta (tylko admin — skrzynka jest admin-only) ───
+    if (isAdmin) {
+        await settle(
+            (async () => {
+                const { getUnreadCount, listEmails } = await import('./imapService');
+                const n = await getUnreadCount('INBOX');
+                stats.unreadMail = n;
+                if (n === 0) return;
+
+                // Sam licznik nie odpowiada na pytanie „czy jest mail wart odpowiedzi" —
+                // dopiero nadawca i temat pozwalają zdecydować bez otwierania skrzynki.
+                // Nie pobieramy treści: nagłówki wystarczą, a każdy mail więcej to
+                // kolejna sekunda w oknie, które ma zmieścić siedem źródeł.
+                const { emails } = await listEmails('INBOX', 1, 20);
+                const unread = (emails ?? []).filter(e => !e.isRead).slice(0, 5);
+                // `from` to OBIEKT `{name,address}` — wstawienie go wprost dałoby
+                // „[object Object]", dokładnie jak przy typie wizyty w grafiku.
+                const lines = unread
+                    .map(e => `  • ${(e.from?.name || e.from?.address || '?').slice(0, 45)} — ${(e.subject || '(bez tematu)').slice(0, 60)}`)
+                    .join('\n');
+                sections.push(
+                    `POCZTA — ${n} nieprzeczytanych${lines ? `:\n${lines}${n > unread.length ? `\n  …i ${n - unread.length} więcej` : ''}` : '.'}`,
+                );
+            })(),
+            9000, // IMAP otwiera nowe połączenie za każdym razem — dajemy mu więcej luzu.
+        );
+    }
+
+    const when = isToday ? 'DZIŚ' : date;
+    if (sections.length === 0) {
+        return {
+            success: true,
+            action: 'myDay',
+            message: `${when}: nic nie wymaga Twojej uwagi — brak wizyt, zadań, awarii i wiadomości bez odpowiedzi.`,
+            data: stats,
+        };
+    }
+
+    return {
+        success: true,
+        action: 'myDay',
+        message: `PODSUMOWANIE — ${when}\n\n${sections.join('\n\n')}`,
+        data: stats,
+    };
+}
+
+/**
+ * Czy ta wizyta należy do mnie. Prodentis podaje nazwę lekarza w formie pełnej
+ * („lek. dent. Marcin Nowosielski M.Sc."), a kartoteka pracownika krótkiej —
+ * porównujemy więc po NAZWISKU, po odsianiu tytułów. Ten sam kompromis co
+ * przy preselekcji specjalisty w rezerwacji.
+ */
+function sameDoctor(apt: any, myName: string): boolean {
+    const docName = String(apt?.doctorName ?? apt?.doctor?.name ?? '').toLowerCase();
+    if (!docName) return false;
+    const surname = myName
+        .toLowerCase()
+        .replace(/lek\.|dent\.|dr|hab\.|prof\.|m\.sc\.|msc/g, '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .pop();
+    return !!surname && surname.length > 2 && docName.includes(surname);
+}
+
 /** Moje otwarte zadania: zaległe, na dziś, dalsze. */
 async function listMyTasks(args: { scope?: 'today' | 'overdue' | 'open' }, userId: string): Promise<ActionResult> {
     try {
@@ -914,6 +1152,8 @@ export async function executeAction(
         case 'updateMemory':
             return updateMemory(args as any, userId);
         // Narzędzia CZYTAJĄCE — bez nich asystent nie odpowiadał na najczęstsze pytania.
+        case 'myDay':
+            return myDay(args as any, userId);
         case 'listMyTasks':
             return listMyTasks(args as any, userId);
         case 'myWorkTime':

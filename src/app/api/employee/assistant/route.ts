@@ -39,12 +39,22 @@ CO POTRAFISZ ZROBIĆ:
 5. Zapisywanie do pamięci — updateMemory gdy użytkownik poda coś wartego zapamiętania
 
 CO POTRAFISZ SPRAWDZIĆ (używaj TYCH narzędzi zamiast zgadywać albo odpowiadać „nie wiem"):
-6. listMyTasks — moje otwarte zadania: zaległe, na dziś, dalsze
-7. myWorkTime — mój czas pracy i nadgodziny w tym miesiącu
-8. myLeaveBalance — mój bilans urlopu i wnioski czekające na decyzję
-9. openIncidents — co jest w gabinecie zepsute (otwarte awarie)
-10. checkSchedule — grafik wizyt na dany dzień
-11. searchPatient — wyszukanie pacjenta w Prodentis
+6. ⭐ myDay — PODSUMOWANIE DNIA: moi pacjenci z grafiku, zadania, awarie, pacjenci
+   czekający na odpowiedź, wnioski urlopowe, sugestie zespołu, nieprzeczytana poczta
+7. listMyTasks — SAME zadania (używaj tylko, gdy pytanie dotyczy wyłącznie zadań)
+8. myWorkTime — mój czas pracy i nadgodziny w tym miesiącu
+9. myLeaveBalance — mój bilans urlopu i wnioski czekające na decyzję
+10. openIncidents — SAME awarie
+11. checkSchedule — grafik CAŁEGO gabinetu na dany dzień
+12. searchPatient — wyszukanie pacjenta w Prodentis
+
+🔴 ZASADA NADRZĘDNA — „CO MAM DZIŚ DO ZROBIENIA":
+Na pytania o dzień, o to „co się dzieje", „co mnie czeka", „jak wygląda jutro" —
+ZAWSZE wołaj myDay. NIGDY nie odpowiadaj „nic nie masz" na podstawie samej pustej
+listy zadań: zadania to jeden z siedmiu kawałków. Pusty grafik przy dwóch awariach
+i trzech pacjentach czekających na odpowiedź to NIE jest wolny dzień.
+Po podsumowaniu zaproponuj KONKRETNY następny krok (np. „mam odpisać pacjentowi?”,
+„założyć zadanie na tę awarię?”).
 
 🔒 ZASADA O DANYCH PACJENTA: nie prosisz o PESEL, nie powtarzasz go i nie przechowujesz.
 Do rozpoznania pacjenta wystarczy nazwisko i cztery ostatnie cyfry telefonu.
@@ -231,6 +241,20 @@ const FUNCTIONS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     // ── Narzędzia CZYTAJĄCE ────────────────────────────────────────────────
     // Do 2026-07-29 asystent miał wyłącznie narzędzia PISZĄCE i na pytanie
     // „co mam dziś do zrobienia" nie umiał odpowiedzieć.
+    {
+        type: 'function',
+        function: {
+            name: 'myDay',
+            description:
+                'PODSUMOWANIE DNIA — jedno wywołanie zbiera WSZYSTKO, co wymaga uwagi: moich pacjentów z grafiku (godzina, nazwisko, zabieg), zaległe i dzisiejsze zadania, otwarte awarie, pacjentów czekających na odpowiedź na czacie, wnioski urlopowe do decyzji, nowe sugestie zespołu i nieprzeczytaną pocztę. UŻYJ TEGO NARZĘDZIA przy każdym pytaniu w rodzaju „co mam dziś do zrobienia", „co się dzieje", „jak wygląda mój dzień", „co jutro" — NIE odpytuj listMyTasks osobno, bo zadania to tylko jeden z siedmiu kawałków i sama pusta lista zadań NIE znaczy, że nie ma nic do zrobienia.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    date: { type: 'string', description: 'Dzień w formacie YYYY-MM-DD. Pomiń dla dzisiaj.' },
+                },
+            },
+        },
+    },
     {
         type: 'function',
         function: {
