@@ -22,7 +22,10 @@ export type PushPathKey =
     | 'staff_task'
     | 'patient_chat'
     | 'new_reservation'
-    | 'appointment_cancelled';
+    | 'appointment_cancelled'
+    // Zdarzeniowa (mig 187): `max_silence_minutes = NULL`, więc cron zdrowia jej
+    // NIE alarmuje — cisza znaczy „nikt nic nie zepsuł", nie awarię kanału.
+    | 'incident_blocking';
 
 export interface PushPathHealthRow {
     path_key: string;
