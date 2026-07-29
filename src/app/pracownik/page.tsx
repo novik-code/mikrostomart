@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { useRouter } from "next/navigation";
-import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell, Bot, Lightbulb, ThumbsUp, MessageSquare, MessageCircle, Send, Menu, Search, Mail, Settings, Shield } from "lucide-react";
+import { LogOut, ChevronLeft, ChevronRight, Calendar, RefreshCw, CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Bell, Bot, Lightbulb, ThumbsUp, MessageSquare, MessageCircle, Send, Menu, Search, Mail, Settings, Shield, Activity } from "lucide-react";
 import VoiceAssistant from "@/components/VoiceAssistant";
 import { useUserRoles } from "@/hooks/useUserRoles";
 import PushNotificationPrompt from "@/components/PushNotificationPrompt";
@@ -16,6 +16,7 @@ import { PRODENTIS_COLORS, DEFAULT_COLOR, BADGE_LETTERS, getBadgeLetter, getAppo
 import type { ChecklistItem, EmployeeTask, FutureAppointment, StaffMember, TaskTypeTemplate } from './components/TaskTypes';
 import { TASK_TYPE_COLORS, getTaskTypeColor, FALLBACK_TASK_TYPE_CHECKLISTS } from './components/TaskTypes';
 import NotificationsTab from './components/NotificationsTab';
+import DiagnostykaPushTab from './components/DiagnostykaPushTab';
 import SuggestionsTab from './components/SuggestionsTab';
 import PatientsTab from './components/PatientsTab';
 import PreferencesTab from './components/PreferencesTab';
@@ -55,7 +56,7 @@ export default function EmployeePage() {
     const [historyError, setHistoryError] = useState<string | null>(null);
     const [sessionTimeoutWarning, setSessionTimeoutWarning] = useState(false);
     const { userId: currentUserId, email: currentUserEmail, isAdmin } = useUserRoles();
-    const [activeTab, setActiveTab] = useState<'grafik' | 'zadania' | 'asystent' | 'powiadomienia' | 'sugestie' | 'pacjenci' | 'poczta' | 'czat' | 'preferencje' | 'czas-pracy' | 'grafik-zespolu' | 'urlopy'>('grafik');
+    const [activeTab, setActiveTab] = useState<'grafik' | 'zadania' | 'asystent' | 'powiadomienia' | 'sugestie' | 'pacjenci' | 'poczta' | 'czat' | 'preferencje' | 'czas-pracy' | 'grafik-zespolu' | 'urlopy' | 'diagnostyka'>('grafik');
     const [loginPopupTasks, setLoginPopupTasks] = useState<EmployeeTask[]>([]);
     const [showLoginPopup, setShowLoginPopup] = useState(false);
 
@@ -78,7 +79,7 @@ export default function EmployeePage() {
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const tabParam = params.get('tab');
-        const validTabs = ['grafik', 'zadania', 'asystent', 'powiadomienia', 'sugestie', 'pacjenci', 'poczta', 'czat', 'preferencje', 'czas-pracy', 'grafik-zespolu', 'urlopy'] as const;
+        const validTabs = ['grafik', 'zadania', 'asystent', 'powiadomienia', 'sugestie', 'pacjenci', 'poczta', 'czat', 'preferencje', 'czas-pracy', 'grafik-zespolu', 'urlopy', 'diagnostyka'] as const;
         if (tabParam && (validTabs as readonly string[]).includes(tabParam)) {
             setActiveTab(tabParam as typeof activeTab);
             // Clean up URL params without reload
@@ -457,6 +458,7 @@ export default function EmployeePage() {
                             { id: 'urlopy' as const, label: 'Urlopy', icon: <Calendar size={20} />, color: '#a78bfa' },
                             { id: 'asystent' as const, label: 'AI', icon: <Bot size={20} />, color: '#a78bfa' },
                             { id: 'powiadomienia' as const, label: 'Alerty', icon: <Bell size={20} />, color: '#f59e0b' },
+                            { id: 'diagnostyka' as const, label: 'Diagnostyka powiadomień', icon: <Activity size={20} />, color: '#38bdf8' },
                             { id: 'sugestie' as const, label: 'Sugestie', icon: <Lightbulb size={20} />, color: '#fb923c' },
                             { id: 'pacjenci' as const, label: 'Pacjenci', icon: <Search size={20} />, color: '#e879f9' },
                             { id: 'preferencje' as const, label: 'Preferencje', icon: <Settings size={20} />, color: '#94a3b8' },
@@ -577,6 +579,7 @@ export default function EmployeePage() {
                         { id: 'urlopy' as const, label: '🏖 Urlopy', icon: <Calendar size={18} /> },
                         { id: 'asystent' as const, label: 'AI', icon: <Bot size={18} /> },
                         { id: 'powiadomienia' as const, label: 'Alerty', icon: <Bell size={18} /> },
+                        { id: 'diagnostyka' as const, label: 'Diagnostyka', icon: <Activity size={18} /> },
                         { id: 'sugestie' as const, label: 'Sugestie', icon: <Lightbulb size={18} /> },
                         { id: 'pacjenci' as const, label: 'Pacjenci', icon: <Search size={18} /> },
                         { id: 'preferencje' as const, label: 'Preferencje', icon: <Settings size={18} /> },
@@ -698,6 +701,8 @@ export default function EmployeePage() {
                     fetchPushNotifications={fetchPushNotifications}
                 />
             )}
+
+            {activeTab === 'diagnostyka' && <DiagnostykaPushTab isAdmin={isAdmin} />}
 
             {activeTab === 'sugestie' && (
                 <SuggestionsTab
