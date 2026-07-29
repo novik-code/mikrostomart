@@ -6,8 +6,15 @@ import { hasRole } from '@/lib/roles';
 import { executeAction } from '@/lib/assistantActions';
 import { demoSanitize, brand } from '@/lib/brandConfig';
 import { buildContextPrompt } from '@/lib/unifiedAI';
+import { sanitizeMessages } from '@/lib/assistantGuards';
 
 export const dynamic = 'force-dynamic';
+/**
+ * Jedno zapytanie to do 5 rund gpt-4o plus wywołania Prodentisa, Google Calendar
+ * i wysyłka maila. Bez jawnego limitu trasa dziedziczy domyślne 10 s i potrafi
+ * zostać ucięta w połowie pętli — po wykonaniu części akcji, ale przed odpowiedzią.
+ */
+export const maxDuration = 60;
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,14 +31,23 @@ function buildSystemPrompt(memory: Record<string, string> = {}, kbContext: strin
     return `Jesteś asystentem głosowym ${brand.name} — kliniki stomatologicznej w ${brand.cityShort}.
 Mówisz po polsku. Jesteś rzeczowy, ciepły i naturalny — jak dobry współpracownik, nie robot.
 
-TWOJE MOŻLIWOŚCI:
+CO POTRAFISZ ZROBIĆ:
 1. Tworzenie zadań (employee_tasks) — w tym zadań prywatnych (is_private=true)
 2. Dodawanie wydarzeń do kalendarza Google (jeśli połączony)
 3. Ustawianie przypomnień (Google Calendar popup + push do właściciela dla prywatnych)
-4. Dictowanie dokumentacji (redaguj i wyślij mailem)
-5. Wyszukiwanie pacjentów w Prodentis
-6. Sprawdzanie grafiku wizyt
-7. Zapisywanie do pamięci — updateMemory gdy użytkownik poda coś wartego zapamiętania
+4. Dyktowanie dokumentacji (redaguj i wyślij mailem)
+5. Zapisywanie do pamięci — updateMemory gdy użytkownik poda coś wartego zapamiętania
+
+CO POTRAFISZ SPRAWDZIĆ (używaj TYCH narzędzi zamiast zgadywać albo odpowiadać „nie wiem"):
+6. listMyTasks — moje otwarte zadania: zaległe, na dziś, dalsze
+7. myWorkTime — mój czas pracy i nadgodziny w tym miesiącu
+8. myLeaveBalance — mój bilans urlopu i wnioski czekające na decyzję
+9. openIncidents — co jest w gabinecie zepsute (otwarte awarie)
+10. checkSchedule — grafik wizyt na dany dzień
+11. searchPatient — wyszukanie pacjenta w Prodentis
+
+🔒 ZASADA O DANYCH PACJENTA: nie prosisz o PESEL, nie powtarzasz go i nie przechowujesz.
+Do rozpoznania pacjenta wystarczy nazwisko i cztery ostatnie cyfry telefonu.
 
 FILOZOFIA DZIAŁANIA — BARDZO WAŻNE:
 - NIE pytaj przed działaniem. DZIAŁAJ od razu, wywnioskowując brakujące dane z kontekstu.
@@ -212,6 +228,46 @@ const FUNCTIONS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             },
         },
     },
+    // ── Narzędzia CZYTAJĄCE ────────────────────────────────────────────────
+    // Do 2026-07-29 asystent miał wyłącznie narzędzia PISZĄCE i na pytanie
+    // „co mam dziś do zrobienia" nie umiał odpowiedzieć.
+    {
+        type: 'function',
+        function: {
+            name: 'listMyTasks',
+            description: 'Zwraca MOJE otwarte zadania (zaległe, na dziś, dalsze) wraz z postępem checklisty. Użyj przy pytaniach typu „co mam dziś do zrobienia", „co mi zostało", „czy mam coś zaległego".',
+            parameters: {
+                type: 'object',
+                properties: {
+                    scope: { type: 'string', enum: ['today', 'overdue', 'open'], description: 'today = tylko dzisiejsze, overdue = tylko po terminie, open = wszystkie otwarte (domyślne)' },
+                },
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'myWorkTime',
+            description: 'Mój czas pracy i nadgodziny w bieżącym miesiącu (system kontroli czasu pracy). Użyj przy „ile mam nadgodzin", „ile przepracowałem".',
+            parameters: { type: 'object', properties: {} },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'myLeaveBalance',
+            description: 'Mój bilans urlopu na bieżący rok i wnioski czekające na decyzję. Użyj przy „ile mam urlopu", „czy mój wniosek przeszedł".',
+            parameters: { type: 'object', properties: {} },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'openIncidents',
+            description: 'Otwarte awarie i usterki w gabinecie. Użyj przy „co jest zepsute", „jakie mamy awarie".',
+            parameters: { type: 'object', properties: {} },
+        },
+    },
 ];
 
 // ─── API Handler ─────────────────────────────────────────────
@@ -228,8 +284,9 @@ export async function POST(req: Request) {
 
     try {
         const { messages } = await req.json();
+        const safeMessages = sanitizeMessages(messages);
 
-        if (!messages || !Array.isArray(messages)) {
+        if (safeMessages.length === 0) {
             return NextResponse.json({ error: 'Invalid messages format' }, { status: 400 });
         }
 
@@ -256,7 +313,7 @@ export async function POST(req: Request) {
         const systemPrompt = buildSystemPrompt(userMemory, kbContext);
         const conversationMessages: any[] = [
             { role: 'system', content: systemPrompt },
-            ...messages,
+            ...safeMessages,
         ];
 
         // ─── Agentic loop ─────────────────────────────────────────────────
@@ -331,7 +388,10 @@ export async function POST(req: Request) {
         });
 
     } catch (error: any) {
+        // 🔒 `detail: error.message` wracało klientowi wewnętrzne komunikaty —
+        // treści zapytań SQL, nazwy kolumn, fragmenty odpowiedzi OpenAI. Szczegół
+        // zostaje w logu serwera, użytkownik dostaje komunikat, z którym da się żyć.
         console.error('[Assistant] Error:', error);
-        return NextResponse.json({ error: 'Wystąpił błąd asystenta', detail: error.message }, { status: 500 });
+        return NextResponse.json({ error: 'Wystąpił błąd asystenta' }, { status: 500 });
     }
 }

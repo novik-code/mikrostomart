@@ -8,6 +8,7 @@ import { createEvent, listEvents, isCalendarConnected } from './googleCalendar';
 import { sendPushToUser } from './webpush';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
+import { prodentisTime, prodentisTypeName } from '@/lib/assistantGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -435,19 +436,39 @@ async function searchPatient(args: {
             return { success: true, action: 'searchPatient', message: `Nie znaleziono pacjenta o nazwisku "${args.query}".` };
         }
 
+        /**
+         * 🔒 PESEL NIE WYCHODZI DO OpenAI. Numer identyfikuje osobę jednoznacznie,
+         * niesie datę urodzenia i płeć, i nie jest potrzebny do NICZEGO, co asystent
+         * realnie robi (założenie zadania, notatka, oddzwonienie). Telefon skracamy
+         * do czterech ostatnich cyfr — wystarcza do rozpoznania właściwego pacjenta
+         * na liście, a nie tworzy z odpowiedzi modelu wyciągu z kartoteki.
+         *
+         * Pełne dane zostają w `data.patients` (to NIE idzie do modelu, tylko do UI),
+         * więc interfejs nadal może pokazać komplet zalogowanemu pracownikowi.
+         */
         const list = patients.slice(0, 5).map((p: any, i: number) => {
-            const parts = [`${i + 1}. ${p.firstName || ''} ${p.lastName || p.name || ''}`];
-            if (p.phone) parts.push(`tel: ${p.phone}`);
-            if (p.email) parts.push(`email: ${p.email}`);
-            if (p.pesel) parts.push(`PESEL: ${p.pesel}`);
+            const parts = [`${i + 1}. ${p.firstName || ''} ${p.lastName || p.name || ''}`.trim()];
+            if (p.phone) parts.push(`tel: …${String(p.phone).replace(/\D/g, '').slice(-4)}`);
             return parts.join(', ');
         }).join('\n');
+
+        /**
+         * ⚠️ `data` TEŻ IDZIE DO MODELU — wynik narzędzia jest serializowany
+         * (`JSON.stringify(actionResult)`) i doklejany do rozmowy jako `role: 'tool'`.
+         * Odsianie PESEL-u wyłącznie z `message` byłoby więc pozorne: surowe wiersze
+         * z kartoteki i tak wylądowałyby w prompcie.
+         */
+        const safe = patients.slice(0, 5).map((p: any) => ({
+            id: p.id ?? p.patientId ?? null,
+            name: `${p.firstName || ''} ${p.lastName || p.name || ''}`.trim(),
+            phoneLast4: p.phone ? String(p.phone).replace(/\D/g, '').slice(-4) : null,
+        }));
 
         return {
             success: true,
             action: 'searchPatient',
             message: `Znaleziono ${patients.length} pacjent${patients.length === 1 ? 'a' : 'ów'}:\n${list}`,
-            data: { patients: patients.slice(0, 5) },
+            data: { patients: safe },
         };
     } catch (err: any) {
         return { success: false, action: 'searchPatient', message: `Błąd wyszukiwania: ${err.message}` };
@@ -491,9 +512,9 @@ async function checkSchedule(args: {
         for (const [doctor, apts] of Object.entries(byDoctor)) {
             summary += `🩺 ${doctor} (${apts.length} wizyt):\n`;
             for (const apt of apts.slice(0, 5)) {
-                const time = apt.startTime || apt.time || '?';
+                const time = prodentisTime(apt);
                 const patient = apt.patientName || apt.patient?.name || '?';
-                const type = apt.appointmentType || apt.type || '';
+                const type = prodentisTypeName(apt);
                 summary += `  • ${time} — ${patient}${type ? ` (${type})` : ''}\n`;
             }
             if (apts.length > 5) summary += `  ... i ${apts.length - 5} więcej\n`;
@@ -513,6 +534,22 @@ async function checkSchedule(args: {
 
 // ─── Action: Update Task ──────────────────────────────────────
 
+/** Pozycja checklisty tak, jak leży w `employee_tasks.checklist_items`. */
+interface ChecklistItem {
+    id?: number;
+    label: string;
+    done?: boolean;
+}
+
+/** Wiersz zadania w zakresie, jakiego potrzebuje `updateTask` (bramka + scalanie listy). */
+interface TaskRowForUpdate {
+    id: string;
+    checklist_items?: ChecklistItem[] | null;
+    created_by?: string | null;
+    owner_user_id?: string | null;
+    is_private?: boolean | null;
+}
+
 async function updateTask(args: {
     task_id?: string;            // Preferred: direct UUID
     title_query?: string;        // Alternative: search by title (finds most recent match)
@@ -526,13 +563,31 @@ async function updateTask(args: {
     merge_checklist?: string[];  // Add items to existing checklist (don't replace)
 }, userId: string): Promise<ActionResult> {
     try {
+        /**
+         * 🔑 ZADANIE WCZYTUJEMY ZAWSZE, niezależnie od tego, czy przyszło `task_id`,
+         * czy `title_query`. Poprzednia wersja robiła to WYŁĄCZNIE w gałęzi wyszukiwania,
+         * przez co przy podanym `task_id`:
+         *  · scalanie listy (`merge_checklist`) było po cichu ignorowane — `updates`
+         *    zostawał pusty i akcja kończyła się „Brak danych do aktualizacji",
+         *    mimo że prompt wprost każe modelowi używać `task_id`, gdy go zna;
+         *  · UPDATE leciał po samym `id`, BEZ sprawdzenia właściciela — dało się
+         *    zmodyfikować cudze zadanie, w tym PRYWATNE.
+         */
         let taskId = args.task_id;
+        let existing: TaskRowForUpdate | null = null;
 
-        // If no direct ID, find by title query
-        if (!taskId && args.title_query) {
+        const COLS = 'id, title, checklist_items, created_by, owner_user_id, is_private';
+
+        if (taskId) {
+            const { data } = await supabase.from('employee_tasks').select(COLS).eq('id', taskId).maybeSingle();
+            existing = (data as unknown as TaskRowForUpdate | null) ?? null;
+            if (!existing) {
+                return { success: false, action: 'updateTask', message: 'Nie znalazłem takiego zadania.' };
+            }
+        } else if (args.title_query) {
             const { data: found, error: searchErr } = await supabase
                 .from('employee_tasks')
-                .select('id, title, checklist_items')
+                .select(COLS)
                 .or(`created_by.eq.${userId},owner_user_id.eq.${userId}`)
                 .ilike('title', `%${args.title_query}%`)
                 .order('created_at', { ascending: false })
@@ -541,21 +596,24 @@ async function updateTask(args: {
             if (searchErr || !found || found.length === 0) {
                 return { success: false, action: 'updateTask', message: `Nie znalazłem zadania pasującego do: "${args.title_query}"` };
             }
-            taskId = found[0].id;
-
-            // If merging checklist, get existing items
-            if (args.merge_checklist && args.merge_checklist.length > 0) {
-                const existingItems: Array<{ label: string; done: boolean }> = found[0].checklist_items || [];
-                const existingLabels = new Set(existingItems.map(i => i.label.toLowerCase()));
-                const newItems = args.merge_checklist
-                    .filter(label => !existingLabels.has(label.toLowerCase()))
-                    .map(label => ({ label, done: false }));
-                args = { ...args, checklist_items: [...existingItems.map(i => i.label), ...newItems.map(i => i.label)] };
-            }
+            existing = found[0] as unknown as TaskRowForUpdate;
+            taskId = existing.id;
         }
 
-        if (!taskId) {
+        if (!taskId || !existing) {
             return { success: false, action: 'updateTask', message: 'Podaj ID zadania lub tytuł do wyszukania.' };
+        }
+
+        /**
+         * 🔒 BRAMKA WŁASNOŚCI. Zadanie PRYWATNE może zmienić wyłącznie jego właściciel —
+         * inaczej znajomość UUID-a (a ten wraca w odpowiedzi asystenta) wystarczała, żeby
+         * ruszyć cudzy prywatny wpis. Zadania zespołowe zostają edytowalne dla wszystkich,
+         * bo tak samo działa tablica zadań w interfejsie — asystent nie może być bardziej
+         * restrykcyjny niż ekran, z którego korzysta ten sam człowiek.
+         */
+        const isOwner = existing.created_by === userId || existing.owner_user_id === userId;
+        if (existing.is_private && !isOwner) {
+            return { success: false, action: 'updateTask', message: 'To zadanie jest prywatne i należy do kogoś innego.' };
         }
 
         // Build update payload — only include provided fields
@@ -566,11 +624,33 @@ async function updateTask(args: {
         if (args.status !== undefined) updates.status = args.status;
         if (args.due_date !== undefined) updates.due_date = args.due_date;
         if (args.due_time !== undefined) updates.due_time = args.due_time;
-        if (args.checklist_items !== undefined) {
+
+        /**
+         * 🔑 SCALANIE ZACHOWUJE ODHACZENIA. Poprzednia wersja mapowała istniejące pozycje
+         * na same etykiety, a przy zapisie ustawiała `done: false` dla wszystkich — więc
+         * „dopisz mleko do listy zakupów" kasowało wszystko, co już było kupione.
+         */
+        if (args.merge_checklist?.length) {
+            const current: ChecklistItem[] = existing.checklist_items ?? [];
+            const have = new Set(current.map(i => String(i.label).toLowerCase()));
+            const added = args.merge_checklist
+                .filter(label => !have.has(String(label).toLowerCase()))
+                .map(label => ({ label, done: false }));
+            updates.checklist_items = [...current, ...added].map((item, i) => ({
+                id: i,
+                label: item.label,
+                done: item.done ?? false,
+            }));
+        } else if (args.checklist_items !== undefined) {
+            // Pełne zastąpienie listy — ale stan „zrobione" przenosimy po ETYKIECIE,
+            // żeby przepisanie listy nie odznaczało pozycji, które zostały bez zmian.
+            const doneByLabel = new Map(
+                (existing.checklist_items ?? []).map(i => [String(i.label).toLowerCase(), !!i.done]),
+            );
             updates.checklist_items = args.checklist_items.map((label, i) => ({
                 id: i,
                 label,
-                done: false,
+                done: doneByLabel.get(String(label).toLowerCase()) ?? false,
             }));
         }
 
@@ -596,6 +676,165 @@ async function updateTask(args: {
         };
     } catch (err: any) {
         return { success: false, action: 'updateTask', message: `Błąd: ${err.message}` };
+    }
+}
+
+// ─── Akcje CZYTAJĄCE ──────────────────────────────────────────
+//
+// 🔑 DLACZEGO ONE ISTNIEJĄ. Do 2026-07-29 asystent miał wyłącznie narzędzia
+// PISZĄCE (zakładanie zadań, kalendarz, dyktowanie) i ani jednego czytającego
+// własne dane pracownika. Na najczęstsze pytanie — „co mam dziś do zrobienia" —
+// nie umiał odpowiedzieć, mimo że prompt reklamował „sprawdzanie grafiku".
+// To jest główna przyczyna wrażenia, że asystent jest bezużyteczny; sama zmiana
+// modelu nic by tu nie dała.
+
+/** Moje otwarte zadania: zaległe, na dziś, dalsze. */
+async function listMyTasks(args: { scope?: 'today' | 'overdue' | 'open' }, userId: string): Promise<ActionResult> {
+    try {
+        const { data, error } = await supabase
+            .from('employee_tasks')
+            .select('id, title, status, priority, due_date, due_time, is_private, checklist_items')
+            .or(`created_by.eq.${userId},owner_user_id.eq.${userId}`)
+            .in('status', ['todo', 'in_progress'])
+            .order('due_date', { ascending: true, nullsFirst: false })
+            .limit(60);
+
+        if (error) return { success: false, action: 'listMyTasks', message: `Nie udało się pobrać zadań: ${error.message}` };
+
+        const today = new Date().toISOString().slice(0, 10);
+        const rows = (data ?? []) as Array<{ id: string; title: string; status: string; priority: string; due_date: string | null; due_time: string | null; checklist_items?: ChecklistItem[] | null }>;
+
+        const overdue = rows.filter(r => r.due_date && r.due_date < today);
+        const todays = rows.filter(r => r.due_date === today);
+        const later = rows.filter(r => !r.due_date || r.due_date > today);
+
+        const scope = args.scope ?? 'open';
+        const pick = scope === 'today' ? todays : scope === 'overdue' ? overdue : rows;
+
+        if (pick.length === 0) {
+            return { success: true, action: 'listMyTasks', message: scope === 'today' ? 'Na dziś nie masz żadnych zadań.' : 'Nie masz otwartych zadań.' };
+        }
+
+        const fmt = (r: (typeof rows)[number]) => {
+            const when = r.due_date ? `${r.due_date.slice(8, 10)}.${r.due_date.slice(5, 7)}${r.due_time ? ` ${String(r.due_time).slice(0, 5)}` : ''}` : 'bez terminu';
+            const items = r.checklist_items ?? [];
+            const progress = items.length ? ` [${items.filter(i => i.done).length}/${items.length}]` : '';
+            const prio = r.priority === 'urgent' ? '‼️ ' : '';
+            return `• ${prio}${r.title} — ${when}${progress}`;
+        };
+
+        let msg = '';
+        if (scope === 'open') {
+            if (overdue.length) msg += `PO TERMINIE (${overdue.length}):\n${overdue.map(fmt).join('\n')}\n\n`;
+            if (todays.length) msg += `NA DZIŚ (${todays.length}):\n${todays.map(fmt).join('\n')}\n\n`;
+            if (later.length) msg += `DALEJ (${later.length}):\n${later.slice(0, 10).map(fmt).join('\n')}`;
+        } else {
+            msg = pick.map(fmt).join('\n');
+        }
+
+        return {
+            success: true,
+            action: 'listMyTasks',
+            message: msg.trim(),
+            data: { overdue: overdue.length, today: todays.length, later: later.length },
+        };
+    } catch (err: any) {
+        return { success: false, action: 'listMyTasks', message: `Błąd: ${err.message}` };
+    }
+}
+
+/** Mój czas pracy i nadgodziny w bieżącym miesiącu (KCP). */
+async function myWorkTime(_args: Record<string, never>, userId: string): Promise<ActionResult> {
+    try {
+        const { data: emp } = await supabase.from('employees').select('id, name').eq('user_id', userId).maybeSingle();
+        if (!emp?.id) {
+            return { success: false, action: 'myWorkTime', message: 'Twoje konto nie jest powiązane z kartoteką pracownika.' };
+        }
+
+        const now = new Date();
+        const from = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+        const to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+
+        const { data: shifts } = await supabase
+            .from('calculated_shifts')
+            .select('worked_minutes, overtime_total_minutes, overtime_justified_minutes, late_minutes, absence_type')
+            .eq('employee_id', emp.id)
+            .gte('date', from)
+            .lte('date', to);
+
+        const rows = (shifts ?? []) as Array<{ worked_minutes: number; overtime_total_minutes: number; overtime_justified_minutes: number; late_minutes: number; absence_type: string | null }>;
+        const sum = (k: keyof (typeof rows)[number]) => rows.reduce((n, r) => n + (Number(r[k]) || 0), 0);
+        const h = (m: number) => `${Math.floor(m / 60)} h ${m % 60} min`;
+
+        return {
+            success: true,
+            action: 'myWorkTime',
+            message:
+                `Bieżący miesiąc (${from} – ${to}):\n` +
+                `• przepracowane: ${h(sum('worked_minutes'))}\n` +
+                `• nadgodziny łącznie: ${h(sum('overtime_total_minutes'))} (uznane: ${h(sum('overtime_justified_minutes'))})\n` +
+                `• spóźnienia: ${h(sum('late_minutes'))}\n` +
+                `• dni nieobecności: ${rows.filter(r => r.absence_type).length}`,
+            data: { from, to, days: rows.length },
+        };
+    } catch (err: any) {
+        return { success: false, action: 'myWorkTime', message: `Błąd: ${err.message}` };
+    }
+}
+
+/** Mój bilans urlopu na bieżący rok. */
+async function myLeaveBalance(_args: Record<string, never>, userId: string): Promise<ActionResult> {
+    try {
+        const { data: emp } = await supabase.from('employees').select('id').eq('user_id', userId).maybeSingle();
+        if (!emp?.id) {
+            return { success: false, action: 'myLeaveBalance', message: 'Twoje konto nie jest powiązane z kartoteką pracownika.' };
+        }
+        const { getVacationBalance, listOwnRequests } = await import('./timeTracking/leaveService');
+        const year = new Date().getFullYear();
+        const [balance, requests] = await Promise.all([getVacationBalance(emp.id, year), listOwnRequests(emp.id)]);
+        const pending = requests.filter(r => r.status === 'requested');
+
+        return {
+            success: true,
+            action: 'myLeaveBalance',
+            message:
+                `Urlop ${year}: limit ${balance.annualEntitlement} dni, wykorzystane ${balance.daysUsed}, ` +
+                `oczekujące ${balance.daysPending}, pozostało ${balance.daysRemaining}.` +
+                (pending.length ? `\nWnioski czekające na decyzję: ${pending.map(r => `${r.date_from}–${r.date_to}`).join(', ')}` : ''),
+            data: balance,
+        };
+    } catch (err: any) {
+        return { success: false, action: 'myLeaveBalance', message: `Błąd: ${err.message}` };
+    }
+}
+
+/** Otwarte awarie — co jest w gabinecie zepsute. */
+async function openIncidents(_args: Record<string, never>): Promise<ActionResult> {
+    try {
+        const { data, error } = await supabase
+            .from('incidents')
+            .select('title, location, severity, status, reporter_name, taken_name, created_at')
+            .neq('status', 'resolved')
+            .order('created_at', { ascending: false })
+            .limit(20);
+
+        if (error) return { success: false, action: 'openIncidents', message: `Nie udało się pobrać awarii: ${error.message}` };
+        const rows = (data ?? []) as Array<{ title: string; location: string | null; severity: string; status: string; reporter_name: string; taken_name: string | null }>;
+        if (rows.length === 0) return { success: true, action: 'openIncidents', message: 'Nie ma otwartych awarii.' };
+
+        const sevLabel: Record<string, string> = { blocking: 'BLOKUJE GABINET', hinders: 'utrudnia', minor: 'drobiazg' };
+        const list = rows
+            .map(r => `• [${sevLabel[r.severity] ?? r.severity}] ${r.title}${r.location ? ` (${r.location})` : ''}${r.taken_name ? ` — zajmuje się ${r.taken_name}` : ''}`)
+            .join('\n');
+
+        return {
+            success: true,
+            action: 'openIncidents',
+            message: `Otwarte awarie (${rows.length}):\n${list}`,
+            data: { count: rows.length, blocking: rows.filter(r => r.severity === 'blocking').length },
+        };
+    } catch (err: any) {
+        return { success: false, action: 'openIncidents', message: `Błąd: ${err.message}` };
     }
 }
 
@@ -674,6 +913,15 @@ export async function executeAction(
             return updateTask(args as any, userId);
         case 'updateMemory':
             return updateMemory(args as any, userId);
+        // Narzędzia CZYTAJĄCE — bez nich asystent nie odpowiadał na najczęstsze pytania.
+        case 'listMyTasks':
+            return listMyTasks(args as any, userId);
+        case 'myWorkTime':
+            return myWorkTime(args as any, userId);
+        case 'myLeaveBalance':
+            return myLeaveBalance(args as any, userId);
+        case 'openIncidents':
+            return openIncidents(args as any);
         default:
             return { success: false, action: functionName, message: `Nieznana akcja: ${functionName}` };
     }
