@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
+import { pushToUser } from '@/lib/pushService';
+import { isDemoMode } from '@/lib/demoMode';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,5 +65,46 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    /**
+     * Powiadomienie do AUTORA sugestii — dotąd nie istniało, więc odpowiedź w wątku
+     * nie docierała do nikogo i dyskusja zamierała po pierwszym komentarzu.
+     *
+     * 🔑 Nie powiadamiamy samego siebie — komentarz pod własną sugestią jest
+     * najczęstszym przypadkiem (autor dopisuje szczegóły) i wysyłka byłaby hałasem.
+     * 🔑 `user_id` wyprowadzamy z `user_roles` po e-mailu, bo tabela sugestii trzyma
+     * WYŁĄCZNIE e-mail autora — nie ma w niej żadnego identyfikatora konta.
+     */
+    if (!isDemoMode) {
+        void (async () => {
+            try {
+                const { data: sug } = await supabase()
+                    .from('feature_suggestions')
+                    .select('author_email, content')
+                    .eq('id', id)
+                    .maybeSingle();
+                if (!sug?.author_email || sug.author_email === authorEmail) return;
+
+                const { data: role } = await supabase()
+                    .from('user_roles')
+                    .select('user_id')
+                    .eq('email', sug.author_email)
+                    .maybeSingle();
+                if (!role?.user_id) return;
+
+                const excerpt = String(body.content).trim().replace(/\s+/g, ' ').slice(0, 100);
+                await pushToUser(role.user_id, 'employee', {
+                    title: '💬 Odpowiedź na Twoją sugestię',
+                    body: `${authorName}: ${excerpt}`,
+                    url: '/pracownik?tab=sugestie',
+                    tag: `suggestion-comment-${id}`,
+                    data: { type: 'suggestion_comment', suggestionId: id },
+                });
+            } catch (err) {
+                console.error('[Suggestions] push do autora nie zadziałał:', err);
+            }
+        })();
+    }
+
     return NextResponse.json(data, { status: 201 });
 }

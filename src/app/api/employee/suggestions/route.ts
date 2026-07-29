@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
+import { pushToGroups } from '@/lib/pushService';
+import { isDemoMode } from '@/lib/demoMode';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,6 +64,28 @@ export async function POST(req: Request) {
         .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    /**
+     * Powiadomienie o nowej sugestii — do tej pory NIE BYŁO ŻADNEGO.
+     * Skutek: przez ~5 miesięcy powstało 25 wpisów, o których nikt się nie dowiadywał,
+     * a statusów nie dało się zmieniać (brak UI), więc pętla nigdy się nie domykała.
+     * `alsoApp` — inaczej push nie ma drogi na telefon (patrz `pushToGroups`).
+     */
+    if (!isDemoMode) {
+        const excerpt = content.trim().replace(/\s+/g, ' ').slice(0, 100);
+        void pushToGroups(
+            ['admin'],
+            {
+                title: '💡 Nowa sugestia zespołu',
+                body: `${authorName}: ${excerpt}`,
+                url: '/pracownik?tab=sugestie',
+                tag: 'suggestion-new',
+                data: { type: 'suggestion_new', suggestionId: data.id },
+            },
+            { alsoApp: true },
+        );
+    }
+
     return NextResponse.json(data, { status: 201 });
 }
 
