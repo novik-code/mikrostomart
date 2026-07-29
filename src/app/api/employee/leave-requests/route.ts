@@ -9,6 +9,7 @@ import {
     createLeaveRequest,
     getVacationBalance,
     listOwnRequests,
+    LEAVE_TYPE_LABELS,
     type LeaveType,
 } from '@/lib/timeTracking/leaveService';
 import { pushToGroups } from '@/lib/pushService';
@@ -77,14 +78,32 @@ export async function POST(request: NextRequest) {
 
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
-    // Push do admina
+    // Push do admina — web-push FCM ORAZ aplikacja mobilna (`alsoApp`).
+    //
+    // 🔑 Bez `alsoApp` to powiadomienie NIE DOCIERAŁO na telefon: `pushToGroups`
+    // czytało wyłącznie `fcm_tokens`, a tokeny apki żyją w `staff_push_tokens`.
+    // Wpis w historii Alertów powstawał mimo to (`logPush` leci niezależnie od
+    // dostarczenia), więc wyglądało to na działające.
+    //
+    // 🔑 TREŚĆ JEST NEUTRALNA i to jest skutek powyższego: dopiero teraz ten tekst
+    // ląduje na ZABLOKOWANYM ekranie telefonu. Powód wniosku bywa wrażliwy
+    // („wizyta u onkologa"), więc zostaje w panelu i w aplikacji, a nie na banerze.
+    // Typ podajemy etykietą, nie surowym enumem — dotąd na telefon szłoby „vacation".
     if (!isDemoMode) {
-        void pushToGroups(['admin'], {
-            title: '🏖 Nowy wniosek urlopowy',
-            body: `${employee.name}: ${body.type} ${body.dateFrom}${body.dateTo !== body.dateFrom ? ` – ${body.dateTo}` : ''}${body.reason ? ` (${body.reason.slice(0, 80)})` : ''}`,
-            url: '/admin?tab=leaves',
-            tag: 'leave-new',
-        });
+        const range = body.dateTo !== body.dateFrom ? `${body.dateFrom} – ${body.dateTo}` : body.dateFrom;
+        void pushToGroups(
+            ['admin'],
+            {
+                title: '🏖 Nowy wniosek urlopowy',
+                body: `${employee.name}: ${LEAVE_TYPE_LABELS[body.type] ?? body.type}, ${range}`,
+                url: '/admin?tab=leaves',
+                tag: 'leave-new',
+                // Apka rozpoznaje wniosek po `type` i otwiera listę wniosków zespołu;
+                // `url` jest webowy (`/admin?tab=leaves`) i sam z siebie jej nie prowadzi.
+                data: { type: 'leave_request' },
+            },
+            { alsoApp: true },
+        );
     }
 
     return NextResponse.json({ ok: true, request: result.request });

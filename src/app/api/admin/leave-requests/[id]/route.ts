@@ -62,6 +62,10 @@ export async function PUT(request: NextRequest, ctx: { params: Promise<{ id: str
                     : `${typeLabel} (${dateRange}) odrzucony. ${result.request.rejected_reason ?? ''}`.slice(0, 200),
                 url: '/pracownik?tab=urlopy',
                 tag: 'leave-decision',
+                // `pushToUser` dla personelu wysyła też na kanał Expo (mig 179), ale `url`
+                // jest webowy i sam z siebie nie prowadzi apki nigdzie — stąd jawny znacznik,
+                // po którym `NotificationRouter` otwiera ekran urlopów.
+                data: { type: 'leave_decision' },
             });
         }
     }

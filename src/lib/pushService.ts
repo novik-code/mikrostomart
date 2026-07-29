@@ -705,21 +705,40 @@ export async function pushToAllEmployees(
 
 /**
  * Send push notification to specific employee groups.
+ *
+ * 🔑 KANAŁ APLIKACJI MOBILNEJ — opt-in przez `alsoApp` (ten sam wzorzec co w
+ * `broadcastPush`). Ta funkcja historycznie czyta WYŁĄCZNIE `fcm_tokens`, czyli
+ * web-push przeglądarki. Tokeny aplikacji żyją w `staff_push_tokens` (mig 179),
+ * więc powiadomienie nigdy nie docierało na telefon — a `logPush` wykonuje się
+ * niezależnie od dostarczenia, przez co pojawiało się w historii Alertów
+ * i WYGLĄDAŁO na wysłane. Objaw zmierzony na wnioskach urlopowych.
+ *
+ * Flaga zamiast zmiany domyślnej: `pushToGroups` woła kilkanaście miejsc
+ * (rezerwacje, odwołania, zamówienia). Włączenie ich wszystkich naraz zalałoby
+ * zespół banerami i jest osobną, świadomą decyzją.
  */
 export async function pushToGroups(
     groups: PushGroup[],
-    payload: PushPayload
+    payload: PushPayload,
+    opts: { alsoApp?: boolean } = {}
 ): Promise<{ sent: number; failed: number; byGroup: Record<string, { sent: number; failed: number }> }> {
     let totalSent = 0;
     let totalFailed = 0;
     const byGroup: Record<string, { sent: number; failed: number }> = {};
     const sentTokens = new Set<string>();
     const loggedUsers = new Set<string>();
+    /** Odbiorcy kanału Expo — zbierani PONAD grupami i deduplikowani po user_id.
+     *  Jedna osoba bywa i w `admin`, i w `reception`; wysyłka w pętli dałaby jej
+     *  dwa identyczne banery na telefonie. */
+    const appTargets = new Set<string>();
 
     for (const group of groups) {
         // 1. Resolve ALL target users (for history logging)
         const allUsers = await resolveGroupUsers(group);
         for (const u of allUsers) {
+            // Kanał Expo obsługuje wyłącznie personel — pacjenci mają własną tabelę
+            // tokenów (`patient_push_tokens`) i własny prymityw wysyłki.
+            if (u.user_type !== 'patient') appTargets.add(u.user_id);
             if (!loggedUsers.has(u.user_id)) {
                 loggedUsers.add(u.user_id);
                 await logPush(u.user_id, u.user_type, payload);
@@ -748,6 +767,17 @@ export async function pushToGroups(
         byGroup[group] = result;
         totalSent += result.sent;
         totalFailed += result.failed;
+    }
+
+    // Wysyłka na kanał aplikacji — RAZ, poza pętlą grup, na zdeduplikowanej liście.
+    // `void` + `.catch`, bo awaria Expo nie może wywrócić web-pusha ani wołającej trasy
+    // (ten sam kontrakt fire-and-forget co w `broadcastPush` i `pushToUser`).
+    if (opts.alsoApp && appTargets.size > 0) {
+        void sendExpoPushToStaffMany([...appTargets], {
+            title: payload.title,
+            body: payload.body,
+            data: { ...(payload.data ?? {}), ...(payload.url ? { url: payload.url } : {}) },
+        }).catch(err => console.error('[Push] pushToGroups Expo error:', err));
     }
 
     return { sent: totalSent, failed: totalFailed, byGroup };
