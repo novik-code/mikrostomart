@@ -36,6 +36,13 @@ export interface ActionResult {
     action: string;
     message: string;           // Human-readable result for the AI to relay
     data?: Record<string, any>;
+    /**
+     * Tożsamości występujące w `message`/`data`, które trasa ma ZAMIENIĆ NA ŻETONY
+     * przed wysłaniem czegokolwiek do modelu. Regexy łapią telefon i PESEL, ale
+     * nazwiska trzeba podać jawnie — narzędzie wie, kogo dotyczy jego odpowiedź,
+     * a scrubber sam z siebie nie odróżni „Kolasa" od nazwy zabiegu.
+     */
+    identities?: Array<{ value: string; kind: import('./aiAnonymizer').TokenKind }>;
 }
 
 // ─── Action: Create Task ─────────────────────────────────────
@@ -469,6 +476,9 @@ async function searchPatient(args: {
             action: 'searchPatient',
             message: `Znaleziono ${patients.length} pacjent${patients.length === 1 ? 'a' : 'ów'}:\n${list}`,
             data: { patients: safe },
+            identities: (safe as Array<{ name: string }>)
+                .filter((p) => !!p.name)
+                .map((p) => ({ value: p.name, kind: 'PACJENT' as const })),
         };
     } catch (err: any) {
         return { success: false, action: 'searchPatient', message: `Błąd wyszukiwania: ${err.message}` };
@@ -521,11 +531,20 @@ async function checkSchedule(args: {
             summary += '\n';
         }
 
+        const schedIds: ActionResult['identities'] = [];
+        for (const a of appointments) {
+            const pn = String(a?.patientName ?? a?.patient?.name ?? '').trim();
+            if (pn) schedIds.push({ value: pn, kind: 'PACJENT' });
+            const dn = String(a?.doctorName ?? a?.doctor?.name ?? '').trim();
+            if (dn) schedIds.push({ value: dn, kind: 'LEKARZ' });
+        }
+
         return {
             success: true,
             action: 'checkSchedule',
             message: summary.trim(),
             data: { date: targetDate, totalAppointments: appointments.length },
+            identities: schedIds,
         };
     } catch (err: any) {
         return { success: false, action: 'checkSchedule', message: `Błąd pobierania grafiku: ${err.message}` };
@@ -707,6 +726,8 @@ async function myDay(args: { date?: string }, userId: string): Promise<ActionRes
     const isToday = date === new Date().toISOString().slice(0, 10);
     const sections: string[] = [];
     const stats: Record<string, number> = {};
+    // Tożsamości do zamiany na żetony — patrz .
+    const ids: ActionResult["identities"] = [];
 
     // Kim jestem — potrzebne do odfiltrowania grafiku i do uprawnień.
     const [{ data: emp }, { data: roles }] = await Promise.all([
@@ -753,6 +774,12 @@ async function myDay(args: { date?: string }, userId: string): Promise<ActionRes
 
             const mine = myName ? all.filter(a => sameDoctor(a, myName)) : [];
             stats.appointmentsMine = mine.length;
+            for (const a of all) {
+                const pn = String(a?.patientName ?? a?.patient?.name ?? "").trim();
+                if (pn) ids.push({ value: pn, kind: "PACJENT" });
+                const dn = String(a?.doctorName ?? a?.doctor?.name ?? "").replace(/\s*\(I\)\s*/g, " ").trim();
+                if (dn) ids.push({ value: dn, kind: "LEKARZ" });
+            }
 
             const parsed = mine
                 .map(a => ({ a, start: toMinutes(prodentisTime(a)), end: apptEndMinutes(a) }))
@@ -873,6 +900,7 @@ async function myDay(args: { date?: string }, userId: string): Promise<ActionRes
             const rows = (data ?? []) as Array<{ title: string; location: string | null; severity: string; taken_name: string | null; created_at: string }>;
             stats.incidents = rows.length;
             stats.incidentsUnassigned = rows.filter(r => !r.taken_name).length;
+            for (const r of rows) if (r.taken_name) ids.push({ value: r.taken_name, kind: "OSOBA" });
             if (rows.length) {
                 const rank: Record<string, number> = { blocking: 0, hinders: 1, minor: 2 };
                 rows.sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9));
@@ -903,6 +931,7 @@ async function myDay(args: { date?: string }, userId: string): Promise<ActionRes
                 .order('last_message_at', { ascending: true });
             const rows = (data ?? []) as Array<{ patient_name: string | null; last_message_at: string | null }>;
             stats.chats = rows.length;
+            for (const r of rows) if (r.patient_name) ids.push({ value: r.patient_name, kind: "PACJENT" });
             if (rows.length) {
                 sections.push(
                     `CZEKAJĄ NA ODPOWIEDŹ NA CZACIE (${rows.length}):\n` +
@@ -923,6 +952,7 @@ async function myDay(args: { date?: string }, userId: string): Promise<ActionRes
                     .order('date_from', { ascending: true });
                 const rows = (data ?? []) as any[];
                 stats.leaveRequests = rows.length;
+                for (const r of rows) if (r?.employees?.name) ids.push({ value: r.employees.name, kind: "OSOBA" });
                 if (rows.length) {
                     sections.push(
                         `WNIOSKI URLOPOWE DO DECYZJI (${rows.length}):\n` +
@@ -943,6 +973,7 @@ async function myDay(args: { date?: string }, userId: string): Promise<ActionRes
                 .order('created_at', { ascending: false });
             const rows = (data ?? []) as Array<{ content: string; author_name: string; category: string }>;
             stats.suggestions = rows.length;
+            for (const r of rows) if (r.author_name) ids.push({ value: r.author_name, kind: "OSOBA" });
             if (rows.length) {
                 sections.push(
                     `NOWE SUGESTIE ZESPOŁU (${rows.length}):\n` +
@@ -987,6 +1018,7 @@ async function myDay(args: { date?: string }, userId: string): Promise<ActionRes
             action: 'myDay',
             message: `${when}: nic nie wymaga Twojej uwagi — brak wizyt, zadań, awarii i wiadomości bez odpowiedzi.`,
             data: stats,
+            identities: ids,
         };
     }
 
@@ -995,6 +1027,7 @@ async function myDay(args: { date?: string }, userId: string): Promise<ActionRes
         action: 'myDay',
         message: `PODSUMOWANIE — ${when}\n\n${sections.join('\n\n')}`,
         data: stats,
+        identities: ids,
     };
 }
 
@@ -1183,13 +1216,25 @@ async function patientDossier(
                     .join('\n');
             });
 
+        // Wszystkie osoby z kartoteki idą do zamiany na żetony: pacjent, lekarz
+        // prowadzący wizytę i lekarze z historii leczenia.
+        const dossierIds: ActionResult['identities'] = [{ value: pName, kind: 'PACJENT' }];
+        if (doc) dossierIds.push({ value: doc, kind: 'LEKARZ' });
+        for (const v of visits) {
+            const dn = String(v?.doctor?.name ?? '').trim();
+            if (dn) dossierIds.push({ value: dn, kind: 'LEKARZ' });
+        }
+
         return {
             success: true,
             action: 'patientDossier',
             message: past.length
                 ? `${head}\n\nHISTORIA LECZENIA (ostatnie wizyty):\n${past.join('\n')}`
                 : `${head}\n\nW kartotece nie ma jeszcze opisanych wizyt — to prawdopodobnie pierwsza wizyta.`,
-            data: { patientId: pid, time: prodentisTime(hit) },
+            // `patientId` CELOWO nie wraca — to identyfikator kartoteki, a model
+            // nie ma powodu go znać. Do dalszych kroków wystarczy godzina.
+            data: { time: prodentisTime(hit) },
+            identities: dossierIds,
         };
     } catch (err: any) {
         return { success: false, action: 'patientDossier', message: `Błąd odczytu kartoteki: ${err.message}` };

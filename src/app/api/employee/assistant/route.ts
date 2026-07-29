@@ -7,6 +7,7 @@ import { executeAction } from '@/lib/assistantActions';
 import { demoSanitize, brand } from '@/lib/brandConfig';
 import { buildContextPrompt } from '@/lib/unifiedAI';
 import { sanitizeMessages } from '@/lib/assistantGuards';
+import { createScrubber } from '@/lib/aiAnonymizer';
 
 export const dynamic = 'force-dynamic';
 /**
@@ -417,10 +418,30 @@ export async function POST(req: Request) {
             kbContext = await buildContextPrompt('voice_assistant');
         } catch { /* KB is optional — falls back to role prompt only */ }
 
+        /**
+         * 🔒 PSEUDONIMIZACJA — model NIGDY nie dostaje tożsamości.
+         *
+         * Scrubber żyje dokładnie tyle, co to żądanie, i nigdzie się nie zapisuje.
+         * Uczymy go z góry nazwisk CAŁEGO personelu (padają w notatkach: „wycisk
+         * oddany do Maćków-Huras"), a nazwisk pacjentów uczy się w locie z wyników
+         * narzędzi. Wszystko, co idzie do modelu — prompt systemowy z pamięcią
+         * i bazą wiedzy, wiadomości użytkownika, wyniki narzędzi — przechodzi przez
+         * `scrub`. Odpowiedź modelu i argumenty jego wywołań przechodzą przez
+         * `restore`, więc użytkownik i baza widzą prawdziwe wartości.
+         */
+        const scrubber = createScrubber();
+        try {
+            const { data: staff } = await supabase.from('employees').select('name').eq('is_active', true);
+            for (const e of staff ?? []) scrubber.learn((e as { name?: string }).name, 'OSOBA');
+        } catch {
+            /* brak listy personelu obniża skuteczność słownika, ale regexy działają dalej */
+        }
+
         const systemPrompt = buildSystemPrompt(userMemory, kbContext);
         const conversationMessages: any[] = [
-            { role: 'system', content: systemPrompt },
-            ...safeMessages,
+            // Pamięć per pracownik potrafi zawierać adresy i telefony — prompt też scrubujemy.
+            { role: 'system', content: scrubber.scrub(systemPrompt) },
+            ...safeMessages.map(m => ({ ...m, content: scrubber.scrub(m.content) })),
         ];
 
         // ─── Agentic loop ─────────────────────────────────────────────────
@@ -454,8 +475,9 @@ export async function POST(req: Request) {
 
             // No tool calls → GPT is done, return text reply
             if (!responseMessage.tool_calls || responseMessage.tool_calls.length === 0) {
+                // Model odpowiada ŻETONAMI — użytkownikowi oddajemy prawdziwe nazwiska.
                 return NextResponse.json({
-                    reply: responseMessage.content || 'Gotowe.',
+                    reply: scrubber.restore(responseMessage.content || '') || 'Gotowe.',
                     action: executedActions.length > 0 ? executedActions[executedActions.length - 1] : null,
                     actions: executedActions,
                 });
@@ -476,16 +498,32 @@ export async function POST(req: Request) {
                 }
 
                 const functionName = toolCall.function.name;
-                console.log(`[Assistant] Round ${round + 1}: ${functionName}`, JSON.stringify(functionArgs).substring(0, 200));
+                console.log(`[Assistant] Round ${round + 1}: ${functionName}`);
 
-                const actionResult = await executeAction(functionName, functionArgs, user.id, user.email || '');
-                executedActions.push({ name: functionName, args: functionArgs, result: actionResult });
+                /**
+                 * Argumenty od modelu mogą nieść ŻETONY — np. `createTask({
+                 * patient_name: "PACJENT_2" })`, bo tak zobaczył pacjenta w wyniku
+                 * poprzedniego narzędzia. Przed wykonaniem podstawiamy prawdziwe
+                 * wartości, żeby do bazy trafiło nazwisko, a nie etykieta.
+                 */
+                const realArgs = scrubber.restoreDeep(functionArgs);
 
-                // Add tool result to conversation
+                const actionResult = await executeAction(functionName, realArgs, user.id, user.email || '');
+                executedActions.push({ name: functionName, args: realArgs, result: actionResult });
+
+                // Narzędzie zgłasza, kogo dotyczy jego odpowiedź — uczymy scrubbera
+                // ZANIM cokolwiek z tej odpowiedzi pójdzie do modelu.
+                for (const id of actionResult.identities ?? []) scrubber.learn(id.value, id.kind);
+
+                // Do modelu leci wersja ZAŻETONOWANA; `identities` nie wysyłamy wcale.
+                const { identities: _drop, ...forModel } = actionResult;
                 conversationMessages.push({
                     role: 'tool',
                     tool_call_id: toolCall.id,
-                    content: JSON.stringify(actionResult),
+                    // ⚠️ `scrubDeep` PRZED serializacją, nigdy `scrub` na gotowym JSON-ie:
+                    // escape'owany znak nowej linii skleja się z imieniem („\nEla") i psuje
+                    // dopasowanie. Zmierzone na realnej notatce z produkcji.
+                    content: JSON.stringify(scrubber.scrubDeep(forModel)),
                 });
             }
             // Continue loop — GPT will now decide to call more tools or reply
@@ -500,7 +538,7 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json({
-            reply: summary.choices[0].message.content || 'Wykonano wszystkie akcje.',
+            reply: scrubber.restore(summary.choices[0].message.content || '') || 'Wykonano wszystkie akcje.',
             action: executedActions.length > 0 ? executedActions[executedActions.length - 1] : null,
             actions: executedActions,
         });
