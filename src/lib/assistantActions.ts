@@ -734,27 +734,95 @@ async function myDay(args: { date?: string }, userId: string): Promise<ActionRes
         }
     };
 
-    // ── 1. Grafik: MOI pacjenci na ten dzień ────────────────────────────────
+    // ── 1. Grafik: co ZOSTAŁO, nie co było ──────────────────────────────────
+    //
+    // 🔑 Wypisywanie pacjentów przyjętych rano to raport, nie pomoc. Dla DZISIAJ
+    // liczy się wyłącznie to, co jeszcze przed człowiekiem — plus wolne okna,
+    // bo to w nich mieszczą się zadania. Dla innego dnia pokazujemy komplet.
     await settle(
         (async () => {
             const res = await prodentisFetch(`/api/appointments/by-date?date=${date}`);
             if (!res.ok) return;
             const data = await res.json();
             const all = (data.appointments || data || []) as any[];
-            if (!all.length) return;
+            stats.appointmentsClinic = all.length;
+            if (!all.length) {
+                sections.push('GRAFIK: w gabinecie nie ma dziś ani jednej wizyty.');
+                return;
+            }
 
             const mine = myName ? all.filter(a => sameDoctor(a, myName)) : [];
-            const list = (mine.length ? mine : []).slice(0, 12);
             stats.appointmentsMine = mine.length;
-            stats.appointmentsClinic = all.length;
 
-            if (list.length) {
-                const rows = list
-                    .map(a => `  ${prodentisTime(a)} — ${a.patientName || a.patient?.name || '?'}${prodentisTypeName(a) ? ` (${prodentisTypeName(a)})` : ''}`)
-                    .join('\n');
-                sections.push(`TWOI PACJENCI (${mine.length}):\n${rows}${mine.length > 12 ? `\n  …i ${mine.length - 12} więcej` : ''}`);
+            const withMin = mine
+                .map(a => ({ a, start: toMinutes(prodentisTime(a)), end: apptEndMinutes(a) }))
+                // 🔑 Odsiewamy wpisy sprzed 7:00 — to POZYCJE INFORMACYJNE Prodentisa,
+                // nie wizyty. Bez tego asystent twierdził, że ortodoncja jest o 03:00.
+                // Ten sam próg co w trasie grafiku („skip very early informational entries").
+                .filter(x => x.start >= 7 * 60)
+                .sort((x, y) => x.start - y.start);
+
+            if (!withMin.length) {
+                sections.push(`GRAFIK: nie masz dziś wizyt. W całym gabinecie: ${all.length}.`);
+            } else if (isToday) {
+                const nowMin = clinicNowMinutes();
+                const done = withMin.filter(x => x.end <= nowMin);
+                const left = withMin.filter(x => x.end > nowMin);
+                stats.appointmentsLeft = left.length;
+
+                if (!left.length) {
+                    sections.push(`GRAFIK: wszystkie ${withMin.length} wizyt masz już za sobą — do końca dnia nikt nie jest zapisany.`);
+                } else {
+                    const head = `GRAFIK — ZOSTAŁO ${left.length} z ${withMin.length} (przyjęte: ${done.length}), teraz ${fmtMinutes(nowMin)}`;
+                    const rows = left
+                        .slice(0, 10)
+                        .map((x, i) => {
+                            const inMin = x.start - nowMin;
+                            const kiedy = i === 0 ? (inMin <= 0 ? ' ← TRWA' : ` ← za ${inMin} min`) : '';
+                            return `  ${fmtMinutes(x.start)} — ${x.a.patientName || x.a.patient?.name || '?'}${prodentisTypeName(x.a) ? ` (${prodentisTypeName(x.a)})` : ''}${kiedy}`;
+                        })
+                        .join('\n');
+
+                    // Wolne okna — materiał do decyzji „co się jeszcze zmieści".
+                    const gaps: string[] = [];
+                    let cursor = Math.max(nowMin, left[0].start === nowMin ? nowMin : nowMin);
+                    for (const x of left) {
+                        const free = x.start - cursor;
+                        if (free >= 20) gaps.push(`${fmtMinutes(cursor)}–${fmtMinutes(x.start)} (${free} min)`);
+                        cursor = Math.max(cursor, x.end);
+                    }
+                    stats.freeWindows = gaps.length;
+                    sections.push(
+                        `${head}:\n${rows}${left.length > 10 ? `\n  …i ${left.length - 10} więcej` : ''}` +
+                            (gaps.length ? `\n  WOLNE OKNA DZIŚ: ${gaps.slice(0, 4).join(', ')}` : '\n  WOLNE OKNA DZIŚ: brak — grafik ciasny'),
+                    );
+                }
             } else {
-                sections.push(`TWOI PACJENCI: brak wizyt. W całym gabinecie: ${all.length}.`);
+                const rows = withMin
+                    .slice(0, 12)
+                    .map(x => `  ${fmtMinutes(x.start)} — ${x.a.patientName || x.a.patient?.name || '?'}${prodentisTypeName(x.a) ? ` (${prodentisTypeName(x.a)})` : ''}`)
+                    .join('\n');
+                sections.push(`GRAFIK (${withMin.length} wizyt):\n${rows}${withMin.length > 12 ? `\n  …i ${withMin.length - 12} więcej` : ''}`);
+            }
+
+            // Kto jeszcze dziś pracuje — bez tego „wydeleguj to komuś" jest pustym frazesem.
+            const others = new Map<string, number>();
+            for (const a of all) {
+                if (toMinutes(prodentisTime(a)) < 7 * 60) continue; // te same pozycje informacyjne
+                const doc = String(a?.doctorName ?? a?.doctor?.name ?? '')
+                    .replace(/\s*\(I\)\s*/g, ' ')
+                    .trim();
+                // Pomijamy „gabinety" i pozycje techniczne — do nich nie da się nic wydelegować.
+                if (!doc || /pokój|pokoj|unit|sprzątanie|sprzatanie|konsultacyjn/i.test(doc)) continue;
+                if (myName && sameDoctor(a, myName)) continue;
+                others.set(doc, (others.get(doc) ?? 0) + 1);
+            }
+            if (others.size) {
+                const who = [...others.entries()]
+                    .sort((x, y) => x[1] - y[1])
+                    .map(([n, c]) => `${n} (${c} wizyt)`)
+                    .join(', ');
+                sections.push(`KTO ${isToday ? 'JESZCZE DZIŚ' : 'TEGO DNIA'} PRACUJE: ${who}`);
             }
         })(),
     );
@@ -788,14 +856,23 @@ async function myDay(args: { date?: string }, userId: string): Promise<ActionRes
                 .select('title, location, severity, taken_name')
                 .neq('status', 'resolved')
                 .order('created_at', { ascending: false });
-            const rows = (data ?? []) as Array<{ title: string; location: string | null; severity: string; taken_name: string | null }>;
+            const rows = (data ?? []) as Array<{ title: string; location: string | null; severity: string; taken_name: string | null; created_at: string }>;
             stats.incidents = rows.length;
+            stats.incidentsUnassigned = rows.filter(r => !r.taken_name).length;
             if (rows.length) {
                 const rank: Record<string, number> = { blocking: 0, hinders: 1, minor: 2 };
                 rows.sort((a, b) => (rank[a.severity] ?? 9) - (rank[b.severity] ?? 9));
+                const days = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
                 sections.push(
-                    `AWARIE (${rows.length}):\n` +
-                        rows.slice(0, 6).map(r => `  • ${r.severity === 'blocking' ? '🚨 ' : ''}${r.title}${r.location ? ` (${r.location})` : ''}${r.taken_name ? ` — zajmuje się ${r.taken_name}` : ' — NIKT SIĘ NIE ZAJĄŁ'}`).join('\n'),
+                    `AWARIE (${rows.length}, bez opiekuna: ${stats.incidentsUnassigned}):\n` +
+                        rows
+                            .slice(0, 6)
+                            .map(r => {
+                                const age = days(r.created_at);
+                                const wisi = age >= 2 ? `, wisi ${age} dni` : '';
+                                return `  • ${r.severity === 'blocking' ? '🚨 ' : ''}${r.title}${r.location ? ` (${r.location})` : ''}${r.taken_name ? ` — zajmuje się ${r.taken_name}` : ` — NIKT SIĘ NIE ZAJĄŁ${wisi}`}`;
+                            })
+                            .join('\n'),
                 );
             }
         })(),
@@ -905,6 +982,45 @@ async function myDay(args: { date?: string }, userId: string): Promise<ActionRes
         message: `PODSUMOWANIE — ${when}\n\n${sections.join('\n\n')}`,
         data: stats,
     };
+}
+
+/** „HH:MM" → minuty od północy. `-1`, gdy nie da się odczytać. */
+function toMinutes(hhmm: string): number {
+    const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
+    return m ? Number(m[1]) * 60 + Number(m[2]) : -1;
+}
+
+function fmtMinutes(total: number): string {
+    const h = Math.floor(total / 60);
+    const m = total % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+/**
+ * Aktualna godzina w czasie GABINETU, w minutach od północy.
+ * 🔑 Serwer Vercela chodzi w UTC — bez jawnej strefy „teraz" wypadałoby o godzinę
+ * lub dwie wcześniej i asystent uznawałby przyjętych pacjentów za nadchodzących.
+ */
+function clinicNowMinutes(): number {
+    const parts = new Intl.DateTimeFormat('pl-PL', {
+        timeZone: 'Europe/Warsaw',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).formatToParts(new Date());
+    const h = Number(parts.find(p => p.type === 'hour')?.value ?? 0);
+    const m = Number(parts.find(p => p.type === 'minute')?.value ?? 0);
+    return h * 60 + m;
+}
+
+/** Koniec wizyty w minutach — z `endDate`, z `duration`, a w ostateczności +30 min. */
+function apptEndMinutes(apt: any): number {
+    const start = toMinutes(prodentisTime(apt));
+    if (start < 0) return -1;
+    const end = typeof apt?.endDate === 'string' ? toMinutes(String(apt.endDate).slice(11, 16)) : -1;
+    if (end > start) return end;
+    const dur = Number(apt?.duration);
+    return start + (Number.isFinite(dur) && dur > 0 ? dur : 30);
 }
 
 /**
