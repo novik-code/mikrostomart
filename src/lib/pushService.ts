@@ -865,7 +865,7 @@ export const broadcastPush = async (
     notificationType: PushNotificationType,
     params: Record<string, string> = {},
     url?: string,
-    opts: { alsoApp?: boolean } = {}
+    opts: { alsoApp?: boolean; muteKey?: string } = {}
 ): Promise<{ sent: number; failed: number }> => {
     const { title, body } = getPushTranslation(notificationType, 'pl', params);
     const payload = { title, body, url };
@@ -904,13 +904,39 @@ export const broadcastPush = async (
      * (rezerwacje, odwołania, zamówienia, zadania). Włączenie ich wszystkich naraz
      * zalałoby zespół banerami i jest osobną, świadomą decyzją — a nie skutkiem
      * ubocznym naprawy czatu.
+     *
+     * 🔑 WYCISZENIA SĄ RESPEKTOWANE na tym kanale (i tylko na nim — patrz niżej).
+     * Ekran „Preferencje" w apce zapisuje `employee_notification_preferences.muted_keys`,
+     * a klucze konfiguracji używają MYŚLNIKÓW (`appointment-confirmed`), podczas gdy
+     * `notificationType` używa PODKREŚLEŃ (`appointment_confirmed`) — stąd konwersja.
+     * ⚠️ Gałąź FCM niżej wyciszeń NIE czyta (stan zastany). Skutek: wyciszenie
+     * uciszy telefon, ale nie przeglądarkę. Ujednolicenie to osobna decyzja, bo
+     * dotknęłoby wszystkich ~15 typów naraz.
      */
     if (opts.alsoApp && userType !== 'patient' && appTargets.length > 0) {
-        void sendExpoPushToStaffMany(appTargets, {
-            title,
-            body,
-            data: url ? { url } : {},
-        }).catch(err => console.error('[Push] broadcastPush Expo error:', err));
+        const muteKey = opts.muteKey ?? String(notificationType).replace(/_/g, '-');
+        let targets = appTargets;
+        try {
+            const { data: muted } = await supabase
+                .from('employee_notification_preferences')
+                .select('user_id')
+                .contains('muted_keys', [muteKey]);
+            const mutedIds = new Set((muted || []).map(m => m.user_id));
+            targets = appTargets.filter(id => !mutedIds.has(id));
+        } catch (err) {
+            // Fail-OPEN: awaria odczytu preferencji nie może uciszyć powiadomienia.
+            // Odwrotnie niż przy bramkach bezpieczeństwa — tu koszt błędu to jeden
+            // baner za dużo, a nie przeoczone zgłoszenie.
+            console.error('[Push] odczyt wyciszeń nieudany, wysyłam do wszystkich:', err);
+        }
+
+        if (targets.length > 0) {
+            void sendExpoPushToStaffMany(targets, {
+                title,
+                body,
+                data: url ? { url } : {},
+            }).catch(err => console.error('[Push] broadcastPush Expo error:', err));
+        }
     }
 
     // Send push only to those with FCM tokens

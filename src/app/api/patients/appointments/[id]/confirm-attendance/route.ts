@@ -183,7 +183,9 @@ export async function POST(
             time: appointmentTime,
             doctor: appointmentAction.doctor_name || '',
         };
-        broadcastPush('admin', 'appointment_confirmed', pushParams, '/admin').catch(console.error);
+        // Ten sam układ co w publicznej trasie potwierdzenia: kanał aplikacji dla admina,
+        // tor `employee` celowo bez `alsoApp` (patrz komentarz w /api/appointments/confirm).
+        broadcastPush('admin', 'appointment_confirmed', pushParams, '/admin', { alsoApp: true }).catch(console.error);
         broadcastPush('employee', 'appointment_confirmed', pushParams, '/pracownik').catch(console.error);
 
         // Add "Pacjent potwierdzony" icon in Prodentis (icon ID 0000000010)

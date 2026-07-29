@@ -152,7 +152,18 @@ export async function POST(req: NextRequest) {
             time: appointmentTime,
             doctor: action.doctor_name || '',
         };
-        broadcastPush('admin', 'appointment_confirmed', pushParams, '/admin').catch(console.error);
+        // 🔑 `alsoApp` na torze ADMINA — bez tego potwierdzenie nie miało ŻADNEJ drogi
+        // na telefon: `broadcastPush` czyta wyłącznie `fcm_tokens` (web-push przeglądarki),
+        // a tokeny aplikacji żyją w `staff_push_tokens`. Wpis w historii Alertów powstawał
+        // mimo to (`logPush` leci niezależnie od dostarczenia), więc wyglądało to na wysłane.
+        //
+        // ⚠️ Tor `employee` ŚWIADOMIE zostaje bez `alsoApp`. Potwierdzenie leci dla KAŻDEGO
+        // przypomnienia (~17 dziennie) i nie wymaga żadnej reakcji — włączenie go całemu
+        // zespołowi to prosta droga do wyciszenia kanału, po którym prawdziwe alarmy
+        // przestają docierać. Włączenie = dopisanie tego samego argumentu w linii niżej.
+        // Kto chce ciszy, wycisza `appointment-confirmed` w Preferencjach — kanał apki
+        // respektuje `muted_keys` (gałąź FCM nadal nie, stan zastany).
+        broadcastPush('admin', 'appointment_confirmed', pushParams, '/admin', { alsoApp: true }).catch(console.error);
         broadcastPush('employee', 'appointment_confirmed', pushParams, '/pracownik').catch(console.error);
 
         // Add "Pacjent potwierdzony" icon in Prodentis (icon ID 0000000010).

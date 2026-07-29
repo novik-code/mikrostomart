@@ -137,3 +137,60 @@ describe('pushToGroups — kanał aplikacji mobilnej', () => {
         expect(sendExpoPushToStaffManyMock).not.toHaveBeenCalled();
     });
 });
+
+/**
+ * Potwierdzenie obecności pacjenta: zgłoszone z produkcji jako „Telegram przychodzi,
+ * push nie". Przyczyna: `broadcastPush` bez `alsoApp` wysyła wyłącznie web-push FCM,
+ * a token przeglądarki zgłaszającego był sprzed 3,5 miesiąca. Kanał aplikacji nie
+ * istniał na tej ścieżce w ogóle.
+ */
+describe('broadcastPush — kanał aplikacji i wyciszenia', () => {
+    beforeEach(() => {
+        tables.employees = [
+            { user_id: ADMIN_A, email: 'a@example.com', is_active: true },
+            { user_id: ADMIN_B, email: 'b@example.com', is_active: true },
+        ];
+        tables.employee_notification_preferences = [];
+    });
+
+    it('z alsoApp wysyła na Expo do personelu', async () => {
+        const { broadcastPush } = await import('../pushService');
+        await broadcastPush('employee', 'appointment_confirmed', {}, '/admin', { alsoApp: true });
+
+        expect(sendExpoPushToStaffManyMock).toHaveBeenCalledTimes(1);
+        const [ids] = sendExpoPushToStaffManyMock.mock.calls[0];
+        expect([...(ids as string[])].sort()).toEqual([ADMIN_A, ADMIN_B].sort());
+    });
+
+    it('BEZ flagi nie dotyka kanału Expo', async () => {
+        const { broadcastPush } = await import('../pushService');
+        await broadcastPush('employee', 'appointment_confirmed', {}, '/admin');
+        expect(sendExpoPushToStaffManyMock).not.toHaveBeenCalled();
+    });
+
+    it('pomija osoby, które wyciszyły ten typ powiadomienia', async () => {
+        // 🔑 Klucz konfiguracji ma MYŚLNIKI (`appointment-confirmed`), a `notificationType`
+        // PODKREŚLENIA (`appointment_confirmed`) — bez konwersji filtr nigdy by nie trafił.
+        tables.employee_notification_preferences = [{ user_id: ADMIN_B }];
+        const { broadcastPush } = await import('../pushService');
+        await broadcastPush('employee', 'appointment_confirmed', {}, '/admin', { alsoApp: true });
+
+        expect(sendExpoPushToStaffManyMock).toHaveBeenCalledTimes(1);
+        const [ids] = sendExpoPushToStaffManyMock.mock.calls[0];
+        expect(ids).toEqual([ADMIN_A]);
+    });
+
+    it('nie wysyła nic, gdy WSZYSCY wyciszyli', async () => {
+        tables.employee_notification_preferences = [{ user_id: ADMIN_A }, { user_id: ADMIN_B }];
+        const { broadcastPush } = await import('../pushService');
+        await broadcastPush('employee', 'appointment_confirmed', {}, '/admin', { alsoApp: true });
+        expect(sendExpoPushToStaffManyMock).not.toHaveBeenCalled();
+    });
+
+    it('pacjentów nie rusza kanałem personelu', async () => {
+        tables.user_roles = [{ user_id: PATIENT, email: null }];
+        const { broadcastPush } = await import('../pushService');
+        await broadcastPush('patient', 'appointment_confirmed', {}, '/x', { alsoApp: true });
+        expect(sendExpoPushToStaffManyMock).not.toHaveBeenCalled();
+    });
+});
