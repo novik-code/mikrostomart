@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyTokenFromRequest } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/pushService';
+import { recordPushPath } from '@/lib/pushHealth';
 import type { ConfirmAttendanceRequest, AppointmentActionResponse, AppointmentAction } from '@/types/appointmentActions';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
@@ -185,7 +186,12 @@ export async function POST(
         };
         // Ten sam układ co w publicznej trasie potwierdzenia: kanał aplikacji dla admina,
         // tor `employee` celowo bez `alsoApp` (patrz komentarz w /api/appointments/confirm).
-        broadcastPush('admin', 'appointment_confirmed', pushParams, '/admin', { alsoApp: true }).catch(console.error);
+        broadcastPush('admin', 'appointment_confirmed', pushParams, '/admin', { alsoApp: true })
+            .then(res => void recordPushPath('appointment_confirmed', { sent: res.sent, failed: res.failed }))
+            .catch(err => {
+                void recordPushPath('appointment_confirmed', { sent: 0, failed: 0, error: String(err?.message ?? err) });
+                console.error(err);
+            });
         broadcastPush('employee', 'appointment_confirmed', pushParams, '/pracownik').catch(console.error);
 
         // Add "Pacjent potwierdzony" icon in Prodentis (icon ID 0000000010)

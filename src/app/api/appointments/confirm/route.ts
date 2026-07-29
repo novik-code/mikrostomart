@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/pushService';
+import { recordPushPath } from '@/lib/pushHealth';
 import { getProdentisKey } from '@/lib/pmsConfig';
 
 const supabase = createClient(
@@ -163,7 +164,17 @@ export async function POST(req: NextRequest) {
         // przestają docierać. Włączenie = dopisanie tego samego argumentu w linii niżej.
         // Kto chce ciszy, wycisza `appointment-confirmed` w Preferencjach — kanał apki
         // respektuje `muted_keys` (gałąź FCM nadal nie, stan zastany).
-        broadcastPush('admin', 'appointment_confirmed', pushParams, '/admin', { alsoApp: true }).catch(console.error);
+        //
+        // Wynik toru admina idzie do REJESTRU ZDROWIA (mig 188). Historia Alertów tego
+        // nie zastąpi: `logPush` zapisuje wpis niezależnie od dostarczenia, więc pokazuje
+        // „wysłane" nawet wtedy, gdy nic nie opuściło serwera — tak ta ścieżka milczała
+        // przez miesiące. Rejestr odpowiada na pytanie „kiedy OSTATNIO REALNIE zadziałała".
+        broadcastPush('admin', 'appointment_confirmed', pushParams, '/admin', { alsoApp: true })
+            .then(res => void recordPushPath('appointment_confirmed', { sent: res.sent, failed: res.failed }))
+            .catch(err => {
+                void recordPushPath('appointment_confirmed', { sent: 0, failed: 0, error: String(err?.message ?? err) });
+                console.error(err);
+            });
         broadcastPush('employee', 'appointment_confirmed', pushParams, '/pracownik').catch(console.error);
 
         // Add "Pacjent potwierdzony" icon in Prodentis (icon ID 0000000010).

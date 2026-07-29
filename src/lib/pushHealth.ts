@@ -23,6 +23,9 @@ export type PushPathKey =
     | 'patient_chat'
     | 'new_reservation'
     | 'appointment_cancelled'
+    // Cykliczna, próg 48 h (mig 188) — funkcja kluczowa dla właściciela, a jej awaria
+    // jest z natury CICHA: historia Alertów pokazuje wpis niezależnie od dostarczenia.
+    | 'appointment_confirmed'
     // Zdarzeniowa (mig 187): `max_silence_minutes = NULL`, więc cron zdrowia jej
     // NIE alarmuje — cisza znaczy „nikt nic nie zepsuł", nie awarię kanału.
     | 'incident_blocking';
@@ -94,7 +97,7 @@ export async function findSilentPushPaths(): Promise<
 > {
     const { data, error } = await supabase
         .from('push_path_health')
-        .select('path_key, label, max_silence_minutes, last_success_at, last_error')
+        .select('path_key, label, max_silence_minutes, last_attempt_at, last_success_at, last_error')
         .not('max_silence_minutes', 'is', null);
 
     if (error) {
@@ -108,7 +111,27 @@ export async function findSilentPushPaths(): Promise<
     for (const row of (data ?? []) as unknown as PushPathHealthRow[]) {
         const limit = row.max_silence_minutes;
         if (limit == null) continue;
-        // Brak jakiegokolwiek sukcesu też jest sygnałem — ścieżka nigdy nie zadziałała.
+
+        /**
+         * 🔑 ŚCIEŻKI NIGDY NIE PODJĘTEJ NIE ALARMUJEMY.
+         *
+         * Zmierzone na produkcji 2026-07-29: `appointment_reminder` miało
+         * `attempts_24h = 0`, `last_attempt_at = null` i zero błędów — czyli ze 169
+         * przypomnień ANI JEDNO nie trafiło do posiadacza aplikacji, bo takiego
+         * kandydata po prostu nie było. Poprzednia wersja tego warunku traktowała
+         * „nigdy nie zadziałała" jak awarię i wysyłała alert CODZIENNIE, od dnia
+         * wgrania migracji 186. To dokładnie ten skutek, przed którym ostrzega
+         * komentarz w cronie: alarm o ciszy tam, gdzie cisza jest normalna, uczy
+         * zespół ignorować alerty — i wtedy przestaje działać cały mechanizm.
+         *
+         * Rozróżnienie jest proste i nie wymaga nowej kolumny: `last_attempt_at`
+         * jest ustawiane przy KAŻDEJ próbie, niezależnie od wyniku. Brak tego
+         * znacznika = nie było jeszcze ani jednego kandydata, czyli „czekamy na
+         * pierwszego odbiorcę", a nie „kanał padł".
+         */
+        if (!row.last_attempt_at) continue;
+
+        // Podjęta, ale nigdy nieudana — to JEST awaria (są kandydaci, brak sukcesów).
         const silent = row.last_success_at
             ? Math.floor((now - new Date(row.last_success_at).getTime()) / 60_000)
             : null;
