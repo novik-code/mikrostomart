@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { sendSMS } from '@/lib/smsService';
 import { requireAdmin } from '@/lib/authGuards';
+import { deliverReminderDraft } from '@/lib/reminderDelivery';
 
 /**
  * Manual SMS Send Endpoint (Admin Only)
@@ -72,41 +72,40 @@ export async function POST(req: Request) {
         let failedCount = 0;
         const errors: Array<{ id: string; phone: string; error: string }> = [];
 
-        // Send each draft
+        /**
+         * 🔴 PUSH-FIRST. Ta pętla wołała dotąd `sendSMS` bezpośrednio, więc pacjent
+         * z aplikacją i tak dostawał SMS-a — mimo że push-first istnieje od 2026-07-28.
+         * Naprawa z tamtej daty objęła wyłącznie `/api/admin/sms-send`; ta trasa
+         * („wyślij wszystkie" z panelu) została pominięta i to przez nią przeszło
+         * zgłoszenie z produkcji 2026-07-30. Wysyłka idzie teraz przez wspólne
+         * `deliverReminderDraft`, więc kanał dobiera JEDNO miejsce dla wszystkich tras.
+         */
+        let pushCount = 0;
         for (const draft of drafts) {
             try {
-                console.log(`📱 [${draft.id.substring(0, 8)}] Sending to ${draft.phone}...`);
+                console.log(`📱 [${draft.id.substring(0, 8)}] Wysyłka do ${draft.phone}…`);
 
-                const smsResult = await sendSMS({
-                    to: draft.phone,
-                    message: draft.sms_message
-                });
+                const outcome = await deliverReminderDraft(draft);
 
-                const updateData: any = {
-                    sent_at: new Date().toISOString(),
-                    manually_sent_by: sent_by
-                };
-
-                if (smsResult.success) {
-                    updateData.status = 'sent';
-                    updateData.sms_message_id = smsResult.messageId;
+                if (outcome.ok) {
                     sentCount++;
-                    console.log(`   ✅ Sent (ID: ${smsResult.messageId})`);
+                    if (outcome.pushSent) pushCount++;
+                    console.log(`   ✅ Kanał: ${outcome.channel}`);
                 } else {
-                    updateData.status = 'failed';
-                    updateData.send_error = smsResult.error;
                     failedCount++;
-                    console.error(`   ❌ Failed: ${smsResult.error}`);
+                    console.error(`   ❌ Nieudane: ${outcome.error}`);
                     errors.push({
                         id: draft.id,
                         phone: draft.phone,
-                        error: smsResult.error || 'Unknown error'
+                        error: outcome.error || 'Unknown error'
                     });
                 }
 
+                // `deliverReminderDraft` zapisuje status i kanał; tutaj dopisujemy
+                // wyłącznie ślad, KTO nacisnął wysyłkę.
                 await supabase
                     .from('sms_reminders')
-                    .update(updateData)
+                    .update({ manually_sent_by: sent_by })
                     .eq('id', draft.id);
 
             } catch (sendError) {
@@ -134,16 +133,20 @@ export async function POST(req: Request) {
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         console.log(`\n✅ [Manual SMS Send] Completed in ${duration}s`);
-        console.log(`   Sent: ${sentCount}`);
-        console.log(`   Failed: ${failedCount}`);
+        console.log(`   Dostarczone: ${sentCount} (w tym pushem: ${pushCount})`);
+        console.log(`   Nieudane: ${failedCount}`);
 
         return NextResponse.json({
             success: true,
             sent: sentCount,
+            // Panel pokazuje operatorowi, ile poszło apką — bez tego „push-first"
+            // jest niewidoczny i nie sposób zauważyć, że przestał działać.
+            pushSent: pushCount,
+            smsSent: sentCount - pushCount,
             failed: failedCount,
             errors,
             duration: `${duration}s`,
-            message: `Sent ${sentCount} SMS successfully`
+            message: `Dostarczono ${sentCount} (push: ${pushCount}, SMS: ${sentCount - pushCount})`
         });
 
     } catch (error) {

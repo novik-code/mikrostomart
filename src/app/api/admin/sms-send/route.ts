@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
-import { deliverToPatient, updateDeliveryStatus } from '@/lib/patientDelivery';
-import { recordPushPath } from '@/lib/pushHealth';
-import { brand } from '@/lib/brandConfig';
+import { deliverReminderDraft } from '@/lib/reminderDelivery';
 import { requireAdmin } from '@/lib/authGuards';
 import { logAudit } from '@/lib/auditLog';
 
@@ -25,7 +23,7 @@ const supabase = createClient(
  * cała logika push-first była w realnym obiegu MARTWA: pacjent z aplikacją i tak
  * dostawał SMS-a, bo człowiek kliknął wcześniej niż zegar.
  *
- * Dlatego wysyłka idzie tu przez `deliverToPatient` — dokładnie tę samą ścieżkę co
+ * Dlatego wysyłka idzie przez WSPÓLNE `deliverReminderDraft` — tę samą ścieżkę co
  * w cronie. Kto nacisnął „wyślij" nie może decydować o tym, jakim kanałem
  * powiadomienie dotrze do pacjenta.
  */
@@ -63,58 +61,30 @@ export async function POST(req: Request) {
         const isReminder = !row?.sms_type || row.sms_type === 'reminder';
 
         if (row && isReminder) {
-            const confirm = await loadConfirmationLink(row.prodentis_id, row.appointment_date);
-
-            const delivery = await deliverToPatient({
-                patientId: row.patient_id || null,
-                prodentisPatientId: String(row.prodentis_id || ''),
-                phone,
-                pushPayload: {
-                    title: 'Przypomnienie o wizycie',
-                    body: buildBody(row),
-                    url: confirm ? confirm.url : '/strefa-pacjenta/powiadomienia',
-                    tag: `appointment-${row.prodentis_id ?? 'unknown'}`,
-                    data: {
-                        type: 'appointment_reminder',
-                        ...(confirm ? { confirmationToken: confirm.token } : {}),
-                    },
-                },
-                // Treść SMS-a bierzemy Z ŻĄDANIA, nie z bazy: operator mógł ją
-                // przed wysłaniem poprawić w panelu.
-                smsMessage: message,
-                smsType: 'reminder',
-            });
-
-            await updateDeliveryStatus(id, delivery);
-
-            if (delivery.patientHasPush) {
-                void recordPushPath('appointment_reminder', {
-                    sent: delivery.pushSent ? 1 : 0,
-                    failed: delivery.pushSent ? 0 : 1,
-                    error: delivery.pushError,
-                });
-            }
+            // Wspólna ścieżka dla WSZYSTKICH tras wysyłki — patrz `lib/reminderDelivery`.
+            // Treść bierzemy z żądania, nie z bazy: operator mógł ją poprawić w panelu.
+            const delivery = await deliverReminderDraft({ ...row, id, phone }, message);
 
             await logAudit({
                 userId: user.id,
                 userEmail: user.email || '',
-                action: delivery.pushSent || delivery.smsSent ? 'sms_sent' : 'sms_send_failed',
+                action: delivery.ok ? 'sms_sent' : 'sms_send_failed',
                 resourceType: 'sms',
                 resourceId: id,
                 metadata: {
                     phone,
                     messageLength: message.length,
                     channel: delivery.channel,
-                    messageId: delivery.smsMessageId,
+                    messageId: delivery.messageId,
                 },
                 request: req,
             });
 
             return NextResponse.json({
-                success: delivery.pushSent || delivery.smsSent,
+                success: delivery.ok,
                 channel: delivery.channel,
-                messageId: delivery.smsMessageId,
-                error: delivery.smsError || delivery.pushError,
+                messageId: delivery.messageId,
+                error: delivery.error,
             });
         }
 
@@ -151,48 +121,4 @@ export async function POST(req: Request) {
         const msg = err instanceof Error ? err.message : 'Unknown error';
         return NextResponse.json({ success: false, error: msg }, { status: 500 });
     }
-}
-
-/** Tytuł/treść pusha — bez nazwiska pacjenta, bo idzie na ekran blokady. */
-function buildBody(row: { appointment_date?: string | null; doctor_name?: string | null; appointment_type?: string | null }): string {
-    const time = row.appointment_date ? String(row.appointment_date).slice(11, 16) : '';
-    const parts = [time && `Wizyta ${time}`, row.doctor_name, row.appointment_type].filter(Boolean);
-    return parts.join(' — ') || 'Masz zaplanowaną wizytę';
-}
-
-/**
- * Ten sam short link, który niesie SMS. Powstaje w `appointment-reminders`;
- * gdy go nie ma, push idzie bez akcji potwierdzenia — tak samo jak SMS.
- */
-async function loadConfirmationLink(
-    appointmentProdentisId: string | number | null | undefined,
-    appointmentDate: string | null | undefined
-): Promise<{ token: string; url: string } | null> {
-    if (!appointmentProdentisId || !appointmentDate) return null;
-
-    const day = String(appointmentDate).split('T')[0];
-    const { data, error } = await supabase
-        .from('appointment_actions')
-        .select('id, confirmation_token')
-        .eq('prodentis_id', String(appointmentProdentisId))
-        .gte('appointment_date', `${day}T00:00:00.000Z`)
-        .lte('appointment_date', `${day}T23:59:59.999Z`)
-        .limit(1)
-        .maybeSingle();
-
-    if (error) return null;
-    const action = data as { id?: string; confirmation_token?: string } | null;
-    if (!action?.confirmation_token || !action.id) return null;
-
-    const { data: linkRow } = await supabase
-        .from('short_links')
-        .select('short_code')
-        .eq('appointment_id', action.id)
-        .limit(1)
-        .maybeSingle();
-
-    const code = (linkRow as { short_code?: string } | null)?.short_code;
-    if (!code) return null;
-
-    return { token: action.confirmation_token, url: `${brand.appUrl}/s/${code}` };
 }
