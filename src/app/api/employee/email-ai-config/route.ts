@@ -14,7 +14,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
-import { buildContextPrompt } from '@/lib/unifiedAI';
+import { buildContextPrompt, invalidateKBCache } from '@/lib/unifiedAI';
 import { KNOWLEDGE_BASE } from '@/lib/knowledgeBase';
 
 export const dynamic = 'force-dynamic';
@@ -91,12 +91,36 @@ export async function GET() {
             knowledgeBase = KNOWLEDGE_BASE;
         }
 
+        // ─── Edytowalne SEKCJE bazy wiedzy (dodane 2026-07-31) ───────────────
+        // `knowledgeBase` wyżej to GOTOWY PROMPT: rola + posklejane sekcje. Da się go
+        // czytać, ale NIE da się go zapisać z powrotem — nie ma jak rozdzielić, która
+        // linia należy do której sekcji. Dokładnie stąd wziął się zapis do
+        // `site_settings.ai_knowledge_base`, którego potem nikt nie czytał
+        // (`getKnowledgeBase()` ma zero wywołań w repo). Edycja idzie więc PER SEKCJA,
+        // czyli tak, jak dane naprawdę leżą w tabeli.
+        //
+        // Filtrujemy do sekcji, które realnie docierają do kontekstu `email_draft` —
+        // pokazywanie admina sekcji, która i tak nie wpływa na maile, uczyłoby, że
+        // edycja „nic nie daje".
+        let knowledgeSections: Array<Record<string, unknown>> = [];
+        try {
+            const { data } = await supabase
+                .from('ai_knowledge_base')
+                .select('id, section, title, content, context_tags, priority, is_active, updated_at, updated_by')
+                .order('priority', { ascending: true });
+            knowledgeSections = (data || []).filter((s: any) => {
+                const tags: string[] = s.context_tags || [];
+                return tags.includes('*') || tags.includes('email_draft');
+            });
+        } catch { /* tabela może nie istnieć — zostaje sam podgląd promptu */ }
+
         return NextResponse.json({
             rules,
             instructions,
             feedback,
             stats: draftStats,
             knowledgeBase,
+            knowledgeSections,
         });
     } catch (err: any) {
         console.error('[Email AI Config] GET error:', err);
@@ -184,7 +208,13 @@ export async function PUT(req: NextRequest) {
         const body = await req.json();
         const { type, id } = body;
 
-        if (!id) {
+        // 🔴 Wartownik dotyczy WYŁĄCZNIE gałęzi, które kluczują po `id`.
+        // Sekcja bazy wiedzy kluczuje po `section` i `id` nie ma tam żadnego sensu —
+        // a ten warunek stał kiedyś bezwarunkowo na wejściu PUT-a i odrzucał
+        // KAŻDY zapis bazy wiedzy z „Missing id", zanim rozpoznano typ żądania.
+        // Dlatego zapis bazy wiedzy nie działał NIGDY: ani nowy (do tabeli),
+        // ani stary (do `site_settings`) — żądanie nie docierało nawet tam.
+        if (type !== 'knowledge_base' && !id) {
             return NextResponse.json({ error: 'Missing id' }, { status: 400 });
         }
 
@@ -222,31 +252,84 @@ export async function PUT(req: NextRequest) {
             return NextResponse.json({ instruction: data });
         }
 
+        // ─── Zapis SEKCJI bazy wiedzy ────────────────────────────────────────
+        // 🔴 NAPRAWIONE 2026-07-31. Edytor bazy wiedzy nie działał NIGDY, i to
+        // z DWÓCH niezależnych powodów naraz:
+        //
+        // 1. Wartownik `if (!id)` na wejściu PUT-a (patrz wyżej) odrzucał żądanie
+        //    z „Missing id", zanim ktokolwiek spojrzał na `type`. Żaden klient
+        //    nie wysyłał `id`, bo baza wiedzy kluczuje po `section`.
+        // 2. Nawet gdyby doszło dalej, zapis szedł do `site_settings.ai_knowledge_base`,
+        //    a AI czyta z TABELI `ai_knowledge_base` (`loadKnowledgeBase` w `unifiedAI`).
+        //    Jedynym czytelnikiem `site_settings` był `getKnowledgeBase()`, który
+        //    NIE MA w repo ani jednego wywołania.
+        //
+        // Zapis trafia teraz tam, skąd model czyta, i dokłada wpis do historii.
+        // ⚠️ `invalidateKBCache()` czyści cache TYLKO w tej instancji lambdy —
+        // generowanie odpowiedzi biegnie w innej funkcji, więc w najgorszym razie
+        // stara treść żyje jeszcze do 5 minut (TTL `kbCache`). Komunikat dla
+        // użytkownika mówi „do kilku minut" właśnie dlatego, a nie „od następnej
+        // odpowiedzi" — obietnica bez pokrycia byłaby kolejną odsłoną tego błędu.
         if (type === 'knowledge_base') {
-            const { content } = body;
-            if (!content || typeof content !== 'string') {
+            const { section, content, change_reason } = body;
+
+            if (typeof content !== 'string' || !content.trim()) {
                 return NextResponse.json({ error: 'Missing content' }, { status: 400 });
             }
-
-            // Upsert into site_settings
-            const { data: existing } = await supabase
-                .from('site_settings')
-                .select('key')
-                .eq('key', 'ai_knowledge_base')
-                .single();
-
-            if (existing) {
-                await supabase
-                    .from('site_settings')
-                    .update({ value: content, updated_at: new Date().toISOString() })
-                    .eq('key', 'ai_knowledge_base');
-            } else {
-                await supabase
-                    .from('site_settings')
-                    .insert({ key: 'ai_knowledge_base', value: content });
+            // Świadomie ODRZUCAMY zapis bez wskazanej sekcji zamiast zgadywać.
+            // Stary klient wysyłał tu cały sklejony prompt — nie ma sposobu, żeby
+            // rozłożyć go z powrotem na sekcje, więc każde „zgadnięcie" nadpisałoby
+            // cudzą treść. Lepszy widoczny błąd niż cichy zapis w próżnię.
+            if (!section || typeof section !== 'string') {
+                return NextResponse.json(
+                    {
+                        error: 'Wskaż sekcję bazy wiedzy do zapisu (pole "section"). '
+                            + 'Baza jest podzielona na sekcje i zapisuje się je pojedynczo.',
+                        code: 'section_required',
+                    },
+                    { status: 400 },
+                );
             }
 
-            return NextResponse.json({ success: true });
+            const { data: existing, error: findErr } = await supabase
+                .from('ai_knowledge_base')
+                .select('content')
+                .eq('section', section)
+                .maybeSingle();
+
+            if (findErr) throw findErr;
+            if (!existing) {
+                return NextResponse.json(
+                    { error: `Nie ma sekcji "${section}"`, code: 'section_not_found' },
+                    { status: 404 },
+                );
+            }
+
+            const { data, error } = await supabase
+                .from('ai_knowledge_base')
+                .update({
+                    content,
+                    updated_at: new Date().toISOString(),
+                    updated_by: admin.email || 'admin',
+                })
+                .eq('section', section)
+                .select('id, section, title, content, context_tags, priority, is_active, updated_at, updated_by')
+                .single();
+
+            if (error) throw error;
+
+            if (existing.content !== content) {
+                await supabase.from('ai_knowledge_base_history').insert({
+                    section,
+                    old_content: existing.content ?? null,
+                    new_content: content,
+                    change_reason: change_reason || 'Edycja z zakładki Poczta',
+                    changed_by: admin.email || 'admin',
+                });
+            }
+
+            invalidateKBCache();
+            return NextResponse.json({ success: true, section: data });
         }
 
         return NextResponse.json({ error: 'Invalid type — use "rule", "instruction", or "knowledge_base"' }, { status: 400 });
