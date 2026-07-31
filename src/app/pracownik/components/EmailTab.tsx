@@ -150,6 +150,19 @@ interface AiFeedback {
     created_at: string;
 }
 
+/** Wiersz `ai_knowledge_base` — realne źródło, z którego AI składa bazę wiedzy. */
+interface KnowledgeSection {
+    id: string;
+    section: string;
+    title: string;
+    content: string;
+    context_tags: string[];
+    priority: number;
+    is_active: boolean;
+    updated_at: string | null;
+    updated_by: string | null;
+}
+
 interface AiStats {
     total: number;
     pending: number;
@@ -376,9 +389,17 @@ export default function EmailTab() {
     const [aiConfigLoading, setAiConfigLoading] = useState(false);
     const [learningDraftId, setLearningDraftId] = useState<string | null>(null);
     const [learningNote, setLearningNote] = useState('');
+    // `knowledgeBase` to GOTOWY PROMPT (rola + posklejane sekcje) — wyłącznie do podglądu.
+    // Edycja idzie PER SEKCJA (`knowledgeSections`), bo tak dane leżą w tabeli
+    // `ai_knowledge_base`, z której czyta AI. Wcześniejsza edycja całego bloku
+    // zapisywała się do `site_settings.ai_knowledge_base` — wiersza, którego NIKT
+    // nie czytał, więc zapis nie robił nic (naprawione 2026-07-31).
     const [knowledgeBase, setKnowledgeBase] = useState('');
-    const [knowledgeBaseEditing, setKnowledgeBaseEditing] = useState(false);
+    const [knowledgeSections, setKnowledgeSections] = useState<KnowledgeSection[]>([]);
+    const [editingSection, setEditingSection] = useState<string | null>(null);
+    const [sectionDraft, setSectionDraft] = useState('');
     const [knowledgeBaseSaving, setKnowledgeBaseSaving] = useState(false);
+    const [showKbPreview, setShowKbPreview] = useState(false);
     // Cron debug & manual trigger
     const [cronDebugLoading, setCronDebugLoading] = useState(false);
     const [cronDebugResult, setCronDebugResult] = useState<any>(null);
@@ -617,6 +638,7 @@ export default function EmailTab() {
             setAiFeedback(data.feedback || []);
             setAiStats(data.stats || null);
             if (data.knowledgeBase) setKnowledgeBase(data.knowledgeBase);
+            setKnowledgeSections(data.knowledgeSections || []);
         } catch { /* ignore */ } finally {
             setAiConfigLoading(false);
         }
@@ -684,22 +706,38 @@ export default function EmailTab() {
         } catch { /* ignore */ }
     };
 
-    const saveKnowledgeBase = async () => {
+    /**
+     * Zapis JEDNEJ sekcji bazy wiedzy.
+     *
+     * 🔴 Poprzednia wersja wysyłała cały sklejony prompt bez wskazania sekcji, a trasa
+     * odkładała go do `site_settings.ai_knowledge_base` — wiersza, którego nie czyta
+     * żaden kod produkcyjny. Klik kończył się zielonym ✅, a odpowiedzi AI zostawały
+     * identyczne. Teraz zapis idzie do tabeli `ai_knowledge_base`, czyli tam, skąd
+     * `buildContextPrompt` naprawdę bierze treść. Błąd też pokazujemy realny —
+     * poprzedni `catch` gubił komunikat serwera.
+     */
+    const saveKnowledgeSection = async (section: string) => {
         setKnowledgeBaseSaving(true);
         try {
             const res = await fetch('/api/employee/email-ai-config', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type: 'knowledge_base', content: knowledgeBase }),
+                body: JSON.stringify({ type: 'knowledge_base', section, content: sectionDraft }),
             });
-            if (!res.ok) throw new Error('error');
-            setDraftToast('✅ Baza wiedzy zapisana!');
-            setKnowledgeBaseEditing(false);
-        } catch {
-            setDraftToast('❌ Nie udało się zapisać bazy wiedzy');
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error || 'Nie udało się zapisać');
+            setKnowledgeSections(prev =>
+                prev.map(s => (s.section === section ? { ...s, ...(data.section || {}) } : s)),
+            );
+            setEditingSection(null);
+            setDraftToast('✅ Sekcja zapisana — AI zacznie z niej korzystać w ciągu kilku minut');
+            // Podgląd promptu jest teraz nieaktualny; dociągamy go razem z resztą.
+            fetchAiConfig();
+        } catch (err: any) {
+            setDraftToast(`❌ ${err?.message || 'Nie udało się zapisać sekcji'}`);
         } finally {
             setKnowledgeBaseSaving(false);
-            setTimeout(() => setDraftToast(null), 3000);
+            setTimeout(() => setDraftToast(null), 4000);
         }
     };
 
@@ -4052,26 +4090,61 @@ export default function EmailTab() {
                                 </div>
                             ) : (
                                 /* ─── KNOWLEDGE BASE TAB ─── */
+                                /* Edycja PER SEKCJA. Do 2026-07-31 to pole edytowało cały
+                                   sklejony prompt i zapisywało go do `site_settings` —
+                                   wiersza, którego żaden kod nie czyta. Zapis wyglądał na
+                                   udany i nie zmieniał niczego. */
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                    <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', margin: 0 }}>To jest pełna baza wiedzy którą AI wykorzystuje do generowania odpowiedzi. Możesz ją przeglądać i edytować.</p>
-                                    <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
-                                        {!knowledgeBaseEditing ? (
-                                            <button onClick={() => setKnowledgeBaseEditing(true)} style={{ padding: '0.35rem 0.7rem', background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: '0.4rem', color: '#a855f7', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}>✏️ Edytuj bazę</button>
-                                        ) : (
-                                            <>
-                                                <button onClick={() => { setKnowledgeBaseEditing(false); fetchAiConfig(); }} style={{ padding: '0.35rem 0.7rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.75rem' }}>Anuluj</button>
-                                                <button onClick={saveKnowledgeBase} disabled={knowledgeBaseSaving} style={{ padding: '0.35rem 0.7rem', background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: '0.4rem', color: '#4ade80', cursor: knowledgeBaseSaving ? 'not-allowed' : 'pointer', fontSize: '0.75rem', fontWeight: 600 }}>{knowledgeBaseSaving ? 'Zapisuję...' : '💾 Zapisz zmiany'}</button>
-                                            </>
-                                        )}
-                                    </div>
-                                    {knowledgeBaseEditing ? (
-                                        <textarea value={knowledgeBase} onChange={e => setKnowledgeBase(e.target.value)} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: '0.5rem', padding: '0.75rem', color: '#fff', fontSize: '0.72rem', fontFamily: 'monospace', lineHeight: 1.5, minHeight: 400, resize: 'vertical', outline: 'none', whiteSpace: 'pre-wrap' }} />
-                                    ) : (
+                                    <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', margin: 0 }}>Baza wiedzy AI jest podzielona na sekcje. Edytujesz je pojedynczo — zmiana wchodzi w życie od następnej odpowiedzi AI.</p>
+
+                                    {knowledgeSections.length === 0 ? (
+                                        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '0.5rem' }}>
+                                            Brak sekcji przypisanych do kontekstu <code>email_draft</code>. AI korzysta wtedy z zapasowej bazy wbudowanej w kod.
+                                        </div>
+                                    ) : knowledgeSections.map(sec => {
+                                        const editing = editingSection === sec.section;
+                                        return (
+                                            <div key={sec.id} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '0.6rem', padding: '0.75rem' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff' }}>{sec.title}</div>
+                                                        <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)' }}>
+                                                            <code>{sec.section}</code>
+                                                            {sec.updated_by ? ` · ostatnia zmiana: ${sec.updated_by}` : ''}
+                                                            {sec.is_active ? '' : ' · NIEAKTYWNA (AI jej nie widzi)'}
+                                                        </div>
+                                                    </div>
+                                                    {!editing ? (
+                                                        <button onClick={() => { setEditingSection(sec.section); setSectionDraft(sec.content); }} style={{ padding: '0.3rem 0.6rem', background: 'rgba(168,85,247,0.12)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: '0.4rem', color: '#a855f7', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap' }}>✏️ Edytuj</button>
+                                                    ) : (
+                                                        <div style={{ display: 'flex', gap: '0.35rem' }}>
+                                                            <button onClick={() => setEditingSection(null)} style={{ padding: '0.3rem 0.6rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.72rem' }}>Anuluj</button>
+                                                            <button onClick={() => saveKnowledgeSection(sec.section)} disabled={knowledgeBaseSaving} style={{ padding: '0.3rem 0.6rem', background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.25)', borderRadius: '0.4rem', color: '#4ade80', cursor: knowledgeBaseSaving ? 'not-allowed' : 'pointer', fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{knowledgeBaseSaving ? 'Zapisuję...' : '💾 Zapisz'}</button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {editing ? (
+                                                    <textarea value={sectionDraft} onChange={e => setSectionDraft(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: '0.5rem', padding: '0.6rem', color: '#fff', fontSize: '0.72rem', fontFamily: 'monospace', lineHeight: 1.5, minHeight: 220, resize: 'vertical', outline: 'none' }} />
+                                                ) : (
+                                                    <pre style={{ margin: 0, fontSize: '0.7rem', color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 180, overflow: 'auto' }}>{sec.content}</pre>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+
+                                    {/* Podgląd GOTOWEGO promptu — dokładnie to, co dostaje model.
+                                        Tylko do odczytu: składa się z roli i sekcji, więc nie da się
+                                        go zapisać z powrotem bez zgadywania, co gdzie należy. */}
+                                    <button onClick={() => setShowKbPreview(v => !v)} style={{ alignSelf: 'flex-start', padding: '0.3rem 0.6rem', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.4rem', color: 'rgba(255,255,255,0.55)', cursor: 'pointer', fontSize: '0.72rem' }}>
+                                        {showKbPreview ? '▲ Ukryj' : '▼ Pokaż'} pełny prompt, który dostaje AI
+                                    </button>
+                                    {showKbPreview ? (
                                         <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '0.5rem', padding: '0.75rem', maxHeight: 500, overflow: 'auto' }}>
                                             <pre style={{ margin: 0, fontSize: '0.7rem', color: 'rgba(255,255,255,0.55)', fontFamily: 'monospace', lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{knowledgeBase}</pre>
                                         </div>
-                                    )}
-                                    <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>ℹ️ Baza zawiera: zespół, ofertę, cennik, FAQ, dane kontaktowe. Zmiany wchodzą w życie przy następnym uruchomieniu AI (co godzinę).</div>
+                                    ) : null}
+
+                                    <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)', fontStyle: 'italic' }}>ℹ️ Baza zawiera: zespół, ofertę, cennik, FAQ, dane kontaktowe. Zapis jest natychmiastowy, ale AI trzyma bazę w pamięci do 5 minut — zmiana zadziała w ciągu kilku minut.</div>
                                 </div>
                             )}
                         </div>
