@@ -391,7 +391,7 @@ export async function POST(req: Request) {
     }
 
     try {
-        const { messages } = await req.json();
+        const { messages, locale } = await req.json();
         const safeMessages = sanitizeMessages(messages);
 
         if (safeMessages.length === 0) {
@@ -437,7 +437,18 @@ export async function POST(req: Request) {
             /* brak listy personelu obniża skuteczność słownika, ale regexy działają dalej */
         }
 
-        const systemPrompt = buildSystemPrompt(userMemory, kbContext);
+        // 🌐 Odpowiedź MUSI być w języku interfejsu. Prompt systemowy jest po polsku,
+        // więc model bez tej instrukcji odpowiada po polsku nawet na pytanie niemieckie —
+        // a od 1.2 chipy podpowiedzi wysyłają pytanie w języku aplikacji. Routing narzędzi
+        // działa niezależnie od języka (sprawdzone na żywym pytaniu po niemiecku).
+        const LANG: Record<string, string> = {
+            pl: 'polsku', en: 'angielskim', de: 'niemieckim', uk: 'ukraińskim', ua: 'ukraińskim',
+        };
+        const langName = LANG[String(locale || 'pl').slice(0, 2)] || 'polsku';
+        const systemPrompt =
+            buildSystemPrompt(userMemory, kbContext) +
+            '\n\nJĘZYK ODPOWIEDZI: odpowiadaj ZAWSZE po ' + langName +
+            '. Nazwy własne (imiona, nazwy zabiegów z kartoteki) zostaw w oryginale.';
         const conversationMessages: any[] = [
             // Pamięć per pracownik potrafi zawierać adresy i telefony — prompt też scrubujemy.
             { role: 'system', content: scrubber.scrub(systemPrompt) },
