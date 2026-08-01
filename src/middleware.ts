@@ -360,7 +360,24 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
     }
 
     // Only enforce on /admin and /pracownik routes (and admin/employee API paths)
-    const PROTECTED_PREFIXES = ['/admin', '/pracownik', '/api/admin', '/api/employee'];
+    //
+    // 🔴 LUKA ZAMKNIĘTA: bramka pilnowała wyłącznie czterech prefiksów, a trasy personelu
+    // żyją także poza nimi. `/api/time/*` (wszystkie na `verifyAdmin`) i
+    // `/api/intake/generate-token` (`requireEmployeeOrAdmin`) sprawdzają wyłącznie ROLĘ,
+    // nie drugi składnik — więc kto znał samo hasło pracownika, mógł wystawić link do
+    // e-Karty na dowolnego pacjenta i wstrzyknąć spreparowany wywiad do kartoteki.
+    // To ta sama klasa co dziura z lipca (`238f8a9`).
+    //
+    // ⚠️ Prefiks `/api/intake` CELOWO wąski — `submit`, `verify` i `generate-pdf` są
+    // PUBLICZNE (wypełnia je pacjent z linku). Objęcie ich bramką zepsułoby e-Kartę.
+    const PROTECTED_PREFIXES = [
+        '/admin',
+        '/pracownik',
+        '/api/admin',
+        '/api/employee',
+        '/api/time',
+        '/api/intake/generate-token',
+    ];
     if (!PROTECTED_PREFIXES.some(p => pathname.startsWith(p))) {
         return null;
     }
