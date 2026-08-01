@@ -8,7 +8,9 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const GAMES = ['prochnicozerca'];
+// 'zabkowo' — ranking serii mycia ze strefy dzieci (PLAN_ZABKOWO_2026-08-01).
+// Pseudonim jest po stronie apki GENEROWANY (rankingNick), nigdy wpisywany przez dziecko.
+const GAMES = ['prochnicozerca', 'zabkowo'];
 
 // POST — zapis wyniku do rankingu poczekalni (bez logowania, pseudonim + wynik).
 export async function POST(request: NextRequest) {

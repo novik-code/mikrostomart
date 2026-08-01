@@ -8,7 +8,9 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const GAMES = ['prochnicozerca'];
+// 'zabkowo' — ranking serii mycia ze strefy dzieci (PLAN_ZABKOWO_2026-08-01).
+// Pseudonim jest po stronie apki GENEROWANY (rankingNick), nigdy wpisywany przez dziecko.
+const GAMES = ['prochnicozerca', 'zabkowo'];
 
 // GET — ranking poczekalni. ?game=&period=today|week|all → top 20 wyników.
 // Dla „today/week" deduplikujemy do najlepszego wyniku na pseudonim (klient-side po pobraniu).
