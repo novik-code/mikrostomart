@@ -26,11 +26,20 @@ async function findGuestConversation(token: string) {
 }
 
 /**
- * GET /api/chat/guest?token=...
+ * GET /api/chat/guest
  * Wiadomości wątku gościa (polling). Token waliduje własność.
+ *
+ * 🔒 Token przyjmujemy PRZEDE WSZYSTKIM z nagłówka `X-Guest-Token`. W adresie trafiał
+ * do logów serwera i pośredników przy każdym odpytaniu (co kilkanaście sekund), a daje
+ * pełny wgląd w wątek z opisem dolegliwości i telefonem — i nie wygasa.
+ * ⚠️ Wariant `?token=` ZOSTAJE: aplikacje 1.1.0 i 1.2.0 są już w sklepach i pytają tak.
+ * Wolno go usunąć dopiero, gdy te wersje wyjdą z użycia.
  */
 export async function GET(req: NextRequest) {
-    const token = req.nextUrl.searchParams.get('token')?.trim() || '';
+    const token =
+        req.headers.get('x-guest-token')?.trim() ||
+        req.nextUrl.searchParams.get('token')?.trim() ||
+        '';
     const conv = await findGuestConversation(token);
     if (!conv) {
         return NextResponse.json({ messages: [], conversationId: null });

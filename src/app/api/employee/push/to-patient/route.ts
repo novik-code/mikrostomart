@@ -84,13 +84,37 @@ export async function POST(req: Request) {
     }
 
     // Sprawdź, czy pacjent ma tokeny push (web FCM lub mobilny Expo). Tylko gdy jest konto.
+    //
+    // 🔴 BYŁO ZEPSUTE: zapytanie szło po `patient_push_tokens.user_id`, a taka kolumna
+    // NIE ISTNIEJE — tabela jest kluczowana `patient_id`, które trzyma PRODENTIS ID,
+    // nie UUID konta (patrz `resolveProdentisId` w lib/expoPush.ts). PostgREST zwracał
+    // 42703, błąd był połykany razem z `error`, więc tokeny APKI nigdy się nie liczyły
+    // i każdy pacjent z samą aplikacją mobilną był odrzucany komunikatem „nie włączył
+    // powiadomień". Funkcja nie działała od 1.1.
     let hasTokens = false;
+    let tokenCheckFailed = false;
     if (patientUserId) {
-        const [{ data: fcmRows }, { data: expoRows }] = await Promise.all([
+        // Klucz tabeli tokenów apki to prodentis id — dociągamy go, gdy przyszliśmy telefonem.
+        let pid: string | null = prodentis_id ?? null;
+        if (!pid) {
+            const { data } = await supabase
+                .from('patients')
+                .select('prodentis_id')
+                .eq('id', patientUserId)
+                .maybeSingle();
+            pid = data?.prodentis_id ?? null;
+        }
+        const [fcm, expo] = await Promise.all([
             supabase.from('fcm_tokens').select('id').eq('user_id', patientUserId).eq('user_type', 'patient'),
-            supabase.from('patient_push_tokens').select('id').eq('user_id', patientUserId),
+            pid
+                ? supabase.from('patient_push_tokens').select('id').eq('patient_id', pid)
+                : Promise.resolve({ data: [] as { id: string }[], error: null }),
         ]);
-        hasTokens = (fcmRows?.length || 0) + (expoRows?.length || 0) > 0;
+        if (fcm.error || expo.error) {
+            tokenCheckFailed = true;
+            console.error('[push/to-patient] token check failed', fcm.error || expo.error);
+        }
+        hasTokens = (fcm.data?.length || 0) + (expo.data?.length || 0) > 0;
     }
 
     // Preflight — apka pyta o status konta PRZED otwarciem kompozytora (bez wysyłki).
@@ -105,7 +129,11 @@ export async function POST(req: Request) {
         });
     }
 
-    if (!hasTokens) {
+    // 🔑 Blokujemy WYŁĄCZNIE wtedy, gdy mamy pewność, że tokenów nie ma. Gdy sam odczyt
+    // padł, próbujemy wysłać — to właśnie twarda blokada na wyniku zepsutego zapytania
+    // uciszyła całą funkcję na kilka miesięcy. `pushToUser` i tak zwróci `sent: 0`,
+    // jeśli realnie nie ma dokąd wysłać, i będzie to widać w odpowiedzi.
+    if (!hasTokens && !tokenCheckFailed) {
         return NextResponse.json({
             success: false,
             hasAccount: true,
