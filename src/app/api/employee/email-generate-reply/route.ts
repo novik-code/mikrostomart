@@ -1,6 +1,12 @@
 /**
  * On-demand AI reply generation — employee clicks "🤖 Wygeneruj odpowiedź" in compose window
  *
+ * 🔒 Treść maila i tożsamość nadawcy przechodzą przez `prepareEmailForModel`
+ *    (pseudonimizacja) ZANIM trafią do promptu; odpowiedź modelu wraca przez
+ *    `restoreForHuman`, więc człowiek widzi prawdziwe dane, a OpenAI nigdy ich nie
+ *    dostaje. Baza wiedzy gabinetu celowo NIE jest czyszczona — patrz nota
+ *    „co zamieniamy, a czego nie" w `lib/emailAiPrivacy.ts`.
+ *
  * POST body: { subject: string, emailBody: string, from: string, inline_feedback?: { previous_draft: string, rating?: number, tags?: string[], note?: string } }
  * Returns:   { draft_html: string, reasoning: string }
  */
@@ -10,6 +16,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { buildContextPrompt } from '@/lib/unifiedAI';
+import { prepareEmailForModel, residualIdentifiers, restoreForHuman } from '@/lib/emailAiPrivacy';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30; // AI generation can take a few seconds
@@ -122,6 +129,23 @@ export async function POST(req: NextRequest) {
             ? `\n\n## INSTRUKCJE OD ADMINA (OBOWIĄZKOWE)\n${activeInstructions.map((i: any, idx: number) => `${idx + 1}. [${(i.category || 'other').toUpperCase()}] ${i.instruction}`).join('\n')}`
             : '';
 
+        // ─── PSEUDONIMIZACJA ────────────────────────────────────────────────
+        // Wszystko, co pochodzi od PACJENTA (nadawca, temat, treść) oraz historia
+        // poprawek (to zapis wcześniejszej korespondencji) idzie do modelu
+        // w postaci żetonów. Odpowiedź odtwarzamy niżej przez `restoreForHuman`.
+        const prepared = prepareEmailForModel(
+            { fromName: from, fromAddress: from, subject, body: (emailBody || '').substring(0, 4000) },
+            recentFeedback,
+        );
+        const safe = prepared.safe;
+        recentFeedback = prepared.safeFeedback;
+
+        const leftovers = residualIdentifiers(`${safe.subject}\n${safe.body}`);
+        if (leftovers.length > 0) {
+            // Czujka, nie blokada — patrz nota przy `residualIdentifiers`.
+            console.warn('[Generate Reply] pozostałe identyfikatory po pseudonimizacji:', leftovers.join(','));
+        }
+
         const feedbackContext = recentFeedback.length > 0
             ? `\n\n## WNIOSKI Z POPRZEDNICH POPRAWEK\n${recentFeedback.map((f: any, idx: number) => {
                 let entry = `${idx + 1}. `;
@@ -171,11 +195,14 @@ ODPOWIEDZ W FORMACIE JSON:
                         },
                         {
                             role: 'user',
-                            content: `Od: ${from || 'Nieznany nadawca'}
-Temat: ${subject}
+                            // ⚠️ WYŁĄCZNIE wartości po pseudonimizacji — nigdy surowe `from`,
+                            // `subject`, `emailBody`. Zmiana tego miejsca na oryginały
+                            // przywraca dokładnie tę dziurę, którą zamyka ten moduł.
+                            content: `Od: ${safe.fromName}
+Temat: ${safe.subject}
 
 Treść emaila na który odpowiadamy:
-${(emailBody || '').substring(0, 4000)}`
+${safe.body}`
                         }
                     ];
 
@@ -189,12 +216,16 @@ ${(emailBody || '').substring(0, 4000)}`
                             corrections.push(`Ocena poprzedniej wersji: ${inline_feedback.rating}/5`);
                         }
                         if (inline_feedback.note) {
-                            corrections.push(`Uwagi od pracownika: ${inline_feedback.note}`);
+                            corrections.push(`Uwagi od pracownika: ${prepared.scrubber.scrub(inline_feedback.note)}`);
                         }
 
                         messages.push({
                             role: 'assistant' as const,
-                            content: JSON.stringify({ draft_html: inline_feedback.previous_draft, reasoning: 'Poprzednia wersja' }),
+                            // Poprzednia wersja draftu ZAWIERA imię pacjenta („Dzień dobry Panie…")
+                            // — bez czyszczenia regeneracja wysyłałaby je do modelu bocznymi drzwiami.
+                            content: JSON.stringify(
+                                prepared.scrubber.scrubDeep({ draft_html: inline_feedback.previous_draft, reasoning: 'Poprzednia wersja' }),
+                            ),
                         });
                         messages.push({
                             role: 'user' as const,
@@ -224,10 +255,14 @@ ${(emailBody || '').substring(0, 4000)}`
 
         const parsed = JSON.parse(jsonMatch[0]);
 
-        return NextResponse.json({
+        // Model pisze „Dzień dobry PACJENT_1" — człowiek ma zobaczyć prawdziwe imię.
+        // Odtwarzamy na STRUKTURZE, nie na stringu JSON-a (ta sama zasada co przy czyszczeniu).
+        const restored = restoreForHuman(prepared.scrubber, {
             draft_html: parsed.draft_html || '',
             reasoning: parsed.reasoning || '',
         });
+
+        return NextResponse.json(restored);
     } catch (err: any) {
         console.error('[Generate Reply] Error:', err);
         return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 });
