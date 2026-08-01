@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { sendEmail } from '@/lib/imapService';
+import { prepareLearningPairForModel, restoreForHuman } from '@/lib/emailAiPrivacy';
 
 export const dynamic = 'force-dynamic';
 
@@ -110,6 +111,17 @@ export async function PUT(req: NextRequest) {
             const correctedHtml = draft_html || draft.draft_html;
             const feedbackNote = admin_notes || '';
 
+            // ─── PSEUDONIMIZACJA ────────────────────────────────────────────
+            // Draft odpowiedzi zaczyna się od „Dzień dobry Panie …" i bywa podpisany
+            // numerem telefonu — bez tego kroku tożsamość pacjenta szła do OpenAI
+            // bocznymi drzwiami, mimo że ta trasa nie generuje odpowiedzi. Wykrył ją
+            // dopiero strażnik okablowania; z nazwy trasy nie sposób się domyślić.
+            const learnPair = prepareLearningPairForModel({
+                original: draft.draft_html,
+                corrected: correctedHtml,
+                note: feedbackNote,
+            });
+
             // Ask GPT to analyze the corrections
             let aiAnalysis = '';
             try {
@@ -132,13 +144,14 @@ Odpowiedz w 2-4 zdaniach PO POLSKU. Skup się na: zmianach w tonie, brakujących
                             },
                             {
                                 role: 'user',
+                                // ⚠️ WYŁĄCZNIE wartości po pseudonimizacji.
                                 content: `ORYGINALNY (AI):
-${draft.draft_html}
+${learnPair.safe.original}
 
 POPRAWIONY (pracownik):
-${correctedHtml}
+${learnPair.safe.corrected}
 
-${feedbackNote ? `UWAGA OD PRACOWNIKA: ${feedbackNote}` : ''}`,
+${learnPair.safe.note ? `UWAGA OD PRACOWNIKA: ${learnPair.safe.note}` : ''}`,
                             },
                         ],
                     }),
@@ -146,7 +159,8 @@ ${feedbackNote ? `UWAGA OD PRACOWNIKA: ${feedbackNote}` : ''}`,
 
                 if (aiResponse.ok) {
                     const aiData = await aiResponse.json();
-                    aiAnalysis = aiData.choices?.[0]?.message?.content || '';
+                    // Wnioski trafiają do bazy i przed oczy człowieka — z prawdziwymi danymi.
+                    aiAnalysis = restoreForHuman(learnPair.scrubber, aiData.choices?.[0]?.message?.content || '');
                 }
             } catch (err) {
                 console.error('[Email Drafts] AI analysis error:', err);
@@ -185,6 +199,14 @@ ${feedbackNote ? `UWAGA OD PRACOWNIKA: ${feedbackNote}` : ''}`,
         if (action === 'learn_from_compose') {
             const { original_html, corrected_html, feedback_note, rating, tags } = body;
 
+            // Ta sama pseudonimizacja co przy `return_for_learning` — patrz nota wyżej.
+            const composePair = prepareLearningPairForModel({
+                original: original_html,
+                corrected: corrected_html,
+                note: feedback_note,
+                tags,
+            });
+
             if (!original_html || !corrected_html) {
                 return NextResponse.json({ error: 'Missing original_html or corrected_html' }, { status: 400 });
             }
@@ -209,7 +231,8 @@ ${feedbackNote ? `UWAGA OD PRACOWNIKA: ${feedbackNote}` : ''}`,
                             },
                             {
                                 role: 'user',
-                                content: `ORYGINALNY (AI):\n${original_html}\n\nPOPRAWIONY (pracownik):\n${corrected_html}\n\n${feedback_note ? `UWAGA OD PRACOWNIKA: ${feedback_note}` : ''}${tags?.length ? `\nTAGI: ${tags.join(', ')}` : ''}`,
+                                // ⚠️ WYŁĄCZNIE wartości po pseudonimizacji.
+                                content: `ORYGINALNY (AI):\n${composePair.safe.original}\n\nPOPRAWIONY (pracownik):\n${composePair.safe.corrected}\n\n${composePair.safe.note ? `UWAGA OD PRACOWNIKA: ${composePair.safe.note}` : ''}${composePair.safe.tags.length ? `\nTAGI: ${composePair.safe.tags.join(', ')}` : ''}`,
                             },
                         ],
                     }),
@@ -217,7 +240,7 @@ ${feedbackNote ? `UWAGA OD PRACOWNIKA: ${feedbackNote}` : ''}`,
 
                 if (aiResponse.ok) {
                     const aiData = await aiResponse.json();
-                    aiAnalysis = aiData.choices?.[0]?.message?.content || '';
+                    aiAnalysis = restoreForHuman(composePair.scrubber, aiData.choices?.[0]?.message?.content || '');
                 }
             } catch (err) {
                 console.error('[Email Drafts] AI analysis error (compose):', err);

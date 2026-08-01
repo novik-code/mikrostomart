@@ -131,12 +131,30 @@ export function createScrubber(): Scrubber {
         out = out.replace(/(?<!\d)(?:\+?48[ -]?)?(?:\d[ -]?){9}(?!\d)/g, m => mint(m.trim(), 'TEL'));
 
         // ── 2. Słownik znanych nazwisk (najdłuższe najpierw) ────────────────
+        //
+        // 🔑 **Z ODMIANĄ.** Wersja z samą granicą słowa przepuszczała każdy przypadek
+        // zależny: słownik znał „Ogonowski", a w zdaniu stało „odpowiedź dla
+        // Ogonowskiego" — lookahead `(?![\p{L}...])` nie pasował i NAZWISKO WYCHODZIŁO
+        // DO MODELU. Złapane testem na realnym kształcie korespondencji, nie rozumowaniem.
+        // Dopuszczamy więc do trzech liter końcówki (-ego, -emu, -im, -a, -owi).
+        //
+        // 🔑 Nadmiarowe trafienie jest NIEGROŹNE i samo się leczy: żeton pamięta
+        // dokładnie ten ciąg, który zastąpił, więc `restore` wstawia go z powrotem
+        // bez zmiany. Ryzyko jest asymetryczne — przepuszczone nazwisko jest wyciekiem,
+        // nadgorliwe podstawienie tylko szumem. Dlatego celujemy w nadgorliwość.
+        //
+        // ⚠️ ZNANE OGRANICZENIE: to nie obejmuje odmian zmieniających RDZEŃ
+        // („Kowalska" → „Kowalskiej"). Formy żeńskie i nietypowe wciąż mogą się
+        // prześlizgnąć — stąd czujka `residualIdentifiers` po stronie wołającego.
         const known = [...toToken.keys()].sort((a, b) => b.length - a.length);
         for (const key of known) {
             const token = toToken.get(key)!;
             // Już-żetonów nie ruszamy (klucz mógł powstać z regexu wyżej).
             if (key === token.toLowerCase()) continue;
-            out = out.replace(new RegExp(`(?<![\\p{L}\\d_])${escapeRe(key)}(?![\\p{L}\\d_])`, 'giu'), token);
+            out = out.replace(
+                new RegExp(`(?<![\\p{L}\\d_])${escapeRe(key)}\\p{L}{0,3}(?![\\p{L}\\d_])`, 'giu'),
+                token,
+            );
         }
 
         // ── 3. „pani Kasi", „pani kasi", „dr Kowalski" — imiona spoza bazy ──

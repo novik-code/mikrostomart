@@ -6,6 +6,11 @@
  * 
  * Schedule: 3×/day (8:30, 12:30, 16:30 UTC)
  * Auth: CRON_SECRET or ?manual=true
+ *
+ * 🔒 Treść maila i tożsamość nadawcy przechodzą przez `prepareEmailForModel`
+ *    (pseudonimizacja) ZANIM trafią do promptu, a odpowiedź modelu wraca przez
+ *    `restoreForHuman` — do bazy zapisujemy draft z prawdziwymi danymi, OpenAI
+ *    nie dostaje ich nigdy.
  */
 
 import { isDemoMode } from '@/lib/demoMode';
@@ -17,6 +22,7 @@ import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { demoSanitize, brand } from '@/lib/brandConfig';
 import { requireAdmin } from '@/lib/authGuards';
+import { prepareEmailForModel, residualIdentifiers, restoreForHuman } from '@/lib/emailAiPrivacy';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
@@ -128,13 +134,33 @@ export async function GET(req: NextRequest) {
         console.log(`[Email AI Drafts] Fetched ${inboxEmails.length} inbox emails from last 30 days (${page} pages)`);
 
         // 2. Get already-processed UIDs from DB
-        const { data: existingDrafts } = await supabase
-            .from('email_ai_drafts')
-            .select('email_uid');
-
-        const processedUids = new Set(
-            (existingDrafts || []).map((d: { email_uid: number }) => d.email_uid)
-        );
+        //
+        // 🔴 NAPRAWIONE 2026-08-01. Poprzednio było tu gołe `.select('email_uid')`
+        // BEZ filtra — a PostgREST tnie odpowiedź do 1000 wierszy. Przy 4263 wpisach
+        // pamięć crona widziała niecałą czwartą część, więc te same maile wracały do
+        // analizy przy kolejnych przebiegach: 4263 wiersze dla 1820 unikalnych UID-ów,
+        // rekordzista (UID 47724) przetworzony **34 razy**. Każde powtórzenie to
+        // kolejna wysyłka treści maila pacjenta do OpenAI i kolejny koszt.
+        //
+        // Pytamy teraz WYŁĄCZNIE o UID-y, które realnie rozważamy w tym przebiegu.
+        // Zbiór jest mały (skrzynka z 30 dni), więc limit 1000 przestaje mieć znaczenie.
+        // `.in()` chunkujemy po 100 — dłuższa lista rozdmuchuje URL i PostgREST
+        // odpowiada 414, a błąd jest połykany, więc objawem byłaby cicha regresja.
+        const candidateUids = inboxEmails.map(e => e.uid);
+        const processedUids = new Set<number>();
+        for (let i = 0; i < candidateUids.length; i += 100) {
+            const chunk = candidateUids.slice(i, i + 100);
+            const { data, error } = await supabase
+                .from('email_ai_drafts')
+                .select('email_uid')
+                .in('email_uid', chunk);
+            if (error) {
+                // Bez pamięci cron przetworzyłby wszystko od nowa — lepiej stanąć.
+                throw new Error(`Nie udało się odczytać przetworzonych UID-ów: ${error.message}`);
+            }
+            for (const d of data || []) processedUids.add(d.email_uid);
+        }
+        console.log(`[Email AI Drafts] Pamięć crona: ${processedUids.size} z ${candidateUids.length} maili już przetworzonych`);
 
         // 2b. Load AI training config from DB (resilient — works even if tables missing)
         let senderRules: any[] = [];
@@ -390,6 +416,25 @@ export async function GET(req: NextRequest) {
                     continue;
                 }
 
+                // ─── PSEUDONIMIZACJA ────────────────────────────────────────
+                // Nadawca, temat i treść idą do modelu w postaci żetonów; historia
+                // poprawek też, bo to zapis wcześniejszej korespondencji z pacjentami.
+                const prepared = prepareEmailForModel(
+                    {
+                        fromName: fullEmail.from.name,
+                        fromAddress: fullEmail.from.address,
+                        subject: fullEmail.subject,
+                        body: emailContent.substring(0, 3000),
+                        date: fullEmail.date,
+                    },
+                    recentFeedback,
+                );
+                const safe = prepared.safe;
+                const leftovers = residualIdentifiers(`${safe.subject}\n${safe.body}`);
+                if (leftovers.length > 0) {
+                    console.warn(`[Email AI Drafts] UID ${candidate.uid}: pozostałe identyfikatory po pseudonimizacji: ${leftovers.join(',')}`);
+                }
+
                 // Ask AI to classify + draft
                 const aiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
                     method: 'POST',
@@ -438,12 +483,14 @@ Jeśli mail jest NIEWAŻNY, odpowiedz:
                             },
                             {
                                 role: 'user',
-                                content: `Od: ${fullEmail.from.name} <${fullEmail.from.address}>
-Temat: ${fullEmail.subject}
-Data: ${fullEmail.date}
+                                // ⚠️ WYŁĄCZNIE wartości po pseudonimizacji. Podmiana na
+                                // `fullEmail.*` przywraca wysyłkę tożsamości pacjenta do OpenAI.
+                                content: `Od: ${safe.fromName} <${safe.fromAddress}>
+Temat: ${safe.subject}
+Data: ${safe.date}
 
 Treść:
-${emailContent.substring(0, 3000)}`
+${safe.body}`
                             }
                         ],
                     }),
@@ -474,6 +521,10 @@ ${emailContent.substring(0, 3000)}`
                     console.error(`[Email AI Drafts] Failed to parse AI response for UID ${candidate.uid}:`, content.substring(0, 200));
                     continue;
                 }
+
+                // Do bazy i do oczu człowieka trafiają PRAWDZIWE dane — odtwarzamy je
+                // na strukturze zaraz po sparsowaniu, zanim cokolwiek zostanie zapisane.
+                parsed = restoreForHuman(prepared.scrubber, parsed);
 
                 if (parsed.is_important && parsed.draft_html) {
                     // Save draft to DB
