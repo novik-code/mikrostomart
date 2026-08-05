@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { isDemoMode } from '@/lib/demoMode';
+import { phoneLookupVariants } from '@/lib/phone';
 
 export const dynamic = 'force-dynamic';
 
@@ -211,8 +212,16 @@ export async function POST(request: Request) {
         if (isEmail) {
             query = query.ilike('email', loginIdentifier);
         } else {
-            query = query.eq('phone', loginIdentifier);
+            // 🔑 SZUKAMY PO WSZYSTKICH POSTACIACH TEGO NUMERU, nie po dokładnej równości.
+            // W bazie leżą obie formy (zmierzone 2026-08-05: 77 kont jako gołe 9 cyfr,
+            // 13 jako "+48" + 9 cyfr), więc równość oznaczała, że część pacjentów mogła
+            // się zalogować WYŁĄCZNIE wpisując "+48", a reszta wyłącznie bez niego.
+            // Lista zawsze zawiera surowe wejście — zmiana tylko poszerza dopasowanie.
+            // Zweryfikowane przed wdrożeniem: zero numerów wspólnych dla dwóch różnych kont.
+            query = query.in('phone', phoneLookupVariants(loginIdentifier));
         }
+        // `.single()` zostaje świadomie: gdyby kiedyś dwa konta dzieliły numer, logowanie
+        // ma paść, a nie zgadywać, do którego z nich wpuścić.
         const { data: patient, error } = await query.single();
 
         if (error || !patient) {
