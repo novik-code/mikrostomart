@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { broadcastPush } from '@/lib/pushService';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { getEmailTemplate } from '@/lib/emailTemplates';
+import { samePhone } from '@/lib/phone';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 import { verifyRegistrationToken } from '@/lib/registrationToken';
@@ -54,9 +55,16 @@ export async function POST(request: Request) {
         // Anti-substitution: phone w body musi pasować do phone w tokenie.
         // (Token wystawiony jest na konkretny numer; zmiana phone w body
         // bez nowego /verify call to próba podstawienia czyjegoś prodentisId.)
-        const normalizedBodyPhone = String(phone).replace(/[\s-]/g, '');
-        const normalizedTokenPhone = String(tokenPayload.phone).replace(/[\s-]/g, '');
-        if (normalizedBodyPhone !== normalizedTokenPhone) {
+        // 🔴 TU PĘKAŁO ZAKŁADANIE KONTA. Porównanie było równością stringów po usunięciu
+        // wyłącznie spacji i myślników, więc prefiks kraju przeżywał: krok 1 podpisywał
+        // token numerem WPISANYM przez pacjenta, a klient zaraz potem nadpisywał pole
+        // numerem odczytanym z Prodentisa. Gdy notacje się różniły ("+48 790 740 770"
+        // vs "790740770"), pacjent dostawał 403 na ostatnim kroku i nie miał jak przejść
+        // dalej inaczej niż trafiając w format Prodentisa. Zgłoszenie: Marek Nega, 2026-08-05.
+        //
+        // Zabezpieczenie przed podstawieniem CUDZEGO numeru zostaje nienaruszone —
+        // porównujemy nadal ten sam numer, tylko sprowadzony do jednej postaci.
+        if (!samePhone(phone, tokenPayload.phone)) {
             console.warn('[Register] Phone mismatch between body and token');
             return NextResponse.json(
                 { error: 'Niezgodność danych. Rozpocznij rejestrację od nowa.' },

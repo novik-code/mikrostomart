@@ -7,6 +7,7 @@
 
 import { isDemoMode } from './demoMode';
 import { brand } from './brandConfig';
+import { toSmsRecipient } from './phone';
 
 /**
  * Fetch SMS provider config from clinic_settings (DB-first, env fallback).
@@ -130,15 +131,16 @@ export async function sendSMS(options: SMSOptions): Promise<SMSResponse> {
         };
     }
 
-    // Normalize phone number: remove + prefix and whitespace
-    const normalizedPhone = to.replace(/^\+/, '').replace(/\s+/g, '');
-
-    // Validate phone format (Polish: 48XXXXXXXXX, 11 digits total)
-    const phoneRegex = /^48\d{9}$/;
-    if (!phoneRegex.test(normalizedPhone)) {
+    // Numer sprowadzony do E.164, bez znaku „+" — postać oczekiwana przez SMSAPI.
+    // 🔑 Bramka BYŁA `/^48\d{9}$/`, czyli odrzucała KAŻDY numer spoza Polski — pacjent
+    // zagraniczny nie dostawał żadnego przypomnienia ani potwierdzenia wizyty, a w bazie
+    // są już numery +31, +44 i islandzki. Dla numerów polskich wynik jest identyczny
+    // co dotąd (48XXXXXXXXX), więc dla nich nic się nie zmienia.
+    const normalizedPhone = toSmsRecipient(to);
+    if (!normalizedPhone) {
         return {
             success: false,
-            error: `Invalid phone format: ${to}. Expected format: 48XXXXXXXXX or +48XXXXXXXXX`
+            error: `Invalid phone format: ${to}. Expected E.164 (+48XXXXXXXXX) or 9-digit Polish number`
         };
     }
 

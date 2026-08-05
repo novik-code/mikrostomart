@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { signRegistrationToken } from '@/lib/registrationToken';
+import { prodentisPhoneQueries } from '@/lib/phone';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,31 +42,12 @@ function withVerificationToken(
     return { ...prodentisData, verificationToken };
 }
 
-/**
- * Generate common Polish phone format variants for Prodentis matching.
- * Prodentis may store phones as "123456789", "123 456 789", "+48 123 456 789", etc.
- */
-function getPhoneVariants(phone: string): string[] {
-    const digits = phone.replace(/\D/g, '');
-    // Get last 9 digits (strip country code if present)
-    const core = digits.length > 9 ? digits.slice(-9) : digits;
-    if (core.length !== 9) return [phone];
-
-    const variants = new Set<string>();
-    // 123456789
-    variants.add(core);
-    // 123 456 789
-    variants.add(`${core.slice(0, 3)} ${core.slice(3, 6)} ${core.slice(6)}`);
-    // +48123456789
-    variants.add(`+48${core}`);
-    // +48 123 456 789
-    variants.add(`+48 ${core.slice(0, 3)} ${core.slice(3, 6)} ${core.slice(6)}`);
-    // 48123456789
-    variants.add(`48${core}`);
-    // 0048123456789
-    variants.add(`0048${core}`);
-    return Array.from(variants);
-}
+// 🔴 USUNIĘTO `getPhoneVariants`. Brał OSTATNIE 9 CYFR dowolnego numeru i doklejał "+48",
+// więc niemiecki "+49 170 1234567" odpytywał Prodentis o "+48701234567" — poprawnie
+// wyglądający polski numer, mogący należeć do KOGOŚ INNEGO. Numery, których część krajowa
+// nie ma 9 cyfr (Dania 8, Islandia 7), nie dostawały wariantów w ogóle.
+// Zastąpione przez `prodentisPhoneQueries` z '@/lib/phone': dla numerów polskich lista jest
+// IDENTYCZNA co do elementu, dla zagranicznych nigdy nie zawiera wariantu z "48".
 
 export async function POST(request: Request) {
     try {
@@ -104,7 +86,7 @@ export async function POST(request: Request) {
         }
 
         // ── Attempt 2: Try phone variants (spaces, country code) ──
-        const variants = getPhoneVariants(normalizedPhone);
+        const variants = prodentisPhoneQueries(phone);
         console.log('[Verify] Attempt 2: trying', variants.length, 'phone variants');
 
         for (const variant of variants) {

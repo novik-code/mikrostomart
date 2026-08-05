@@ -2,6 +2,7 @@
  * Shared doctor/specialist mapping — single source of truth
  * Used by: AppointmentScheduler, reservation API, admin panel, cron jobs
  */
+import { phoneMatchKey } from './phone';
 
 export interface DoctorInfo {
     prodentisId: string | null;
@@ -93,11 +94,12 @@ export function getSpecialistByProdentisId(prodentisId: string): string | null {
  * Strips +, spaces, dashes → pure digits, ensures 48 prefix for Polish numbers
  */
 export function normalizePhone(phone: string): string {
-    const digits = phone.replace(/[^\d]/g, '');
-    if (digits.length === 9) return `48${digits}`;
-    if (digits.startsWith('48') && digits.length === 11) return digits;
-    if (digits.startsWith('0048') && digits.length === 13) return digits.slice(2);
-    return digits;
+    // Deleguje do wspólnego modułu. Dla numerów POLSKICH wynik jest identyczny
+    // co poprzednio (9 cyfr → "48"+cyfry, "0048…" → "48…"), więc dopasowywanie
+    // pacjenta przy rezerwacji online zachowuje się tak samo. Zmienia się wyłącznie
+    // przypadek zagraniczny: "0049 170 1234567" i "+49 170 1234567" dawały wcześniej
+    // DWA różne klucze i ten sam pacjent się nie dopasowywał — teraz dają jeden.
+    return phoneMatchKey(phone);
 }
 
 /**

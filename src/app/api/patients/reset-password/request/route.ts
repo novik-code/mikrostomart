@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { phoneLookupVariants } from '@/lib/phone';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 
@@ -58,7 +59,11 @@ export async function POST(request: NextRequest) {
         const { data: patient, error: patientError } = await supabase
             .from('patients')
             .select('prodentis_id, email')
-            .eq('phone', phone.replace(/\s/g, ''))
+            // Jak w logowaniu: szukamy po WSZYSTKICH postaciach numeru. Wcześniej usuwano
+            // tu same spacje (nawet nie myślniki), więc pacjent zapisany jako "+48..."
+            // nie mógł odzyskać hasła wpisując gołe 9 cyfr. Lista zawiera surowe wejście,
+            // więc dopasowanie tylko się poszerza.
+            .in('phone', phoneLookupVariants(phone))
             .single();
 
         console.log('[Password Reset] Patient lookup result:', { patient, patientError });
