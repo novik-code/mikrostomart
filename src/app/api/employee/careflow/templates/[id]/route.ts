@@ -21,6 +21,9 @@ type TemplateStepRow = {
     icon: string | null;
     offset_hours: number;
     smart_snap: boolean | null;
+    // Tryb siatki dawkowania 07/15/23 ('loading' | 'pre_op' | 'grid'). Ma PIERWSZEŃSTWO
+    // przed smart_snap — termin z siatki jest kliniczny, strażnik ciszy zepchnąłby dawkę 23:00.
+    dose_snap: string | null;
     push_message: string | null;
     requires_confirmation: boolean | null;
     medication_index: number | null;
@@ -103,6 +106,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
                 icon: s.icon,
                 offsetHours: s.offset_hours,
                 smartSnap: s.smart_snap,
+                // 🔴 BRAKOWAŁO TEGO POLA. Apka ma FORK planisty, który rysuje lekarzowi podgląd
+                // ordynacji przed akceptacją i czyta `s.doseSnap ?? s.dose_snap`. Bez tego liczyła
+                // godziny BEZ siatki dawkowania — podgląd rozjeżdżał się z tym, co realnie wygeneruje
+                // serwer (do 3-4 h), dla WSZYSTKICH protokołów z migracji 185. Lekarz odrzucałby
+                // poprawne propozycje. Wykryte 2026-08-05.
+                doseSnap: s.dose_snap,
                 pushMessage: s.push_message || '',
                 requiresConfirmation: s.requires_confirmation,
                 medicationIndex: s.medication_index,

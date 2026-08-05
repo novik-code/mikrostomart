@@ -3,7 +3,14 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
-import { smartSnap, warsawIso, PAST_GRACE_HOURS, PAST_DUE_NOTE } from '@/lib/careflowSchedule';
+import {
+    smartSnap,
+    snapToDoseGrid,
+    warsawIso,
+    PAST_GRACE_HOURS,
+    PAST_DUE_NOTE,
+    type DoseSnapMode,
+} from '@/lib/careflowSchedule';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -203,7 +210,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
                 .from('care_tasks')
                 // `description` jest potrzebny, by przy automatycznym pominięciu dokleić
                 // adnotację PAST_DUE_NOTE — to sygnał zapasowy dla raportu zgodności.
-                .select('id, step_id, scheduled_at, visible_from, skipped_at, description')
+                // `original_offset_hours` mówi, KTÓRĄ z kolei dawką jest to zadanie —
+                // bez tego nie da się odtworzyć siatki dawkowania po zmianie godziny zabiegu.
+                .select('id, step_id, scheduled_at, visible_from, skipped_at, description, original_offset_hours')
                 .eq('enrollment_id', id)
                 .is('completed_at', null);
 
@@ -218,12 +227,32 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
             const stepIds = [...new Set((tasks || []).map((t: any) => t.step_id).filter(Boolean))];
             const snapByStep = new Map<string, boolean>();
+            /**
+             * 🔴 SIATKA DAWKOWANIA MUSI PRZEŻYĆ PRZEŁOŻENIE ZABIEGU.
+             * Wcześniej pobierano stąd wyłącznie `smart_snap`, a wszystkie zadania jechały
+             * surową deltą. Kroki lekowe mają `smart_snap = false` (ich termin jest kliniczny),
+             * więc przy przesunięciu zabiegu o 2 h dawka z 23:00 lądowała o 01:00 — poza siatką
+             * 07/15/23 i w oknie ciszy crona (00:00–07:00), czyli BEZ ŻADNEGO PRZYPOMNIENIA.
+             * Teraz kroki z `dose_snap` przeliczamy od nowa od nowej godziny zabiegu, dokładnie
+             * tak jak robi to planista (`buildTasks`): snapujemy KOTWICĘ, kolejne dawki
+             * odmierzamy stałym odstępem.
+             */
+            const doseByStep = new Map<string, { mode: DoseSnapMode; offsetHours: number; intervalHours: number }>();
             if (stepIds.length > 0) {
                 const { data: steps } = await supabase
                     .from('care_template_steps')
-                    .select('id, smart_snap')
+                    .select('id, smart_snap, dose_snap, offset_hours, recurrence_interval_hours')
                     .in('id', stepIds);
-                for (const step of (steps || [])) snapByStep.set(step.id, step.smart_snap === true);
+                for (const step of (steps || [])) {
+                    snapByStep.set(step.id, step.smart_snap === true);
+                    if (step.dose_snap) {
+                        doseByStep.set(step.id, {
+                            mode: step.dose_snap as DoseSnapMode,
+                            offsetHours: step.offset_hours ?? 0,
+                            intervalHours: step.recurrence_interval_hours ?? 0,
+                        });
+                    }
+                }
             }
 
             const nowMs = Date.now();
@@ -235,12 +264,33 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             const pastDueBeforeMs = nowMs - PAST_GRACE_HOURS * 60 * 60 * 1000;
             /** Kroki zamknięte automatycznie w tej operacji — do zbiorczego wpisu audytowego. */
             const pastDueTaskIds: string[] = [];
+            const HOUR_MS = 60 * 60 * 1000;
+            // diffMs !== 0 gwarantuje, że nowy termin został podany.
+            const newProcedure = new Date(newAppointmentIso as string);
+
             for (const task of (tasks || [])) {
                 const oldScheduled = new Date(task.scheduled_at);
                 let newScheduled = new Date(oldScheduled.getTime() + diffMs);
-                // Sama delta potrafi wrzucić dawkę w środek nocy — snapujemy ponownie te kroki,
-                // które miały smart_snap w protokole.
-                if (snapByStep.get(task.step_id)) {
+
+                const dose = doseByStep.get(task.step_id);
+                if (dose) {
+                    // Kotwica liczona od NOWEJ godziny zabiegu, kolejne dawki stałym odstępem —
+                    // ten sam rachunek co w `buildTasks`. Snapowanie każdej dawki osobno
+                    // wepchnęłoby dwie na ten sam slot.
+                    const anchorMs = snapToDoseGrid(
+                        dose.mode,
+                        newProcedure,
+                        new Date(newProcedure.getTime() + dose.offsetHours * HOUR_MS)
+                    ).getTime();
+                    const doseIndex = dose.intervalHours > 0
+                        ? Math.max(0, Math.round(
+                              ((task.original_offset_hours ?? dose.offsetHours) - dose.offsetHours) / dose.intervalHours
+                          ))
+                        : 0;
+                    newScheduled = new Date(anchorMs + doseIndex * dose.intervalHours * HOUR_MS);
+                } else if (snapByStep.get(task.step_id)) {
+                    // Sama delta potrafi wrzucić krok w środek nocy — snapujemy te,
+                    // które miały smart_snap w protokole. `dose_snap` ma pierwszeństwo.
                     newScheduled = smartSnap(newScheduled, quietStart, quietEnd);
                 }
 
