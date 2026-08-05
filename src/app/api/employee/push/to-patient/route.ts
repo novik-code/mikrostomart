@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { pushToUser, PushPayload } from '@/lib/pushService';
+import { pushToPatientAll, PushPayload } from '@/lib/pushService';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { logAudit } from '@/lib/auditLog';
 
@@ -131,8 +131,8 @@ export async function POST(req: Request) {
 
     // 🔑 Blokujemy WYŁĄCZNIE wtedy, gdy mamy pewność, że tokenów nie ma. Gdy sam odczyt
     // padł, próbujemy wysłać — to właśnie twarda blokada na wyniku zepsutego zapytania
-    // uciszyła całą funkcję na kilka miesięcy. `pushToUser` i tak zwróci `sent: 0`,
-    // jeśli realnie nie ma dokąd wysłać, i będzie to widać w odpowiedzi.
+    // uciszyła całą funkcję na kilka miesięcy. Realny wynik wysyłki widać w polach
+    // `fcm`/`expo` odpowiedzi.
     if (!hasTokens && !tokenCheckFailed) {
         return NextResponse.json({
             success: false,
@@ -147,9 +147,19 @@ export async function POST(req: Request) {
     }
 
     const payload: PushPayload = { title, body: pushBody, url: url || '/strefa-pacjenta/powiadomienia' };
-    const pushResult = await pushToUser(patientUserId, 'patient', payload);
 
-    // UWAGA: `pushToUser` już zapisuje wiersz do `push_notifications_log` (logPush),
+    // 🔴 `pushToPatientAll`, NIE `pushToUser`. Ten drugi puszcza kanał Expo
+    // fire-and-forget i zwraca `sent` policzony WYŁĄCZNIE z `fcm_tokens`, więc dla
+    // pacjenta korzystającego z samej apki (typowy przypadek — web-push w przeglądarce
+    // ma mało kto) zwracał `sent: 0`. Trasa robiła z tego `success: false`, a apka
+    // pokazywała „Pacjent ma konto, ale nie włączył powiadomień push" — MIMO ŻE
+    // powiadomienie w tej samej chwili lądowało na telefonie.
+    // Zgłoszone z produkcji 2026-08-05: „mam komunikat że pacjent nie ma włączonych
+    // powiadomień push, a powiadomienie dostałem". Bliźniacza trasa `admin/push-send`
+    // dostała tę samą poprawkę — obie muszą liczyć OBA kanały.
+    const pushResult = await pushToPatientAll(patientUserId, payload);
+
+    // UWAGA: prymityw wysyłki już zapisuje wiersz do `push_notifications_log` (logPush),
     // a `sent_at` ma DEFAULT now() → wiersz jest widoczny w historii pacjenta.
     // Ręczny insert tutaj dawałby DRUGI wiersz = duplikat w historii pacjenta
     // (pre-existing bug w admin/push-send — tu świadomie NIE powielamy).
@@ -169,6 +179,10 @@ export async function POST(req: Request) {
         success: pushResult.sent > 0,
         sent: pushResult.sent,
         failed: pushResult.failed,
+        // Rozbicie per kanał — bez niego „sent: 0" nie mówi, czy zawiodła przeglądarka,
+        // czy aplikacja. Apka 1.2.0 tych pól nie czyta (additive), ale są w logu i w panelu.
+        fcm: pushResult.fcm,
+        expo: pushResult.expo,
         message:
             pushResult.sent > 0
                 ? `Push wysłany na ${pushResult.sent} urządzeń`

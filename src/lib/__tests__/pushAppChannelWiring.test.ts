@@ -159,12 +159,36 @@ describe('Strażnik: kanał aplikacji w powiadomieniach', () => {
         expect(calls.every(c => c.hasAlsoApp)).toBe(true);
     });
 
-    it('ręczna wysyłka push z panelu idzie przez pushToPatientAll (liczy OBA kanały)', () => {
-        const src = fs.readFileSync(path.join(API_ROOT, 'admin/push-send/route.ts'), 'utf8');
+    /**
+     * KAŻDA trasa wysyłająca push do PACJENTA na żądanie człowieka musi liczyć oba kanały.
+     *
+     * 🔴 Dlaczego lista, a nie pojedynczy plik: 2026-08-05 naprawiono `admin/push-send`
+     * i uznano temat za zamknięty, podczas gdy `employee/push/to-patient` — trasa, z której
+     * korzysta APKA — dalej wołała `pushToUser`. Pacjent dostawał powiadomienie na telefon
+     * i JEDNOCZEŚNIE komunikat „nie włączył powiadomień push". Ta sama klasa błędu co przy
+     * push-first: naprawiono jedną trasę z dwóch. Lista wymusza policzenie wszystkich.
+     */
+    const PATIENT_PUSH_ROUTES = [
+        'admin/push-send/route.ts',
+        'employee/push/to-patient/route.ts',
+    ];
+
+    it.each(PATIENT_PUSH_ROUTES)('%s liczy OBA kanały (pushToPatientAll, nie pushToUser)', (route) => {
+        const src = fs.readFileSync(path.join(API_ROOT, route), 'utf8');
         // pushToUser puszcza Expo fire-and-forget i zwraca `sent` liczony tylko z FCM,
-        // więc panel raportował „Push nie dotarł" mimo dostarczenia na telefon.
+        // więc `success: sent > 0` jest fałszem dla pacjenta z samą apką.
         expect(src).toContain('pushToPatientAll');
         expect(src).not.toMatch(/await\s+pushToUser\(/);
+    });
+
+    it('żadna trasa wysyłki do pacjenta nie opiera odpowiedzi na pushToUser', () => {
+        const offenders = collectFiles(API_ROOT)
+            .filter(f => /pushToUser\(\s*\w+\s*,\s*['"]patient['"]/.test(fs.readFileSync(f, 'utf8')))
+            .map(f => path.relative(API_ROOT, f));
+        expect(
+            offenders,
+            'pushToUser dla pacjenta zwraca `sent` policzony tylko z fcm_tokens — użyj pushToPatientAll.'
+        ).toEqual([]);
     });
 
     it('ręczna wysyłka nie duplikuje wpisu w historii powiadomień', () => {
