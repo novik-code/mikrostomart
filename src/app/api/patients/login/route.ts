@@ -190,9 +190,15 @@ export async function POST(request: Request) {
             ? patient.locale
             : locale;
 
+        // 🔑 PONIŻEJ TEGO MIEJSCA HASŁO JEST JUŻ POPRAWNE (bcrypt.compare przeszedł wyżej),
+        // więc odrzucenia statusowe NIE MOGĄ iść do `login_attempts`. Licznik istnieje po to,
+        // by łapać zgadywanie hasła — kto hasło podał poprawnie, niczego nie zgaduje.
+        // Zliczanie ich spalało budżet 5 prób nowo zarejestrowanemu pacjentowi, który
+        // (naturalnie) próbował się zalogować, zanim konto zostało zatwierdzone — a blokada
+        // 15 minut uderzała dopiero w jego PIERWSZE podejście na już aktywnym koncie.
+        // Zmierzone na produkcji 2026-08-05 (pacjent 0100007846: 5 wpisów w 49 sekund).
         if (!patient.email_verified || patient.account_status === 'pending_email_verification') {
             console.log('[Login] Email not verified:', loginIdentifier);
-            await recordLoginAttempt(loginIdentifier, ip, false);
             return NextResponse.json(
                 { error: statusError('pending_email_verification', patientLocale) },
                 { status: 403 }
@@ -201,7 +207,6 @@ export async function POST(request: Request) {
 
         if (patient.account_status === 'pending_admin_approval') {
             console.log('[Login] Pending admin approval:', loginIdentifier);
-            await recordLoginAttempt(loginIdentifier, ip, false);
             return NextResponse.json(
                 { error: statusError('pending_admin_approval', patientLocale) },
                 { status: 403 }
@@ -210,7 +215,6 @@ export async function POST(request: Request) {
 
         if (patient.account_status === 'rejected') {
             console.log('[Login] Rejected account:', loginIdentifier);
-            await recordLoginAttempt(loginIdentifier, ip, false);
             return NextResponse.json(
                 { error: statusError('rejected', patientLocale) },
                 { status: 403 }
@@ -222,7 +226,6 @@ export async function POST(request: Request) {
         // sam generic message co dla każdego niestandardowego stanu.
         if (patient.account_status !== 'active') {
             console.log('[Login] Inactive account, status =', patient.account_status, 'for:', loginIdentifier);
-            await recordLoginAttempt(loginIdentifier, ip, false);
             return NextResponse.json(
                 { error: statusError('inactive', patientLocale) },
                 { status: 403 }
