@@ -2470,6 +2470,41 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
+### 2026-08-05 — 🔐 Logowanie/rejestracja pacjenta + 🩺 godziny dawek CareFlow (3 wdrożenia)
+
+**Kontekst:** Marcin zgłosił, że nowo zarejestrowany pacjent dostał „Zbyt wiele prób logowania" przy **pierwszej** próbie, a inny (Marek Nega) w ogóle nie mógł założyć konta („dane podane w systemie są złe, trzeba było mocno kombinować"). Diagnoza rozwinęła się w trzy niezależne rodziny błędów.
+
+#### Commity
+- `dc1e132` — licznik prób logowania: odrzucenia statusowe przestają być porażką
+- `997e3a4` — siatka dawkowania przeżywa przełożenie zabiegu + brakujące `dose_snap` w API szablonów
+- `fa6487e` — jedna definicja numeru telefonu w całym serwisie
+
+#### 1. Limiter logowania (`api/patients/login`, `reset-password/request`)
+🔴 **`bcrypt.compare` stoi WYŻEJ niż kontrola `account_status`**, więc gałęzie statusowe (email niezweryfikowany / czeka na akceptację / odrzucone / nieaktywne) wykonywały się przy **poprawnym haśle** i mimo to dopisywały się do `login_attempts`. Świeżo zarejestrowany pacjent spalał budżet 5 prób na komunikatach „konto oczekuje na zatwierdzenie", a blokada 15 minut uderzała dopiero w jego pierwsze logowanie na już aktywnym koncie. Zmierzone na produkcji (0100007846: 5 wpisów w 49 sekund).
+Domknięte przy okazji: zapytania zliczające nie filtrowały po `success` (**udane logowanie zjadało budżet**); próg 20/IP to wspólny kubełek całego NAT-u gabinetu i CGNAT operatora → **pacjenci blokowali się nawzajem** (teraz 50 i tylko porażki); porażki nie były kasowane po udanym logowaniu; `retryAfterSeconds` było zaszyte na 900 („zawsze 15 minut") → liczone z okna kroczącego + nagłówek `Retry-After` + poprawna odmiana; reset hasła zapisywał **surowy** `x-forwarded-for`, logowanie pierwszy element listy.
+**Świadomie BEZ zmian:** komunikat „Nieprawidłowy numer telefonu lub hasło" przy nieistniejącym koncie — myli, ale chroni przed wyliczaniem kont.
+
+#### 2. CareFlow — złe godziny dawek
+🔴 **Przełożenie zabiegu zsuwało dawki z siatki 07/15/23.** `PUT enrollments/[id]` przesuwał wszystkie zadania **surową deltą** i ponownie snapował wyłącznie kroki ze `smart_snap`; kroki lekowe mają go na `false` (termin kliniczny). Zabieg 11:00 → dawka nasycająca 23:00; przełożenie na 13:00 → **01:00**, czyli w oknie ciszy crona (00:00–07:00) → **pacjent nie dostawał o tej dawce żadnego przypomnienia**. Teraz kroki z `dose_snap` przeliczane od nowej godziny zabiegu tym samym rachunkiem co `buildTasks` (snapowana kotwica + stały odstęp).
+🔴 **`employee/careflow/templates/[id]` gubiła pole `dose_snap`** (mapowała 19 innych). Apka ma fork planisty (`s.doseSnap ?? s.dose_snap`) rysujący lekarzowi podgląd ordynacji — liczyła godziny **bez siatki**, rozjazd do 3–4 h wobec tego, co generuje serwer. Dotyczyło wszystkich czterech protokołów z migracji 185. **Apka nie wymagała zmian** (czyta wariant snake_case jako zapasowy).
+
+#### 3. Numery telefonu — `src/lib/phone.ts` (NOWY, jedyne miejsce dotykające numeru)
+🔴 **Przyczyna blokady rejestracji:** krok 1 podpisywał token numerem **wpisanym** przez pacjenta, klient zaraz potem nadpisywał pole numerem **odczytanym z Prodentisa** (`rejestracja.tsx:88`), a `/register` porównywał oba stringi **na równość** po usunięciu samych spacji i myślników → prefiks kraju przeżywał → 403 „Niezgodność danych".
+Ta sama klasa błędu w czterech miejscach: **logowanie** szukało po dokładnej równości (zmierzone: **77 kont trzyma gołe 9 cyfr, 13 trzyma „+48"+9** → 13 osób mogło się zalogować wyłącznie z prefiksem, reszta wyłącznie bez); **`getPhoneVariants` w /verify** brał ostatnie 9 cyfr i doklejał „+48" → niemiecki `+49 170 1234567` odpytywał Prodentis o `+48701234567`, **poprawnie wyglądający polski numer mogący należeć do kogoś innego** (numery o krajowej części ≠ 9 cyfr nie dostawały wariantów wcale); **bramka SMS `/^48\d{9}$/`** odrzucała każdy numer spoza Polski (w bazie są +31, +44 i islandzki).
+**Postać kanoniczna = E.164, kod kraju bierzemy Z WEJŚCIA i nigdy nie zmieniamy**; domyślamy się wyłącznie przy gołych 9 cyfrach.
+🪤 **WIODĄCE ZERO BEZ KODU KRAJU JEST ODRZUCANE, NIE ZGADYWANE.** W `reservations` leżą numery `06 12 XXX XXX` — to holenderski prefiks krajowy. Reguła „utnij zero, doklej +48" dałaby `+48612XXXXXX`, czyli poprawny polski numer stacjonarny → trafienie w **cudzy** numer.
+🔑 **Zasada bezpieczeństwa całej zmiany: WYŁĄCZNIE POSZERZA.** Zero migracji danych, kolumna `patients.phone` nietknięta, `phoneLookupVariants` zawsze zawiera surowe wejście. `.single()` w logowaniu zostaje świadomie — przy hipotetycznej dwuznaczności logowanie ma **paść**, a nie zgadywać.
+
+#### Weryfikacja
+tsc czysto · **vitest 393/393** (rano 324) · `next build` OK · 4 nowe zestawy strażników, **każdy z kontrolą negatywną dowodzącą, że łapie dziurę**.
+**Symulacja stara-vs-nowa na 93 realnych kontach** (każdy sposób zapisu, jaki pacjent może wpisać): trafienia 170 → 363, **ZYSK 193 · STRATA 0 · WIELOZNACZNOŚĆ 0**. Osobno potwierdzone: zero numerów wspólnych dla dwóch różnych kont.
+**Na żywo po deployu:** konto demo (`570810800`, w bazie gołe 9 cyfr) loguje się we wszystkich pięciu postaciach — cztery z nich padały przed zmianą; osiem logowań pod rząd, wszystkie 200 (pod starym kodem szóste = 429), w `login_attempts` zero porażek.
+
+#### Otwarte
+- **PESEL** przy rejestracji twardo 11 cyfr → pacjent bez PESEL-u nie przejdzie kroku 1 niezależnie od numeru. **Decyzja produktowa Marcina**, nie techniczna.
+- Migracja **189** (dwa protokoły pozabiegowe) — nadal poza gitem, czeka na przegląd dawkowania. Wariant z kodem recepty obiecuje „przypominamy, aż odhaczysz", a silnik zamyka zadanie po `GRACE_HOURS = 12` (potem `409 skipped`) — do rozstrzygnięcia razem z Marcinem.
+- Próg 5 prób na identyfikator zostawiony bez zmian (po naprawach spala go już tylko realne zgadywanie hasła).
+
 ### 2026-06-17 #4 — 🔎 SEO: premium nazwa witryny w SERP (fix „strona główna pokazuje samą markę Mikrostomart")
 
 **Kontekst:** Marcin zgłosił, że dla „dentysta opole"/„stomatolog opole" Google **wczoraj** pokazywał pełny tytuł *„Stomatolog Opole | Mikrostomart — M.Sc. RWTH Aachen, mikroskop ZEISS"*, a **od dziś** samą markę „Mikrostomart". Obawa o spadek pozycji („znowu").
