@@ -14,36 +14,88 @@ const supabase = createClient(
 // DB-backed rate limiting — persists across deployments and cold starts
 const RATE_LIMIT_WINDOW_MINUTES = 15;
 const MAX_ATTEMPTS_PER_IDENTIFIER = 5;
-const MAX_ATTEMPTS_PER_IP = 20;
+/**
+ * Próg na adres IP to WSPÓLNY kubełek: cały gabinet siedzi za jednym NAT-em, a operatorzy
+ * komórkowi trzymają tysiące abonentów za jednym CGNAT. Przy 20 pacjenci blokowali się
+ * nawzajem — dlatego liczymy tu wyłącznie PORAŻKI (patrz niżej) i trzymamy próg wysoko.
+ * Realną ochroną konta jest limit na identyfikator; ten jest tylko zaporą na masowe
+ * zgadywanie haseł z jednej maszyny.
+ */
+const MAX_ATTEMPTS_PER_IP = 50;
 
+/**
+ * 🔑 LICZYMY WYŁĄCZNIE NIEUDANE PRÓBY (`success = false`).
+ * Wcześniej zapytania nie miały tego filtra, więc do limitu wliczało się także UDANE
+ * logowanie — pacjent, który zalogował się kilka razy w kwadransie (przelogowanie,
+ * druga sesja, reinstalacja apki), sam się blokował. Limiter ma łapać ZGADYWANIE HASŁA.
+ */
 async function checkRateLimit(identifier: string, ip: string | null): Promise<{ allowed: boolean; retryAfterSeconds?: number }> {
-    const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60 * 1000).toISOString();
+    const windowMs = RATE_LIMIT_WINDOW_MINUTES * 60 * 1000;
+    const windowStart = new Date(Date.now() - windowMs).toISOString();
 
-    // Check by identifier (phone/email)
-    const { count: identifierCount } = await supabase
+    /** Ile realnie zostało do wygaśnięcia okna kroczącego (a nie sztywne 15 minut). */
+    const retryAfterFrom = (oldestIso: string | undefined): number => {
+        if (!oldestIso) return RATE_LIMIT_WINDOW_MINUTES * 60;
+        const remainingMs = new Date(oldestIso).getTime() + windowMs - Date.now();
+        return Math.max(1, Math.ceil(remainingMs / 1000));
+    };
+
+    // Po identyfikatorze (telefon/e-mail). Pobieramy znaczniki, a nie sam licznik —
+    // najstarszy z nich mówi, kiedy blokada naprawdę puści.
+    const { data: identifierRows } = await supabase
         .from('login_attempts')
-        .select('*', { count: 'exact', head: true })
+        .select('attempted_at')
         .eq('identifier', identifier)
-        .gte('attempted_at', windowStart);
+        .eq('success', false)
+        .gte('attempted_at', windowStart)
+        .order('attempted_at', { ascending: true })
+        .limit(MAX_ATTEMPTS_PER_IDENTIFIER);
 
-    if ((identifierCount ?? 0) >= MAX_ATTEMPTS_PER_IDENTIFIER) {
-        return { allowed: false, retryAfterSeconds: RATE_LIMIT_WINDOW_MINUTES * 60 };
+    if ((identifierRows?.length ?? 0) >= MAX_ATTEMPTS_PER_IDENTIFIER) {
+        return { allowed: false, retryAfterSeconds: retryAfterFrom(identifierRows?.[0]?.attempted_at) };
     }
 
-    // Check by IP (if available)
+    // Po adresie IP (jeśli znany).
     if (ip) {
-        const { count: ipCount } = await supabase
+        const { data: ipRows } = await supabase
             .from('login_attempts')
-            .select('*', { count: 'exact', head: true })
+            .select('attempted_at')
             .eq('ip_address', ip)
-            .gte('attempted_at', windowStart);
+            .eq('success', false)
+            .gte('attempted_at', windowStart)
+            .order('attempted_at', { ascending: true })
+            .limit(MAX_ATTEMPTS_PER_IP);
 
-        if ((ipCount ?? 0) >= MAX_ATTEMPTS_PER_IP) {
-            return { allowed: false, retryAfterSeconds: RATE_LIMIT_WINDOW_MINUTES * 60 };
+        if ((ipRows?.length ?? 0) >= MAX_ATTEMPTS_PER_IP) {
+            return { allowed: false, retryAfterSeconds: retryAfterFrom(ipRows?.[0]?.attempted_at) };
         }
     }
 
     return { allowed: true };
+}
+
+/**
+ * Po udanym logowaniu kasujemy porażki tego identyfikatora. Bez tego pacjent, który
+ * trafił hasło za trzecim razem, wchodził w kolejną próbę z nadpalonym budżetem
+ * i blokował się przy zwykłym przelogowaniu.
+ */
+async function clearFailedAttempts(identifier: string) {
+    try {
+        await supabase.from('login_attempts').delete().eq('identifier', identifier).eq('success', false);
+    } catch (e) {
+        console.error('[RateLimit] Clear after success error:', e);
+    }
+}
+
+/** Poprawna polska odmiana — „Spróbuj za 1 minut" widziałby każdy zablokowany pacjent. */
+function retryAfterPhrase(seconds: number): string {
+    if (seconds < 60) return 'za chwilę';
+    const minutes = Math.ceil(seconds / 60);
+    if (minutes === 1) return 'za minutę';
+    const rest = minutes % 10;
+    const teens = minutes % 100;
+    if (rest >= 2 && rest <= 4 && !(teens >= 12 && teens <= 14)) return `za ${minutes} minuty`;
+    return `za ${minutes} minut`;
 }
 
 async function recordLoginAttempt(identifier: string, ip: string | null, success: boolean) {
@@ -146,9 +198,11 @@ export async function POST(request: Request) {
         // Rate limiting (DB-backed)
         const rateLimit = await checkRateLimit(loginIdentifier, ip);
         if (!rateLimit.allowed) {
+            const retryAfter = rateLimit.retryAfterSeconds ?? RATE_LIMIT_WINDOW_MINUTES * 60;
             return NextResponse.json(
-                { error: 'Zbyt wiele prób logowania. Spróbuj za ' + Math.ceil((rateLimit.retryAfterSeconds || 900) / 60) + ' minut.' },
-                { status: 429 }
+                { error: `Zbyt wiele prób logowania. Spróbuj ${retryAfterPhrase(retryAfter)}.` },
+                // Retry-After jest additive: stare buildy apki czytają samą treść błędu.
+                { status: 429, headers: { 'Retry-After': String(retryAfter) } }
             );
         }
 
@@ -289,6 +343,8 @@ export async function POST(request: Request) {
 
         console.log('[Login] Success:', patient.prodentis_id);
         await recordLoginAttempt(loginIdentifier, ip, true);
+        // Czyste konto na start następnej sesji — patrz komentarz przy funkcji.
+        await clearFailedAttempts(loginIdentifier);
 
         const response = NextResponse.json({
             success: true,

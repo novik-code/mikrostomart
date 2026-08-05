@@ -45,7 +45,12 @@ export async function POST(request: NextRequest) {
         // Log this attempt
         await supabase.from('login_attempts').insert({
             identifier: `reset:${normalizedPhone}`,
-            ip_address: request.headers.get('x-forwarded-for') || 'unknown',
+            // Ten sam rozbiór co w trasie logowania (pierwszy element listy proxy).
+            // Wcześniej szedł tu SUROWY nagłówek, więc ten sam adres zapisywał się w dwóch
+            // różnych postaciach i nie dawał się zestawić z wpisami logowania.
+            ip_address: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+                || request.headers.get('x-real-ip')
+                || 'unknown',
             success: true,
         });
 
