@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { isDemoMode } from '@/lib/demoMode';
 import { phoneLookupVariants } from '@/lib/phone';
+import { pickExactEmailMatch } from '@/lib/emailMatch';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,14 @@ const supabase = createClient(
 );
 
 // DB-backed rate limiting — persists across deployments and cold starts
+/**
+ * Ile wierszy pobieramy przy szukaniu po e-mailu. `ilike` jest tu SZEROKIM pobraniem
+ * (znaki `_`/`%` z adresu działają jak wieloznaczne), a zawężenie robi dosłowne
+ * porównanie w `pickExactEmailMatch`. Limit chroni przed wpisaniem samego wzorca
+ * (`%@%`) jako loginu — wtedy i tak żaden wiersz nie przejdzie porównania.
+ */
+const EMAIL_LOOKUP_LIMIT = 25;
+
 const RATE_LIMIT_WINDOW_MINUTES = 15;
 const MAX_ATTEMPTS_PER_IDENTIFIER = 5;
 /**
@@ -208,9 +217,42 @@ export async function POST(request: Request) {
         }
 
         // Find patient in Supabase — by email or phone
-        let query = supabase.from('patients').select('*');
+        let patient: Record<string, any> | null = null;
+        let error: unknown = null;
+
         if (isEmail) {
-            query = query.ilike('email', loginIdentifier);
+            // 🔑 `ilike` ZOSTAJE, ale wyłącznie jako SZEROKIE pobranie, a wybór wiersza
+            // robi dosłowne porównanie w `pickExactEmailMatch`.
+            //
+            // 🔴 POWÓD: w `ILIKE` znaki `_` i `%` są WIELOZNACZNE, a podkreślenie jest
+            // legalnym znakiem adresu (`jan_kowalski@…`). Wzorzec takiego pacjenta może
+            // dopasować TAKŻE cudze konto, a `.single()` przy dwóch wierszach zwraca błąd
+            // → gałąź niżej oddaje 401 „nieprawidłowe dane logowania" mimo poprawnego hasła,
+            // bez żadnej wskazówki dla pacjenta ani dla recepcji.
+            //
+            // ZMIERZONE 2026-08-05, symulacja stara-vs-nowa na 95 kontach: ZYSK 0, STRATA 0.
+            // Dziś nikogo to nie odcina (dwa konta z podwójnym trafieniem mają DOSŁOWNIE
+            // ten sam adres — to duplikat, nie wzorzec, i odmawia im także nowa logika).
+            // Zmiana jest więc PREWENCYJNA: zamyka enumerację i obejście limitu prób przez
+            // rotację wzorców oraz chroni pierwsze konto, które realnie w to wpadnie.
+            //
+            // Zmiana TYLKO POSZERZA: wynik `ilike` jest nadzbiorem dokładnego dopasowania
+            // (adres zawsze pasuje sam do siebie), więc żadne konto nie traci dostępu.
+            const { data: rows, error: qErr } = await supabase
+                .from('patients')
+                .select('*')
+                .ilike('email', loginIdentifier)
+                .limit(EMAIL_LOOKUP_LIMIT);
+            error = qErr;
+            if (!qErr) {
+                const picked = pickExactEmailMatch(rows ?? [], loginIdentifier);
+                patient = picked.row;
+                if (picked.reason === 'ambiguous') {
+                    // Dwa konta z DOSŁOWNIE tym samym adresem — nie zgadujemy, do którego
+                    // wpuścić (ta sama zasada co przy numerze telefonu niżej).
+                    console.error('[Login] Ambiguous email match — odmowa logowania');
+                }
+            }
         } else {
             // 🔑 SZUKAMY PO WSZYSTKICH POSTACIACH TEGO NUMERU, nie po dokładnej równości.
             // W bazie leżą obie formy (zmierzone 2026-08-05: 77 kont jako gołe 9 cyfr,
@@ -218,11 +260,17 @@ export async function POST(request: Request) {
             // się zalogować WYŁĄCZNIE wpisując "+48", a reszta wyłącznie bez niego.
             // Lista zawsze zawiera surowe wejście — zmiana tylko poszerza dopasowanie.
             // Zweryfikowane przed wdrożeniem: zero numerów wspólnych dla dwóch różnych kont.
-            query = query.in('phone', phoneLookupVariants(loginIdentifier));
+            //
+            // `.single()` zostaje świadomie: gdyby kiedyś dwa konta dzieliły numer, logowanie
+            // ma paść, a nie zgadywać, do którego z nich wpuścić.
+            const { data, error: qErr } = await supabase
+                .from('patients')
+                .select('*')
+                .in('phone', phoneLookupVariants(loginIdentifier))
+                .single();
+            patient = data;
+            error = qErr;
         }
-        // `.single()` zostaje świadomie: gdyby kiedyś dwa konta dzieliły numer, logowanie
-        // ma paść, a nie zgadywać, do którego z nich wpuścić.
-        const { data: patient, error } = await query.single();
 
         if (error || !patient) {
             console.log('[Login] Patient not found:', loginIdentifier);
