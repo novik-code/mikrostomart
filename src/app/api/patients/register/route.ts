@@ -178,8 +178,12 @@ export async function POST(request: Request) {
             .eq('token', token);
         if (statusErr) console.error('[Register] Failed to record email status:', statusErr.message);
 
-        // Push notification to admin
-        broadcastPush('admin', 'patient_registered', { email }, '/admin').catch(console.error);
+        // Push notification to admin — na OBA kanały (web-push FCM + apka przez Expo).
+        // 🪤 Bez `alsoApp` powiadomienie leci WYŁĄCZNIE na `fcm_tokens`, czyli do przeglądarki.
+        // Admin korzystający z apki dostawał wtedy sam Telegram i wyglądało to na awarię pusha
+        // (zgłoszone z produkcji 2026-08-05). Rejestracje są rzadkie i każda wymaga reakcji
+        // (zatwierdzenie konta), więc kanał aplikacji jest tu właściwy.
+        broadcastPush('admin', 'patient_registered', { email }, '/admin', { alsoApp: true }).catch(console.error);
 
         // Telegram do recepcji — JAWNIE oznacz, czy mail wyszedł.
         const now = new Date().toLocaleString('pl-PL', { timeZone: 'Europe/Warsaw', dateStyle: 'short', timeStyle: 'short' });

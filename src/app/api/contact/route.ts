@@ -239,18 +239,21 @@ export async function POST(req: NextRequest) {
             console.error("Failed to send Telegram notification:", tgErr);
         }
 
-        // Push notification to admin + employees
+        // Push notification to admin + employees — na OBA kanały (web-push FCM + apka).
+        // 🪤 `/api/reservations` miało `alsoApp` od dawna, a TA ścieżka (formularz kontaktowy
+        // w trybie rezerwacji) nie — ten sam typ zdarzenia docierał więc raz do apki, raz nie,
+        // zależnie od tego, którym formularzem przyszedł. Klasyczne „policz WSZYSTKICH wywołujących".
         if (type === 'contact') {
             broadcastPush('admin', 'new_contact_message', {
                 name: name || '', subject: subject || 'Bez tematu',
-            }, '/admin').catch(console.error);
+            }, '/admin', { alsoApp: true }).catch(console.error);
         } else if (type === 'reservation') {
             broadcastPush('admin', 'new_reservation', {
                 name: name || '', specialist: specialistName || '', date: date || '', time: time || '',
-            }, '/admin').catch(console.error);
+            }, '/admin', { alsoApp: true }).catch(console.error);
             broadcastPush('employee', 'new_reservation', {
                 name: name || '', specialist: specialistName || '', date: date || '', time: time || '',
-            }, '/pracownik').catch(console.error);
+            }, '/pracownik', { alsoApp: true }).catch(console.error);
         }
 
         // 3. Try Email Notification (Resend) or Mock

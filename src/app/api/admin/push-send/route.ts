@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { pushToUser, PushPayload } from '@/lib/pushService';
+import { pushToPatientAll, PushPayload } from '@/lib/pushService';
+import { hasPatientAppToken } from '@/lib/expoPush';
 import { requireAdmin } from '@/lib/authGuards';
 
 /**
@@ -133,17 +134,31 @@ export async function POST(req: Request) {
             });
         }
 
-        // Check if patient has FCM tokens
-        const { data: tokenRows } = await supabase
+        // 🔑 Bramka MUSI pytać o OBA kanały. Wcześniej czytała wyłącznie `fcm_tokens`
+        // (web-push przeglądarki), więc pacjent z samą apką mobilną — token siedzi
+        // w `patient_push_tokens` kluczowanej prodentis_id — dostawał odpowiedź
+        // „nie włączył powiadomień push", mimo działającego kanału Expo. Ta sama
+        // klasa błędu została już naprawiona w `/api/employee/push/to-patient`
+        // i w `patientDelivery.ts`; ta trasa została wtedy pominięta.
+        const { data: fcmRows, error: fcmErr } = await supabase
             .from('fcm_tokens')
             .select('fcm_token')
             .eq('user_id', patientUserId)
             .eq('user_type', 'patient');
+        const appToken = await hasPatientAppToken(patientUserId);
 
-        const tokenCount = (tokenRows || []).length;
+        const fcmCount = (fcmRows || []).length;
+        const tokenCheckFailed = !!fcmErr || appToken.error;
+        const hasTokens = fcmCount > 0 || appToken.has;
 
-        if (tokenCount === 0) {
-            console.log(`  ⚠️ Patient ${patientUserId} has account but no FCM tokens`);
+        if (fcmErr) console.error('[Manual Push] fcm_tokens lookup error:', fcmErr.message);
+
+        // 🔑 Blokujemy WYŁĄCZNIE przy pewności, że tokenów nie ma. Twarda blokada
+        // postawiona na wyniku zepsutego zapytania to dokładnie ten mechanizm,
+        // który uciszył wysyłkę na kilka miesięcy — przy błędzie odczytu próbujemy
+        // wysłać, a realny wynik i tak widać w polach `fcm`/`expo` odpowiedzi.
+        if (!hasTokens && !tokenCheckFailed) {
+            console.log(`  ⚠️ Patient ${patientUserId} has account but no push tokens (fcm=0, expo=0)`);
             return NextResponse.json({
                 success: false,
                 error: 'Pacjent ma konto, ale nie włączył powiadomień push',
@@ -158,41 +173,42 @@ export async function POST(req: Request) {
         if (url) payload.url = url;
         else payload.url = '/strefa-pacjenta/powiadomienia';
 
-        console.log(`  🔔 Sending push to ${patientUserId} (${tokenCount} devices)...`);
+        console.log(`  🔔 Sending push to ${patientUserId} (fcm=${fcmCount}, app=${appToken.has})...`);
         console.log(`  📝 Payload: title="${payload.title}", body="${payload.body}", url="${payload.url}"`);
-        const pushResult = await pushToUser(patientUserId, patientUserType, payload);
 
-        // Log to push_notifications_log (best-effort, table may not exist)
-        try {
-            await supabase.from('push_notifications_log').insert({
-                user_id: patientUserId,
-                user_type: 'patient',
-                title,
-                body: pushBody,
-                url: url || null,
-                sent_at: new Date().toISOString(),
-                sent_by: sent_by || 'admin',
-                devices_sent: pushResult.sent,
-                devices_failed: pushResult.failed,
-            });
-        } catch { /* Ignore if table doesn't exist */ }
+        // 🔑 `pushToPatientAll`, nie `pushToUser`: ten drugi puszcza kanał Expo
+        // fire-and-forget i zwraca `sent` policzony WYŁĄCZNIE z `fcm_tokens`.
+        // Skutek na produkcji: powiadomienie realnie lądowało na telefonie, a panel
+        // raportował „Push nie dotarł do żadnego urządzenia" — więc operator wysyłał
+        // drugi raz i pacjent dostawał duplikat. `pushToPatientAll` awaituje oba kanały
+        // i zwraca policzalny wynik z rozbiciem `fcm`/`expo`.
+        const pushResult = await pushToPatientAll(patientUserId, payload);
+
+        // ⚠️ ŻADNEGO ręcznego insertu do `push_notifications_log` — `pushToPatientAll`
+        // woła `logPush` samo (pushService.ts). Drugi zapis dawał DUPLIKAT w historii
+        // powiadomień pacjenta. Metadane operatora (`sent_by`) zostają w logu serwera.
+        if (sent_by) console.log(`  👤 Wysłał: ${sent_by}`);
 
         if (pushResult.sent > 0) {
-            console.log(`  ✅ Push sent to ${pushResult.sent} devices`);
+            console.log(`  ✅ Push sent: fcm=${pushResult.fcm.sent} expo=${pushResult.expo.sent}`);
             return NextResponse.json({
                 success: true,
                 sent: pushResult.sent,
                 failed: pushResult.failed,
+                fcm: pushResult.fcm,
+                expo: pushResult.expo,
                 message: `Push wysłany na ${pushResult.sent} urządzeń${pushResult.failed > 0 ? ` (${pushResult.failed} błędów)` : ''}`,
                 patientName: patient_name,
             });
         } else {
-            console.error(`  ❌ Push failed to all ${pushResult.failed} devices`);
+            console.error(`  ❌ Push failed: fcm=${pushResult.fcm.failed} expo=${pushResult.expo.failed}`);
             return NextResponse.json({
                 success: false,
                 error: `Push nie dotarł do żadnego urządzenia (${pushResult.failed} błędów)`,
                 sent: 0,
                 failed: pushResult.failed,
+                fcm: pushResult.fcm,
+                expo: pushResult.expo,
             }, { status: 500 });
         }
 

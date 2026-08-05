@@ -37,10 +37,10 @@ export async function POST(req: NextRequest) {
             console.error("Telegram send error:", tgErr);
         }
 
-        // Push notification to admin
+        // Push notification to admin — na OBA kanały (lead wymaga oddzwonienia, jest rzadki).
         broadcastPush('admin', 'new_treatment_lead', {
             name, service: service || '',
-        }, '/admin').catch(console.error);
+        }, '/admin', { alsoApp: true }).catch(console.error);
 
         // ── Email notification (Resend) ──
         let emailSent = false;

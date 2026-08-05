@@ -186,8 +186,10 @@ export async function POST(req: NextRequest) {
 
         await sendTelegramNotification(telegramMessage, "default");
 
-        broadcastPush("admin", "new_order", { name, total: String(total) }, "/admin").catch(console.error);
-        broadcastPush("employee", "new_order", { name, total: String(total) }, "/pracownik").catch(console.error);
+        // Na OBA kanały — zamówienie wymaga reakcji (realizacja, wysyłka), a jest rzadkie.
+        // Bez `alsoApp` recepcja korzystająca z apki nie dowiadywała się o opłaconym zamówieniu wcale.
+        broadcastPush("admin", "new_order", { name, total: String(total) }, "/admin", { alsoApp: true }).catch(console.error);
+        broadcastPush("employee", "new_order", { name, total: String(total) }, "/pracownik", { alsoApp: true }).catch(console.error);
 
         const resendKey = process.env.RESEND_API_KEY;
         if (resendKey) {
