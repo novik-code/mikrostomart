@@ -2259,6 +2259,15 @@ export default function ScheduleTab({
                                                         headers: { 'Content-Type': 'application/json' },
                                                         body: JSON.stringify({ submissionId: intakeSubmissionId }),
                                                     });
+                                                    // 🔑 Trasa jest od 2026-08-06 chroniona `requireEmployeeOrAdmin`.
+                                                    // Wygasła sesja albo brak dowodu 2FA daje 401/403 (albo
+                                                    // przekierowanie na wyzwanie) — bez tego rozróżnienia `res.json()`
+                                                    // rzuca na HTML-u i wszystko lądowało w catchu jako „Błąd połączenia",
+                                                    // czyli komunikat mylący dokładnie w chwili, gdy trzeba się zalogować.
+                                                    if (res.status === 401 || res.status === 403 || res.redirected) {
+                                                        alert('Sesja wygasła lub brak uprawnień — zaloguj się ponownie (i przejdź weryfikację 2FA).');
+                                                        return;
+                                                    }
                                                     const data = await res.json();
                                                     if (data.pdfUrl) {
                                                         // Add cache buster to force reload

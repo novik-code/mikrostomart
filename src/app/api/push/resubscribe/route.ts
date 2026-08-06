@@ -17,12 +17,28 @@ const supabase = createClient(
  * OR insert a new row if not found (handles edge cases).
  *
  * No auth required — called from SW context which has no cookies/session.
- * Rate-limiting risk is minimal: this route is only called when a push endpoint
- * is rotated by the user agent, which is rare.
+ *
+ * 🔴 ZAMKNIĘTE 2026-08-06: PRZEJĘCIE CUDZEGO KANAŁU POWIADOMIEŃ.
+ * Trasa przyjmowała w ciele żądania `oldEndpoint` i na jego podstawie PRZEPISYWAŁA
+ * wiersz — nowy adres i nowe klucze — zachowując `user_id` ofiary. Kto znał endpoint
+ * subskrypcji pracownika (wyciek z logów, kopii bazy albo urządzenia gabinetu), jednym
+ * nieuwierzytelnionym POST-em przekierowywał jego powiadomienia na własną przeglądarkę.
+ * A powiadomienia personelu niosą treść wiadomości pacjenta i nazwisko.
+ *
+ * NAPRAWA: gałąź `oldEndpoint` USUNIĘTA. Zmierzone przed zmianą: nasz service worker
+ * NIGDY jej nie używał — `public/push-sw.js:31-35` wysyła wyłącznie `{ subscription }`.
+ * Była martwym kodem i czystym wektorem ataku.
+ *
+ * Zostaje wyłącznie dopasowanie po adresie z PRZYSŁANEJ subskrypcji, czyli operacja
+ * na własnym wierszu wołającego — nie da się nią przejąć cudzego kanału.
+ * ⚠️ Ryzyko resztkowe (świadome, odnotowane): kto zna cudzy endpoint, może podmienić
+ * przypisane do niego klucze i w ten sposób zepsuć ofierze odbiór powiadomień (DoS,
+ * nie przejęcie). Domknięcie wymaga dowodu posiadania starej subskrypcji, czego
+ * dzisiejszy worker nie wysyła — do zrobienia razem ze zmianą po stronie klienta.
  */
 export async function POST(request: NextRequest) {
     try {
-        const { subscription, oldEndpoint } = await request.json();
+        const { subscription } = await request.json();
 
         if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
             return NextResponse.json({ error: 'Invalid subscription data' }, { status: 400 });
@@ -30,27 +46,12 @@ export async function POST(request: NextRequest) {
 
         const newEndpoint = subscription.endpoint;
 
-        // Try to find the old row by either specified oldEndpoint or new endpoint (idempotent)
-        let existingRow: any = null;
-
-        if (oldEndpoint) {
-            const { data } = await supabase
-                .from('push_subscriptions')
-                .select('*')
-                .eq('endpoint', oldEndpoint)
-                .single();
-            existingRow = data;
-        }
-
-        if (!existingRow) {
-            // Maybe the endpoint was already rotated — check if new endpoint exists
-            const { data } = await supabase
-                .from('push_subscriptions')
-                .select('*')
-                .eq('endpoint', newEndpoint)
-                .single();
-            existingRow = data;
-        }
+        // Wyłącznie wiersz o adresie z PRZYSŁANEJ subskrypcji (idempotentne).
+        const { data: existingRow } = await supabase
+            .from('push_subscriptions')
+            .select('*')
+            .eq('endpoint', newEndpoint)
+            .single();
 
         if (existingRow) {
             // Update existing row with new endpoint and keys
@@ -75,7 +76,8 @@ export async function POST(request: NextRequest) {
                 throw error;
             }
 
-            console.log(`[PushResubscribe] Updated endpoint for user ${existingRow.user_id}`);
+            // Bez identyfikatora użytkownika w logu — logi Vercela nie są miejscem na PII.
+            console.log('[PushResubscribe] Updated subscription keys');
             return NextResponse.json({ success: true, action: 'updated' });
         }
 

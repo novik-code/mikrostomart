@@ -7,6 +7,7 @@ import path from 'path';
 import { demoSanitize } from '@/lib/brandConfig';
 import { getProdentisKey } from '@/lib/pmsConfig';
 import { readIntakeSubmissionPii } from '@/lib/encryptedPiiFields';
+import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -374,46 +375,48 @@ export { generateEKartaPdf };
 // ─── API Route ───────────────────────────────────────────
 
 /**
- * POST /api/intake/generate-pdf
- * Body: { submissionId } or { prodentisPatientId }
- * Generates PDF, uploads to Supabase + Prodentis, returns URL
+ * POST /api/intake/generate-pdf — TYLKO DLA PERSONELU.
+ * Body: { submissionId }
+ * Generuje PDF e-Karty, wysyła do Supabase + Prodentisa, zwraca URL.
+ *
+ * 🔴 DO 2026-08-06 TA TRASA BYŁA CAŁKOWICIE OTWARTA. Pierwszą instrukcją handlera było
+ * `await req.json()` — żadnego uwierzytelnienia, a middleware CELOWO wyłączał `/api/intake/
+ * generate-pdf` z ochrony. Do tego istniała gałąź `prodentisPatientId`, która po samym
+ * NUMERZE KARTOTEKI (wartość sekwencyjna, spotykana w SMS-ach i na wydrukach) generowała
+ * i zwracała adres PDF-a z imieniem, nazwiskiem, PESEL-em, datą urodzenia, adresem,
+ * telefonem, e-mailem, przyjmowanymi lekami, uczuleniami i pobytami szpitalnymi.
+ * Anonim mógł iterować po numerach i pobierać dokumentację medyczną pacjentów.
+ *
+ * DWIE ZMIANY, KTÓRE TO ZAMYKAJĄ:
+ *  1. `requireEmployeeOrAdmin()` NA WEJŚCIU — guard jest Bearer-aware (authGuards.ts),
+ *     więc obsłuży i panel webowy (cookie), i przyszłego klienta natywnego.
+ *  2. Gałąź `prodentisPatientId` USUNIĘTA — miała ZERO wywołujących (panel wysyła
+ *     wyłącznie `{ submissionId }`, ScheduleTab.tsx:2260). Obrona w głąb: gdyby ktoś
+ *     kiedyś rozluźnił punkt 1, nie odsłoni od razu wyboru dowolnego pacjenta.
+ *
+ * ⚠️ NIE RUSZAĆ eksportu `generateEKartaPdf` — `intake/submit/route.ts:3` importuje tę
+ * funkcję BEZPOŚREDNIO i woła ją w :311. To jedyna ścieżka pacjenta wypełniającego
+ * e-Kartę z linku i ona NIE IDZIE PO HTTP, więc guard jej nie dotyczy.
  */
 export async function POST(req: NextRequest) {
+    // Uwierzytelnienie PRZED odczytem ciała żądania.
+    const auth = await requireEmployeeOrAdmin();
+    if (!auth.ok) return auth.response;
+
     try {
-        const { submissionId, prodentisPatientId } = await req.json();
+        const { submissionId } = await req.json();
 
-        // Find submission
-        let submission: any;
-        if (submissionId) {
-            const { data, error } = await supabase
-                .from('patient_intake_submissions')
-                .select('*')
-                .eq('id', submissionId)
-                .single();
-            if (error || !data) return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
-            submission = data;
-        } else if (prodentisPatientId) {
-            // Find via token
-            const { data: tokens } = await supabase
-                .from('patient_intake_tokens')
-                .select('id')
-                .eq('prodentis_patient_id', prodentisPatientId);
-
-            if (!tokens?.length) return NextResponse.json({ error: 'No intake found' }, { status: 404 });
-            const tokenIds = tokens.map((t: any) => t.id);
-
-            const { data: submissions } = await supabase
-                .from('patient_intake_submissions')
-                .select('*')
-                .in('token_id', tokenIds)
-                .order('submitted_at', { ascending: false })
-                .limit(1);
-
-            if (!submissions?.length) return NextResponse.json({ error: 'No submission found' }, { status: 404 });
-            submission = submissions[0];
-        } else {
-            return NextResponse.json({ error: 'submissionId or prodentisPatientId required' }, { status: 400 });
+        if (!submissionId) {
+            return NextResponse.json({ error: 'submissionId required' }, { status: 400 });
         }
+
+        const { data, error } = await supabase
+            .from('patient_intake_submissions')
+            .select('*')
+            .eq('id', submissionId)
+            .single();
+        if (error || !data) return NextResponse.json({ error: 'Submission not found' }, { status: 404 });
+        const submission: any = data;
 
         // Generate PDF
         const pdfBytes = await generateEKartaPdf(submission);
@@ -434,8 +437,10 @@ export async function POST(req: NextRequest) {
         const dateStr = new Date().toISOString().slice(0, 10);
         const fileName = `ekarta_${polishToAscii(firstName)}_${polishToAscii(lastName)}_${dateStr}.pdf`;
 
-        // Resolve prodentis patient ID
-        const patientProdentisId = submission.prodentis_patient_id || prodentisPatientId;
+        // Id kartoteki bierzemy WYŁĄCZNIE z samego zgłoszenia. Fallback na wartość
+        // z ciała żądania zniknął razem z gałęzią `prodentisPatientId` — pozwalał
+        // wskazać, pod czyim numerem zapisać dokument.
+        const patientProdentisId = submission.prodentis_patient_id;
         const storagePath = `${patientProdentisId || 'unknown'}/${fileName}`;
 
         // Upload to Supabase Storage (bucket: consents — reuse same bucket)

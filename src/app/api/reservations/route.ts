@@ -432,7 +432,13 @@ export async function POST(req: NextRequest) {
                             intakeTokenId = tokenData.id;
                             const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl');
                             intakeUrl = `${baseUrl}/ekarta/${tokenData.token}`;
-                            console.log(`[OnlineBooking] E-karta token generated: ${intakeUrl}`);
+                            // 🔴 NIGDY całego adresu: `intakeUrl` zawiera token e-Karty, czyli
+                            // jedyny sekret chroniący formularz z PESEL-em, adresem i wywiadem
+                            // (`/api/intake/verify/[token]` oddaje po nim dane, `submit` je przyjmuje).
+                            // Token żyje 72 h, a log przeżywa go i jest czytelny dla każdego
+                            // z dostępem do panelu Vercela oraz dla każdego drenu logów.
+                            // Do diagnostyki wystarczy identyfikator wiersza.
+                            console.log(`[OnlineBooking] E-karta token generated (id: ${tokenData.id})`);
                         } else {
                             console.error('[OnlineBooking] Failed to create intake token:', tokenErr);
                         }

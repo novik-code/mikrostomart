@@ -368,8 +368,18 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
     // e-Karty na dowolnego pacjenta i wstrzyknąć spreparowany wywiad do kartoteki.
     // To ta sama klasa co dziura z lipca (`238f8a9`).
     //
-    // ⚠️ Prefiks `/api/intake` CELOWO wąski — `submit`, `verify` i `generate-pdf` są
-    // PUBLICZNE (wypełnia je pacjent z linku). Objęcie ich bramką zepsułoby e-Kartę.
+    // ⚠️ Prefiks `/api/intake` CELOWO wąski — `submit` i `verify/[token]` są PUBLICZNE,
+    // bo wypełnia je PACJENT z linku (nie ma i nie będzie miał sesji personelu).
+    // Objęcie ich bramką zepsułoby e-Kartę.
+    //
+    // 🔴 SPROSTOWANIE 2026-08-06: poprzednia wersja tego komentarza wymieniała wśród
+    // publicznych także `generate-pdf` z uzasadnieniem „wypełnia je pacjent z linku".
+    // To była NIEPRAWDA i utrzymywała przy życiu poważną dziurę: trasa nie miała ŻADNEGO
+    // uwierzytelnienia, a gałąź `prodentisPatientId` generowała e-Kartę (PESEL, adres,
+    // wywiad) dowolnego pacjenta po samym numerze kartoteki. Pacjent NIGDY jej nie wołał —
+    // `intake/submit` importuje `generateEKartaPdf` bezpośrednio, bez HTTP. Jedynym
+    // klientem HTTP jest panel pracownika (ScheduleTab). Trasa ma teraz własny guard
+    // `requireEmployeeOrAdmin` i wchodzi tutaj jako DRUGA warstwa.
     const PROTECTED_PREFIXES = [
         '/admin',
         '/pracownik',
@@ -377,6 +387,7 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
         '/api/employee',
         '/api/time',
         '/api/intake/generate-token',
+        '/api/intake/generate-pdf',
     ];
     if (!PROTECTED_PREFIXES.some(p => pathname.startsWith(p))) {
         return null;
