@@ -445,6 +445,30 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
 }
 
 export const config = {
+    /**
+     * 🔴 RUNTIME NODE.JS — TO NIE JEST OPTYMALIZACJA, TYLKO NAPRAWA DZIURY W 2FA.
+     *
+     * Middleware domyślnie działa w runtime EDGE, który NIE MA modułu `crypto` z Node.
+     * `enforce2FA` weryfikuje dowód drugiego składnika przez `verifyMfaSessionToken`
+     * (lib/mfaSession.ts → `crypto.createHmac`), więc w edge ta weryfikacja rzucała
+     * wyjątek ZAWSZE — niezależnie od tego, czy ciasteczko było poprawne. Wyjątek
+     * wpadał w `catch` na końcu `enforce2FA`, który jest FAIL-OPEN i robi `return null`,
+     * czyli PRZEPUSZCZA żądanie.
+     *
+     * Skutek do 2026-08-06: konto z WŁĄCZONYM 2FA przechodziło na /admin i /api/admin/*
+     * bez podania kodu — drugi składnik nie był sprawdzany ani razu. Kody TOTP przy
+     * logowaniu działały (trasy /api/auth/2fa/* to zwykłe API w runtime Node), więc
+     * z zewnątrz wyglądało to na działające 2FA.
+     *
+     * 🔑 JAK TO WYSZŁO NA JAW: wyłącznie z logów produkcyjnych — przy KAŻDYM żądaniu
+     * do tras admina leciało `[middleware 2FA] enforce error: The edge runtime does not
+     * support Node.js 'crypto' module`. Z samego kodu widać było tylko „fail-open przy
+     * błędzie"; że błąd występuje ZAWSZE, dało się zobaczyć dopiero na produkcji.
+     *
+     * ⚠️ Przy zmianie tej linii wraca dziura. Pilnuje tego test
+     * `src/lib/__tests__/middlewareRuntimeWiring.test.ts`.
+     */
+    runtime: 'nodejs',
     matcher: [
         /*
          * Match all request paths except for the ones starting with:
