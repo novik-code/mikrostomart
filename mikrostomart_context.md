@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-06-17 — **SEO premium site name** (`cb07eab`): Google „site name" feature zaczął podmieniać `<title>` strony głównej na zadeklarowaną nazwę witryny w SERP (też dla „dentysta/stomatolog opole" — rankuje homepage), pokazując samą markę „Mikrostomart". Przyczyna: `WebSite` schema `name` = `brand.name` „Mikrostomart" (z Fazy 1A 2026-06-08; Google adoptuje site name z opóźnieniem dni–tygodni → stąd „przeskok" wczoraj→dziś). To **wyłącznie display, NIE ranking** (`<title>` był pełny na produkcji cały czas — zweryfikowane curl). Fix: `brand.ogSiteName` → „Mikrostomart - Stomatologia Mikroskopowa Opole" (premium specjalista + lokalne; wybór Marcina) + `WebSite` schema `name` czyta `ogSiteName` → schema name == og:site_name spójnie site-wide (Google chętniej uzna). `brand.name`/application-name/PWA zostają „Mikrostomart". Differentiators (M.Sc. RWTH Aachen, ZEISS) zostają w `<title>`+opisie. Verify: WebSite name + og:site_name (home+/oferta) = nowa nazwa, `<title>` nietknięty, test 123/123. · **perf CLS cookie banner** (`5708eaa`): baner zgody renderowany SSR z `opacity:0`, ujawniany po `document.fonts.ready` (fallback `setTimeout` 3s + `<noscript>` `opacity:1!important`) → reflow przy late-swap fontów na 4G dzieje się gdy baner NIEWIDOCZNY → 0 CLS (był głównym źródłem intermittent lab CLS do **0.482**; **field CLS 0.01 zielony** — fix stabilności lab, NIE regresja realnych userów). Zachowany cel Fazy G4 (SSR, box zarezerwowany, brak late-insert); reveal opacity-only (composited, nie layout). Lekcja: headless-preview zamraża CSS-transition bo tab `visibilityState:hidden` (rAF zapauzowany) — realna widoczna karta dokończy. · **perf Tier 1** (`c79e012`): metamorfozy `lazy`/`async` + YouTube miniatura `mqdefault` (eliminuje intermittent 404 Shortów → Best Practices). · **perf hero**: tło hero = 5 losowych 10s pętli (mobile ~167 KB / desktop ~456 KB HD, desktop/mobile osobno, precache bez mp4) zamiast 5-min 3.4 MB pliku — commit `65b6677` (+docs). Wcześniej 2026-06-15 — **audyt GEO 2026-06-14**: fix liczników (4.1) ✅ `7497df8` · `llms.txt` ✅ `5d0364f` · **silnik treści KB Klasy A** ✅ `a7b8666` (mig **165-166**: auto-draft + self-critique + admin review, drafty noindex). **Sprzątanie KB ✅** `1ed6a76` (mig **167** DELETE Grupa A 19 + B losery 16 / mig **168** borderline 3 drafty / noindex Grupa C 24 code-side / 35 redirectów 301). **Unifikacja głównego specjalisty ✅** `b1d578d` (PL `lek. dent. Marcin Nowosielski M.Sc.` / EN `Dentist` / DE `Zahnarzt` / UA `лікар-стоматолог` + M.Sc.; i18n 8 plików + kod, mig **169** treść DB). Migracje do **169**. Reszta: #2 ceny protetyki + round 2 dubli KB (Recent Changes 2026-06-15). Wcześniej: **program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
+> **Last Updated:** 2026-08-06 — 🔐 **AUDYT BEZPIECZEŃSTWA + 10 wdrożeń.** 153 agenty, 64 potwierdzone znaleziska, plan napraw 8 grup × 12 kroków. 🔴 Najważniejsze: **2FA personelu nie działało WCALE** — `middleware.ts` bez deklaracji runtime chodził w edge, który nie ma `crypto` z Node, więc weryfikacja drugiego składnika rzucała PRZY KAŻDYM ŻĄDANIU, a `catch` jest fail-open. Konto z włączonym 2FA wchodziło na `/admin` bez kodu; kody TOTP przy logowaniu działały, więc z zewnątrz wyglądało to sprawnie. Naprawa `runtime: 'nodejs'` (`9f0f8ee`), zweryfikowana na logach produkcyjnych (przed: 4 błędy na 4 żądaniach, po: 0 na 9). Dalej: e-Karta z PESEL-em dostępna BEZ logowania (`11eda27`), **migracja 190** domykająca RLS na `sms_reminders` (jedyna polityka bez klauzuli `TO`), sześć usterek pusha, dane pacjenta w logach i w OpenAI, wyrocznie tożsamości bez limitu. Szczegóły i lekcje: „📝 Recent Changes” → 2026-08-06. ⏳ Pięć decyzji czeka na właściciela (cron AI, Telegram, neutralizacja treści, duplikat e-maila, wariant fail-closed 2FA).
+>
+> **Poprzednio (2026-06-17):** — **SEO premium site name** (`cb07eab`): Google „site name" feature zaczął podmieniać `<title>` strony głównej na zadeklarowaną nazwę witryny w SERP (też dla „dentysta/stomatolog opole" — rankuje homepage), pokazując samą markę „Mikrostomart". Przyczyna: `WebSite` schema `name` = `brand.name` „Mikrostomart" (z Fazy 1A 2026-06-08; Google adoptuje site name z opóźnieniem dni–tygodni → stąd „przeskok" wczoraj→dziś). To **wyłącznie display, NIE ranking** (`<title>` był pełny na produkcji cały czas — zweryfikowane curl). Fix: `brand.ogSiteName` → „Mikrostomart - Stomatologia Mikroskopowa Opole" (premium specjalista + lokalne; wybór Marcina) + `WebSite` schema `name` czyta `ogSiteName` → schema name == og:site_name spójnie site-wide (Google chętniej uzna). `brand.name`/application-name/PWA zostają „Mikrostomart". Differentiators (M.Sc. RWTH Aachen, ZEISS) zostają w `<title>`+opisie. Verify: WebSite name + og:site_name (home+/oferta) = nowa nazwa, `<title>` nietknięty, test 123/123. · **perf CLS cookie banner** (`5708eaa`): baner zgody renderowany SSR z `opacity:0`, ujawniany po `document.fonts.ready` (fallback `setTimeout` 3s + `<noscript>` `opacity:1!important`) → reflow przy late-swap fontów na 4G dzieje się gdy baner NIEWIDOCZNY → 0 CLS (był głównym źródłem intermittent lab CLS do **0.482**; **field CLS 0.01 zielony** — fix stabilności lab, NIE regresja realnych userów). Zachowany cel Fazy G4 (SSR, box zarezerwowany, brak late-insert); reveal opacity-only (composited, nie layout). Lekcja: headless-preview zamraża CSS-transition bo tab `visibilityState:hidden` (rAF zapauzowany) — realna widoczna karta dokończy. · **perf Tier 1** (`c79e012`): metamorfozy `lazy`/`async` + YouTube miniatura `mqdefault` (eliminuje intermittent 404 Shortów → Best Practices). · **perf hero**: tło hero = 5 losowych 10s pętli (mobile ~167 KB / desktop ~456 KB HD, desktop/mobile osobno, precache bez mp4) zamiast 5-min 3.4 MB pliku — commit `65b6677` (+docs). Wcześniej 2026-06-15 — **audyt GEO 2026-06-14**: fix liczników (4.1) ✅ `7497df8` · `llms.txt` ✅ `5d0364f` · **silnik treści KB Klasy A** ✅ `a7b8666` (mig **165-166**: auto-draft + self-critique + admin review, drafty noindex). **Sprzątanie KB ✅** `1ed6a76` (mig **167** DELETE Grupa A 19 + B losery 16 / mig **168** borderline 3 drafty / noindex Grupa C 24 code-side / 35 redirectów 301). **Unifikacja głównego specjalisty ✅** `b1d578d` (PL `lek. dent. Marcin Nowosielski M.Sc.` / EN `Dentist` / DE `Zahnarzt` / UA `лікар-стоматолог` + M.Sc.; i18n 8 plików + kod, mig **169** treść DB). Migracje do **169**. Reszta: #2 ceny protetyki + round 2 dubli KB (Recent Changes 2026-06-15). Wcześniej: **program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
 >
 > 🎯 **Tryb pracy od 2026-06-08: AKTYWNY program SEO Premium + Local** (po carte blanche → audyt SEO 6-osiowy → plan). Marcin zlecił pełny 4-fazowy program — plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md`. **Decyzje Marcina:** pełny program fazami · All-on-X = strona usługi `/oferta/all-on-4` + geo-landing `/all-on-4-opole` · treść AI + medical review (gate). **NIE wskakuj w stare roadmapy** (Faza K/L/M, K-7/K-8, Employee Phase 3, RODO S8-2..S8-6) — obowiązuje plan SEO. Adnotacje „Next:” w starych wpisach „📝 Recent Changes” + `memory/project_*.md` = **ARCHIWALNE**.
 >
@@ -2469,6 +2471,67 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-08-06 — 🔐 AUDYT BEZPIECZEŃSTWA + 10 wdrożeń (2FA, e-Karta, RLS, push, PII)
+
+> 📄 Raport: `~/Desktop/bałagan/AUDYT_BEZPIECZENSTWA_2026-08-05.md` · Plan: `PLAN_NAPRAW_BEZPIECZENSTWA_2026-08-05.md`
+> Audyt: 153 agentów, 4 fazy (mapa → 9 soczewek → 2 sceptyków na znalezisko → krytyk). `agents_error: 0`.
+> **70 zgłoszeń → 6 obalonych → 64 pozycje.** Plan napraw: 8 grup × 12 kroków, **64 regresje wyłapane** przed pisaniem kodu.
+
+#### 🔴 NAJWAŻNIEJSZE: 2FA PERSONELU NIE DZIAŁAŁO WCALE (`9f0f8ee`)
+Nie „przy awarii bazy", jak zgłosił audyt — **przy każdym żądaniu**. `middleware.ts` nie deklarował
+runtime, więc działał w **edge**, który nie ma modułu `crypto` z Node. `enforce2FA` weryfikuje dowód
+przez `crypto.createHmac`, więc rzucało ZAWSZE, a `catch` jest fail-open (`return null` = przepuść).
+**Konto z włączonym 2FA wchodziło na `/admin` bez kodu.** Kody TOTP przy logowaniu działały (trasy
+`/api/auth/2fa/*` to zwykłe API w runtime Node), więc z zewnątrz 2FA wyglądało sprawnie.
+- **Naprawa:** `runtime: 'nodejs'` w `export const config`.
+- **Dowód przełączenia runtime jest w ARTEFAKTACH builda, nie w typach:** bez flagi powstaje
+  `.next/server/edge-runtime-webpack.js` i NIE powstaje `middleware.js`; z flagą — odwrotnie.
+- **Zweryfikowane na produkcji:** przed — 4 żądania `/api/employee/*` → 4 błędy; po — 9 żądań
+  (`/pracownik`, `employee/schedule`, `tasks`, `staff`, `admin/prodentis-schedule`) → **0 błędów**, panel działa.
+- 🔑 **Wniosek metodyczny:** czytanie kodu wykrywa ryzyka WARUNKOWE. Że warunek jest spełniony ZAWSZE,
+  widać wyłącznie w logach produkcyjnych. **Po każdym audycie przejrzeć logi pod kątem powtarzających
+  się wyjątków** — zwłaszcza w middleware i w `catch`-ach opisanych jako „nie powinno się zdarzyć".
+
+#### Commity (10, wszystkie na produkcji)
+- `7006f6c` — kanał apki dla 7 wysyłek (rejestracja, kontakt ×3, zamówienia ×2, lead) + bramka i `pushToPatientAll` w `admin/push-send`
+- `c6f2bc0` — to samo w `employee/push/to-patient` (trasa APKI). 🪤 Naprawiłem jedną trasę z dwóch i uznałem temat za zamknięty — Marcin zgłosił objaw pół godziny po wdrożeniu
+- `5d7e4cd` — logowanie e-mailem po **dosłownym** dopasowaniu (`ilike` traktuje `_` i `%` jako wieloznaczne). Pomiar: ZYSK 0 · STRATA 0 — zmiana prewencyjna, nie ratunkowa
+- `9f0f8ee` — **2FA: runtime Node.js** (wyżej)
+- `11eda27` — **sesja 1 planu:** e-Karta z PESEL-em bez logowania (`generate-pdf` bez auth + gałąź po numerze kartoteki), martwa trasa short-linków oddająca token wizyty, przejęcie subskrypcji push przez `oldEndpoint`, PII w logach (7 miejsc), limity na `patients/verify` i `consents/verify`
+- `06f68cd` — asystent **odwracał własną pseudonimizację** przed modelem; `ai-parse` wysyłał dyktowaną notatkę surowo; brakujący `DELETE /api/patients/push-token` (apka JUŻ go wołała → 405)
+- `65aa3cb` — rdzeń pusha: `pushToUsers` liczy oba kanały, chunkowanie `.in()`, stronicowanie `broadcastPush` (limit 1000 wierszy PostgREST), koniec martwej tabeli w wysyłce do grup + odrzucenie grupy `patients`
+- `5921961` — **migracja 190** (opis niżej)
+- `c1646c9` — asystent wołał martwy moduł `webpush`; alarm kliniczny CareFlow bez kanału apki; decyzja o sugestii nie wracała do autora
+- `5c27255` — bilety Expo dostają `path_key` — diagnostyka niedostarczeń przestaje być ślepa
+
+#### 🗄️ MIGRACJA 190 — wgrana i zweryfikowana
+`sms_reminders` miało **jedyną** politykę bez klauzuli `TO` (`roles = {public}`), `FOR ALL` bez `WITH CHECK`.
+Tabela trzyma imię, nazwisko, telefon i **pełną treść SMS-a** z nazwiskiem lekarza i typem zabiegu.
+Sprzątanie z migracji 182 tego nie złapało: jego blok kontrolny szukał `auth.role()`, a ta polityka
+używa `auth.uid()`. Domknięte też miny z 096 (`employee_tasks`) i 055 (sugestie).
+- 🪤 **Kasowanie idzie PĘTLĄ po `pg_policies`, nie po nazwach.** Pierwsza wersja wypisywała
+  `DROP POLICY IF EXISTS employee_tasks_select`, a mig 096 nazwała je `"Authenticated users can read tasks"` —
+  całość wykonałaby się ZIELONO i nie usunęła ani jednej otwartej polityki.
+- **Weryfikacja parą warunków:** klucz serwisowy (aplikacja) działa dla wszystkich 3 tabel · klucz publiczny zwraca 0 wierszy.
+
+#### 🪤 Lekcje tej sesji
+- **Strażnik przypięty do JEDNEGO PLIKU powiela błąd, któremu ma zapobiegać.** Mój pierwszy strażnik
+  pusha pilnował `admin/push-send` i nie mógł złapać drugiej trasy. Strażnik musi **skanować drzewo i szukać wzorca**.
+- **Atrapa w teście musi nadążać za API.** Dodanie `.range()` wywróciło 5 testów komunikatem
+  `q.range is not a function` — padała ATRAPA, nie kod. Lista modyfikatorów w mocku dostała komentarz.
+- **`grep` po linii fałszywie oskarża wielolinijkowe wywołania** — pierwsza lista „bez `alsoApp`" wskazywała
+  `/api/reservations`, które flagę ma od dawna. Pomiar przepisany na parser nawiasów.
+- **Numeracja migracji w planie kolidowała:** numer 190 zaproponowały niezależnie CZTERY grupy agentów.
+
+#### ⏳ Czeka na decyzję właściciela
+1. **Cron propozycji AI** — wyłączyć czy używać? Przepięcie na żywy prymityw budzi wysyłkę **13×/dobę** do całego zespołu (~100 draftów w kolejce, duplikaty).
+2. **Treść czatu na Telegramie** — zostaje czy sam sygnał „nowa wiadomość"?
+3. **Neutralizacja treści powiadomień** — recepcja straci szczegół w banerze (`sendToTokens` nie czyta `payload.data`).
+4. **Duplikat e-maila:** `0100005251` i `0100002806` mają ten sam adres, oba `active` — żadne nie zaloguje się e-mailem (logują się telefonem).
+5. **2FA fail-closed:** 10 z 14 pracowników nie ma 2FA. Wariant A (zapisać wszystkich) czy B (wyjątek dla znanych nie-adminów)?
+
+---
 
 ### 2026-08-05 — 🔐 Logowanie/rejestracja pacjenta + 🩺 godziny dawek CareFlow (3 wdrożenia)
 
