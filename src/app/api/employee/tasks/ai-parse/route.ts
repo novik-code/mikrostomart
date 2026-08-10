@@ -3,6 +3,7 @@ import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
 import OpenAI from 'openai';
+import { createScrubber } from '@/lib/aiAnonymizer';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +19,21 @@ function getOpenAI(): OpenAI {
 }
 
 /** Parse natural-language text into structured tasks using GPT-4o */
+/**
+ * 🔴 PSEUDONIMIZACJA PRZED MODELEM.
+ *
+ * To jest tor GŁOSOWY recepcji: pracownik dyktuje „zadzwonić jutro do pani <nazwisko>,
+ * numer <telefon>, w sprawie przełożenia zabiegu", Whisper zwraca to zdanie dosłownie,
+ * a stąd szło do gpt-4o-mini w ORYGINALE. Ta sama treść w asystencie jest maskowana —
+ * tu nie była, bo trasa nie znała scrubbera.
+ *
+ * Model dostaje żetony (PACJENT_1, TEL_1), a prawdziwe wartości wracają dopiero do
+ * tytułów i opisów zapisywanych w `employee_tasks`. Rozbicie zdania na zadania nie
+ * wymaga znajomości tożsamości.
+ */
 async function parseTextToTasks(text: string, nowIso: string, timezone: string): Promise<ParsedTask[]> {
+    const scrubber = createScrubber();
+    const safeText = scrubber.scrub(text);
     const systemPrompt = `Jesteś asystentem który analizuje krótkie notatki głosowe lub tekstowe i wyciąga z nich zadania do wykonania.
 
 Dzisiaj jest: ${nowIso} (strefa czasowa: ${timezone})
@@ -46,14 +61,16 @@ Zasady:
         temperature: 0.2,
         messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: text },
+            { role: 'user', content: safeText },
         ],
     });
 
     const raw = resp.choices[0].message.content?.trim() || '[]';
     // Strip optional markdown fences
     const json = raw.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
-    return JSON.parse(json) as ParsedTask[];
+    // 🪤 restore na STRUKTURZE, nigdy na gotowym JSON-ie: `JSON.stringify` sklejałby
+    // znak nowej linii z imieniem i rdzeń przestawał pasować (znana pułapka modułu).
+    return scrubber.restoreDeep(JSON.parse(json)) as ParsedTask[];
 }
 
 interface ParsedTask {

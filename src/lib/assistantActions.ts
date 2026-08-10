@@ -9,6 +9,7 @@ import { sendPushToUser } from './webpush';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 import { prodentisTime, prodentisTypeName } from '@/lib/assistantGuards';
+import { createScrubber } from '@/lib/aiAnonymizer';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -361,6 +362,24 @@ async function dictateDocumentation(args: {
         const OpenAI = (await import('openai')).default;
         const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+        /**
+         * 🔴 WŁASNA PSEUDONIMIZACJA — TU PRZECIEKAŁO MIMO CAŁEGO MODUŁU.
+         *
+         * Trasa asystenta scrubuje wiadomości idące do modelu, ale na argumentach
+         * wywołań narzędzi robi `restoreDeep` (assistant/route.ts) — słusznie, bo do
+         * bazy i do maila ma trafić prawdziwe nazwisko. Problem w tym, że TO narzędzie
+         * dostaje już ODTWORZONY tekst i wysyła go DRUGI RAZ do modelu. Efekt:
+         * dokładnie ten zestaw danych, przed którym broni cały moduł (PESEL, telefon,
+         * nazwisko), wychodził do OpenAI tylnymi drzwiami — w tym samym żądaniu,
+         * które go wcześniej zamaskowało.
+         *
+         * Dlatego zakładamy WŁASNY scrubber: model redaguje tekst z żetonami,
+         * a prawdziwe wartości wracają dopiero do maila (`restoreDeep` niżej).
+         * Redakcja stylistyczna nie wymaga znajomości tożsamości pacjenta.
+         */
+        const docScrubber = createScrubber();
+        const safeRawText = docScrubber.scrub(args.raw_text);
+
         const completion = await openai.chat.completions.create({
             model: 'gpt-4o',
             messages: [
@@ -379,14 +398,18 @@ Odpowiedz TYLKO gotowym, zredagowanym tekstem.`
                 },
                 {
                     role: 'user',
-                    content: args.raw_text,
+                    content: safeRawText,
                 },
             ],
             temperature: 0.3,
             max_tokens: 2000,
         });
 
-        const processedText = completion.choices[0].message.content || args.raw_text;
+        // Model zwraca tekst z żetonami — prawdziwe wartości wracają dopiero tutaj,
+        // tuż przed wysyłką maila do pracownika.
+        const processedText = docScrubber.restoreDeep(
+            completion.choices[0].message.content || safeRawText
+        );
 
         // Send email
         const recipientEmail = args.recipient_email || userEmail;
