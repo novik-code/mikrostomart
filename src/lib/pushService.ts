@@ -345,7 +345,7 @@ async function sendToTokens(
 
 // ─── Resolve target users per group (regardless of FCM tokens) ──
 
-async function resolveGroupUsers(group: PushGroup): Promise<{ user_id: string; user_type: string }[]> {
+export async function resolveGroupUsers(group: PushGroup): Promise<{ user_id: string; user_type: string }[]> {
     if (group === 'patients') {
         // Patients don't have an employees row — resolve from user_roles
         const { data } = await supabase
@@ -513,31 +513,56 @@ export async function pushToUsers(
     const targets = filterActive(userIds, activity, 'pushToUsers');
     if (targets.length === 0) return { sent: 0, failed: 0 };
 
-    // Log for ALL target users regardless of FCM tokens
-    for (const uid of targets) {
-        await logPush(uid, 'employee', payload);
-    }
+    // Historia dla WSZYSTKICH odbiorców, niezależnie od tokenów — jednym zapisem
+    // wsadowym zamiast pętli `await` (przy kilkunastu osobach to kilkanaście rund
+    // do bazy w funkcji, która i tak ma budżet czasu crona).
+    await logPushMany(targets, 'employee', payload);
 
-    // Aplikacja mobilna personelu (Expo — staff_push_tokens, mig 179), obok web-pusha FCM.
-    sendExpoPushToStaffMany(targets, {
-        title: payload.title,
-        body: payload.body,
-        data: buildExpoData(payload),
-    }).catch(err => console.error('[Push] Expo staff push error:', err));
+    // 🔴 KANAŁ APLIKACJI JEST AWAITOWANY I WLICZANY DO WYNIKU.
+    // Wcześniej leciał fire-and-forget, a `sent` liczyło się WYŁĄCZNIE z `fcm_tokens`.
+    // Skutek na produkcji: pracownik mający tylko aplikację (typowy przypadek — web-push
+    // w przeglądarce ma mało kto) dostawał powiadomienie na telefon, a panel raportował
+    // „Wysłano: 0". Operator uznawał wysyłkę za nieudaną i powtarzał ją, więc odbiorca
+    // dostawał duplikat. Ten sam błąd naprawiono już w `pushToPatientAll` — tu został.
+    const [expoRes, fcmRes] = await Promise.all([
+        sendExpoPushToStaffMany(targets, {
+            title: payload.title,
+            body: payload.body,
+            data: buildExpoData(payload),
+        }).catch(err => {
+            console.error('[Push] Expo staff push error:', err);
+            return { sent: 0, failed: 0 };
+        }),
+        (async () => {
+            // 🪤 `.in()` MUSI być chunkowane: długa lista UUID rozdyma URL PostgREST
+            // ponad limit, `data` wraca `null`, supabase-js nie rzuca — i funkcja
+            // raportuje sukces przy zerowej wysyłce. `chunkIds` istnieje w tym module
+            // od dawna, tylko nie było tu użyte.
+            const tokens: string[] = [];
+            for (const part of chunkIds(targets)) {
+                const { data, error } = await supabase
+                    .from('fcm_tokens')
+                    .select('fcm_token, user_id, user_type')
+                    .in('user_id', part);
+                if (error) {
+                    console.error('[Push] pushToUsers: odczyt fcm_tokens padł:', error.message);
+                    continue;
+                }
+                for (const r of data || []) tokens.push(r.fcm_token);
+            }
+            if (tokens.length === 0) return { sent: 0, failed: 0 };
+            return sendToTokens(tokens, payload);
+        })(),
+    ]);
 
-    const { data: tokenRows } = await supabase
-        .from('fcm_tokens')
-        .select('fcm_token, user_id, user_type')
-        .in('user_id', targets);
-
-    const tokens = (tokenRows || []).map(r => r.fcm_token);
-    if (tokens.length === 0) {
-        console.log(`[Push] pushToUsers: ${targets.length} users (logged), no FCM tokens`);
-        return { sent: 0, failed: 0 };
-    }
-
-    const result = await sendToTokens(tokens, payload);
-    console.log(`[Push] pushToUsers: ${targets.length} users → sent=${result.sent} failed=${result.failed}`);
+    const result = {
+        sent: fcmRes.sent + expoRes.sent,
+        failed: fcmRes.failed + expoRes.failed,
+    };
+    console.log(
+        `[Push] pushToUsers: ${targets.length} users → fcm=${fcmRes.sent}/${fcmRes.failed} `
+        + `expo=${expoRes.sent}/${expoRes.failed} → sent=${result.sent} failed=${result.failed}`
+    );
     return result;
 }
 
@@ -870,27 +895,35 @@ export const broadcastPush = async (
     const { title, body } = getPushTranslation(notificationType, 'pl', params);
     const payload = { title, body, url };
 
-    // Log for ALL users of this type (regardless of FCM tokens)
+    /**
+     * Odbiorcy do historii — CZYTANI ZE STRONICOWANIEM.
+     *
+     * 🪤 PostgREST tnie odpowiedź do `db-max-rows` (domyślnie 1000) i nie mówi o tym
+     * ani słowem. Przy większej liczbie kont funkcja widziała tylko pierwszą tysiączkę,
+     * wysyłała do podzbioru i raportowała sukces. Dotyczy zwłaszcza `userType='patient'`
+     * (powiadomienie o nowym wpisie na blogu idzie do WSZYSTKICH pacjentów).
+     *
+     * Zapis historii idzie wsadowo (`logPushMany`) zamiast pętli `await logPush` —
+     * przy tysiącu odbiorców pętla to tysiąc rund do bazy w jednym żądaniu.
+     */
     const appTargets: string[] = [];
-    if (userType === 'employee') {
-        const { data: allEmps } = await supabase
-            .from('employees').select('user_id').eq('is_active', true);
-        for (const emp of allEmps || []) {
-            if (emp.user_id) {
-                appTargets.push(emp.user_id);
-                await logPush(emp.user_id, 'employee', payload);
-            }
+    const PAGE = 1000;
+    for (let from = 0; ; from += PAGE) {
+        const q = userType === 'employee'
+            ? supabase.from('employees').select('user_id').eq('is_active', true)
+            : supabase.from('user_roles').select('user_id').eq('role', userType);
+
+        const { data, error } = await q.range(from, from + PAGE - 1);
+        if (error) {
+            console.error('[Push] broadcastPush: odczyt odbiorców padł:', error.message);
+            break;
         }
-    } else {
-        const { data: allUsers } = await supabase
-            .from('user_roles').select('user_id').eq('role', userType);
-        for (const u of allUsers || []) {
-            if (u.user_id) {
-                appTargets.push(u.user_id);
-                await logPush(u.user_id, userType, payload);
-            }
+        for (const row of data || []) {
+            if ((row as { user_id?: string }).user_id) appTargets.push((row as { user_id: string }).user_id);
         }
+        if (!data || data.length < PAGE) break;
     }
+    await logPushMany(appTargets, userType, payload);
 
     /**
      * 🔑 KANAŁ APLIKACJI MOBILNEJ — opt-in przez `alsoApp`.
@@ -939,11 +972,23 @@ export const broadcastPush = async (
         }
     }
 
-    // Send push only to those with FCM tokens
-    const { data: tokenRows } = await supabase
-        .from('fcm_tokens')
-        .select('fcm_token, user_id, user_type')
-        .eq('user_type', userType);
+    // Send push only to those with FCM tokens.
+    // 🪤 Ten sam limit 1000 wierszy co przy odbiorcach wyżej — bez stronicowania
+    // funkcja wysyłała do pierwszej tysiączki tokenów i raportowała sukces.
+    const tokenRows: { fcm_token: string; user_id: string; user_type: string }[] = [];
+    for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase
+            .from('fcm_tokens')
+            .select('fcm_token, user_id, user_type')
+            .eq('user_type', userType)
+            .range(from, from + PAGE - 1);
+        if (error) {
+            console.error('[Push] broadcastPush: odczyt fcm_tokens padł:', error.message);
+            break;
+        }
+        for (const r of data || []) tokenRows.push(r as typeof tokenRows[number]);
+        if (!data || data.length < PAGE) break;
+    }
 
     // Ta sama bramka aktywności co w pushToAllEmployees — dotyczy wyłącznie personelu.
     const activity = userType === 'patient' ? null : await loadStaffActivity();

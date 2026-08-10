@@ -1,15 +1,9 @@
 import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
-import { sendPushToSpecificUsers } from '@/lib/pushService';
-import { createClient } from '@supabase/supabase-js';
+import { sendPushToSpecificUsers, resolveGroupUsers } from '@/lib/pushService';
 
 export const dynamic = 'force-dynamic';
-
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
 
 /**
  * POST /api/employee/push/send
@@ -64,30 +58,33 @@ export async function POST(req: Request) {
         const allUserIds = new Set<string>(userIds || []);
 
         if (groups && groups.length > 0) {
-            const groupMap: Record<string, string> = {
-                doctors: 'doctor', doctor: 'doctor',
-                hygienists: 'hygienist', hygienist: 'hygienist',
-                reception: 'reception',
-                assistant: 'assistant',
-            };
-
             for (const group of groups as string[]) {
+                // 🔴 GRUPA „pacjenci" ODRZUCONA. Trasa stoi wyłącznie na roli pracownika
+                // (linie 36-40), więc KAŻDY członek zespołu mógł nią wysłać powiadomienie
+                // do wszystkich pacjentów w bazie. Dziś jest to bezzębne, bo odbiorcy
+                // czytani są z porzuconej tabeli `push_subscriptions` — ale to przypadek,
+                // nie zabezpieczenie: naprawa źródła odbiorców zamieniłaby tę gałąź
+                // w przycisk masowej wysyłki. Interfejs (TasksTab) i tak oferuje wyłącznie
+                // grupy personelu; masowa komunikacja do pacjentów ma własną, admin-only ścieżkę.
                 if (group === 'patients' || group === 'patient') {
-                    const { data: subs } = await supabase
-                        .from('push_subscriptions').select('user_id').eq('user_type', 'patient');
-                    (subs || []).forEach((s: any) => allUserIds.add(s.user_id));
-                } else if (group === 'admin') {
-                    const { data: subs } = await supabase
-                        .from('push_subscriptions').select('user_id').eq('user_type', 'admin');
-                    (subs || []).forEach((s: any) => allUserIds.add(s.user_id));
-                } else {
-                    const dbGroup = groupMap[group];
-                    if (!dbGroup) continue;
-                    const { data: subs } = await supabase
-                        .from('push_subscriptions').select('user_id').eq('user_type', 'employee')
-                        .or(`employee_groups.cs.{"${dbGroup}"},employee_group.eq.${dbGroup}`);
-                    (subs || []).forEach((s: any) => allUserIds.add(s.user_id));
+                    return NextResponse.json(
+                        { error: 'Wysyłka do grupy pacjentów nie jest dostępna z tej trasy' },
+                        { status: 400 }
+                    );
                 }
+
+                // 🪤 ODBIORCY Z ŻYWEGO ŹRÓDŁA, nie z porzuconej tabeli.
+                // `push_subscriptions` zostało zastąpione przez `fcm_tokens` w migracji 104
+                // i od tego czasu NIC do niej nie pisze — jedyny klient rejestrujący tokeny
+                // (`PushNotificationPrompt`) woła `/api/push/subscribe`, które pisze do
+                // `fcm_tokens`. Rozwiązywanie grup z martwej tabeli dawało pustą listę
+                // i komunikat „Brak subskrybentów w wybranych grupach" przy pełnym zespole.
+                // `resolveGroupUsers` idzie po `user_roles` + `employees.push_groups`
+                // i przyjmuje DOKŁADNIE te nazwy grup, które przychodzą
+                // z panelu (doctors/hygienists/reception/assistant/admin), więc żadne
+                // mapowanie nie jest potrzebne — i nie ma gdzie się rozjechać.
+                const rozwiazani = await resolveGroupUsers(group as Parameters<typeof resolveGroupUsers>[0]);
+                rozwiazani.forEach(r => allUserIds.add(r.user_id));
             }
         }
 

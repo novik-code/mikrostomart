@@ -26,7 +26,11 @@ let tables: Record<string, unknown[]>;
 
 function makeQuery(rows: unknown[]) {
     const q: Record<string, unknown> = {};
-    for (const m of ['select', 'eq', 'in', 'neq', 'insert', 'delete', 'update', 'order', 'limit', 'contains']) {
+    // ⚠️ Ta lista musi nadążać za realnym API supabase-js. Brakujący modyfikator nie
+    // daje „pustego wyniku", tylko `TypeError: q.X is not a function` — czyli test pada
+    // z powodu ATRAPY, nie z powodu kodu. Tak weszło `range`: stronicowanie odbiorców
+    // (limit 1000 wierszy PostgREST) wywróciło pięć testów, choć produkcyjny kod był poprawny.
+    for (const m of ['select', 'eq', 'in', 'neq', 'insert', 'delete', 'update', 'order', 'limit', 'contains', 'range']) {
         q[m] = () => q;
     }
     // Thenable — `await supabase.from(x).select().eq()` rozwiązuje się tutaj.
