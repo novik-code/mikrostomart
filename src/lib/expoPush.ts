@@ -171,7 +171,8 @@ async function deliver(
  */
 export async function sendExpoPushToPatient(
     patientId: string,
-    payload: ExpoPushPayload
+    payload: ExpoPushPayload,
+    pathKey?: string
 ): Promise<{ sent: number; failed: number }> {
     try {
         const prodentisId = await resolveProdentisId(patientId);
@@ -183,7 +184,7 @@ export async function sendExpoPushToPatient(
             .eq('patient_id', prodentisId);
 
         const tokens = (rows || []).map(r => r.token).filter(isExpoToken);
-        return deliver(tokens, payload, 'patient_push_tokens', `patient ${patientId}`);
+        return deliver(tokens, payload, 'patient_push_tokens', `patient ${patientId}`, pathKey);
     } catch (err) {
         console.error('[ExpoPush] Error:', err);
         return { sent: 0, failed: 0 };
@@ -232,7 +233,8 @@ export async function hasPatientAppToken(
  */
 export async function sendExpoPushToStaff(
     userId: string,
-    payload: ExpoPushPayload
+    payload: ExpoPushPayload,
+    pathKey?: string
 ): Promise<{ sent: number; failed: number }> {
     try {
         const { data: rows } = await supabase
@@ -241,7 +243,7 @@ export async function sendExpoPushToStaff(
             .eq('user_id', userId);
 
         const tokens = (rows || []).map(r => r.token).filter(isExpoToken);
-        return deliver(tokens, payload, 'staff_push_tokens', `staff ${userId}`);
+        return deliver(tokens, payload, 'staff_push_tokens', `staff ${userId}`, pathKey);
     } catch (err) {
         console.error('[ExpoPush] Staff error:', err);
         return { sent: 0, failed: 0 };
@@ -251,7 +253,8 @@ export async function sendExpoPushToStaff(
 /** Wariant zbiorczy — jeden strzał do Expo dla wielu pracowników naraz. */
 export async function sendExpoPushToStaffMany(
     userIds: string[],
-    payload: ExpoPushPayload
+    payload: ExpoPushPayload,
+    pathKey?: string
 ): Promise<{ sent: number; failed: number }> {
     try {
         if (!userIds?.length) return { sent: 0, failed: 0 };
@@ -261,7 +264,7 @@ export async function sendExpoPushToStaffMany(
             .in('user_id', userIds);
 
         const tokens = (rows || []).map(r => r.token).filter(isExpoToken);
-        return deliver(tokens, payload, 'staff_push_tokens', `staff x${userIds.length}`);
+        return deliver(tokens, payload, 'staff_push_tokens', `staff x${userIds.length}`, pathKey);
     } catch (err) {
         console.error('[ExpoPush] Staff error:', err);
         return { sent: 0, failed: 0 };

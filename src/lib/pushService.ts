@@ -452,7 +452,17 @@ export async function pushToUser(
  */
 export async function pushToPatientAll(
     userId: string,
-    payload: PushPayload
+    payload: PushPayload,
+    /**
+     * Nazwa ścieżki dla rejestru zdrowia (`push_path_health` / `push_receipts.path_key`).
+     *
+     * 🔴 PO CO: `deliver()` w expoPush przyjmuje `pathKey` i zapisuje go do `push_receipts`
+     * od migracji 186 — ale ŻADEN z trzech wrapperów go nie przekazywał, więc kolumna była
+     * ZAWSZE NULL. Gdy Expo zwracało `DeviceNotRegistered` albo `MessageTooBig`, ekran
+     * „Diagnostyka powiadomień" nie potrafił przypisać niedostarczenia do żadnej ścieżki —
+     * cały mechanizm rozliczania widział wyłącznie worek „nieprzypisane".
+     */
+    pathKey?: string
 ): Promise<{ fcm: { sent: number; failed: number }; expo: { sent: number; failed: number }; sent: number; failed: number }> {
     // Historia niezależnie od dostarczenia — jeden wpis na wywołanie
     await logPush(userId, 'patient', payload);
@@ -482,7 +492,7 @@ export async function pushToPatientAll(
                     title: payload.title,
                     body: payload.body,
                     data: buildExpoData(payload),
-                });
+                }, pathKey);
             } catch (err) {
                 console.error('[Push] pushToPatientAll Expo error:', err instanceof Error ? err.message : err);
                 return { sent: 0, failed: 0 };

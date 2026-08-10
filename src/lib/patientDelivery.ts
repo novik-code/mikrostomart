@@ -47,6 +47,22 @@ export interface DeliveryResult {
     patientHasPush: boolean;
 }
 
+/**
+ * Klucz ścieżki w rejestrze zdrowia (`push_path_health`, migracja 186) dla danego typu SMS-a.
+ *
+ * 🪤 Tylko `reminder` ma dziś zarejestrowaną ścieżkę — `post_visit` i `week_after_visit`
+ * NIE MAJĄ wiersza w `push_path_health` i (co ważniejsze) ich rekordy w `sms_reminders`
+ * mają `patient_id = null`, więc push-first i tak ich nie obejmuje. Zwracamy `undefined`
+ * zamiast zmyślać klucz: `recordPushPath` po nieistniejącym kluczu to UPDATE zerujący
+ * zero wierszy, czyli cichy no-op, który wyglądałby na działającą diagnostykę.
+ */
+const PATH_KEY_BY_SMS_TYPE: Record<'reminder' | 'post_visit' | 'week_after_visit', string | undefined> = {
+    reminder: 'appointment_reminder',
+    post_visit: undefined,
+    week_after_visit: undefined,
+};
+
+
 export interface DeliveryOptions {
     /**
      * Supabase patient UUID (from patients table).
@@ -150,7 +166,10 @@ export async function deliverToPatient(options: DeliveryOptions): Promise<Delive
     // pacjent z samą apką dostawał sent:0 i był eskalowany do SMS-a.
     if (patientId && result.patientHasPush) {
         try {
-            const pushResult = await pushToPatientAll(patientId, pushPayload);
+            // `smsType` jest kluczem ścieżki w rejestrze zdrowia — ten sam, którego
+            // używa `recordPushPath` niżej. Bez niego bilety Expo zapisywały się
+            // z `path_key = NULL` i diagnostyka nie umiała przypisać niedostarczeń.
+            const pushResult = await pushToPatientAll(patientId, pushPayload, PATH_KEY_BY_SMS_TYPE[options.smsType]);
 
             if (pushResult.sent > 0) {
                 result.pushSent = true;

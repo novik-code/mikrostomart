@@ -404,7 +404,7 @@ export async function GET(req: Request) {
                         enrollmentId: enrollment.id,
                         taskId: task.id,
                     },
-                });
+                }, 'careflow_task');
 
                 void recordPushPath('careflow_task', { sent: result.sent, failed: result.failed });
 
