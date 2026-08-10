@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
-import { pushToGroups } from '@/lib/pushService';
+import { pushToGroups, pushToUser } from '@/lib/pushService';
 import { isDemoMode } from '@/lib/demoMode';
 
 export const dynamic = 'force-dynamic';
@@ -144,6 +144,44 @@ export async function PUT(req: Request) {
             .eq('id', id);
 
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+        // 🔴 AUTOR DOWIADYWAŁ SIĘ O DECYZJI DOPIERO, GDY SAM ZAJRZAŁ NA LISTĘ.
+        // Zmiana statusu (np. na „wdrożona" albo „odrzucona") nie wysyłała nic —
+        // ani pusha, ani wpisu w Alertach. To domyka pętlę, która nie domykała się
+        // przez pięć miesięcy: najpierw brakowało interfejsu do zmiany statusu,
+        // teraz brakowało sygnału zwrotnego do zgłaszającego.
+        // Fail-safe: nieudane powiadomienie nie może wywrócić zapisu decyzji.
+        void (async () => {
+            try {
+                const { data: sug } = await supabase()
+                    .from('feature_suggestions')
+                    .select('title, author_email')
+                    .eq('id', id)
+                    .maybeSingle();
+                if (!sug?.author_email) return;
+
+                // Autor jest zapisany e-mailem — user_id dociągamy tak samo jak
+                // przy powiadomieniu o komentarzu (suggestions/[id]/comments).
+                const { data: role } = await supabase()
+                    .from('user_roles')
+                    .select('user_id')
+                    .eq('email', sug.author_email)
+                    .maybeSingle();
+                if (!role?.user_id) return;
+
+                const tytul = String(sug.title || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+                await pushToUser(role.user_id, 'employee', {
+                    title: '📌 Decyzja w sprawie Twojej sugestii',
+                    body: `${tytul} — status: ${status}`,
+                    url: '/pracownik?tab=sugestie',
+                    tag: `suggestion-status-${id}`,
+                    data: { type: 'suggestion_comment', suggestionId: id },
+                });
+            } catch (err) {
+                console.error('[Suggestions] push o decyzji nie zadziałał:', err);
+            }
+        })();
+
         return NextResponse.json({ ok: true });
     }
 

@@ -90,8 +90,23 @@ type HistoryPayload = {
  * nie ma, nie wycieknie żadną inną trasą, kopią zapasową ani zapytaniem SQL.
  * Feed nic nie traci — „masz nową wiadomość" i tak dubluje ekran czatu.
  */
+/** `tag` powiadomienia o zadaniu PRYWATNYM: `task-private-<id>` (assistantActions). */
+export const PRIVATE_TASK_TAG_PREFIX = 'task-private-';
+
 function skipHistory(payload: HistoryPayload): boolean {
-    return isStaffChatPush(payload);
+    if (isStaffChatPush(payload)) return true;
+
+    // 🔴 ZADANIE PRYWATNE NIE MOŻE TRAFIĆ DO WSPÓLNEGO FEEDU.
+    // Historia („Alerty") jest CELOWO wspólna dla całego gabinetu — `push/history`
+    // filtruje wyłącznie po `user_type IN ('employee','admin')`, bez warunku na `user_id`.
+    // Tytuł zadania oznaczonego jako prywatne (np. dyktowanego asystentowi) zobaczyłby
+    // więc cały zespół i admin, czyli funkcja „prywatne" przestałaby cokolwiek znaczyć.
+    //
+    // Dotąd wiersz nie powstawał PRZYPADKIEM: `assistantActions` wołał martwy moduł
+    // `webpush`, który loguje dopiero PO udanej wysyłce, a `push_subscriptions` jest
+    // pusta od migracji 104. Przepięcie na żywy prymityw odsłoniłoby te tytuły —
+    // dlatego wykluczenie wchodzi PRZED przepięciem, nie po nim.
+    return (payload?.tag ?? '').startsWith(PRIVATE_TASK_TAG_PREFIX);
 }
 
 async function logPush(

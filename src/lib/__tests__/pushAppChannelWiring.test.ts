@@ -205,3 +205,49 @@ describe('Strażnik: kanał aplikacji w powiadomieniach', () => {
         expect(src).toMatch(/!hasTokens\s*&&\s*!tokenCheckFailed/);
     });
 });
+
+describe('Strażnik: martwy moduł wysyłki', () => {
+    const SRC = path.join(process.cwd(), 'src');
+
+    /** Pliki, którym wolno importować `lib/webpush` — docelowo lista ma być pusta. */
+    const WOLNO: string[] = [
+        'app/api/cron/email-ai-drafts/route.ts', // przepięcie budzi wysyłkę 13×/dobę — decyzja właściciela
+    ];
+
+    function zbierz(dir: string): string[] {
+        const acc: string[] = [];
+        for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+            if (e.name === '__tests__' || e.name === 'node_modules') continue;
+            const full = path.join(dir, e.name);
+            if (e.isDirectory()) acc.push(...zbierz(full));
+            else if (/\.tsx?$/.test(e.name)) acc.push(full);
+        }
+        return acc;
+    }
+
+    it('nikt nowy nie importuje z lib/webpush', () => {
+        // `webpush.ts` rozwiązuje odbiorców z `push_subscriptions` — tabeli porzuconej
+        // w migracji 104, do której NIC nie pisze. Oba moduły eksportują funkcje o tych
+        // samych nazwach (`sendPushToUser`, `broadcastPush`), a podpowiedź importu
+        // w edytorze pokazuje jedno i drugie — więc pomyłka jest cicha: typy zielone,
+        // testy zielone, powiadomienie nie wychodzi nigdzie.
+        const winni = zbierz(SRC)
+            .filter(f => !f.endsWith(path.join('lib', 'webpush.ts')))
+            .filter(f => /from\s+['"](\.\/webpush|\.\.\/webpush|@\/lib\/webpush)['"]|import\(['"]@\/lib\/webpush['"]\)/.test(fs.readFileSync(f, 'utf8')))
+            .map(f => path.relative(SRC, f))
+            .filter(rel => !WOLNO.includes(rel));
+
+        expect(
+            winni,
+            'Te pliki wołają martwy moduł — powiadomienie nie dotrze nigdzie:\n' + winni.join('\n')
+        ).toEqual([]);
+    });
+
+    it('powiadomienie o zadaniu PRYWATNYM nie trafia do wspólnego feedu', () => {
+        const src = fs.readFileSync(path.join(SRC, 'lib/pushService.ts'), 'utf8');
+        // Historia „Alerty" jest wspólna dla całego gabinetu (brak warunku na user_id),
+        // więc tytuł zadania prywatnego zobaczyłby cały zespół.
+        expect(src).toContain('PRIVATE_TASK_TAG_PREFIX');
+        expect(src).toMatch(/skipHistory[\s\S]{0,900}PRIVATE_TASK_TAG_PREFIX/);
+    });
+});

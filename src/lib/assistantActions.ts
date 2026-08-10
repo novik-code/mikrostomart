@@ -5,7 +5,13 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { createEvent, listEvents, isCalendarConnected } from './googleCalendar';
-import { sendPushToUser } from './webpush';
+// 🔴 ŻYWY MODUŁ WYSYŁKI, nie `./webpush`. Ten drugi rozwiązuje odbiorców z tabeli
+// `push_subscriptions`, porzuconej w migracji 104 — od tego czasu nic do niej nie pisze,
+// więc powiadomienia asystenta (zadanie prywatne, wydarzenie w kalendarzu) nie docierały
+// NIGDZIE. Nie rzucało to błędu: funkcja iterowała po pustym zbiorze subskrypcji.
+// Oba moduły eksportują `sendPushToUser` o tej samej sygnaturze, a podpowiedź importu
+// w edytorze pokazuje jedno i drugie — stąd pomyłka.
+import { sendPushToUser } from './pushService';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 import { prodentisTime, prodentisTypeName } from '@/lib/assistantGuards';

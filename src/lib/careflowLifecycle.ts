@@ -277,6 +277,11 @@ async function reportAmbiguousMatch(
             url: '/admin',
             // Stały tag sklejałby różne wizyty w jedno powiadomienie — kotwiczymy w pierwszym zapisie.
             tag: `careflow-ambiguous-${ids[0]}`,
+            // 🔴 To alarm KLINICZNY: pacjent ma dwa nakładające się protokoły, żaden nie
+            // został zamknięty, więc dalej dostaje przypomnienia o osłonie antybiotykowej
+            // z nieaktualnego planu. Bez kanału aplikacji szedł wyłącznie do przeglądarki,
+            // której lekarz nie ma otwartej — i na Telegram, czyli kanał zbiorczy.
+            // Zdarzenie jest rzadkie i z definicji wymaga decyzji człowieka.
             data: {
                 type: 'careflow_ambiguous_match',
                 operation,
@@ -284,7 +289,7 @@ async function reportAmbiguousMatch(
                 appointment_id: params.appointmentId ?? null,
                 appointment_date: params.appointmentDate ?? null,
             },
-        });
+        }, { alsoApp: true });
     } catch (err) {
         console.error('[CareFlowLifecycle] Alarm o niejednoznaczności — push nie poszedł:', err);
     }
