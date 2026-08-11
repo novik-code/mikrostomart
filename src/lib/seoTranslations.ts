@@ -981,4 +981,63 @@ export const PAGE_SEO: Record<string, LocaleSeoMap> = {
             keywords: 'гарантія стоматолог Ополе, гарантія імплант Ополе, страхування стоматолог Польща, Mikrostomart гарантії',
         },
     },
+
+    // ───────── /perlowa-kraina (aplikacja dla dzieci — wsparcie dla rodzica) ─────────
+    // Faza 4 planu wydzielenia apki dziecięcej (2026-08-11). Te dwie trasy są
+    // ADRESAMI SKLEPOWYMI: URL wsparcia i URL polityki prywatności w App Store
+    // Connect oraz w Play Console. Muszą być indeksowalne we WSZYSTKICH czterech
+    // locale, bo apka wychodzi globalnie (D9) i ma cztery języki — inaczej rodzic
+    // z Niemiec dostaje z listingu polski dokument.
+    // ⚠️ Tytuły celowo BEZ fraz medycznych i geo („Opole", „dentysta") — to nie
+    // jest strona usługi gabinetu i nie ma konkurować o zapytania lokalne.
+    '/perlowa-kraina': {
+        pl: {
+            title: 'Perłowa Kraina — aplikacja dla dzieci | Pomoc dla rodziców',
+            description: 'Bezpłatna aplikacja do mycia zębów dla dzieci od gabinetu Mikrostomart. Bez reklam, kont i płatności. FAQ dla rodziców, strefa rodzica, kontakt.',
+            keywords: 'perłowa kraina aplikacja, aplikacja mycie zębów dla dzieci, aplikacja dla dzieci bez reklam, mikrostomart aplikacja dziecięca',
+        },
+        en: {
+            title: 'Pearl Land — app for children | Help for parents',
+            description: 'A free tooth-brushing app for children from the Mikrostomart dental clinic. No ads, no accounts, no payments. Parent FAQ, parent area, contact.',
+            keywords: 'Pearl Land app, kids tooth brushing app, children app no ads, Mikrostomart kids app',
+        },
+        de: {
+            title: 'Perlenland — App für Kinder | Hilfe für Eltern',
+            description: 'Kostenlose Zähneputz-App für Kinder von der Zahnarztpraxis Mikrostomart. Keine Werbung, keine Konten, keine Zahlungen. Eltern-FAQ und Kontakt.',
+            keywords: 'Perlenland App, Zähneputzen App Kinder, Kinder App ohne Werbung, Mikrostomart Kinder App',
+        },
+        ua: {
+            title: 'Перлова Країна — застосунок для дітей | Допомога батькам',
+            description: 'Безкоштовний застосунок для чищення зубів для дітей від клініки Mikrostomart. Без реклами, облікових записів і оплат. FAQ для батьків, контакт.',
+            keywords: 'Перлова Країна застосунок, застосунок чищення зубів для дітей, дитячий застосунок без реклами, Mikrostomart дитячий застосунок',
+        },
+    },
+
+    // ───────── /perlowa-kraina/prywatnosc (polityka prywatności apki dziecięcej) ─────────
+    // 🔴 To NIE jest /polityka-prywatnosci gabinetu. Tamten dokument opisuje
+    // dokumentację medyczną, sklep i płatności — czyli trzy rzeczy, których apka
+    // dla dzieci nie robi. Apka kliniki została raz odrzucona (Guideline 5.1.1(ix))
+    // dokładnie za rozjazd między operatorem w polityce a wydawcą w sklepie.
+    '/perlowa-kraina/prywatnosc': {
+        pl: {
+            title: 'Perłowa Kraina — polityka prywatności aplikacji',
+            description: 'Polityka prywatności aplikacji Perłowa Kraina: co zapisuje, czego nie robi, kiedy dane mogą wyjść z telefonu, prawa rodzica i sekcja COPPA.',
+            keywords: 'perłowa kraina polityka prywatności, prywatność aplikacji dla dzieci, coppa aplikacja dla dzieci',
+        },
+        en: {
+            title: 'Pearl Land — app privacy policy',
+            description: 'Privacy policy of the Pearl Land app: what it stores, what it never does, when data can leave the phone, parental rights and the COPPA notice.',
+            keywords: 'Pearl Land privacy policy, children app privacy, COPPA children app policy',
+        },
+        de: {
+            title: 'Perlenland — Datenschutzerklärung der App',
+            description: 'Datenschutzerklärung der App Perlenland: was gespeichert wird, was nie passiert, wann Daten das Telefon verlassen können, Elternrechte und COPPA.',
+            keywords: 'Perlenland Datenschutz, Kinder App Datenschutz, COPPA Kinder App',
+        },
+        ua: {
+            title: 'Перлова Країна — політика приватності застосунку',
+            description: 'Політика приватності застосунку Перлова Країна: що зберігається, чого застосунок не робить, коли дані можуть залишити телефон, права батьків, COPPA.',
+            keywords: 'Перлова Країна політика приватності, приватність дитячого застосунку, COPPA дитячий застосунок',
+        },
+    },
 };

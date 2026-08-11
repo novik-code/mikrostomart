@@ -84,6 +84,14 @@ const PUBLIC_PATHS = [
     // Pakiet C (2026-06-01): dedykowane geo-landingi DE/EN (indexed only target locale)
     '/zahnarzt-opole',
     '/dentist-opole',
+    // Faza 4 apki dziecięcej (2026-08-11): wsparcie + polityka „Perłowej Krainy".
+    // MULTI-LOCALE i indeksowalne we wszystkich czterech — apka wychodzi globalnie
+    // i mówi w czterech językach, a oba adresy idą do formularzy sklepowych.
+    // 🪤 Ta lista NIE jest generowana z sitemap.ts, tylko przepisana ręcznie —
+    // trasa dodana do sitemapy, a pominięta tutaj, przechodzi audyt „208/208 OK"
+    // NIE BĘDĄC W OGÓLE SPRAWDZONA. Każda nowa trasa musi trafić w oba miejsca.
+    '/perlowa-kraina',
+    '/perlowa-kraina/prywatnosc',
 ];
 
 // PL-only paths: foreign locale URLs (en/de/ua) MUST be noindex.

@@ -66,6 +66,9 @@ const ROUTE_FILES = {
     '/polityka-prywatnosci': ['src/app/[locale]/polityka-prywatnosci/page.tsx', 'src/app/[locale]/polityka-prywatnosci/layout.tsx'],
     '/rodo': ['src/app/[locale]/rodo/page.tsx', 'src/app/[locale]/rodo/layout.tsx'],
     '/privacy-policy': ['src/app/[locale]/privacy-policy/page.tsx', 'src/app/[locale]/privacy-policy/layout.tsx'],
+    // Faza 4 apki dziecięcej (2026-08-11) — adresy podawane w obu konsolach sklepowych.
+    '/perlowa-kraina': ['src/app/[locale]/perlowa-kraina/page.tsx', 'src/app/[locale]/perlowa-kraina/layout.tsx'],
+    '/perlowa-kraina/prywatnosc': ['src/app/[locale]/perlowa-kraina/prywatnosc/page.tsx', 'src/app/[locale]/perlowa-kraina/prywatnosc/layout.tsx'],
     // Audyt SEO 2026-06: poniższe 14 ścieżek były w sitemap.ts ale brakowało ich
     // w ROUTE_FILES → spadały do `buildTime = new Date()` i każdy deploy stemplował
     // je jako „zmienione teraz" (regresja freshness J-1). Dodane tu = realny mtime.

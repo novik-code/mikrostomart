@@ -319,7 +319,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         changeFrequency: 'yearly' as const,
         priority: 0.3,
     }];
-    const legalRoutes = [...plOnlyLegalRoutes, ...internationalLegalRoutes];
+    // Faza 4 apki dziecięcej (2026-08-11): dwie trasy Perłowej Krainy są
+    // MULTI-LOCALE i indeksowalne we wszystkich czterech wersjach — inaczej niż
+    // strony prawne gabinetu wyżej. Tam PL-only, bo foreign locale renderują
+    // polski tekst i konkurują jako duplikat; tu treść jest realnie
+    // przetłumaczona, apka wychodzi globalnie i mówi w czterech językach,
+    // a oba adresy trafiają do formularzy w App Store Connect i Play Console.
+    const kidsAppRoutes = [
+        ...multiLocaleEntries('/perlowa-kraina', { changeFrequency: 'yearly', priority: 0.4 }),
+        ...multiLocaleEntries('/perlowa-kraina/prywatnosc', { changeFrequency: 'yearly', priority: 0.3 }),
+    ];
+
+    const legalRoutes = [...plOnlyLegalRoutes, ...internationalLegalRoutes, ...kidsAppRoutes];
 
     // ── Dynamic: news articles from DB (multi-locale via title_en/de/ua, content_en/de/ua) ──
     // News uses the same slug across all locales (one row in `news` table per article,
