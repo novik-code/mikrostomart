@@ -1,6 +1,8 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-08-06 — 🔐 **AUDYT BEZPIECZEŃSTWA + 10 wdrożeń.** 153 agenty, 64 potwierdzone znaleziska, plan napraw 8 grup × 12 kroków. 🔴 Najważniejsze: **2FA personelu nie działało WCALE** — `middleware.ts` bez deklaracji runtime chodził w edge, który nie ma `crypto` z Node, więc weryfikacja drugiego składnika rzucała PRZY KAŻDYM ŻĄDANIU, a `catch` jest fail-open. Konto z włączonym 2FA wchodziło na `/admin` bez kodu; kody TOTP przy logowaniu działały, więc z zewnątrz wyglądało to sprawnie. Naprawa `runtime: 'nodejs'` (`9f0f8ee`), zweryfikowana na logach produkcyjnych (przed: 4 błędy na 4 żądaniach, po: 0 na 9). Dalej: e-Karta z PESEL-em dostępna BEZ logowania (`11eda27`), **migracja 190** domykająca RLS na `sms_reminders` (jedyna polityka bez klauzuli `TO`), sześć usterek pusha, dane pacjenta w logach i w OpenAI, wyrocznie tożsamości bez limitu. Szczegóły i lekcje: „📝 Recent Changes” → 2026-08-06. ⏳ Pięć decyzji czeka na właściciela (cron AI, Telegram, neutralizacja treści, duplikat e-maila, wariant fail-closed 2FA).
+> **Last Updated:** 2026-08-11 — 🔕 **Trzy decyzje właściciela wdrożone** (`5741b74`): cron propozycji AI **wyłączony** (ręczne generowanie per mail było już zbudowane — wystarczyło zgasić automat; w kolejce stały **3** wpisy, nie ~100 jak twierdził audyt), `broadcastPush` przenosi wreszcie **identyfikatory** (`data` + `tag` — bramka przed neutralizacją treści: **transport → deep-link → dopiero neutralizacja**, odwrotnie kasuje informację zamiast ją przenieść), Telegram dostaje **sam sygnał i link** zamiast 200 znaków wiadomości pacjenta z nazwiskiem. Push o wiadomości prowadzi do **konkretnej rozmowy** w apce. Strażnik `pushDeepLinkTransport` dowiedziony cofką; vitest **442/442**. Pomiary do reszty decyzji: **4 adminów, wszyscy z 2FA**; 10 osób bez 2FA to sami nie-adminowie; `MFA_SESSION_SECRET` ustawiony na obu środowiskach (≥32 dowiedzione zachowaniem, bez odsłaniania sekretu). Szczegóły: „📝 Recent Changes" → 2026-08-11.
+>
+> **2026-08-06 — 🔐 AUDYT BEZPIECZEŃSTWA + 10 wdrożeń.** 153 agenty, 64 potwierdzone znaleziska, plan napraw 8 grup × 12 kroków. 🔴 Najważniejsze: **2FA personelu nie działało WCALE** — `middleware.ts` bez deklaracji runtime chodził w edge, który nie ma `crypto` z Node, więc weryfikacja drugiego składnika rzucała PRZY KAŻDYM ŻĄDANIU, a `catch` jest fail-open. Konto z włączonym 2FA wchodziło na `/admin` bez kodu; kody TOTP przy logowaniu działały, więc z zewnątrz wyglądało to sprawnie. Naprawa `runtime: 'nodejs'` (`9f0f8ee`), zweryfikowana na logach produkcyjnych (przed: 4 błędy na 4 żądaniach, po: 0 na 9). Dalej: e-Karta z PESEL-em dostępna BEZ logowania (`11eda27`), **migracja 190** domykająca RLS na `sms_reminders` (jedyna polityka bez klauzuli `TO`), sześć usterek pusha, dane pacjenta w logach i w OpenAI, wyrocznie tożsamości bez limitu. Szczegóły i lekcje: „📝 Recent Changes” → 2026-08-06. ⏳ Pięć decyzji czeka na właściciela (cron AI, Telegram, neutralizacja treści, duplikat e-maila, wariant fail-closed 2FA).
 >
 > **Poprzednio (2026-06-17):** — **SEO premium site name** (`cb07eab`): Google „site name" feature zaczął podmieniać `<title>` strony głównej na zadeklarowaną nazwę witryny w SERP (też dla „dentysta/stomatolog opole" — rankuje homepage), pokazując samą markę „Mikrostomart". Przyczyna: `WebSite` schema `name` = `brand.name` „Mikrostomart" (z Fazy 1A 2026-06-08; Google adoptuje site name z opóźnieniem dni–tygodni → stąd „przeskok" wczoraj→dziś). To **wyłącznie display, NIE ranking** (`<title>` był pełny na produkcji cały czas — zweryfikowane curl). Fix: `brand.ogSiteName` → „Mikrostomart - Stomatologia Mikroskopowa Opole" (premium specjalista + lokalne; wybór Marcina) + `WebSite` schema `name` czyta `ogSiteName` → schema name == og:site_name spójnie site-wide (Google chętniej uzna). `brand.name`/application-name/PWA zostają „Mikrostomart". Differentiators (M.Sc. RWTH Aachen, ZEISS) zostają w `<title>`+opisie. Verify: WebSite name + og:site_name (home+/oferta) = nowa nazwa, `<title>` nietknięty, test 123/123. · **perf CLS cookie banner** (`5708eaa`): baner zgody renderowany SSR z `opacity:0`, ujawniany po `document.fonts.ready` (fallback `setTimeout` 3s + `<noscript>` `opacity:1!important`) → reflow przy late-swap fontów na 4G dzieje się gdy baner NIEWIDOCZNY → 0 CLS (był głównym źródłem intermittent lab CLS do **0.482**; **field CLS 0.01 zielony** — fix stabilności lab, NIE regresja realnych userów). Zachowany cel Fazy G4 (SSR, box zarezerwowany, brak late-insert); reveal opacity-only (composited, nie layout). Lekcja: headless-preview zamraża CSS-transition bo tab `visibilityState:hidden` (rAF zapauzowany) — realna widoczna karta dokończy. · **perf Tier 1** (`c79e012`): metamorfozy `lazy`/`async` + YouTube miniatura `mqdefault` (eliminuje intermittent 404 Shortów → Best Practices). · **perf hero**: tło hero = 5 losowych 10s pętli (mobile ~167 KB / desktop ~456 KB HD, desktop/mobile osobno, precache bez mp4) zamiast 5-min 3.4 MB pliku — commit `65b6677` (+docs). Wcześniej 2026-06-15 — **audyt GEO 2026-06-14**: fix liczników (4.1) ✅ `7497df8` · `llms.txt` ✅ `5d0364f` · **silnik treści KB Klasy A** ✅ `a7b8666` (mig **165-166**: auto-draft + self-critique + admin review, drafty noindex). **Sprzątanie KB ✅** `1ed6a76` (mig **167** DELETE Grupa A 19 + B losery 16 / mig **168** borderline 3 drafty / noindex Grupa C 24 code-side / 35 redirectów 301). **Unifikacja głównego specjalisty ✅** `b1d578d` (PL `lek. dent. Marcin Nowosielski M.Sc.` / EN `Dentist` / DE `Zahnarzt` / UA `лікар-стоматолог` + M.Sc.; i18n 8 plików + kod, mig **169** treść DB). Migracje do **169**. Reszta: #2 ceny protetyki + round 2 dubli KB (Recent Changes 2026-06-15). Wcześniej: **program SEO Premium + Local** (po 6-osiowym audycie). Plan: `~/Desktop/bałagan/PLAN_SEO_PREMIUM_2026-06-08.md` (4 fazy). **Faza 1 ✅ + Faza 2 ✅ KOMPLETNE.** **🎉 PROGRAM TECHNICZNY KOMPLETNY (Fazy 1-4).** Faza 1 ✅ + 2 ✅ + **3 (3A linkowanie wewn. `1fedc78` + 3B foreign-fallback noindex/canonical `5177897`)** ✅ + **4 (4A bundle: presety→dynamic + Navbar/Footer LazyMotion `2fd9b40` · 4B media: hero-video 8.3→3.4MB + YouTube thumb `3e8755b`)** ✅. Build clean (217), **test 123/123** (+14 internalLinks), migracje do `164`. Ostatni commit `744ee35`; audit:hreflang 208/208. **Faza 3C+ START (rolling): fala 1 = klaster KB All-on-X PL** (`744ee35` — pillar + 3 clustery, mig 161-164 INSERT do `articles`, DB-gated, wgrywka OBA Supabase + medical review). Kolejne fale na życzenie (periimplantitis / augmentacja / ortodoncja).
 >
@@ -2471,6 +2473,61 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-08-11 — 🔕 Cron AI wyłączony · 🔑 transport identyfikatorów · 🔒 Telegram bez treści
+
+> Commit `5741b74` na `main`. Trzy z pięciu decyzji właściciela z audytu 2026-08-06.
+> `tsc` czysto · **vitest 442/442** (było 437) · `next build` OK.
+> ⏳ **DEPLOY NIEZWERYFIKOWANY W CHWILI PISANIA.** Sesja Vercela wygasła, a zmiana nie dodaje trasy,
+> więc `x-matched-path` nie pomoże. Warunek rozstrzygający: **`cron_heartbeats.last_run_at` dla
+> `email-ai-drafts` przestaje się przesuwać**, przy kontroli negatywnej — `push-receipts` (co 20 min)
+> przesuwa się dalej. Punkt odniesienia: `email-ai-drafts` 2026-08-11T10:02:53Z,
+> `push-receipts` 10:01:16Z. Cron pisze heartbeat na KAŻDYM przebiegu, także gdy nic nie znajdzie
+> (`route.ts:315`), więc brak ruchu jest jednoznaczny — inaczej niż brak nowych draftów.
+
+#### 1. Cron propozycji AI — HARMONOGRAM WYŁĄCZONY
+Wpis usunięty z `vercel.json` (33 crony, `email-ai-drafts` nieobecny). **Trasa, przycisk zbiorczy
+w panelu (`?manual=true` za `requireAdmin()`) i generowanie per mail zostają nietknięte.**
+- 🔑 **Ręczna ścieżka, o którą prosił właściciel, BYŁA JUŻ ZBUDOWANA w całości** — `generateAiReply`
+  z `inline_feedback` (regeneracja ze wskazówką) + `learnFromCompose` w apce i w webie. Nie trzeba
+  było niczego dokładać; wystarczyło zgasić automat.
+- **Zmierzone przed decyzją, nie przepisane z audytu:** w kolejce stały **3** wpisy `pending`, nie ~100
+  (`skipped` 4149, `sent` 1, `rejected` 2, `learned` 2). Liczba z raportu audytu była nieaktualna.
+- Nagłówek trasy tłumaczy, **dlaczego nie przywracać** harmonogramu „bo go brakuje".
+
+#### 2. Transport identyfikatorów — BRAMKA PRZED NEUTRALIZACJĄ TREŚCI
+`broadcastPush` przyjmuje teraz `data` i `tag`. Dotąd budował payload jako `{title, body, url}`,
+a kanał Expo dostawał **zaszyte** `data: url ? { url } : {}` (`pushService.ts:995`).
+- 🔴 **Kolejność jest wymuszona: transport → deep-link → neutralizacja.** Odwrotnie neutralizacja
+  **kasuje** informację, zamiast ją przenieść pod odblokowanie ekranu.
+- `url` zostaje obok `data` dla wstecznej zgodności z binarką 1.2.0 ze sklepów.
+- 🪤 Po stronie Expo pole zwijania nazywa się **`collapseId`**, nie `tag` — przekazanie `tag` przeszłoby
+  typy przy spreadzie i po cichu nic by nie zwijało.
+
+#### 3. Telegram: sam sygnał i link, bez treści i nazwiska
+`patients/chat` i `chat/guest` wysyłały **200 znaków wiadomości razem z nazwiskiem** — dane o zdrowiu
+powiązane z tożsamością, do pośrednika bez umowy powierzenia z art. 28 RODO.
+- Push obu tras niesie `data.type='staff_patient_chat'` + `conversationId` → apka otwiera **konkretny
+  wątek**, nie listę. Same identyfikatory, bez zalogowania bezużyteczne.
+- ⏳ **Tekst powiadomienia (`name`, `message`) świadomie BEZ ZMIAN** — neutralizacja wchodzi dopiero,
+  gdy apka w sklepach umie pokazać szczegół po odblokowaniu.
+
+#### 🛡️ Strażnik
+`pushDeepLinkTransport.test.ts` (5 przypadków). Kontrola treści idzie **skanem drzewa**, nie wywołaniem —
+trzecia kopia wzorca w przyszłości ma paść tutaj, a nie na produkcji. **Dowiedziony cofką:** po
+przywróceniu obu dziur padają dokładnie te dwa testy.
+- 🪤 Istniejący strażnik `pushAppChannelWiring` słusznie zaprotestował, gdy schowałem `alsoApp: true`
+  do zmiennej — czyta piąty argument **ze źródła**. Flaga zostaje literalnie w wywołaniu, wspólny jest
+  tylko cel (`data` + `tag`).
+
+#### 📏 Pomiary do pozostałych decyzji (zrobione samodzielnie, bez agentów)
+- **4 adminów, WSZYSCY z 2FA**; 10 osób bez 2FA to wyłącznie nie-adminowie → fail-closed dla adminów
+  jest bezpieczny już dziś, a droga odblokowania po lockoucie istnieje.
+- `MFA_SESSION_SECRET` ustawiony na **Production i Preview**. Wymóg ≥32 znaków dowiedziony
+  **zachowaniem, bez odsłaniania sekretu**: `mfaSession.ts:10` ma twardą bramkę `length < 32 → throw`,
+  a po naprawie runtime 2FA (`9f0f8ee`) zmierzono 9 żądań → 0 błędów.
+
+---
 
 ### 2026-08-06 — 🔐 AUDYT BEZPIECZEŃSTWA + 10 wdrożeń (2FA, e-Karta, RLS, push, PII)
 
