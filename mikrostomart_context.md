@@ -2478,12 +2478,14 @@ NODE_ENV=production
 
 > Commit `5741b74` na `main`. Trzy z pięciu decyzji właściciela z audytu 2026-08-06.
 > `tsc` czysto · **vitest 442/442** (było 437) · `next build` OK.
-> ⏳ **DEPLOY NIEZWERYFIKOWANY W CHWILI PISANIA.** Sesja Vercela wygasła, a zmiana nie dodaje trasy,
-> więc `x-matched-path` nie pomoże. Warunek rozstrzygający: **`cron_heartbeats.last_run_at` dla
-> `email-ai-drafts` przestaje się przesuwać**, przy kontroli negatywnej — `push-receipts` (co 20 min)
-> przesuwa się dalej. Punkt odniesienia: `email-ai-drafts` 2026-08-11T10:02:53Z,
-> `push-receipts` 10:01:16Z. Cron pisze heartbeat na KAŻDYM przebiegu, także gdy nic nie znajdzie
-> (`route.ts:315`), więc brak ruchu jest jednoznaczny — inaczej niż brak nowych draftów.
+> ✅ **DEPLOY POTWIERDZONY POMIAREM BEHAWIORALNYM** (sesja Vercela wygasła, a zmiana nie dodaje
+> trasy, więc `x-matched-path` nie pomagał).
+> **Warunek pozytywny:** heartbeat `email-ai-drafts` **stoi na 10:02:53Z** — slot 11:0x, który
+> wcześniej trafiał co godzinę, przeszedł bez przebiegu. **Kontrola negatywna:** `push-receipts`
+> (co 20 min) ruszył do **11:00:59Z**, czyli crony Vercela działają. Odczyt **powtórzony**.
+> 🔑 Sygnał jest jednoznaczny, bo cron pisze heartbeat na KAŻDYM przebiegu, także gdy nic nie
+> znajdzie (`route.ts:315`) — brak ruchu heartbeatu znaczy „nie wystartował", a nie „nie miał pracy".
+> Sam brak nowych draftów byłby dowodem słabym: cron i wcześniej milczał w części godzin.
 
 #### 1. Cron propozycji AI — HARMONOGRAM WYŁĄCZONY
 Wpis usunięty z `vercel.json` (33 crony, `email-ai-drafts` nieobecny). **Trasa, przycisk zbiorczy
