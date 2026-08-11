@@ -2474,6 +2474,66 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
+### 2026-08-11 (#2) — 🔐 2FA OBOWIĄZKOWE DLA CAŁEGO ZESPOŁU OD 1 WRZEŚNIA 2026
+
+> Commit `99de9b5` **NA PRODUKCJI** — zweryfikowane `x-matched-path` = `/api/admin/2fa/enrollment-reminder`
+> (kontrola negatywna: nieistniejąca trasa → `/_not-found`) oraz **401** na bramce admina.
+> `tsc` czysto · **vitest 456/456** (było 442) · `next build` OK.
+> Decyzja właściciela: termin **1 września**, po nim brak konfiguracji = brak logowania.
+> Mail wzywający z **gabinet@** przez Resend.
+
+**🪤 PODRĘCZNIKOWA DEMONSTRACJA STAREJ PUŁAPKI.** Przez sześć kolejnych prób nowa trasa
+zwracała **HTTP 200**, choć jeszcze nie istniała (`x-matched-path: /_not-found`). Gdyby
+warunkiem było „kod ≠ 404", ogłosiłbym wdrożenie sześć razy za wcześnie. Rozstrzygnął
+wyłącznie nagłówek. Po wdrożeniu status zmienił się na **401** — czyli bramka działa.
+
+#### Stan, na którym to stoi (zmierzone, nie założone)
+14 aktywnych pracowników · **4 z 2FA i wszyscy czterej to ADMINI** · 10 bez 2FA to sami
+nie-adminowie (czyli dokładnie grupa, dla której kreator w panelu działa) · **wszyscy
+dziesięcioro mają adres e-mail** · `MFA_SESSION_SECRET` na Production i Preview.
+
+#### Jedno źródło terminu — `lib/mfaPolicy.ts`
+Egzekwowanie miało **dokładnie dwa** miejsca decyzyjne z tym samym warunkiem
+`isAdmin && !totpEnabled`: czysta `evaluateStaffMfa` (tor natywny) i gałąź cookie
+w `middleware.ts` (tor webowy). Oba dostały `|| mandatoryForAll`.
+- 🪤 **Offset strefy wpisany jawnie.** Vercel chodzi w UTC, a 1 września Polska jest w CEST.
+  Zapis `2026-09-01T00:00:00Z` uruchomiłby wymuszenie o **02:00 czasu gabinetu 31 sierpnia** —
+  dzień wcześniej, niż mówi mail do zespołu.
+- 🔑 `mandatoryForAll` przychodzi **z zewnątrz**, nie z `Date.now()` w środku — inaczej funkcja
+  przestałaby być czysta i nie dałoby się przetestować obu stron terminu. Domyślka `false`:
+  wołający, który zapomni flagi, **nie odetnie zespołu**.
+
+#### Zakleszczenia nie ma — sprawdzone, nie założone
+Po terminie pracownik bez 2FA musi jakoś dojść do kreatora. `/pracownik/security` jest
+w `SKIP_2FA_PATHS`, a wszystkie trasy, które ta strona woła, to `/api/auth/2fa/*` (też
+pominięte) oraz `/api/auth/passkeys` i `/api/auth/signout` — te dwie **nie zaczynają się od
+żadnego `PROTECTED_PREFIXES`**, więc bramka ich nie dotyka. Test pilnuje obu warunków.
+
+#### Mail + trasa wysyłki
+`lib/mfaEnrollmentEmail.ts` + `POST /api/admin/2fa/enrollment-reminder` (admin-only, audyt,
+`{"dryRun":true}` = podgląd bez wysyłki). Odbiorcy liczeni **na bieżąco** — kto się
+skonfiguruje, sam wypada z kolejnych przypomnień.
+- 🔴 **Zero tokenu aktywacyjnego i nie może go być.** Link włączający drugi składnik bez
+  logowania to droga do przejęcia konta: kto przechwyci maila, ustawia sobie 2FA na cudzym
+  koncie. Link prowadzi do panelu, konfiguracja wymaga hasła. Test pilnuje braku parametrów
+  `token/code/key/otp`.
+- 🔑 Instrukcja opisuje kreator **taki, jaki jest** (trzy kroki, 8 kodów ratunkowych) —
+  test porównuje ją ze źródłem strony. Instrukcja rozjeżdżająca się z ekranem jest gorsza
+  niż jej brak: czytelnik uznaje, że trafił w złe miejsce.
+- Fail-closed przy błędzie odczytu bazy — supabase-js nie rzuca, więc bez tego poszłaby
+  pusta pętla i cichy sukces.
+
+#### Komunikat na ekranie rozróżnia powód
+Strona mówiła „Twoje konto admin wymaga 2FA" — po terminie zobaczyłaby to higienistka, dla
+której to zdanie jest **nieprawdziwe** i wygląda na awarię, nie na regułę. Teraz admin widzi
+swój powód, reszta termin. Dodany baner **przed** terminem z odliczaniem dni.
+
+⚠️ **Na produkcji zmiana jest NIEWIDOCZNA do 1 września** (`isMfaMandatoryForAll()` = false).
+To celowe i osobno przetestowane. 14 testów, **dowiedzione cofką** (4 padają).
+⏳ **Zostaje właścicielowi:** odpalić wysyłkę (najpierw `dryRun`) i ogłosić zespołowi.
+
+---
+
 ### 2026-08-11 — 🔕 Cron AI wyłączony · 🔑 transport identyfikatorów · 🔒 Telegram bez treści
 
 > Commit `5741b74` na `main`. Trzy z pięciu decyzji właściciela z audytu 2026-08-06.
