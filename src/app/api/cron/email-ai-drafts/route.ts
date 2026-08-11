@@ -4,8 +4,18 @@
  * Analyzes new emails in INBOX, identifies important patient correspondence,
  * and generates draft replies using GPT-4o-mini with clinic knowledge base.
  * 
- * Schedule: 3×/day (8:30, 12:30, 16:30 UTC)
- * Auth: CRON_SECRET or ?manual=true
+ * 🔴 HARMONOGRAM WYŁĄCZONY — decyzja właściciela 2026-08-11. NIE PRZYWRACAĆ wpisu
+ *    w `vercel.json` „bo go brakuje": przez pięć miesięcy automat wygenerował
+ *    tysiące wpisów, z których wysłano JEDEN. Odpowiedzi robimy teraz na żądanie
+ *    (per mail: `employee/email-generate-reply` + `learnFromCompose`; zbiorczo:
+ *    przycisk w panelu wołający tę trasę z `?manual=true`).
+ *    ⚠️ Ponowne włączenie budzi wysyłkę powiadomień do CAŁEGO zespołu 13× na dobę
+ *    i wymaga najpierw naprawy treści — wywołanie podaje `title`/`body` jako
+ *    parametry, a szablon `task_new` to '{title} — utworzone przez {creator}',
+ *    więc w banerze zostaje dosłowny `{creator}`.
+ *
+ * Auth: `?manual=true` → `requireAdmin()`; bez niego nagłówek `CRON_SECRET`
+ *       (zostaje, żeby trasa nie stała się otwarta, gdyby ktoś wrócił do harmonogramu)
  *
  * 🔒 Treść maila i tożsamość nadawcy przechodzą przez `prepareEmailForModel`
  *    (pseudonimizacja) ZANIM trafią do promptu, a odpowiedź modelu wraca przez

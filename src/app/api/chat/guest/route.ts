@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/pushService';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
+import { brand } from '@/lib/brandConfig';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -134,15 +135,28 @@ export async function POST(req: NextRequest) {
         .update({ last_message_at: new Date().toISOString(), unread_by_admin: true })
         .eq('id', conv.id);
 
-    // Powiadomienia recepcji (jak w czacie pacjenta)
+    /**
+     * Powiadomienia recepcji (jak w czacie pacjenta).
+     * Telegram: SAM SYGNAŁ + LINK — bez treści i bez nazwiska (decyzja właściciela
+     * 2026-08-11, wariant B). Uzasadnienie i pełny komentarz: `patients/chat/route.ts`.
+     * 🔑 Gość podaje imię, nazwisko i telefon, więc jego wiadomość jest tak samo
+     * identyfikowalna jak wiadomość zalogowanego pacjenta — ta sama reguła.
+     */
     const prefix = isFirst ? '🆕 NOWA ROZMOWA CZAT (gość)' : '💬 NOWA WIADOMOŚĆ CZAT (gość)';
-    const telegramMsg = `${prefix}\n\n👤 Gość: ${senderName}\n✉️ ${content.substring(0, 200)}`;
+    const telegramMsg =
+        `${prefix}\n\nSzczegóły w panelu:\n${brand.appUrl}/pracownik?tab=czat&id=${conv.id}`;
     sendTelegramNotification(telegramMsg, 'messages').catch(console.error);
 
     const pushParams = { name: senderName, message: content.substring(0, 100) };
     // `alsoApp` — czat MUSI dzwonić na telefonie recepcji; bez tego szedł wyłącznie web-push.
-    broadcastPush('admin', 'chat_patient_to_admin', pushParams, '/pracownik?tab=czat', { alsoApp: true }).catch(console.error);
-    broadcastPush('employee', 'chat_patient_to_admin', pushParams, '/pracownik?tab=czat', { alsoApp: true }).catch(console.error);
+    // `data` niesie sam identyfikator rozmowy → apka otwiera KONKRETNY wątek, nie listę.
+    // 🪤 `alsoApp: true` zostaje LITERALNIE w wywołaniu — patrz komentarz w `patients/chat/route.ts`.
+    const guestPushTarget = {
+        data: { type: 'staff_patient_chat', conversationId: conv.id },
+        tag: `patient-chat-${conv.id}`,
+    };
+    broadcastPush('admin', 'chat_patient_to_admin', pushParams, '/pracownik?tab=czat', { alsoApp: true, ...guestPushTarget }).catch(console.error);
+    broadcastPush('employee', 'chat_patient_to_admin', pushParams, '/pracownik?tab=czat', { alsoApp: true, ...guestPushTarget }).catch(console.error);
 
     return NextResponse.json({ message });
 }

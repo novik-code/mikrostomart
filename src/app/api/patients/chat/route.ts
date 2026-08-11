@@ -5,6 +5,7 @@ import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/pushService';
 import { loadAttachmentsByMessage } from '@/lib/chatAttachments';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { brand } from '@/lib/brandConfig';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -121,26 +122,49 @@ export async function POST(request: NextRequest) {
             })
             .eq('id', conversation!.id);
 
-        // Telegram notification for new conversations or messages
+        /**
+         * Telegram: SAM SYGNAŁ + LINK, bez treści i bez nazwiska (decyzja właściciela
+         * 2026-08-11, wariant B).
+         *
+         * 🔴 Dotąd szło tu 200 znaków wiadomości pacjenta razem z jego nazwiskiem —
+         * czyli dane o zdrowiu powiązane z tożsamością, do pośrednika bez umowy
+         * powierzenia z art. 28 RODO. Przykład z audytu: „od wczoraj ropieje po
+         * ekstrakcji, jestem po chemii".
+         * Kto ma prawo znać treść, otwiera ją po zalogowaniu — link prowadzi wprost
+         * do tej rozmowy, więc koszt dla recepcji to jedno kliknięcie.
+         */
         const prefix = isNewConversation ? '🆕 NOWA ROZMOWA CZAT' : '💬 NOWA WIADOMOŚĆ CZAT';
-        const telegramMsg = `${prefix}\n\n👤 Pacjent: ${patientName}\n✉️ ${content.trim().substring(0, 200)}`;
+        const telegramMsg =
+            `${prefix}\n\nSzczegóły w panelu:\n${brand.appUrl}/pracownik?tab=czat&id=${conversation!.id}`;
         sendTelegramNotification(telegramMsg, 'messages').catch(console.error);
 
-        // Push notification to all admin/employee subscribers
-        broadcastPush(
-            'admin',
-            'chat_patient_to_admin',
-            { name: patientName, message: content.trim().substring(0, 100) },
-            '/pracownik?tab=czat',
-            { alsoApp: true }, // czat MUSI dzwonić na telefonie recepcji
-        ).catch(console.error);
-        broadcastPush(
-            'employee',
-            'chat_patient_to_admin',
-            { name: patientName, message: content.trim().substring(0, 100) },
-            '/pracownik?tab=czat',
-            { alsoApp: true }, // czat MUSI dzwonić na telefonie recepcji
-        ).catch(console.error);
+        /**
+         * Push do personelu.
+         *
+         * `data` niesie SAM IDENTYFIKATOR rozmowy — apka otwiera dzięki niemu KONKRETNY
+         * wątek zamiast listy. Bez zalogowania identyfikator jest bezużyteczny, więc
+         * przejście przez Expo/APNs/FCM niczego nie ujawnia.
+         *
+         * ⚠️ Tekst powiadomienia (`name`, `message`) NA RAZIE BEZ ZMIAN — neutralizacja
+         * jest krokiem PO tym: dopóki apka w sklepach nie umie pokazać szczegółu po
+         * odblokowaniu, zdjęcie go z banera skasowałoby informację zamiast ją przenieść.
+         */
+        /**
+         * 🪤 `alsoApp: true` MUSI stać LITERALNIE w wywołaniu — strażnik
+         * `pushAppChannelWiring.test.ts` czyta piąty argument ze źródła i schowanie flagi
+         * do zmiennej odczytuje jako brak kanału apki. Współdzielimy więc sam CEL,
+         * a flagę powtarzamy świadomie.
+         */
+        const chatPushTarget = {
+            data: { type: 'staff_patient_chat', conversationId: conversation!.id },
+            tag: `patient-chat-${conversation!.id}`,
+        };
+        const chatPushParams = { name: patientName, message: content.trim().substring(0, 100) };
+        // czat MUSI dzwonić na telefonie recepcji
+        broadcastPush('admin', 'chat_patient_to_admin', chatPushParams, '/pracownik?tab=czat', { alsoApp: true, ...chatPushTarget })
+            .catch(console.error);
+        broadcastPush('employee', 'chat_patient_to_admin', chatPushParams, '/pracownik?tab=czat', { alsoApp: true, ...chatPushTarget })
+            .catch(console.error);
 
         return NextResponse.json({ message });
     } catch (error) {

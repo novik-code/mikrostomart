@@ -915,10 +915,27 @@ export const broadcastPush = async (
     notificationType: PushNotificationType,
     params: Record<string, string> = {},
     url?: string,
-    opts: { alsoApp?: boolean; muteKey?: string } = {}
+    opts: {
+        alsoApp?: boolean;
+        muteKey?: string;
+        /**
+         * Identyfikatory celu dla apki (`data.type`, `conversationId`, …).
+         *
+         * 🔑 TRANSPORT MUSI ISTNIEĆ ZANIM ZNEUTRALIZUJEMY TREŚĆ. Neutralizacja zdejmuje
+         * szczegół z banera; bez tego pola nie ma go dokąd przenieść, więc informacja
+         * nie „chowa się pod odblokowanie", tylko ZNIKA. Stąd kolejność:
+         * transport → deep-link → neutralizacja.
+         *
+         * ⚠️ Same identyfikatory, NIGDY treść ani nazwisko — `data` jedzie przez Expo,
+         * APNs i FCM, a tam ma trafiać wyłącznie to, co bezużyteczne bez zalogowania.
+         */
+        data?: Record<string, unknown>;
+        /** Znacznik zwijania powiadomień tej samej sprawy (np. `patient-chat-<id>`). */
+        tag?: string;
+    } = {}
 ): Promise<{ sent: number; failed: number }> => {
     const { title, body } = getPushTranslation(notificationType, 'pl', params);
-    const payload = { title, body, url };
+    const payload = { title, body, url, data: opts.data, tag: opts.tag };
 
     /**
      * Odbiorcy do historii — CZYTANI ZE STRONICOWANIEM.
@@ -992,7 +1009,18 @@ export const broadcastPush = async (
             void sendExpoPushToStaffMany(targets, {
                 title,
                 body,
-                data: url ? { url } : {},
+                /**
+                 * `url` zostaje dla wstecznej zgodności — binarka 1.2.0 ze sklepów
+                 * rozpoznaje część powiadomień właśnie po nim. `opts.data` dopełnia
+                 * i ma pierwszeństwo, więc starsza apka działa jak dotąd, a nowsza
+                 * trafia prosto w konkretną sprawę.
+                 */
+                data: { ...(url ? { url } : {}), ...(opts.data ?? {}) },
+                // 🪤 Po stronie Expo pole zwijania nazywa się `collapseId`, nie `tag`
+                // (`tag` to nazwa z web-pusha). Przekazanie `tag` przeszłoby typy
+                // jako nadmiarowa właściwość obiektu literalnego dopiero przy spreadzie
+                // i po cichu nic by nie zwijało.
+                ...(opts.tag ? { collapseId: opts.tag } : {}),
             }).catch(err => console.error('[Push] broadcastPush Expo error:', err));
         }
     }
