@@ -56,20 +56,27 @@ export type StaffMfaVerdict =
  * middleware `enforce2FA` rules, but for the Bearer path (proof comes from the
  * X-MFA-Session header instead of the cookie, and the caller answers with JSON):
  *
- *   - admin without 2FA enabled            → mfa_setup_required (finish setup on web)
+ *   - admin (or ANYONE after the deadline) without 2FA → mfa_setup_required
  *   - 2FA enabled, missing/invalid proof   → mfa_required (run the challenge)
  *   - 2FA enabled, valid proof for this user, OR non-admin without 2FA → ok
  *
  * Kept pure (no request/response objects) so the security-critical branch is
  * unit-testable in isolation.
+ *
+ * 🔑 `mandatoryForAll` przychodzi Z ZEWNĄTRZ, a nie z `Date.now()` w środku — inaczej
+ * funkcja przestałaby być czysta i nie dałoby się przetestować obu stron terminu
+ * bez przestawiania zegara procesu. Wartość liczy `isMfaMandatoryForAll()`
+ * z `lib/mfaPolicy.ts` (decyzja właściciela: od 1 września 2026 dotyczy całego zespołu).
  */
 export function evaluateStaffMfa(opts: {
     isAdmin: boolean;
     totpEnabled: boolean;
     proof: string | undefined;
     userId: string;
+    /** Domyślnie `false` = zachowanie sprzed decyzji (2FA wymagane tylko od adminów). */
+    mandatoryForAll?: boolean;
 }): StaffMfaVerdict {
-    if (opts.isAdmin && !opts.totpEnabled) {
+    if ((opts.isAdmin || opts.mandatoryForAll === true) && !opts.totpEnabled) {
         return { ok: false, reason: "mfa_setup_required" };
     }
     if (opts.totpEnabled) {

@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { MFA_DEADLINE_LABEL_PL, daysUntilMfaDeadline, isMfaMandatoryForAll } from "@/lib/mfaPolicy";
 
 type Status = {
     enabled: boolean;
@@ -616,10 +617,37 @@ Po zużyciu wszystkich kodów wygeneruj nowe w panelu /pracownik/security.
                     </button>
                 </p>
 
+                {/*
+                    🔑 Komunikat MUSI rozróżniać dwa powody wymuszenia. Od 1 września 2026
+                    2FA obowiązuje CAŁY zespół (decyzja właściciela 2026-08-11), więc na ten
+                    ekran trafi też higienistka i asystentka — a zdanie „Twoje konto admin
+                    wymaga 2FA" byłoby dla nich po prostu nieprawdziwe i wyglądałoby na błąd
+                    systemu, nie na regułę.
+                */}
                 {isForced && !status?.enabled && (
                     <div style={warningBoxStyle}>
-                        ⚠️ <strong>Twoje konto admin wymaga 2FA.</strong> Skonfiguruj
-                        zabezpieczenie, aby kontynuować korzystanie z panelu.
+                        ⚠️{' '}
+                        <strong>
+                            {status?.isAdmin
+                                ? 'Twoje konto administratora wymaga 2FA.'
+                                : `Od ${MFA_DEADLINE_LABEL_PL} dwuskładnikowe logowanie obowiązuje cały zespół.`}
+                        </strong>{' '}
+                        Skonfiguruj zabezpieczenie, aby kontynuować korzystanie z panelu.
+                    </div>
+                )}
+
+                {/*
+                    Ostrzeżenie PRZED terminem — żeby 1 września nie był zaskoczeniem.
+                    Znika samo po terminie (wtedy rolę przejmuje komunikat wymuszenia wyżej)
+                    i nie pokazuje się nikomu, kto już ma 2FA.
+                */}
+                {!status?.enabled && !isForced && !isMfaMandatoryForAll() && (
+                    <div style={warningBoxStyle}>
+                        📅 <strong>Od {MFA_DEADLINE_LABEL_PL} 2FA będzie wymagane od całego zespołu.</strong>{' '}
+                        {daysUntilMfaDeadline() >= 0
+                            ? `Zostało dni: ${daysUntilMfaDeadline()}.`
+                            : ''}{' '}
+                        Bez konfiguracji nie zalogujesz się do panelu. Zajmuje to około trzech minut.
                     </div>
                 )}
 

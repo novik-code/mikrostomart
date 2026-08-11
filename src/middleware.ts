@@ -5,6 +5,7 @@ import createIntlMiddleware from 'next-intl/middleware';
 import { routing } from './i18n/routing';
 import { verifyMfaSessionToken, MFA_COOKIE_NAME } from "./lib/mfaSession";
 import { extractBearerToken, getUserFromBearerToken, evaluateStaffMfa } from "./lib/bearerAuth";
+import { isMfaMandatoryForAll } from "./lib/mfaPolicy";
 
 /**
  * Known search engine bot user-agent patterns.
@@ -409,6 +410,19 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
         const isAdmin = (roles || []).some(r => r.role === 'admin');
         const totpEnabled = Boolean(employee?.totp_enabled);
 
+        /**
+         * Od 1 września 2026 drugi składnik obowiązuje CAŁY zespół, nie tylko adminów
+         * (decyzja właściciela 2026-08-11). Jedno źródło terminu: `lib/mfaPolicy.ts`.
+         *
+         * 🔑 Zakleszczenia NIE MA — sprawdzone, nie założone: `/pracownik/security`
+         * (kreator) siedzi w `SKIP_2FA_PATHS` powyżej, a wszystkie trasy, które ta
+         * strona woła, to `/api/auth/2fa/*` (też pominięte), `/api/auth/passkeys`
+         * i `/api/auth/signout` — te dwie nie zaczynają się od żadnego
+         * `PROTECTED_PREFIXES`, więc bramka w ogóle ich nie dotyka. Pracownik bez 2FA
+         * po terminie dojdzie więc do kreatora i się skonfiguruje.
+         */
+        const mandatoryForAll = isMfaMandatoryForAll();
+
         // Native staff clients (Bearer): enforce the same 2FA rules, but read the
         // proof from the X-MFA-Session header and answer with JSON instead of a
         // redirect. Logic lives in the pure, unit-tested evaluateStaffMfa().
@@ -418,6 +432,7 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
                 totpEnabled,
                 proof: request.headers.get('x-mfa-session') ?? undefined,
                 userId,
+                mandatoryForAll,
             });
             if (!verdict.ok) {
                 return NextResponse.json(
@@ -428,9 +443,9 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
             return null;
         }
 
-        // Web (cookie) path — unchanged.
-        // Case 1: Admin without 2FA → force setup.
-        if (isAdmin && !totpEnabled) {
+        // Web (cookie) path.
+        // Case 1: Admin — a po 1 wrzesnia 2026 KAZDY pracownik — bez 2FA → kreator.
+        if ((isAdmin || mandatoryForAll) && !totpEnabled) {
             const url = new URL('/pracownik/security?force=true', request.url);
             return NextResponse.redirect(url);
         }
