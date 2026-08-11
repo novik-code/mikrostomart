@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { MFA_DEADLINE_LABEL_PL, daysUntilMfaDeadline, isMfaMandatoryForAll } from "@/lib/mfaPolicy";
+
 type EmployeeStatus = {
     id: string;
     user_id: string;
@@ -29,6 +31,11 @@ export default function SecurityTab() {
     const [resetReason, setResetReason] = useState("");
     const [resetError, setResetError] = useState("");
     const [resetSubmitting, setResetSubmitting] = useState(false);
+
+    // Wezwanie do konfiguracji 2FA (mail z gabinet@ do osób, które jeszcze nie mają).
+    const [remindBusy, setRemindBusy] = useState<"idle" | "preview" | "send">("idle");
+    const [remindResult, setRemindResult] = useState<string | null>(null);
+    const [remindError, setRemindError] = useState("");
 
     async function fetchEmployees() {
         setLoading(true);
@@ -89,9 +96,63 @@ export default function SecurityTab() {
         }
     }
 
+    /**
+     * Wezwanie do włączenia 2FA — mail z gabinet@ do aktywnych pracowników bez 2FA.
+     *
+     * 🔑 `preview` (dryRun) jest OSOBNYM przyciskiem, nie opcją schowaną w kodzie. To
+     * jedyna wysyłka w systemie idąca do CAŁEGO zespołu naraz; mail do kogoś, kto już
+     * to zrobił, podkopuje wiarygodność następnych przypomnień. Najpierw lista, potem klik.
+     *
+     * Potwierdzenie przed realną wysyłką jest świadome: to akcja wychodząca na zewnątrz,
+     * nieodwracalna, do konkretnych ludzi.
+     */
+    async function sendReminder(mode: "preview" | "send") {
+        if (mode === "send") {
+            const ilu = staff.filter(e => !e.totp_enabled).length;
+            if (!confirm(`Wysłać wezwanie do konfiguracji 2FA do ${ilu} os.? Mail wyjdzie z gabinet@mikrostomart.pl.`)) return;
+        }
+        setRemindBusy(mode);
+        setRemindError("");
+        setRemindResult(null);
+        try {
+            const res = await fetch("/api/admin/2fa/enrollment-reminder", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ dryRun: mode === "preview" }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setRemindError(`Błąd: ${data.error ?? res.status}`);
+                return;
+            }
+            if (data.dryRun) {
+                const lista = (data.recipients ?? [])
+                    .map((r: { name?: string; email?: string }) => `• ${r.name ?? "—"} (${r.email})`)
+                    .join("\n");
+                setRemindResult(
+                    `PODGLĄD — nic nie wysłano.\nTemat: ${data.subject}\nOdbiorców: ${(data.recipients ?? []).length}\n${lista}` +
+                    (data.skippedNoEmail ? `\n⚠️ Bez adresu e-mail (pominięci): ${data.skippedNoEmail}` : ""),
+                );
+            } else {
+                setRemindResult(
+                    `Wysłano: ${data.sent}. Nieudanych: ${data.failed}.` +
+                    (data.skippedNoEmail ? ` Bez adresu: ${data.skippedNoEmail}.` : ""),
+                );
+                await fetchEmployees();
+            }
+        } catch (err) {
+            console.error("[SecurityTab] reminder:", err);
+            setRemindError("Wystąpił błąd sieci.");
+        } finally {
+            setRemindBusy("idle");
+        }
+    }
+
     const admins = employees.filter(e => e.is_admin);
     const staff = employees.filter(e => !e.is_admin && e.is_active);
     const inactive = employees.filter(e => !e.is_admin && !e.is_active);
+    // Kandydaci do wezwania — dokładnie ci sami, których wyliczy trasa wysyłki.
+    const staffWithoutMfa = staff.filter(e => !e.totp_enabled);
 
     const adminsWithoutMfa = admins.filter(a => !a.totp_enabled);
 
@@ -122,6 +183,55 @@ export default function SecurityTab() {
                 </div>
             )}
 
+            {/*
+                Panel wezwania do 2FA. Widoczny tylko wtedy, gdy jest kogo wzywać —
+                pusty panel „0 osób" to szum, który uczy ignorować całą sekcję.
+            */}
+            {staffWithoutMfa.length > 0 && (
+                <div style={warningBoxStyle}>
+                    <div style={{ marginBottom: 10 }}>
+                        📅 <strong>
+                            {isMfaMandatoryForAll()
+                                ? `Termin minął ${MFA_DEADLINE_LABEL_PL} — 2FA jest już wymagane od całego zespołu.`
+                                : `Od ${MFA_DEADLINE_LABEL_PL} 2FA obowiązuje cały zespół (zostało dni: ${daysUntilMfaDeadline()}).`}
+                        </strong>{" "}
+                        Bez konfiguracji: <strong>{staffWithoutMfa.length}</strong>{" "}
+                        {staffWithoutMfa.length === 1 ? "osoba" : "os."}
+                        {" — "}
+                        {staffWithoutMfa.map(e => e.name).join(", ")}.
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                            onClick={() => void sendReminder("preview")}
+                            disabled={remindBusy !== "idle"}
+                            style={remindBtnStyle(false)}
+                        >
+                            {remindBusy === "preview" ? "Sprawdzam…" : "Podgląd (nic nie wysyła)"}
+                        </button>
+                        <button
+                            onClick={() => void sendReminder("send")}
+                            disabled={remindBusy !== "idle"}
+                            style={remindBtnStyle(true)}
+                        >
+                            {remindBusy === "send" ? "Wysyłam…" : "Wyślij wezwanie e-mailem"}
+                        </button>
+                    </div>
+                    <div style={{ marginTop: 8, fontSize: "0.85rem", opacity: 0.85 }}>
+                        Nadawca: gabinet@mikrostomart.pl. Odbiorcy liczeni na bieżąco — kto się
+                        skonfiguruje, sam wypada z kolejnych przypomnień.
+                    </div>
+                    {remindError && (
+                        <div style={{ marginTop: 10, color: "#ff8a80" }}>{remindError}</div>
+                    )}
+                    {remindResult && (
+                        <pre style={{
+                            marginTop: 10, whiteSpace: "pre-wrap", fontSize: "0.85rem",
+                            background: "rgba(0,0,0,0.25)", padding: 10, borderRadius: 6,
+                        }}>{remindResult}</pre>
+                    )}
+                </div>
+            )}
+
             {admins.length > 0 && (
                 <Section title={`👑 Adminzy (${admins.length})`} subtitle="2FA mandatory">
                     <EmployeeTable employees={admins} onReset={setResetTarget} />
@@ -129,7 +239,10 @@ export default function SecurityTab() {
             )}
 
             {staff.length > 0 && (
-                <Section title={`👷 Pracownicy aktywni (${staff.length})`} subtitle="2FA opt-in">
+                <Section
+                    title={`👷 Pracownicy aktywni (${staff.length})`}
+                    subtitle={isMfaMandatoryForAll() ? "2FA wymagane" : `2FA wymagane od ${MFA_DEADLINE_LABEL_PL}`}
+                >
                     <EmployeeTable employees={staff} onReset={setResetTarget} />
                 </Section>
             )}
@@ -311,6 +424,17 @@ const infoBoxStyle: React.CSSProperties = {
     background: "#1e3a8a", color: "#bfdbfe", padding: 12, borderRadius: 8, marginBottom: 16,
     fontSize: "0.85rem", lineHeight: 1.5,
 };
+/**
+ * Przycisk wysyłki. `primary=false` (podgląd) jest wizualnie spokojniejszy niż wysyłka —
+ * kolejność „najpierw sprawdź, potem wyślij" ma być widoczna, a nie tylko opisana.
+ */
+const remindBtnStyle = (primary: boolean): React.CSSProperties => ({
+    background: primary ? "#b45309" : "transparent",
+    color: primary ? "#fff" : "#fed7aa",
+    border: `1px solid ${primary ? "#b45309" : "#fed7aa"}`,
+    padding: "8px 14px", borderRadius: 6, cursor: "pointer",
+    fontSize: "0.85rem", fontWeight: primary ? 600 : 400,
+});
 const errorTextStyle: React.CSSProperties = { color: "#fca5a5", fontSize: "0.85rem", marginTop: 8 };
 const modalOverlayStyle: React.CSSProperties = {
     position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex",

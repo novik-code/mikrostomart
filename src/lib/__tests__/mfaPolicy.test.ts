@@ -170,6 +170,29 @@ describe("Mail wzywający — treść i bezpieczeństwo linku", () => {
     });
 });
 
+describe("Przycisk w panelu admina — okablowanie", () => {
+    it("celuje w ISTNIEJĄCĄ trasę i ma osobny podgląd przed wysyłką", async () => {
+        const fs = await import("fs");
+        const path = await import("path");
+        const tab = fs.readFileSync(
+            path.join(process.cwd(), "src/app/admin/components/SecurityTab.tsx"),
+            "utf8",
+        );
+        // Literówka w adresie dałaby MARTWY przycisk przy zielonym `tsc` — komponent
+        // woła trasę stringiem, więc nikt tego nie sprawdza poza tym testem.
+        const route = "/api/admin/2fa/enrollment-reminder";
+        expect(tab).toContain(`fetch("${route}"`);
+        expect(
+            fs.existsSync(path.join(process.cwd(), `src/app${route}/route.ts`)),
+            "trasa wołana przez panel nie istnieje na dysku",
+        ).toBe(true);
+        // Podgląd musi być osobną ścieżką, a realna wysyłka potwierdzana —
+        // to jedyna wysyłka lecąca do całego zespołu naraz.
+        expect(tab).toContain('dryRun: mode === "preview"');
+        expect(tab).toContain("confirm(");
+    });
+});
+
 describe("Zakleszczenie: po terminie MUSI dać się dojść do kreatora", () => {
     it("SKIP_2FA_PATHS w middleware obejmuje stronę konfiguracji i trasy 2FA", async () => {
         const fs = await import("fs");
