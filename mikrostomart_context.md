@@ -2526,6 +2526,54 @@ przepięcie czytelników na klucze, eksport RODO przez Storage zamiast `fetch()`
 robi `continue` → po zamknięciu ZIP wyszedłby PUSTY ze statusem 200) i cache-buster `?t=`
 w `ScheduleTab` (na podpisanym adresie daje dwa znaki zapytania i 400).
 
+### 2026-08-12 (#5) — 🪣 MIGRACJA 192 WGRANA + TRASY-POŚREDNIKI (etap A kroki 1–5, poza RODO)
+
+> Commity `7bb7c05` i **`1ee7e5b`** — **NA PRODUKCJI** (SHA z `/api/health?secret=`, 11. odpytanie).
+> **Migracja 192 wgrana na oba środowiska, backfill wykonany.** `tsc` 0 · vitest **499/499** ·
+> `next build` OK · cofka 5/5 + poprawiona 6. asercja.
+
+**🔴 ŚRODOWISKA MAJĄ RÓŻNY TYP TEJ SAMEJ KOLUMNY.** `employee_tasks.image_urls`: produkcja
+`TEXT[]`, demo `jsonb` (zmierzone w `information_schema`). Każda wersja migracji „na jeden typ"
+wywalała CAŁĄ migrację w drugim środowisku — `jsonb_typeof` → 42883, `unnest(coalesce(...))` →
+42804. **Złapało to DEMO**, bo migracja szła kolejnością demo → weryfikacja → produkcja; Supabase
+wycofał wszystko w całości, więc próba nic nie kosztowała. Lek: `to_jsonb()` przed iteracją.
+🔑 **PostgREST tego nie rozstrzyga** — oba typy wracają jako tablica JSON. Migracja źródłowa też
+nie: 047 deklaruje TEXT[], a demo i tak ma jsonb. Typ czytać z katalogu bazy, per środowisko.
+
+**Backfill na produkcji.** Raport przed = symulacja co do wiersza (2545 / 300 / 199 / 85 / 25,
+STRATA 0 wszędzie, 10 statyków poza Storage). Po backfillu `do_przepiecia` = 0 w pięciu torach,
+**kluczy niepasujących do adresu: 0**, dwie zgody z `%20` podpisują się i oddają 200.
+Kontrole negatywne: RPC i backfill kluczem `anon` → `42501`.
+
+**Trasy-pośredniki (krok 4 — komplet).** `/api/patients/documents/[id]/file` (pacjent) oraz
+`/api/employee/documents/file` (personel: zgoda / e-Karta / zdjęcie zadania). Istnienie i własność
+sprawdzane W BAZIE, podpis 900 s, wpis do audytu. Akcja `view_consents` istniała w słowniku od
+migracji 066 i **nikt nigdy nie emitował jej dla pliku** — publiczny bucket nie zostawiał śladu.
+
+**🔴 WSTRZYKNIĘCIE WE WŁASNYM KODZIE, złapane przed wypchnięciem.** Pierwsza wersja trasy
+personelu sklejała filtr PostgREST stringiem z parametru URL
+(`.or('image_paths.cs.{"' + path + '"}')`) — przecinek albo cudzysłów rozbijał wyrażenie i pozwalał
+dopisać własny warunek. Teraz twardy wzorzec `^tasks/[A-Za-z0-9._-]+$` PRZED zapytaniem
+i filtry budowane przez klienta. **Zweryfikowane na produkcji:** próba wstrzyknięcia → 400,
+`../consents/...` → 400, cudze zdjęcie → 404.
+
+**🪤 Tryb `redirect=1`** (302 na podpisany adres) obsługuje miniatury, bo `<img>` nie skonsumuje
+JSON-a — i świadomie NIE audytuje (lista 20 zadań = 20 wpisów przy każdym wejściu). Działa
+WYŁĄCZNIE dla zdjęć zadań; dokumenty pacjenta idą torem JSON i są audytowane zawsze.
+Zmierzone na produkcji: 3 jawne otwarcia = 3 wpisy, miniatura = 0 wpisów.
+
+**Czytelnicy przepięci:** grafik (zgody + e-Karta), panel biometryki, portal pacjenta, miniatura
+zadania. **Cache-buster `?t=` usunięty** — na podpisanym adresie dawał drugi znak zapytania i 400.
+
+**⏳ Zostaje w etapie A:** eksport RODO przez Storage zamiast `fetch()` (dziś `continue` → pusty ZIP
+ze statusem 200) · formularze zdjęć w TasksTab i lightbox (świeżo wgrane pliki; `task-images`
+zamyka się jako ostatni).
+
+⚠️ **Ślad po teście:** żywa próba trasy personelu poszła na sesji zmintowanej dla realnego
+pracownika i zostawiła 3 wpisy audytowe przypisane jemu. **Usunięte po weryfikacji** (dokładnie
+te trzy id; reszta rejestru — 7465 wpisów — nietknięta). Na przyszłość: do takich prób potrzebne
+konto techniczne, żeby nie mieszać w rejestrze czynności.
+
 ### 2026-08-12 (#3) — 🔐 `mfa_epoch`: RESET 2FA WRESZCIE ODBIERA DOSTĘP (pozycja 1 planu napraw)
 
 > Commit **`332321b`** — ⏳ **NIEWYPCHNIĘTY** (klasyfikator zablokował push w sesji) i **migracja 191
