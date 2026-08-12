@@ -150,6 +150,10 @@ export async function POST(req: Request) {
                     {
                         title: '📋 Nowe zadanie',
                         body: `${task.title}${task.patient_name ? ` — ${task.patient_name}` : ''}`,
+                        // 🔒 Ekran blokady dostaje sam FAKT — tytuł zadania rutynowo zawiera nazwisko
+                        // pacjenta, a `patient_name` dokłada je wprost. Pełna treść zostaje w historii
+                        // i w apce po tapnięciu (`url` niesie `taskId`).
+                        neutral: { body: 'Otwórz, aby zobaczyć szczegóły.' },
                         url: `/pracownik?tab=zadania&taskId=${data.id}`,
                         tag: `task-new-${data.id}`,
                     }
@@ -168,6 +172,10 @@ export async function POST(req: Request) {
                 await pushToUsers(targets, {
                     title: '📌 Przypisano Ci zadanie',
                     body: `${task.title}${task.patient_name ? ` — ${task.patient_name}` : ''}`,
+                    // 🔒 Ekran blokady dostaje sam FAKT — tytuł zadania rutynowo zawiera nazwisko
+                    // pacjenta, a `patient_name` dokłada je wprost. Pełna treść zostaje w historii
+                    // i w apce po tapnięciu (`url` niesie `taskId`).
+                    neutral: { body: 'Otwórz, aby zobaczyć szczegóły.' },
                     url: `/pracownik?tab=zadania&taskId=${data.id}`,
                     tag: `task-assigned-${data.id}`,
                 });

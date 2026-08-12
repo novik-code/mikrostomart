@@ -270,6 +270,10 @@ export async function PATCH(
                     await pushToUsers(added, {
                         title: '📌 Przypisano Ci zadanie',
                         body: `${data.title || oldTask?.title || 'Zadanie'}${data.patient_name ? ` — ${data.patient_name}` : ''}`,
+                        // 🔒 Ekran blokady dostaje sam FAKT — tytuł zadania rutynowo zawiera nazwisko
+                        // pacjenta, a `patient_name` dokłada je wprost. Pełna treść zostaje w historii
+                        // i w apce po tapnięciu (`url` niesie `taskId`).
+                        neutral: { body: 'Otwórz, aby zobaczyć szczegóły.' },
                         url: `/pracownik?tab=zadania&taskId=${id}`,
                         tag: `task-assigned-${id}`,
                     });

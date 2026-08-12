@@ -6,7 +6,7 @@
  */
 import { getMessaging } from './firebase';
 import { createClient } from '@supabase/supabase-js';
-import { getPushTranslation, PushNotificationType } from './pushTranslations';
+import { getNeutralPushBody, getPushTranslation, PushNotificationType } from './pushTranslations';
 import { sendExpoPushToPatient, sendExpoPushToStaffMany } from './expoPush';
 import { assigneeUserIds } from './taskAssignees';
 
@@ -26,12 +26,34 @@ export interface PushPayload {
     requireInteraction?: boolean;
     /** Metadane wyłącznie dla kanału Expo (apka mobilna). FCM ignoruje — jego kształt wiadomości bez zmian. */
     data?: Record<string, unknown>;
+    /**
+     * Wariant treści NA EKRAN BLOKADY. Gdy ustawiony, to ON jest dostarczany, a `title`
+     * i `body` idą wyłącznie do HISTORII („Alerty").
+     *
+     * 🔑 Rozdzielenie jest sednem neutralizacji: baner widzi każdy, kto stoi obok
+     * telefonu (także pacjent w poczekalni), a historia jest za logowaniem i personel
+     * ma prawo widzieć w niej nazwiska. Neutralizacja OBU zabrałaby informację bez
+     * żadnego zysku dla prywatności.
+     */
+    neutral?: { title?: string; body: string };
 }
 
 /**
  * Payload danych dla Expo: `url` zostaje dla wstecznej zgodności (deep-link),
  * `payload.data` dopełnia/nadpisuje.
  */
+/**
+ * Treść, która realnie ląduje na ekranie. `neutral` wygrywa, gdy jest — patrz
+ * `PushPayload.neutral`. Jedno miejsce, żeby kanał Expo i kanał FCM nie rozjechały się
+ * co do tego, co widać bez odblokowania telefonu.
+ */
+export function deliveredContent(payload: PushPayload): { title: string; body: string } {
+    return {
+        title: payload.neutral?.title ?? payload.title,
+        body: payload.neutral?.body ?? payload.body,
+    };
+}
+
 function buildExpoData(payload: PushPayload): Record<string, unknown> {
     return {
         ...(payload.url ? { url: payload.url } : {}),
@@ -119,6 +141,9 @@ async function logPush(
         const { error } = await supabase.from('push_notifications_log').insert({
             user_id: userId,
             user_type: userType,
+            // 🔑 HISTORIA DOSTAJE PEŁNĄ TREŚĆ, nie zneutralizowaną. Feed „Alerty" jest za
+            // logowaniem, a personel ma prawo widzieć w nim nazwiska — neutralizacja tutaj
+            // zabrałaby informację BEZ żadnego zysku dla prywatności.
             title: payload.title,
             body: payload.body,
             url: payload.url ?? null,
@@ -145,6 +170,9 @@ async function logPushMany(
             userIds.map(uid => ({
                 user_id: uid,
                 user_type: userType,
+                // 🔑 HISTORIA DOSTAJE PEŁNĄ TREŚĆ, nie zneutralizowaną. Feed „Alerty" jest za
+                // logowaniem, a personel ma prawo widzieć w nim nazwiska — neutralizacja tutaj
+                // zabrałaby informację BEZ żadnego zysku dla prywatności.
                 title: payload.title,
                 body: payload.body,
                 url: payload.url ?? null,
@@ -296,6 +324,7 @@ async function sendToTokens(
     if (tokens.length === 0) return { sent: 0, failed: 0 };
 
     const messaging = getMessaging();
+    const delivered = deliveredContent(payload);
     let sent = 0;
     let failed = 0;
     const staleTokens: string[] = [];
@@ -306,7 +335,9 @@ async function sendToTokens(
         const batch = tokens.slice(i, i + batchSize);
 
         try {
-            console.log(`[Push] Sending batch (${batch.length} tokens): title="${payload.title}", body="${payload.body?.substring(0, 50)}..."`);
+            // 🔒 Log BEZ treści: `body` niesie nazwisko pacjenta i wolny tekst, a logi
+            // Vercela żyją poza audytem, poza retencją i poza eksportem RODO.
+            console.log(`[Push] Sending batch (${batch.length} tokens): title="${delivered.title}"`);
             const response = await messaging.sendEachForMulticast({
                 tokens: batch,
                 // DATA-ONLY message — no top-level 'notification' key.
@@ -319,8 +350,9 @@ async function sendToTokens(
                 // showNotification() with proper data.url for notificationclick.
                 // For foreground: onMessage in firebaseClient.ts handles display.
                 data: {
-                    title: payload.title || 'Mikrostomart',
-                    body: payload.body || '',
+                    // Wariant neutralny, gdy jest — patrz `PushPayload.neutral`.
+                    title: delivered.title || 'Mikrostomart',
+                    body: delivered.body || '',
                     url: payload.url || '/',
                     tag: payload.tag || 'notification',
                     icon: payload.icon || '/icon-192x192.png',
@@ -413,16 +445,14 @@ export async function pushToUser(
     // mig 173). Fire-and-forget: brak tabeli/tokenów nie może wywrócić web-pusha.
     if (userType === 'patient') {
         sendExpoPushToPatient(userId, {
-            title: payload.title,
-            body: payload.body,
+            ...deliveredContent(payload),
             data: buildExpoData(payload),
         }).catch(err => console.error('[Push] Expo push error:', err));
     } else {
         // Personel: dodatkowo push do aplikacji mobilnej (Expo — staff_push_tokens, mig 179).
         // Fire-and-forget: brak tabeli/tokenów nie może wywrócić web-pusha.
         sendExpoPushToStaffMany([userId], {
-            title: payload.title,
-            body: payload.body,
+            ...deliveredContent(payload),
             data: buildExpoData(payload),
         }).catch(err => console.error('[Push] Expo staff push error:', err));
     }
@@ -489,8 +519,7 @@ export async function pushToPatientAll(
         (async () => {
             try {
                 return await sendExpoPushToPatient(userId, {
-                    title: payload.title,
-                    body: payload.body,
+                    ...deliveredContent(payload),
                     data: buildExpoData(payload),
                 }, pathKey);
             } catch (err) {
@@ -551,8 +580,8 @@ export async function pushToUsers(
     // dostawał duplikat. Ten sam błąd naprawiono już w `pushToPatientAll` — tu został.
     const [expoRes, fcmRes] = await Promise.all([
         sendExpoPushToStaffMany(targets, {
-            title: payload.title,
-            body: payload.body,
+            // Wariant neutralny, gdy jest — historia wyżej dostała pełną treść.
+            ...deliveredContent(payload),
             data: buildExpoData(payload),
         }).catch(err => {
             console.error('[Push] Expo staff push error:', err);
@@ -690,8 +719,7 @@ export async function pushToStaffMembers(
                 let sent = 0, failed = 0;
                 for (const part of chunkIds(recipients)) {
                     const res = await sendExpoPushToStaffMany(part, {
-                        title: payload.title,
-                        body: payload.body,
+                        ...deliveredContent(payload),
                         data: buildExpoData(payload),
                         ...(opts.androidChannelId ? { channelId: opts.androidChannelId } : {}),
                         ...(opts.priority ? { priority: opts.priority } : {}),
@@ -824,8 +852,7 @@ export async function pushToGroups(
     // (ten sam kontrakt fire-and-forget co w `broadcastPush` i `pushToUser`).
     if (opts.alsoApp && appTargets.size > 0) {
         void sendExpoPushToStaffMany([...appTargets], {
-            title: payload.title,
-            body: payload.body,
+            ...deliveredContent(payload),
             data: { ...(payload.data ?? {}), ...(payload.url ? { url: payload.url } : {}) },
         }).catch(err => console.error('[Push] pushToGroups Expo error:', err));
     }
@@ -935,7 +962,25 @@ export const broadcastPush = async (
     } = {}
 ): Promise<{ sent: number; failed: number }> => {
     const { title, body } = getPushTranslation(notificationType, 'pl', params);
-    const payload = { title, body, url, data: opts.data, tag: opts.tag };
+    /**
+     * Neutralizacja treści na ekranie blokady (decyzja właściciela: wariant A — wszędzie).
+     *
+     * 🔑 Bramka na `userType !== 'patient'` jest istotą rzeczy: pacjent dostaje własne dane
+     * na własny telefon i zabranie mu ich zamienia powiadomienie w zagadkę. Neutralizujemy
+     * to, co ląduje na ekranach CAŁEGO ZESPOŁU — tam obok telefonu stoi ktoś jeszcze.
+     *
+     * `getNeutralPushBody` zwraca `null` dla typów, które nie są skierowane do personelu,
+     * więc druga warstwa zabezpieczenia siedzi w samej liście typów.
+     */
+    const neutralBody = userType === 'patient' ? null : getNeutralPushBody(notificationType, 'pl');
+    const payload: PushPayload = {
+        title,
+        body,
+        url,
+        data: opts.data,
+        tag: opts.tag,
+        ...(neutralBody ? { neutral: { body: neutralBody } } : {}),
+    };
 
     /**
      * Odbiorcy do historii — CZYTANI ZE STRONICOWANIEM.
@@ -1007,8 +1052,7 @@ export const broadcastPush = async (
 
         if (targets.length > 0) {
             void sendExpoPushToStaffMany(targets, {
-                title,
-                body,
+                ...deliveredContent(payload),
                 /**
                  * `url` zostaje dla wstecznej zgodności — binarka 1.2.0 ze sklepów
                  * rozpoznaje część powiadomień właśnie po nim. `opts.data` dopełnia

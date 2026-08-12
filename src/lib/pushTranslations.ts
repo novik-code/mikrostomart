@@ -537,3 +537,60 @@ export function getStaffChatPush(
         ? getPushTranslation('staff_chat_dm', loc, { sender })
         : getPushTranslation('staff_chat_dm_generic', loc);
 }
+
+// ─── Neutralizacja treści dla powiadomień do PERSONELU ──────────────────────
+
+/**
+ * Typy powiadomień, których odbiorcą jest PERSONEL, a treść niesie tożsamość
+ * pacjenta albo wolny tekst.
+ *
+ * 🔑 Ustalone WYWOŁUJĄCYMI, nie nazwą typu: każdy z nich wychodzi wyłącznie przez
+ * `broadcastPush('admin'|'employee', …)`. Typy pacjenta (`appointment_24h`,
+ * `chat_admin_to_patient`, `booking_*`, `order_status_update`, `careflow_enrolled`,
+ * `new_blog_post`) świadomie NIE są tu wymienione — to dane pacjenta na JEGO WŁASNYM
+ * telefonie i zabranie mu ich zamienia powiadomienie w zagadkę.
+ */
+const STAFF_FACING_TYPES: ReadonlySet<PushNotificationType> = new Set([
+    'chat_patient_to_admin',
+    'appointment_confirmed',
+    'appointment_cancelled',
+    'appointment_rescheduled',
+    'patient_registered',
+    'new_order',
+    'new_reservation',
+    'new_contact_message',
+    'new_treatment_lead',
+    'task_new',
+    'task_status',
+    'task_assigned',
+    'task_comment',
+    'task_checklist',
+    'task_reminder',
+]);
+
+/** Zamiennik treści — jeden na locale, żeby warianty się nie rozjechały. */
+const NEUTRAL_BODY: Record<string, string> = {
+    pl: 'Otwórz, aby zobaczyć szczegóły.',
+    en: 'Open to see the details.',
+    de: 'Öffnen, um die Details zu sehen.',
+    ua: 'Відкрийте, щоб побачити деталі.',
+};
+
+/**
+ * Treść zastępcza na ekran blokady — albo `null`, gdy typ nie wymaga neutralizacji.
+ *
+ * 🔑 NEUTRALIZUJEMY WYŁĄCZNIE TREŚĆ, NIE TYTUŁ. Zmierzone: wszystkie 15 tytułów
+ * personelu jest już neutralnych („💬 Nowa wiadomość na czacie", „❌ Pacjent odwołał
+ * wizytę") — mówią CO się stało, bez KTO. Recepcja zachowuje więc pełną wartość
+ * segregacyjną baneru, a znika samo nazwisko i wolny tekst. To znacząco tańszy
+ * kompromis, niż zakładała decyzja („recepcja straci szczegół w banerze").
+ *
+ * ⚠️ Czego to NIE naprawia: `sendToTokens` (web-push FCM) buduje wiadomość z sześciu
+ * pól i **nie czyta `payload.data`**, więc recepcja w przeglądarce nie ma jak dostać
+ * szczegółu po kliknięciu — musi otworzyć panel. To nieusuwalny koszt, przyjęty
+ * świadomie przy decyzji o neutralizacji.
+ */
+export function getNeutralPushBody(type: PushNotificationType, locale: string): string | null {
+    if (!STAFF_FACING_TYPES.has(type)) return null;
+    return NEUTRAL_BODY[normalizeLocale(locale)] ?? NEUTRAL_BODY.pl;
+}
