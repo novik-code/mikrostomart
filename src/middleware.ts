@@ -309,18 +309,36 @@ async function handleSupabaseAuth(request: NextRequest) {
     // factor (the cookie-only middleware would silently skip them). enforce2FA
     // reads the MFA proof from the X-MFA-Session header and answers with JSON
     // (401/403) instead of a redirect for these API clients.
-    let mfaUser = user;
+    /**
+     * 🔴 BEARER PRZED CIASTECZKIEM — kolejność MUSI być identyczna jak w
+     * `authGuards.getSupabaseUser`, bo inaczej bramka i trasa rozstrzygają tożsamość
+     * ODWROTNIE.
+     *
+     * Do 2026-08-12 stało tu `if (!mfaUser)`, czyli ciasteczko wygrywało, podczas gdy
+     * `getSupabaseUser` jest Bearer-first. Przy żądaniu niosącym OBA poświadczenia
+     * bramka liczyła 2FA dla użytkownika A (z ciasteczka), a trasa działała jako
+     * użytkownik B (z Bearera) — czyli dostęp B był chroniony drugim składnikiem A.
+     *
+     * To jest OBEJŚCIE 2FA, nie kosmetyka: kto zna hasło pracownika B, mintuje sobie
+     * Bearer przez `signInWithPassword` (dokładnie ten krok ma zatrzymać drugi składnik),
+     * dokłada własne, spełnione ciasteczko A i wchodzi jako B. Ta sama klasa co dziura
+     * zamknięta w lipcu (`238f8a9`).
+     *
+     * ⚠️ Dla weba nic się nie zmienia: przeglądarka nie wysyła nagłówka `Authorization`
+     * na te trasy, więc gałąź Bearera po prostu nie wchodzi i zostaje ścieżka ciasteczka.
+     */
+    let mfaUser = null as typeof user;
     let viaBearer = false;
-    if (!mfaUser) {
-        const bearer = extractBearerToken(request.headers.get("authorization"));
-        if (bearer) {
-            const bearerUser = await getUserFromBearerToken(bearer);
-            if (bearerUser) {
-                mfaUser = bearerUser;
-                viaBearer = true;
-            }
+    const bearer = extractBearerToken(request.headers.get("authorization"));
+    if (bearer) {
+        const bearerUser = await getUserFromBearerToken(bearer);
+        if (bearerUser) {
+            mfaUser = bearerUser;
+            viaBearer = true;
         }
+        // Bearer obecny, ale nieważny → schodzimy na ciasteczko (tak samo jak authGuards).
     }
+    if (!mfaUser) mfaUser = user;
     if (mfaUser) {
         const mfaCheck = await enforce2FA(request, mfaUser.id, pathname, viaBearer);
         if (mfaCheck) {

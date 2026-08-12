@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
-import { verifyChallenge, verifyBackupChallenge } from '@/lib/twoFactorService';
+import { verifyChallenge, verifyBackupChallenge, MFA_RATE_LIMITED } from '@/lib/twoFactorService';
 import { setMfaSessionCookie, createMfaSessionToken } from '@/lib/mfaSession';
 
 export const dynamic = 'force-dynamic';
@@ -39,11 +39,17 @@ export async function POST(request: NextRequest) {
         : await verifyChallenge(auth.user.id, body.code);
 
     if (!result.ok) {
-        const status = result.error === 'invalid_code' ? 400
+        // 429 dla dławika prób — inaczej klient widziałby „nieprawidłowy kod"
+        // i kazał człowiekowi próbować dalej, zamiast poczekać.
+        const status = result.error === MFA_RATE_LIMITED ? 429
+            : result.error === 'invalid_code' ? 400
             : result.error === 'not_enabled' ? 400
             : result.error === 'no_backup_codes_left' ? 400
             : 500;
-        return NextResponse.json({ error: result.error }, { status });
+        return NextResponse.json(
+            { error: result.error },
+            { status, ...(status === 429 ? { headers: { 'Retry-After': '900' } } : {}) },
+        );
     }
 
     // remember=true → mfa_session TTL 30 dni (zaufane urządzenie)

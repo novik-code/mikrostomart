@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { checkRateLimit } from '@/lib/rateLimit';
 import {
     generateSecret,
     generateQrDataUrl,
@@ -247,11 +248,68 @@ export async function addDevice(
  * Verify the TOTP code and enable a specific device.
  * If this is the first enabled device on the account, also sets totp_verified_at.
  */
+// ─── Dławik prób weryfikacji drugiego składnika ─────────────────────────────
+
+/**
+ * 🔴 DLACZEGO TO ISTNIEJE. Do 2026-08-12 w CAŁYM `/api/auth/2fa/*` nie było ŻADNEGO
+ * ograniczenia liczby prób. Kto znał samo hasło pracownika, mógł zgadywać sześciocyfrowy
+ * kod bez końca — a to znaczy, że drugi składnik nie zabezpieczał niczego, tylko
+ * wydłużał atak. Sprawdzone: zero wywołań `checkRateLimit` w siedmiu trasach 2FA.
+ * Sprawa robi się pilniejsza od 1 września, kiedy na tym mechanizmie oprze się
+ * czternaście osób zamiast czterech.
+ *
+ * 🔑 KLUCZ JEST PER UŻYTKOWNIK, NIE PER IP. Cały gabinet siedzi za jednym NAT-em —
+ * limit po adresie zamknąłby wszystkim panel, gdy jedna osoba pomyli kod. Ta sama
+ * pułapka wywróciła limiter logowania pacjenta (`dc1e132`: próg 20/IP był wspólnym
+ * kubełkiem NAT-u gabinetu i CGNAT-u operatora, więc pacjenci blokowali się nawzajem).
+ *
+ * 🔑 DŁAWIK SIEDZI W SERWISIE, NIE W TRASACH. Wejść weryfikujących kod są CZTERY
+ * (`verifyChallenge`, `verifyBackupChallenge`, `verifyAndEnableDevice`, `verifyAndEnable`),
+ * a tras je opakowujących więcej. Strażnik przypięty do trasy pomija pozostałe —
+ * dokładnie ten błąd wrócił w tym projekcie trzy razy przy pushu.
+ *
+ * ⚠️ Limit celowo HOJNY (10 prób / 15 min). Odróżnianie „tylko porażek" od wszystkich
+ * prób przestaje mieć znaczenie przy takim progu — człowiek podaje kod raz na sesję
+ * (8 h, a przy „zaufaj urządzeniu" 30 dni), więc nawet kilka pomyłek pod rząd go nie
+ * dotknie. Atakujący dostaje 40 prób na godzinę: przy oknie ~3 ważnych kodów na milion
+ * daje to oczekiwany czas łamania liczony w setkach lat.
+ *
+ * ⚠️ Przy awarii bazy limiter degraduje do licznika w pamięci procesu (domyślne
+ * zachowanie `checkRateLimit`), a NIE odmawia. Świadomie: odmowa zamknęłaby panel
+ * całemu gabinetowi przy pierwszym zadławieniu bazy, a atakujący i tak musi znać hasło.
+ * Dławik jest tu warstwą obrony w głąb, nie samą bramką.
+ */
+const MFA_ATTEMPT_WINDOW_MS = 15 * 60_000;
+/** Kod TOTP — wpisywany rutynowo, więc próg wyższy. */
+const MFA_TOTP_MAX_ATTEMPTS = 10;
+/** Kod zapasowy — używany wyjątkowo i wart więcej dla atakującego, więc ostrzej. */
+const MFA_BACKUP_MAX_ATTEMPTS = 5;
+
+export const MFA_RATE_LIMITED = 'too_many_attempts';
+
+async function guardMfaAttempts(
+    userId: string,
+    kind: 'totp' | 'backup'
+): Promise<{ ok: true } | { ok: false; error: string; retryAfterSeconds: number }> {
+    const max = kind === 'backup' ? MFA_BACKUP_MAX_ATTEMPTS : MFA_TOTP_MAX_ATTEMPTS;
+    const res = await checkRateLimit(`mfa:${kind}:${userId}`, max, MFA_ATTEMPT_WINDOW_MS);
+    if (res.allowed) return { ok: true };
+    return {
+        ok: false,
+        error: MFA_RATE_LIMITED,
+        retryAfterSeconds: Math.ceil(MFA_ATTEMPT_WINDOW_MS / 1000),
+    };
+}
+
 export async function verifyAndEnableDevice(
     userId: string,
     deviceId: string,
     code: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+    // Dławik prób — patrz `guardMfaAttempts`. MUSI stać PRZED odczytem sekretu.
+    const throttle = await guardMfaAttempts(userId, 'totp');
+    if (!throttle.ok) return { ok: false, error: throttle.error };
+
     const { data: employee, error } = await supabase
         .from('employees')
         .select('id, totp_verified_at')
@@ -463,6 +521,10 @@ export async function verifyChallenge(
     userId: string,
     code: string
 ): Promise<{ ok: true; deviceId: string } | { ok: false; error: string }> {
+    // Dławik prób — patrz `guardMfaAttempts`. MUSI stać PRZED odczytem sekretu.
+    const throttle = await guardMfaAttempts(userId, 'totp');
+    if (!throttle.ok) return { ok: false, error: throttle.error };
+
     const { data: employee, error } = await supabase
         .from('employees')
         .select('id, totp_enabled')
@@ -510,6 +572,10 @@ export async function verifyBackupChallenge(
     userId: string,
     code: string
 ): Promise<{ ok: true; remaining: number } | { ok: false; error: string }> {
+    // Dławik prób — patrz `guardMfaAttempts`. MUSI stać PRZED odczytem sekretu.
+    const throttle = await guardMfaAttempts(userId, 'backup');
+    if (!throttle.ok) return { ok: false, error: throttle.error };
+
     const { data: employee, error } = await supabase
         .from('employees')
         .select('id, totp_backup_codes, totp_enabled')
@@ -879,6 +945,10 @@ export async function verifyAndEnable(
     userId: string,
     code: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+    // Dławik prób — patrz `guardMfaAttempts`. MUSI stać PRZED odczytem sekretu.
+    const throttle = await guardMfaAttempts(userId, 'totp');
+    if (!throttle.ok) return { ok: false, error: throttle.error };
+
     const { data: employee, error } = await supabase
         .from('employees')
         .select('id')

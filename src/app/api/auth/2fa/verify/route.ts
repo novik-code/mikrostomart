@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
-import { verifyAndEnable } from '@/lib/twoFactorService';
+import { verifyAndEnable, MFA_RATE_LIMITED } from '@/lib/twoFactorService';
 import { setMfaSessionCookie, createMfaSessionToken } from '@/lib/mfaSession';
 
 export const dynamic = 'force-dynamic';
@@ -37,12 +37,18 @@ export async function POST(request: NextRequest) {
 
     const result = await verifyAndEnable(auth.user.id, body.code);
     if (!result.ok) {
-        const status = result.error === 'invalid_code' ? 400
+        // 429 dla dławika prób — inaczej klient widziałby „nieprawidłowy kod"
+        // i kazał człowiekowi próbować dalej, zamiast poczekać.
+        const status = result.error === MFA_RATE_LIMITED ? 429
+            : result.error === 'invalid_code' ? 400
             : result.error === 'already_enabled' ? 409
             : result.error === 'no_secret_setup_first' ? 400
             : result.error === 'employee_not_found' ? 404
             : 500;
-        return NextResponse.json({ error: result.error }, { status });
+        return NextResponse.json(
+            { error: result.error },
+            { status, ...(status === 429 ? { headers: { 'Retry-After': '900' } } : {}) },
+        );
     }
 
     // User just enabled 2FA — give them an mfa_session so they don't get

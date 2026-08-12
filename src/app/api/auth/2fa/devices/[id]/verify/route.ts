@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
-import { verifyAndEnableDevice } from '@/lib/twoFactorService';
+import { verifyAndEnableDevice, MFA_RATE_LIMITED } from '@/lib/twoFactorService';
 import { setMfaSessionCookie } from '@/lib/mfaSession';
 
 export const dynamic = 'force-dynamic';
@@ -38,12 +38,18 @@ export async function POST(
 
     const result = await verifyAndEnableDevice(auth.user.id, deviceId, body.code);
     if (!result.ok) {
-        const status = result.error === 'invalid_code' ? 400
+        // 429 dla dławika prób — inaczej klient widziałby „nieprawidłowy kod"
+        // i kazał człowiekowi próbować dalej, zamiast poczekać.
+        const status = result.error === MFA_RATE_LIMITED ? 429
+            : result.error === 'invalid_code' ? 400
             : result.error === 'device_not_found' ? 404
             : result.error === 'already_enabled' ? 409
             : result.error === 'employee_not_found' ? 404
             : 500;
-        return NextResponse.json({ error: result.error }, { status });
+        return NextResponse.json(
+            { error: result.error },
+            { status, ...(status === 429 ? { headers: { 'Retry-After': '900' } } : {}) },
+        );
     }
 
     // Refresh mfa_session so user doesn't get bounced to challenge right after.
