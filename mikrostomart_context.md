@@ -2474,6 +2474,58 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
+### 2026-08-12 (#4) — 🪣 KLUCZE OBIEKTÓW ZAMIAST PUBLICZNYCH ADRESÓW (etap A zamykania bucketów)
+
+> Commit **`baf316a`** — **NA PRODUKCJI** (zweryfikowane SHA z `/api/health?secret=`, 10. odpytanie
+> ≈2,5 min, oraz `x-matched-path` nowej trasy + kontrola negatywna `/_not-found`).
+> ⏳ **Migracja 192 NIEWGRANA** — kod jest na to przygotowany, patrz „bezpiecznik" niżej.
+> `tsc` 0 · **vitest 495/495** · `next build` OK · cofka 6/6.
+
+**Stan wyjściowy.** Buckety `consents` (889 folderów), `consent-pdfs` (22 szablony) i `task-images`
+(250 zdjęć) są publiczne — kto zna albo zgadnie adres, pobiera plik bez klucza i bez śladu.
+W `consents` leżą e-Karty z PESEL-em pod ścieżką `<numer_kartoteki>/<plik>.pdf`, gdzie numer
+kartoteki jest KOLEJNY. Etap A niczego nie zamyka: dokłada klucze, moduł i pierwszą trasę-pośrednik.
+
+**Co weszło:** migracja **192** (kolumny `*_path` w pięciu miejscach, `resolve_object_path`
+z dekodowaniem procentowym + wariant wsadowy, `storage_backfill_report()` i
+`storage_backfill_apply()` **odmawiający pracy przy stracie > 0**, tabela
+`patient_document_access_log` z RLS `TO service_role`) · `lib/privateStorage.ts` (podpis TTL 900 s,
+odczyt bajtów, wyliczanie kluczy **przez bazę**) · sześciu pisarzy zapisuje klucz obok adresu ·
+trasa-pośrednik `/api/patients/documents/[id]/file` z kontrolą właściciela i wpisem do rejestru.
+
+**Pomiary (ręcznie, wąskim `select` — agenci nie mają dostępu do produkcji).** Pięć torów,
+**STRATA 0** w każdym: 2545 zgód · 300 e-Kart · 199 zdjęć zadań · 85 `image_url` · 25 szablonów.
+Mocniejszy test niż sam parser: **każdy wyliczony klucz ma swój obiekt** (przejrzane 892 foldery
+`consents`, 252 `task-images`, 22 `consent-pdfs`), kontrola negatywna z doklejonym `.bak` nie trafia.
+🔴 **Wszystkie 14 AKTYWNYCH typów zgód** siedzi w `consent-pdfs` — zamknięcie tego bucketa bez
+etapu B wyłącza **100%** zgód do podpisu na tablecie, nie 71% jak zakładał plan (tamta liczba
+liczyła też wiersze nieaktywne).
+
+**🪤 TRZY PUŁAPKI ZŁAPANE PRZED WDROŻENIEM:**
+1. **`employee_tasks.image_urls` to `TEXT[]`, nie jsonb** (migracja 047). Pierwsza wersja migracji
+   używała `jsonb_typeof`/`jsonb_array_elements_text` i **cała migracja nie przeszłaby** (42883).
+   **Pomiar przez PostgREST tego NIE POKAZUJE** — TEXT[] wraca po drodze jako tablica JSON, więc
+   z zewnątrz wygląda identycznie. Złapane rozpoznaniem kodu, potwierdzone w migracji 047.
+2. **Dopisanie kolumny `*_path` do INSERT-a przed wgraniem migracji = 42703 i cały zapis pada** —
+   czyli pacjent na tablecie nie podpisze zgody. Zmierzone na żywej bazie. Stąd
+   `storagePathsReady()`: pisarze pytają, zanim dopiszą kolumnę, a wynik pozytywny zapamiętują
+   (po wgraniu migracji klucze zaczynają się zapisywać same, bez redeployu). Kolejność
+   „migracja, potem deploy" zostaje zalecana, ale operacja już na niej nie wisi.
+3. **Dwa adresy mają `%20`** — surowy klucz w buckecie NIE ISTNIEJE, pasuje dopiero zdekodowany.
+   Bez `url_decode_component` te dwie zgody dostałyby podpis do nieistniejącego pliku i zniknęły
+   po cichu. Pierwszy pomiar `patient_consents` zwrócił „1000 wierszy" — obcięcie PostgREST;
+   realnie 2545, wszystkie liczby powtórzone ze stronicowaniem.
+
+**Kontrakt ze sklepem nietknięty.** `upload-image` dalej oddaje `url` publiczny (apka 1.2.0 wkłada
+go prosto do `image_urls` i odsyła PATCH-em — podpisany adres wygasłby w bazie i zaśmiecił
+`task_history` fałszywymi „zmianami zdjęcia"). Klucz dochodzi jako pole DODATKOWE, a serwer i tak
+wylicza go sam z adresu — jedną implementacją w SQL, żeby nie powstał drugi parser w TypeScripcie.
+
+**⏳ Etap A niedokończony:** dwie pozostałe trasy-pośredniki (zgody dla personelu, zdjęcia zadań),
+przepięcie czytelników na klucze, eksport RODO przez Storage zamiast `fetch()` (dziś przy błędzie
+robi `continue` → po zamknięciu ZIP wyszedłby PUSTY ze statusem 200) i cache-buster `?t=`
+w `ScheduleTab` (na podpisanym adresie daje dwa znaki zapytania i 400).
+
 ### 2026-08-12 (#3) — 🔐 `mfa_epoch`: RESET 2FA WRESZCIE ODBIERA DOSTĘP (pozycja 1 planu napraw)
 
 > Commit **`332321b`** — ⏳ **NIEWYPCHNIĘTY** (klasyfikator zablokował push w sesji) i **migracja 191
