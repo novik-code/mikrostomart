@@ -87,13 +87,19 @@ describe('Strażnik: klucze obiektów Storage', () => {
         expect(podejrzani.length).toBe(4);
     });
 
-    it('migracja 192 nie używa funkcji jsonb na kolumnie TEXT[]', () => {
-        // `employee_tasks.image_urls` to TEXT[] (migracja 047). `jsonb_typeof` na niej
-        // wywala CAŁĄ migrację przy tworzeniu funkcji (42883) — a PostgREST tego nie
-        // pokazuje, bo oddaje TEXT[] jako tablicę JSON.
+    it('migracja 192 iteruje image_urls niezależnie od typu kolumny', () => {
+        // 🔴 `employee_tasks.image_urls` MA INNY TYP W KAŻDYM ŚRODOWISKU (zmierzone
+        // w information_schema): produkcja TEXT[], demo jsonb. Każde podejście „na jeden
+        // typ" wywala CAŁĄ migrację w drugim środowisku — `jsonb_typeof` daje 42883 na
+        // TEXT[], a `unnest(coalesce(...))` daje 42804 na jsonb (złapane na demo).
+        // Jedyne wyjście: `to_jsonb()` przed iteracją.
         const sql = read('supabase_migrations/192_storage_paths_backfill.sql');
-        const zle = sql.match(/jsonb_typeof\(\s*t?\.?image_urls|jsonb_array_elements_text\(\s*t?\.?image_urls/g) ?? [];
-        expect(zle, 'jsonb_* na kolumnie TEXT[] — migracja się nie zainstaluje').toEqual([]);
-        expect(sql, 'raport musi iterować tablicę przez unnest').toContain('unnest(');
+        const bezpieczne = sql.match(/jsonb_array_elements_text\(coalesce\(to_jsonb\(t\.image_urls\)/g) ?? [];
+        expect(
+            bezpieczne.length,
+            'oba miejsca iterujące image_urls (raport i backfill) muszą iść przez to_jsonb',
+        ).toBe(2);
+        const wprost = sql.match(/jsonb_typeof\(\s*t?\.?image_urls|jsonb_array_elements_text\(\s*t?\.?image_urls|unnest\(\s*(coalesce\()?t\.image_urls/g) ?? [];
+        expect(wprost, 'iteracja po surowej kolumnie działa tylko w jednym środowisku').toEqual([]);
     });
 });

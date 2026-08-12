@@ -190,13 +190,17 @@ COMMENT ON FUNCTION resolve_object_paths(TEXT[], TEXT) IS
 
 -- ── 3. Kolumny na klucze ────────────────────────────────────────────────────
 --
--- 🪤 `employee_tasks.image_urls` to **TEXT[]**, NIE jsonb (migracja 047, linia 8).
--- Pierwsza wersja tego pliku uzywala `jsonb_typeof` i `jsonb_array_elements_text`
--- i przy `check_function_bodies=on` CALA MIGRACJA nie przeszlaby (blad 42883).
--- Pomiar przez PostgREST tego NIE POKAZUJE — TEXT[] wraca po drodze jako tablica JSON,
--- wiec z zewnatrz wyglada identycznie jak jsonb. Typ potwierdzony w migracji 047.
--- Dlatego `image_paths` tez jest TEXT[]: dwie rownolegle kolumny o roznych typach
--- zmuszalyby kazdy przyszly odczyt do dwoch galezi.
+-- 🪤 `employee_tasks.image_urls` MA INNY TYP W KAZDYM SRODOWISKU — zmierzone
+-- w `information_schema.columns`, nie zalozone:
+--     produkcja (Mikrostomart)  -> ARRAY / _text  (TEXT[], zgodnie z migracja 047)
+--     demo      (densflow-demo) -> jsonb
+-- Pierwsza wersja tego pliku uzywala `jsonb_typeof`, druga `unnest` — KAZDA dzialala
+-- tylko w jednym srodowisku. `unnest` wywalil sie na demo bledem 42804 (COALESCE types
+-- jsonb and text[] cannot be matched) i cala migracja sie wycofala.
+-- 🔑 Pomiar przez PostgREST TEGO NIE ROZSTRZYGA — TEXT[] i jsonb wracaja po drodze
+-- identycznie, jako tablica JSON. Typ czytac z katalogu bazy, per srodowisko.
+-- Rozwiazanie: `to_jsonb(...)` normalizuje oba warianty przed iteracja.
+-- `image_paths` jest TEXT[] w OBU srodowiskach — nowa kolumna ma byc wreszcie taka sama.
 ALTER TABLE patient_consents            ADD COLUMN IF NOT EXISTS file_path   TEXT;
 ALTER TABLE patient_intake_submissions  ADD COLUMN IF NOT EXISTS pdf_path    TEXT;
 ALTER TABLE employee_tasks              ADD COLUMN IF NOT EXISTS image_paths TEXT[];
@@ -306,7 +310,10 @@ AS $$
                               AND resolve_object_path(el.val, 'task-images') IS NULL)::BIGINT,
            0::BIGINT
       FROM employee_tasks t
-      CROSS JOIN LATERAL unnest(coalesce(t.image_urls, ARRAY[]::TEXT[])) AS el(val)
+      -- 🪤 TYP TEJ KOLUMNY ROZNI SIE MIEDZY SRODOWISKAMI: produkcja ma TEXT[], demo jsonb
+      -- (zmierzone w information_schema, nie zalozone). `to_jsonb` normalizuje OBA warianty:
+      -- dla tablicy tekstowej robi tablice jsonb, dla jsonb jest tozsamoscia.
+      CROSS JOIN LATERAL jsonb_array_elements_text(coalesce(to_jsonb(t.image_urls), '[]'::JSONB)) AS el(val)
      WHERE t.image_paths IS NULL
 
     UNION ALL
@@ -380,7 +387,8 @@ BEGIN
     UPDATE employee_tasks t
        SET image_paths = coalesce((
                SELECT array_agg(resolve_object_path(x.val, 'task-images') ORDER BY x.ord)
-                 FROM unnest(t.image_urls) WITH ORDINALITY AS x(val, ord)
+                 FROM jsonb_array_elements_text(coalesce(to_jsonb(t.image_urls), '[]'::JSONB))
+                      WITH ORDINALITY AS x(val, ord)
                 WHERE btrim(x.val) <> ''
            ), ARRAY[]::TEXT[])
      WHERE t.image_paths IS NULL;
