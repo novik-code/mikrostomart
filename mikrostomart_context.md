@@ -2474,6 +2474,53 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
+### 2026-08-12 (#3) — 🔐 `mfa_epoch`: RESET 2FA WRESZCIE ODBIERA DOSTĘP (pozycja 1 planu napraw)
+
+> Commit **`332321b`** — ⏳ **NIEWYPCHNIĘTY** (klasyfikator zablokował push w sesji) i **migracja 191
+> NIEWGRANA**. `tsc` 0 · **vitest 489/489** · `next build` OK · artefakt `.next/server/middleware.js`
+> (runtime nodejs zachowany — bez niego cała bramka rzuca, a fail-open ją przepuszcza).
+
+**Co było zepsute.** `verifyMfaSessionToken` sprawdzał wyłącznie podpis, `userId` i termin. Sesja
+MFA żyje 8 h, a przy „Zaufaj temu urządzeniu" **30 dni** — i nic nie potrafiło jej unieważnić
+przed czasem. **Reset 2FA po kradzieży telefonu nie odbierał złodziejowi dostępu.** Komentarz
+w `mfaSession.ts` twierdził, że reset „clearuje wszystkie sesje przy następnym middleware check" —
+nie miał pokrycia w kodzie. Klasyczny przypadek dokumentacji, która sama siebie uwierzytelnia.
+
+**Co weszło.** Licznik unieważnień `employees.mfa_epoch` (**migracja 191** + atomowy RPC
+`increment_mfa_epoch`, wzorzec z mig. 174). Token niesie epokę z chwili wystawienia; bramka
+odrzuca token ze starszą. Nowy `src/lib/mfaEpoch.ts` (`readMfaGate` / `getMfaEpoch` / `bumpMfaEpoch`).
+- **Trzy** tory weryfikacji dostały epokę: middleware (cookie), `evaluateStaffMfa` (Bearer/apka),
+  dowód przy dodawaniu urządzenia (`/api/auth/2fa/devices`).
+- **Trzy** inkrementacje — wszystkie przejścia, w których pracownik traci czynnik: `disableAll`,
+  `adminReset` oraz **`removeDevice` aktywnego urządzenia**. Tej trzeciej plan nie przewidywał:
+  wyrzucenie zgubionego telefonu z listy nie zrywało jego żywych sesji, czyli było kosmetyką.
+  Urządzenie nieaktywowane epoki NIE rusza — jego sekretu nikt nigdy nie miał.
+- Epokę dociąga **jedno miejsce** (`setMfaSessionCookie` / `mintMfaSessionToken`), nie cztery
+  trasy z osobna. `epoch` w `evaluateStaffMfa` jest **wymagany**, nie opcjonalny.
+
+**🪤 NAJWAŻNIEJSZE: dołożenie kolumny do selectu middleware'u OTWIERAŁOBY dziurę.** Dopóki
+migracja nie jest wgrana, PostgREST odrzuca CAŁY select błędem `42703` → `totp_enabled` wychodzi
+`false` → bramka przestaje egzekwować 2FA dla nie-adminów. Stąd fallback w `readMfaGate`.
+**Zmierzone na żywej bazie przed migracją:** wszystkie **4** konta z 2FA nadal wychodzą jako
+chronione, kontrola negatywna na koncie bez 2FA. Ta sama klasa co awaria `/api/patients/me` po
+dodaniu kolumny `avatar`. Kolejność wdrożenia jest więc bezpieczna w obie strony — token sprzed
+migracji nie ma pola `epoch`, liczy się jako 0, więc wgranie nie wyloguje zespołu.
+
+**🪤 Strażnik tekstowy nie wystarczył.** Cofka: 7 osobnych regresji, 7/7 złapanych — ale ósma
+(`if (false)` na warunku fallbacku) **przeszła niezauważona**, bo w pliku dalej stały i `42703`,
+i wzorzec selectu. Zastąpione **testem zachowania** `readMfaGate` na atrapie klienta PostgREST.
+Reguła do zapamiętania: gdy chroniona rzecz jest ZACHOWANIEM, a nie obecnością wywołania, grep
+nie jest strażnikiem.
+
+**Apka bez zmian** — 401 `mfa_required` jest już obsługiwane (`setStaffMfaRequiredHandler`), więc
+unieważniony token prowadzi do ekranu TOTP, a nie w ślepy zaułek.
+
+**Świadomie BEZ zmian:** `enforce2FA` zostaje fail-open przy wyjątku (osobna decyzja właściciela,
+sesja 4 planu) — awaria bazy nadal przepuszcza nie-adminów.
+
+**⏳ Do zrobienia:** wgrać `~/Desktop/migracje_supabase/migracja_191_mfa_epoch.sql` na OBA
+środowiska + `git push` commita `332321b`.
+
 ### 2026-08-12 (#2) — 🔐 UTWARDZENIE 2FA: dławik prób + koniec obejścia przez rozjazd tożsamości
 
 > Commit `b046a9b` na produkcji. `tsc` 0 · **vitest 470/470** · `next build` OK.
