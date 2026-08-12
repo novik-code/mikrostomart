@@ -83,7 +83,11 @@ export async function GET(request: NextRequest) {
             .from('patients')
             .select('id, phone, email, locale, account_status, prodentis_id, created_at, last_login')
             .eq('id', patientId)
-            .single();
+            // 🪤 `maybeSingle`, NIE `single`. Przy zero wierszach `single()` zwraca BŁĄD
+            // (PGRST116), więc rozdzielenie „awaria vs brak konta" od razu by się rozjechało:
+            // nieistniejące konto dostawało 500 zamiast 404. Złapane kontrolą negatywną
+            // na produkcji, nie rozumowaniem.
+            .maybeSingle();
 
         /**
          * 🔑 BŁĄD ZAPYTANIA ≠ BRAK PACJENTA — i to jest powód, dla którego awaria wyżej
