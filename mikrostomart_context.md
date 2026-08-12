@@ -2474,6 +2474,49 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
+### 2026-08-12 (#2) — 🔐 UTWARDZENIE 2FA: dławik prób + koniec obejścia przez rozjazd tożsamości
+
+> Commit `b046a9b` na produkcji. `tsc` 0 · **vitest 470/470** · `next build` OK.
+> Robione PRZED 1 września, bo od tego dnia na 2FA opiera się **14 osób zamiast 4**.
+
+#### 🔴 W całym `/api/auth/2fa/*` nie było ŻADNEGO ograniczenia liczby prób
+Zmierzone: zero wywołań `checkRateLimit` w siedmiu trasach 2FA. Kto znał **samo hasło**
+pracownika, mógł zgadywać sześciocyfrowy kod bez końca — drugi składnik nie zabezpieczał
+niczego, tylko wydłużał atak.
+- Naprawa: `guardMfaAttempts` w **serwisie**, wpięty we **wszystkie cztery** wejścia
+  weryfikujące. 🔑 Nie w trasach — tras opakowujących jest więcej, a strażnik przypięty do
+  jednej powiela błąd, któremu ma zapobiegać (ta klasa wróciła tu trzy razy przy pushu).
+- 🔑 **Klucz per użytkownik, nie per IP.** Cały gabinet siedzi za jednym NAT-em — limit po
+  adresie zamknąłby panel wszystkim, gdy jedna osoba pomyli kod (pułapka z `dc1e132`).
+- 🔑 Dławik stoi **przed** odczytem sekretu; test sprawdza to wprost (zero wywołań `from()`
+  przy przekroczonym progu) — inaczej hamowałby tylko pozornie.
+- Progi: TOTP **10/15 min**, kody zapasowe **5/15 min**, osobne kubełki. Trasy zwracają
+  **429 + `Retry-After`** — bez tego klient mówiłby „nieprawidłowy kod" i kazał próbować dalej.
+
+#### 🔴 Bramka i trasa rozstrzygały tożsamość ODWROTNIE — to było obejście 2FA
+`middleware.ts` brał użytkownika z **ciasteczka** (`if (!mfaUser)`), a
+`authGuards.getSupabaseUser` jest **Bearer-first**. Przy żądaniu niosącym oba poświadczenia
+bramka liczyła drugi składnik użytkownika **A**, a trasa działała jako użytkownik **B**.
+Kto zna hasło B, mintuje sobie Bearer przez `signInWithPassword` (dokładnie ten krok ma
+zatrzymać drugi składnik), dokłada własne spełnione ciasteczko A i wchodzi jako B.
+Ta sama klasa co dziura z lipca (`238f8a9`). Naprawione — kolejność zrównana z authGuards;
+dla weba zero zmian, bo przeglądarka nie wysyła `Authorization` na te trasy.
+
+#### ⚖️ Dwa znaleziska planu okazały się PRZESADZONE (sprawdzone, nie przepisane)
+- „`POST /setup` jest DESTRUKCYJNY" — jest za bramką `already_enabled`, więc osoba
+  z działającym 2FA **nie może** stracić kodów zapasowych. Kasowanie dotyczy wyłącznie
+  porzuconej, niedokończonej konfiguracji, czyli jest zachowaniem poprawnym.
+- „`PATCH /devices/[id]` zwraca 200 dla cudzego id" — `renameDevice` **ma** zawężenie
+  `.eq('employee_id', …)`, więc cudzego urządzenia nie zmieni. Zostaje samo mylące 200;
+  zwracanie 404 byłoby **gorsze**, bo dałoby wyrocznię do wyliczania identyfikatorów.
+
+⏳ **Niezałatane, świadomie:** `employees.mfa_epoch`. `verifyMfaSessionToken` sprawdza tylko
+podpis, `userId` i termin, więc **reset 2FA nie unieważnia trwającej sesji MFA** (do 30 dni
+przy „zaufaj urządzeniu"). Przy kradzieży telefonu reset u admina nie odbiera dostępu.
+Wymaga migracji + znacznika w tokenie.
+
+---
+
 ### 2026-08-12 — 🔕 NEUTRALIZACJA TREŚCI POWIADOMIEŃ (ostatnia z trzech decyzji audytu)
 
 > Commit `58c9260` na produkcji. `tsc` 0 · **vitest 464/464** (było 457) · `next build` OK.
