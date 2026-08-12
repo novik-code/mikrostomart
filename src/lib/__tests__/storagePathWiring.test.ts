@@ -187,6 +187,22 @@ describe('Strażnik: klucze obiektów Storage', () => {
         expect(read('src/lib/consentTypes.ts')).toContain('wybierzAdresSzablonu');
     });
 
+    it('🔴 listy czytane przez apkę 1.2.0 oddają adres PODPISANY, nie publiczny', () => {
+        // Binarka ze sklepu otwiera te pola wprost (`Linking.openURL(doc.fileUrl)`,
+        // `WebBrowser.openBrowserAsync(c.file_url)`) i nie zna trasy-pośrednika.
+        // Zostawienie tu publicznego adresu = po zamknięciu bucketa dokumenty
+        // przestają się otwierać u wszystkich, aż do wydania nowej wersji apki.
+        const pacjent = read('src/app/api/patients/documents/route.ts');
+        expect(pacjent, 'lista pacjenta nie podpisuje').toContain('displayUrlFor');
+        expect(pacjent, 'fileUrl znów bierze surową kolumnę').not.toMatch(/fileUrl:\s*c\.file_url/);
+        expect(pacjent, 'fileUrl e-Karty znów bierze surową kolumnę').not.toMatch(/fileUrl:\s*i\.pdf_url/);
+        expect(pacjent, 'brak klucza w selekcie').toMatch(/file_path/);
+
+        const personel = read('src/app/api/employee/patient-consents/route.ts');
+        expect(personel, 'zgody dla apki personelu nie podpisują').toContain('displayUrlFor');
+        expect(personel, 'spread przepuszcza surowy file_url').toMatch(/file_url:\s*podpisy\[idx\]/);
+    });
+
     it('migracja 192 iteruje image_urls niezależnie od typu kolumny', () => {
         // 🔴 `employee_tasks.image_urls` MA INNY TYP W KAŻDYM ŚRODOWISKU (zmierzone
         // w information_schema): produkcja TEXT[], demo jsonb. Każde podejście „na jeden
