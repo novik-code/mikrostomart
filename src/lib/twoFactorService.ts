@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { bumpMfaEpoch } from '@/lib/mfaEpoch';
 import {
     generateSecret,
     generateQrDataUrl,
@@ -471,6 +472,17 @@ export async function removeDevice(
             .eq('id', employee.id);
     }
 
+    // 🔒 Usunięto AKTYWNE urządzenie = odebrano czynnik → wszystkie sesje MFA
+    // padają (migracja 191). Dotyczy TAKŻE przypadku, gdy zostają inne urządzenia:
+    // wyrzucenie zgubionego telefonu z listy ma zrywać jego żywe sesje, inaczej
+    // cała operacja jest kosmetyką. Skutek uboczny przyjęty świadomie: osoba,
+    // która właśnie usunęła urządzenie, przejdzie challenge jeszcze raz
+    // (`/pracownik/security` jest w SKIP_2FA_PATHS, więc nie wypadnie z ekranu).
+    //
+    // Urządzenie NIEAKTYWOWANE (gałąź wyżej) NIE inkrementuje epoki — jego
+    // sekretu nikt nigdy nie miał, więc nie ma czego unieważniać.
+    await bumpMfaEpoch(userId, 'removeDevice');
+
     return { ok: true, allDisabled };
 }
 
@@ -662,6 +674,10 @@ export async function disableAll(
         })
         .eq('id', employee.id);
 
+    // 🔒 Unieważnij wszystkie sesje MFA (migracja 191). Bez tego stary token
+    // „zaufanego urządzenia" przeżywa wyłączenie i PONOWNE włączenie 2FA.
+    await bumpMfaEpoch(userId, 'disableAll');
+
     return { ok: true };
 }
 
@@ -704,6 +720,11 @@ export async function adminReset(targetUserId: string): Promise<
             totp_secret: null,
         })
         .eq('id', target.id);
+
+    // 🔒 TO JEST SEDNO POZYCJI 1 PLANU NAPRAW (migracja 191): reset po kradzieży
+    // telefonu musi ODEBRAĆ DOSTĘP. Do 2026-08-12 nie odbierał — sesja MFA
+    // złodzieja żyła dalej, przy „zaufanym urządzeniu" nawet 30 dni.
+    await bumpMfaEpoch(targetUserId, 'adminReset');
 
     return { ok: true };
 }

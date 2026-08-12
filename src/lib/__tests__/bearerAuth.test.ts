@@ -73,19 +73,19 @@ describe("getUserFromBearerToken", () => {
 describe("evaluateStaffMfa (native 2FA gate)", () => {
     it("blocks an admin without 2FA enabled (must finish setup on web)", async () => {
         const { evaluateStaffMfa } = await import("@/lib/bearerAuth");
-        const verdict = evaluateStaffMfa({ isAdmin: true, totpEnabled: false, proof: undefined, userId: "a1" });
+        const verdict = evaluateStaffMfa({ isAdmin: true, totpEnabled: false, proof: undefined, userId: "a1", epoch: 0 });
         expect(verdict).toEqual({ ok: false, reason: "mfa_setup_required" });
     });
 
     it("allows a non-admin employee without 2FA (mirrors web)", async () => {
         const { evaluateStaffMfa } = await import("@/lib/bearerAuth");
-        const verdict = evaluateStaffMfa({ isAdmin: false, totpEnabled: false, proof: undefined, userId: "e1" });
+        const verdict = evaluateStaffMfa({ isAdmin: false, totpEnabled: false, proof: undefined, userId: "e1", epoch: 0 });
         expect(verdict.ok).toBe(true);
     });
 
     it("requires an MFA proof when 2FA is enabled and none is provided", async () => {
         const { evaluateStaffMfa } = await import("@/lib/bearerAuth");
-        const verdict = evaluateStaffMfa({ isAdmin: true, totpEnabled: true, proof: undefined, userId: "a1" });
+        const verdict = evaluateStaffMfa({ isAdmin: true, totpEnabled: true, proof: undefined, userId: "a1", epoch: 0 });
         expect(verdict).toEqual({ ok: false, reason: "mfa_required" });
     });
 
@@ -93,7 +93,7 @@ describe("evaluateStaffMfa (native 2FA gate)", () => {
         const { createMfaSessionToken } = await import("@/lib/mfaSession");
         const { evaluateStaffMfa } = await import("@/lib/bearerAuth");
         const tokenForOther = createMfaSessionToken("someone-else");
-        const verdict = evaluateStaffMfa({ isAdmin: true, totpEnabled: true, proof: tokenForOther, userId: "a1" });
+        const verdict = evaluateStaffMfa({ isAdmin: true, totpEnabled: true, proof: tokenForOther, userId: "a1", epoch: 0 });
         expect(verdict).toEqual({ ok: false, reason: "mfa_required" });
     });
 
@@ -101,7 +101,28 @@ describe("evaluateStaffMfa (native 2FA gate)", () => {
         const { createMfaSessionToken } = await import("@/lib/mfaSession");
         const { evaluateStaffMfa } = await import("@/lib/bearerAuth");
         const token = createMfaSessionToken("a1");
-        const verdict = evaluateStaffMfa({ isAdmin: true, totpEnabled: true, proof: token, userId: "a1" });
+        const verdict = evaluateStaffMfa({ isAdmin: true, totpEnabled: true, proof: token, userId: "a1", epoch: 0 });
+        expect(verdict.ok).toBe(true);
+    });
+
+    /**
+     * 🔒 Tor NATYWNY (apka) po resecie 2FA — migracja 191. Apka trzyma `mfaToken`
+     * w SecureStore i wysyła go w `X-MFA-Session`; bez epoki reset u admina nie
+     * odbierał telefonowi dostępu do strefy pracownika.
+     */
+    it("odrzuca token apki sprzed resetu 2FA (mfa_epoch)", async () => {
+        const { createMfaSessionToken } = await import("@/lib/mfaSession");
+        const { evaluateStaffMfa } = await import("@/lib/bearerAuth");
+        const stary = createMfaSessionToken("a1", true, 0);
+        const verdict = evaluateStaffMfa({ isAdmin: true, totpEnabled: true, proof: stary, userId: "a1", epoch: 1 });
+        expect(verdict).toEqual({ ok: false, reason: "mfa_required" });
+    });
+
+    it("przepuszcza token apki wystawiony po resecie", async () => {
+        const { createMfaSessionToken } = await import("@/lib/mfaSession");
+        const { evaluateStaffMfa } = await import("@/lib/bearerAuth");
+        const swiezy = createMfaSessionToken("a1", true, 1);
+        const verdict = evaluateStaffMfa({ isAdmin: true, totpEnabled: true, proof: swiezy, userId: "a1", epoch: 1 });
         expect(verdict.ok).toBe(true);
     });
 });

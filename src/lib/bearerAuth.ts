@@ -67,12 +67,19 @@ export type StaffMfaVerdict =
  * funkcja przestałaby być czysta i nie dałoby się przetestować obu stron terminu
  * bez przestawiania zegara procesu. Wartość liczy `isMfaMandatoryForAll()`
  * z `lib/mfaPolicy.ts` (decyzja właściciela: od 1 września 2026 dotyczy całego zespołu).
+ *
+ * 🔒 `epoch` (migracja 191) jest WYMAGANY, nie opcjonalny — świadomie. Gdyby miał
+ * wartość domyślną, nowy wołający mógłby go pominąć, a wtedy unieważnianie sesji
+ * po resecie 2FA przestałoby działać na torze natywnym i NIC by tego nie zgłosiło.
+ * Wartość pochodzi z `employees.mfa_epoch` (`readMfaGate`).
  */
 export function evaluateStaffMfa(opts: {
     isAdmin: boolean;
     totpEnabled: boolean;
     proof: string | undefined;
     userId: string;
+    /** Bieżąca epoka unieważnień z bazy. Token ze starszą epoką = odrzucony. */
+    epoch: number;
     /** Domyślnie `false` = zachowanie sprzed decyzji (2FA wymagane tylko od adminów). */
     mandatoryForAll?: boolean;
 }): StaffMfaVerdict {
@@ -80,7 +87,7 @@ export function evaluateStaffMfa(opts: {
         return { ok: false, reason: "mfa_setup_required" };
     }
     if (opts.totpEnabled) {
-        const session = verifyMfaSessionToken(opts.proof);
+        const session = verifyMfaSessionToken(opts.proof, opts.epoch);
         if (!session || session.userId !== opts.userId) {
             return { ok: false, reason: "mfa_required" };
         }

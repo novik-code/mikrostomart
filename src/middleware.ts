@@ -6,6 +6,7 @@ import { routing } from './i18n/routing';
 import { verifyMfaSessionToken, MFA_COOKIE_NAME } from "./lib/mfaSession";
 import { extractBearerToken, getUserFromBearerToken, evaluateStaffMfa } from "./lib/bearerAuth";
 import { isMfaMandatoryForAll } from "./lib/mfaPolicy";
+import { readMfaGate } from "./lib/mfaEpoch";
 
 /**
  * Known search engine bot user-agent patterns.
@@ -420,13 +421,24 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
 
         const admin = createClient(supabaseUrl, serviceKey);
 
-        const [{ data: employee }, { data: roles }] = await Promise.all([
-            admin.from('employees').select('totp_enabled').eq('user_id', userId).maybeSingle(),
+        /**
+         * 🔒 `readMfaGate` (lib/mfaEpoch.ts) czyta `totp_enabled` RAZEM z `mfa_epoch`
+         * — jednym zapytaniem, z fallbackiem na czasy sprzed migracji 191.
+         *
+         * 🪤 Dlaczego nie zwykłe `select('totp_enabled, mfa_epoch')` w tym miejscu:
+         * dopóki kolumna nie jest wgrana, PostgREST wywala CAŁY select błędem 42703,
+         * `employee` wychodzi `null`, `totpEnabled` = `false` i bramka przestaje
+         * egzekwować drugi składnik dla nie-adminów. Dokładanie kolumny do zapytania
+         * otwierałoby więc dziurę zamiast ją zamykać.
+         */
+        const [gate, { data: roles }] = await Promise.all([
+            readMfaGate(admin, userId),
             admin.from('user_roles').select('role').eq('user_id', userId),
         ]);
 
         const isAdmin = (roles || []).some(r => r.role === 'admin');
-        const totpEnabled = Boolean(employee?.totp_enabled);
+        const totpEnabled = gate.totpEnabled;
+        const mfaEpoch = gate.epoch;
 
         /**
          * Od 1 września 2026 drugi składnik obowiązuje CAŁY zespół, nie tylko adminów
@@ -450,6 +462,7 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
                 totpEnabled,
                 proof: request.headers.get('x-mfa-session') ?? undefined,
                 userId,
+                epoch: mfaEpoch,
                 mandatoryForAll,
             });
             if (!verdict.ok) {
@@ -469,9 +482,11 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
         }
 
         // Case 2: 2FA enabled but no valid mfa_session → challenge.
+        // `mfaEpoch` odcina sesje sprzed odebrania czynnika (reset admina,
+        // wyłączenie 2FA, usunięcie aktywnego urządzenia) — patrz migracja 191.
         if (totpEnabled) {
             const cookie = request.cookies.get(MFA_COOKIE_NAME)?.value;
-            const session = verifyMfaSessionToken(cookie);
+            const session = verifyMfaSessionToken(cookie, mfaEpoch);
             if (!session || session.userId !== userId) {
                 const url = new URL('/auth/2fa-challenge', request.url);
                 url.searchParams.set('redirect', pathname);

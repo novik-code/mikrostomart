@@ -53,6 +53,7 @@ describe("evaluateStaffMfa — przed terminem zachowanie BEZ ZMIAN", () => {
                 totpEnabled: false,
                 proof: undefined,
                 userId: USER,
+                epoch: 0,
                 mandatoryForAll: false,
             }),
         ).toEqual({ ok: true });
@@ -63,7 +64,7 @@ describe("evaluateStaffMfa — przed terminem zachowanie BEZ ZMIAN", () => {
         // Gdyby domyślka była `true`, każdy wołający, który zapomni przekazać flagę,
         // zamknąłby panel całemu zespołowi natychmiast po wdrożeniu.
         expect(
-            evaluateStaffMfa({ isAdmin: false, totpEnabled: false, proof: undefined, userId: USER }),
+            evaluateStaffMfa({ isAdmin: false, totpEnabled: false, proof: undefined, userId: USER, epoch: 0 }),
         ).toEqual({ ok: true });
     });
 
@@ -75,6 +76,7 @@ describe("evaluateStaffMfa — przed terminem zachowanie BEZ ZMIAN", () => {
                 totpEnabled: false,
                 proof: undefined,
                 userId: USER,
+                epoch: 0,
                 mandatoryForAll: false,
             }),
         ).toEqual({ ok: false, reason: "mfa_setup_required" });
@@ -90,6 +92,7 @@ describe("evaluateStaffMfa — po terminie obowiązuje KAŻDEGO", () => {
                 totpEnabled: false,
                 proof: undefined,
                 userId: USER,
+                epoch: 0,
                 mandatoryForAll: true,
             }),
         ).toEqual({ ok: false, reason: "mfa_setup_required" });
@@ -105,6 +108,7 @@ describe("evaluateStaffMfa — po terminie obowiązuje KAŻDEGO", () => {
                 totpEnabled: true,
                 proof,
                 userId: USER,
+                epoch: 0,
                 mandatoryForAll: true,
             }),
         ).toEqual({ ok: true });
@@ -120,6 +124,7 @@ describe("evaluateStaffMfa — po terminie obowiązuje KAŻDEGO", () => {
                 totpEnabled: true,
                 proof,
                 userId: USER,
+                epoch: 0,
                 mandatoryForAll: true,
             }),
         ).toEqual({ ok: false, reason: "mfa_required" });

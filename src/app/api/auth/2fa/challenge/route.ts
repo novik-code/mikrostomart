@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { verifyChallenge, verifyBackupChallenge, MFA_RATE_LIMITED } from '@/lib/twoFactorService';
-import { setMfaSessionCookie, createMfaSessionToken } from '@/lib/mfaSession';
+import { setMfaSessionCookie, mintMfaSessionToken } from '@/lib/mfaSession';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
         ok: true,
-        ...(isNative ? { mfaToken: createMfaSessionToken(auth.user.id, remember) } : {}),
+        ...(isNative ? { mfaToken: await mintMfaSessionToken(auth.user.id, remember) } : {}),
         ...(isBackup && 'remaining' in result ? { backupRemaining: result.remaining } : {}),
     });
 }

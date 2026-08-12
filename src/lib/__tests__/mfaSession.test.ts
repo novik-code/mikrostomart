@@ -67,4 +67,58 @@ describe('mfaSession', () => {
             expect(verifyMfaSessionToken(expired)).toBeNull();
         });
     });
+
+    /**
+     * 🔒 `mfa_epoch` — pozycja 1 planu napraw bezpieczeństwa (migracja 191).
+     *
+     * Reset 2FA po kradzieży telefonu MUSI odbierać dostęp. Do 2026-08-12 nie
+     * odbierał: weryfikacja patrzyła na podpis, `userId` i termin, a token
+     * „zaufanego urządzenia" żyje 30 dni.
+     *
+     * Cofka dowodowa: usunięcie linii `if (typeof expectedEpoch === 'number' &&
+     * tokenEpoch < expectedEpoch) return null;` w mfaSession.ts wywala testy
+     * „odrzuca token sprzed inkrementacji" i „legacy token … po inkrementacji".
+     */
+    describe('epoka unieważnień (mfa_epoch)', () => {
+        it('odrzuca token sprzed inkrementacji epoki (reset 2FA odbiera dostęp)', () => {
+            const stary = createMfaSessionToken('user-1', true, 0);
+            // Admin zresetował 2FA → employees.mfa_epoch = 1
+            expect(verifyMfaSessionToken(stary, 1)).toBeNull();
+        });
+
+        it('przepuszcza token wystawiony PO inkrementacji', () => {
+            const swiezy = createMfaSessionToken('user-1', true, 1);
+            expect(verifyMfaSessionToken(swiezy, 1)?.userId).toBe('user-1');
+        });
+
+        it('bez podanej epoki sprawdza tyle, co przed migracją (zgodność wsteczna)', () => {
+            const token = createMfaSessionToken('user-1', false, 7);
+            expect(verifyMfaSessionToken(token)?.epoch).toBe(7);
+        });
+
+        it('token SPRZED migracji (bez pola epoch) liczy się jako epoka 0', () => {
+            // Wgranie migracji nie może wylogować całego zespołu naraz.
+            const crypto = require('crypto');
+            const payload = JSON.stringify({ userId: 'user-1', expiresAt: Date.now() + 3_600_000 });
+            const encoded = Buffer.from(payload).toString('base64url');
+            const sig = crypto
+                .createHmac('sha256', process.env.MFA_SESSION_SECRET)
+                .update(encoded)
+                .digest('base64url');
+            const legacy = `${encoded}.${sig}`;
+
+            expect(verifyMfaSessionToken(legacy, 0)?.userId).toBe('user-1');
+            // …ale po pierwszym unieważnieniu ma paść jak każdy inny.
+            expect(verifyMfaSessionToken(legacy, 1)).toBeNull();
+        });
+
+        it('epoka jest podpisana — podmiana w ładunku nie przechodzi', () => {
+            const token = createMfaSessionToken('user-1', false, 0);
+            const [, sig] = token.split('.');
+            const fake = Buffer.from(
+                JSON.stringify({ userId: 'user-1', expiresAt: Date.now() + 3_600_000, epoch: 99 }),
+            ).toString('base64url');
+            expect(verifyMfaSessionToken(`${fake}.${sig}`, 1)).toBeNull();
+        });
+    });
 });

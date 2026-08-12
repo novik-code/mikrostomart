@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { MFA_COOKIE_NAME, verifyMfaSessionToken } from '@/lib/mfaSession';
+import { getMfaEpoch } from '@/lib/mfaEpoch';
 import {
     listDevices,
     addDevice,
@@ -32,11 +33,16 @@ async function hasCurrentFactorProof(
     userId: string,
     code?: string
 ): Promise<boolean> {
+    // Epoka unieważnień (migracja 191) — sesja MFA sprzed resetu 2FA NIE jest
+    // dowodem posiadania czynnika. Bez tego argumentu złodziej ze starym
+    // tokenem dodałby sobie nowe urządzenie i odzyskał konto po resecie.
+    const epoch = await getMfaEpoch(userId);
+
     const header = request.headers.get('x-mfa-session') ?? undefined;
-    if (verifyMfaSessionToken(header)?.userId === userId) return true;
+    if (verifyMfaSessionToken(header, epoch)?.userId === userId) return true;
 
     const cookie = (await cookies()).get(MFA_COOKIE_NAME)?.value;
-    if (verifyMfaSessionToken(cookie)?.userId === userId) return true;
+    if (verifyMfaSessionToken(cookie, epoch)?.userId === userId) return true;
 
     const trimmed = typeof code === 'string' ? code.trim() : '';
     if (!trimmed) return false;
