@@ -238,7 +238,7 @@ export async function displayUrlFor(
     bucket: StorageBucket,
     path: string | null | undefined,
     legacyUrl: string | null | undefined,
-    opts?: { downloadAs?: string },
+    opts?: { downloadAs?: string; ttlSeconds?: number },
 ): Promise<string | null> {
     const src = documentSource(path, legacyUrl);
     if (!src) return null;

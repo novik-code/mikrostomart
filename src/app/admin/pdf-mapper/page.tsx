@@ -259,13 +259,36 @@ export default function PdfMapperPage() {
     // ── Current consent info ───────────────────────────────────
     const currentConsent = consents.find(c => c.consent_key === selectedKey);
 
-    const getPdfUrl = (consent: ConsentMapping | undefined) => {
-        if (!consent) return '';
-        if (consent.pdf_file.startsWith('http')) return consent.pdf_file;
-        if (consent.pdf_file.includes('/')) return consent.pdf_file;
-        return `/zgody/${consent.pdf_file}`;
-    };
-    const pdfUrl = getPdfUrl(currentConsent);
+    /**
+     * 🪤 BYŁA TU DRUGA, NIEZGODNA SKŁADARKA ADRESU (trzy gałęzie, inne niż w
+     * `/api/consents/verify`). Dwie implementacje tej samej reguły w dwóch plikach —
+     * poprawka w jednym zostawiała mapper na martwym adresie i admin nie mógł zmapować
+     * pól nowego szablonu.
+     *
+     * Teraz adres bierzemy z trasy-pośrednika (podpis 3600 s; `pdf.js` pobiera dokument
+     * sam i robi range-requesty, więc potrzebuje adresu, nie JSON-a z bajtami).
+     * Statyki z `public/zgody/` (10 nieaktywnych wierszy) zostają na starej drodze.
+     */
+    const [pdfUrl, setPdfUrl] = useState('');
+    useEffect(() => {
+        let anulowane = false;
+        setPdfUrl('');
+        if (!currentConsent) return;
+        const plik = currentConsent.pdf_file || '';
+        if (plik && !plik.startsWith('http') && !plik.includes('/')) {
+            setPdfUrl(`/zgody/${plik}`);   // statyk, nie Storage
+            return;
+        }
+        (async () => {
+            try {
+                const r = await fetch(`/api/employee/documents/file?type=consent-template&key=${encodeURIComponent(currentConsent.consent_key)}`);
+                const d = await r.json().catch(() => ({}));
+                if (!anulowane && d?.url) setPdfUrl(d.url);
+                else if (!anulowane) setPdfUrl(plik);   // okres przejściowy: stary adres
+            } catch { if (!anulowane) setPdfUrl(plik); }
+        })();
+        return () => { anulowane = true; };
+    }, [currentConsent]);
 
     // ── Load PDF when consent changes ──────────────────────────
     useEffect(() => {
@@ -565,6 +588,7 @@ export default function PdfMapperPage() {
         setUploading(true);
         try {
             let pdf_file = '';
+            let pdf_path = '';
             if (newFile) {
                 const formData = new FormData();
                 formData.append('file', newFile);
@@ -572,13 +596,16 @@ export default function PdfMapperPage() {
                 if (!uploadRes.ok) throw new Error('Upload PDF failed');
                 const uploadData = await uploadRes.json();
                 pdf_file = uploadData.publicUrl || uploadData.fileName;
+            // Trasa uploadu ODDAJE gotowy klucz obiektu — dotąd klient go ignorował
+            // i zapisywał sam adres. Bez klucza nowy szablon nie przeżyje zamknięcia bucketa.
+            pdf_path = uploadData.storagePath || '';
             }
             const res = await fetch('/api/admin/consent-mappings', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     consent_key: newKey.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
-                    label: newLabel, pdf_file,
+                    label: newLabel, pdf_file, pdf_path,
                 }),
             });
             if (!res.ok) { const err = await res.json(); throw new Error(err.error || 'Create failed'); }

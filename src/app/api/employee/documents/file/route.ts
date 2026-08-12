@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
-import { PATIENT_DOC_BUCKET, TASK_IMAGE_BUCKET, displayUrlFor } from '@/lib/privateStorage';
+import { PATIENT_DOC_BUCKET, TASK_IMAGE_BUCKET, CONSENT_TEMPLATE_BUCKET, displayUrlFor } from '@/lib/privateStorage';
 
 /**
  * GET /api/employee/documents/file?type=consent|ekarta|task-image&id=…  (dla `task-image`: &path=…)
@@ -104,6 +104,34 @@ export async function GET(req: NextRequest) {
         });
 
         return NextResponse.json({ url, expiresIn: 900 });
+    }
+
+    // ── Szablon zgody (PUSTY formularz) — dla mappera pól w panelu admina ────
+    if (typ === 'consent-template') {
+        const key = sp.get('key');
+        if (!key || !/^[a-z0-9_]{1,60}$/.test(key)) {
+            return NextResponse.json({ error: 'Nieprawidłowy klucz zgody' }, { status: 400 });
+        }
+        const { data } = await supabase
+            .from('consent_field_mappings')
+            .select('pdf_path, pdf_file')
+            .eq('consent_key', key)
+            .maybeSingle();
+        if (!data) return NextResponse.json({ error: 'Nie znaleziono szablonu' }, { status: 404 });
+
+        const url = await displayUrlFor(CONSENT_TEMPLATE_BUCKET, data.pdf_path, data.pdf_file, { ttlSeconds: 3600 });
+        if (!url) return NextResponse.json({ error: 'Szablon niedostępny' }, { status: 404 });
+
+        /**
+         * Świadomie BEZ wpisu do audytu: to PUSTY formularz kliniki, nie dokument
+         * pacjenta. Rejestr ma odpowiadać na pytanie „kto oglądał czyje dane" —
+         * dosypywanie do niego otwarć blankietu rozmywa jedyne wpisy, które coś znaczą.
+         *
+         * 🪤 TTL 3600 s, bo `pdf.js` w mapperze pobiera dokument SAM i robi range-requesty
+         * przy przewijaniu stron. Przy 900 s mapowanie dłuższego szablonu potrafiłoby
+         * paść w połowie.
+         */
+        return NextResponse.json({ url, expiresIn: 3600 });
     }
 
     // ── Dokument pacjenta: zgoda albo e-Karta ────────────────────────────────

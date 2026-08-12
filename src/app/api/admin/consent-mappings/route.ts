@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const user = auth.user;
 
     const body = await request.json();
-    const { consent_key, label, pdf_file, fields } = body;
+    const { consent_key, label, pdf_file, pdf_path, fields } = body;
 
     if (!consent_key || !label || !pdf_file) {
         return NextResponse.json({ error: 'consent_key, label, pdf_file required' }, { status: 400 });
@@ -50,6 +50,9 @@ export async function POST(request: NextRequest) {
             consent_key,
             label,
             pdf_file,
+            // Klucz obiektu (migracja 192) — źródło prawdy po zamknięciu bucketa.
+            // `pdf_file` zostaje na okres przejściowy.
+            ...(pdf_path ? { pdf_path } : {}),
             fields: fields || {},
             updated_by: user.email,
         })
@@ -91,6 +94,9 @@ export async function PUT(request: NextRequest) {
     if (updates.fields !== undefined) updateData.fields = updates.fields;
     if (updates.label !== undefined) updateData.label = updates.label;
     if (updates.pdf_file !== undefined) updateData.pdf_file = updates.pdf_file;
+    // Klucz obiektu razem z adresem — inaczej podmiana szablonu zostawiłaby wiersz
+    // ze STARYM kluczem i nowym adresem, czyli po zamknięciu bucketa z martwym plikiem.
+    if (updates.pdf_path !== undefined) updateData.pdf_path = updates.pdf_path;
     if (updates.is_active !== undefined) updateData.is_active = updates.is_active;
 
     const { data, error } = await supabase

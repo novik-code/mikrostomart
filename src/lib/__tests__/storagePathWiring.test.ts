@@ -166,6 +166,27 @@ describe('Strażnik: klucze obiektów Storage', () => {
         // pokazała, że cztery różne regresje przechodzą przez asercje na treści pliku.
     });
 
+    it('szablony zgód: JEDNA składarka adresu, klucz zapisywany przy uploadzie', () => {
+        // 🪤 Były DWIE niezgodne implementacje tej samej reguły — w `consents/verify`
+        // i w `pdf-mapper`. Poprawka w jednej zostawiała mapper na martwym adresie.
+        const mapper = read('src/app/admin/pdf-mapper/page.tsx');
+        expect(mapper, 'wróciła druga składarka adresu').not.toMatch(/const getPdfUrl = /);
+        expect(mapper, 'mapper nie bierze adresu z pośrednika').toContain('type=consent-template');
+        // klucz z odpowiedzi uploadu MUSI trafiać do bazy — bez niego nowy szablon
+        // nie przeżyje zamknięcia bucketa
+        expect(mapper).toMatch(/pdf_path = uploadData\.storagePath/);
+        expect(mapper).toMatch(/label: newLabel, pdf_file, pdf_path/);
+
+        // trasa mapowań musi ten klucz przyjąć — i przy tworzeniu, i przy podmianie
+        const trasa = read('src/app/api/admin/consent-mappings/route.ts');
+        expect(trasa).toMatch(/pdf_path \? \{ pdf_path \}/);
+        expect(trasa).toMatch(/updates\.pdf_path !== undefined/);
+
+        // 🪤 Samo ZACHOWANIE (klucz → podpis, brak klucza → statyk) sprawdza
+        // `consentTemplateUrl.test.ts` — wykonaniem, nie grepem.
+        expect(read('src/lib/consentTypes.ts')).toContain('wybierzAdresSzablonu');
+    });
+
     it('migracja 192 iteruje image_urls niezależnie od typu kolumny', () => {
         // 🔴 `employee_tasks.image_urls` MA INNY TYP W KAŻDYM ŚRODOWISKU (zmierzone
         // w information_schema): produkcja TEXT[], demo jsonb. Każde podejście „na jeden

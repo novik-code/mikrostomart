@@ -258,6 +258,7 @@ export const CONSENT_TYPE_KEYS = Object.keys(CONSENT_TYPES);
  */
 export async function getConsentTypesFromDB(): Promise<Record<string, ConsentType>> {
     try {
+        const { signObject, CONSENT_TEMPLATE_BUCKET } = await import('@/lib/privateStorage');
         const { createClient } = await import('@supabase/supabase-js');
         const supabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -266,7 +267,7 @@ export async function getConsentTypesFromDB(): Promise<Record<string, ConsentTyp
 
         const { data, error } = await supabase
             .from('consent_field_mappings')
-            .select('consent_key, label, pdf_file, fields')
+            .select('consent_key, label, pdf_file, pdf_path, fields')
             .eq('is_active', true);
 
         if (error || !data || data.length === 0) {
@@ -274,11 +275,37 @@ export async function getConsentTypesFromDB(): Promise<Record<string, ConsentTyp
             return CONSENT_TYPES;
         }
 
+        /**
+         * 🔴 TU ZAPADA LOS PODPISYWANIA ZGÓD NA TABLECIE.
+         *
+         * To JEDYNE miejsce po stronie serwera, w którym `pdf_file` staje się adresem
+         * szablonu widzianym przez pacjenta (`/api/consents/verify` → `zgody/[token]`).
+         * Zmierzone 2026-08-12: **wszystkie 14 AKTYWNYCH typów zgód** ma adres do
+         * publicznego bucketa `consent-pdfs`. Zamknięcie go bez tej zmiany = pacjent
+         * siedzi w fotelu i nie ma czego podpisać — 100% zgód, nie część.
+         *
+         * Dlatego: mając klucz obiektu (`pdf_path`, migracja 192) wystawiamy PODPISANY
+         * adres. Działa tak samo na buckecie publicznym i prywatnym, więc zamknięcie
+         * przestaje być skokiem w ciemno.
+         *
+         * 🪤 TTL 3600 s, NIE 900. Tablet pobiera szablon TRZY RAZY w trakcie jednej
+         * zgody (podgląd → wypełnienie → nałożenie podpisu), a pacjent może podpisywać
+         * kilka dokumentów w trakcie wizyty. Przy 900 s ostatni `fetch` potrafiłby paść
+         * po wygaśnięciu — i to dokładnie w chwili zatwierdzania podpisu.
+         * Szablon to PUSTY formularz, nie dokument pacjenta, więc dłuższe okno nie
+         * odsłania niczyich danych.
+         *
+         * 🪤 Wiersze BEZ klucza (10 statyków z `public/zgody/`) zostają na starej drodze —
+         * ich w buckecie nigdy nie było i nie ma czego podpisywać.
+         */
         const result: Record<string, ConsentType> = {};
         for (const row of data) {
             result[row.consent_key] = {
                 label: row.label,
-                file: row.pdf_file,
+                file: await wybierzAdresSzablonu(
+                    row as { consent_key: string; pdf_file: string; pdf_path?: string | null },
+                    (path) => signObject(CONSENT_TEMPLATE_BUCKET, path, { ttlSeconds: 3600 }),
+                ),
                 fields: row.fields as ConsentFieldMap,
             };
         }
@@ -289,3 +316,29 @@ export async function getConsentTypesFromDB(): Promise<Record<string, ConsentTyp
     }
 }
 
+/**
+ * Adres szablonu, który zobaczy tablet pacjenta.
+ *
+ * Wydzielone z `getConsentTypesFromDB`, żeby dało się to przetestować WYKONANIEM,
+ * a nie asercją na treści pliku. Cofka z tej samej sesji pokazała, że strażnik
+ * tekstowy przepuszcza cztery różne regresje bez mrugnięcia.
+ *
+ * Reguła:
+ *  1. jest klucz obiektu → PODPISANY adres (działa też po zamknięciu bucketa),
+ *  2. podpis padł → stary adres; dopóki bucket jest publiczny, pacjent podpisze,
+ *     a po zamknięciu będzie to awaria WIDOCZNA, nie cicha,
+ *  3. brak klucza → to statyk z `public/zgody/` (10 nieaktywnych wierszy), zostaje jak był.
+ */
+export async function wybierzAdresSzablonu(
+    row: { consent_key: string; pdf_file: string; pdf_path?: string | null },
+    podpisz: (path: string) => Promise<string | null>,
+): Promise<string> {
+    const path = (row.pdf_path || '').trim();
+    if (!path) return row.pdf_file;
+
+    const podpisany = await podpisz(path);
+    if (podpisany) return podpisany;
+
+    console.error('[ConsentTypes] nie udało się podpisać szablonu:', row.consent_key);
+    return row.pdf_file;
+}
