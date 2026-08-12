@@ -6,6 +6,7 @@ import { CheckSquare, Plus, User, AlertTriangle, Trash2, Clock, X, Search, Chevr
 import type { ChecklistItem, EmployeeTask, FutureAppointment, StaffMember, TaskTypeTemplate } from './TaskTypes';
 import { useTasks } from '../hooks/useTasks';
 import { TASK_TYPE_COLORS, getTaskTypeColor, FALLBACK_TASK_TYPE_CHECKLISTS } from './TaskTypes';
+import { miniaturaZadania } from '@/lib/staffDocumentLink';
 
 // ─── Props ────────────────────────────────────────────────────
 interface TasksTabProps {
@@ -963,10 +964,14 @@ export default function TasksTab({
                                                 {/* Task image */}
                                                 {task.image_url && (
                                                     <div style={{ marginBottom: '0.5rem' }}>
+                                                        {/* Miniatura idzie przez pośrednik, gdy wiersz ma już KLUCZ
+                                                            (kolumna image_path, migracja 192). Dopóki go nie ma —
+                                                            stary publiczny adres. Po zamknięciu bucketa zostanie
+                                                            wyłącznie pierwsza droga. */}
                                                         <img
-                                                            src={task.image_url}
+                                                            src={miniaturaZadania((task as any).image_path) ?? task.image_url}
                                                             alt="Zdjęcie zadania"
-                                                            onClick={(e) => { e.stopPropagation(); setZoomedImage(task.image_url); }}
+                                                            onClick={(e) => { e.stopPropagation(); setZoomedImage(miniaturaZadania((task as any).image_path) ?? task.image_url!); }}
                                                             style={{
                                                                 maxWidth: '100%',
                                                                 maxHeight: '200px',

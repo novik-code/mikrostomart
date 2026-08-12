@@ -87,6 +87,56 @@ describe('Strażnik: klucze obiektów Storage', () => {
         expect(podejrzani.length).toBe(4);
     });
 
+    it('trasa personelu waliduje kształt ścieżki, zanim dotknie zapytania', () => {
+        // 🔴 Pierwsza wersja sklejała filtr PostgREST stringiem z parametru `path`
+        // (`.or('image_paths.cs.{"'+path+'"}')`). Przecinek albo cudzysłów w adresie
+        // rozbijał wyrażenie filtra — wstrzyknięcie, nie kosmetyka.
+        const src = read('src/app/api/employee/documents/file/route.ts');
+        expect(src, 'brak twardego wzorca ścieżki zdjęcia').toMatch(/\^tasks\\\/\[A-Za-z0-9\._-\]/);
+        expect(src, 'wrócił sklejany filtr .or(...)').not.toMatch(/\.or\(`/);
+        // własność sprawdzana w bazie, nie po kształcie
+        expect(src).toMatch(/\.eq\('image_path', path\)/);
+        expect(src).toMatch(/\.contains\('image_paths', \[path\]\)/);
+    });
+
+    it('dokumenty pacjenta są audytowane ZAWSZE, tryb redirect tylko dla zdjęć zadań', () => {
+        const src = read('src/app/api/employee/documents/file/route.ts');
+        // redirect (bez audytu) musi stać w gałęzi task-image, czyli PRZED rozgałęzieniem
+        // na consent/ekarta — inaczej dałoby się nim ominąć ślad przy e-Karcie.
+        // 🪤 Pierwsza wersja tej asercji sprawdzała tylko `iRedirect < iDokument` — a to
+        // przechodzi TAKŻE wtedy, gdy redirect wycieknie NA GÓRĘ trasy i zacznie omijać
+        // audyt dla e-Karty. Warunek musi zamykać go WEWNĄTRZ gałęzi zdjęć zadań.
+        const iTaskImage = src.indexOf("if (typ === 'task-image')");
+        const iRedirect = src.indexOf("sp.get('redirect')");
+        const iDokument = src.indexOf("if (typ === 'consent')");
+        expect(iTaskImage, 'brak gałęzi zdjęć zadań').toBeGreaterThan(-1);
+        expect(iRedirect, 'brak trybu redirect').toBeGreaterThan(-1);
+        expect(iRedirect > iTaskImage && iRedirect < iDokument,
+            'tryb redirect musi siedzieć WEWNĄTRZ gałęzi task-image — poza nią omija audyt dokumentu',
+        ).toBe(true);
+        expect((src.match(/sp\.get\('redirect'\)/g) || []).length, 'redirect ma być JEDEN').toBe(1);
+        expect((src.match(/logAudit\(\{/g) || []).length, 'oczekiwane dwa wpisy audytu').toBe(2);
+    });
+
+    it('panel nie wstawia już publicznego adresu wprost w href', () => {
+        const czytelnicy: Array<[string, RegExp]> = [
+            ['src/app/pracownik/components/ScheduleTab.tsx', /href=\{c\.file_url\}/],
+            ['src/app/admin/biometric-signatures/page.tsx', /href=\{selected\.file_url\}/],
+            ['src/app/[locale]/strefa-pacjenta/dashboard/page.tsx', /href=\{doc\.fileUrl\}\s*\n/],
+        ];
+        const zle = czytelnicy.filter(([p, re]) => re.test(read(p))).map(([p]) => p);
+        expect(zle, `czytelnicy z gołym adresem: ${zle.join(', ')}`).toEqual([]);
+        // …i sanity: każdy z nich NAPRAWDĘ woła pośrednika
+        const wolajacy = czytelnicy.filter(([p]) => /otworzDokument(Personelu|Pacjenta)/.test(read(p)));
+        expect(wolajacy.length, 'strażnik przestał widzieć czytelników').toBe(3);
+    });
+
+    it('cache-buster `?t=` nie wrócił do adresu dokumentu', () => {
+        // Na podpisanym adresie daje drugi znak zapytania i Storage odpowiada 400.
+        const src = read('src/app/pracownik/components/ScheduleTab.tsx');
+        expect(src).not.toMatch(/pdfUrl\s*\+\s*'\?t='/);
+    });
+
     it('migracja 192 iteruje image_urls niezależnie od typu kolumny', () => {
         // 🔴 `employee_tasks.image_urls` MA INNY TYP W KAŻDYM ŚRODOWISKU (zmierzone
         // w information_schema): produkcja TEXT[], demo jsonb. Każde podejście „na jeden

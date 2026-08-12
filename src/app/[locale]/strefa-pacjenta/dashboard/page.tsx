@@ -10,6 +10,7 @@ import type { PatientData } from '@/hooks/usePatientAuth';
 import type { AppointmentStatusResponse } from '@/types/appointmentActions';
 import { brand, demoSanitize } from '@/lib/brandConfig';
 import { formatPhoneForTel } from '@/lib/phoneFormat';
+import { otworzDokumentPacjenta } from '@/lib/patientDocumentLink';
 
 interface PatientDocument {
     id: string;
@@ -788,7 +789,11 @@ export default function PatientDashboard() {
                                             </div>
                                             {doc.fileUrl ? (
                                                 <a
-                                                    href={doc.fileUrl}
+                                                    /* Przez trasę-pośrednik: sprawdza właściciela, podpisuje
+                                                       na 900 s i zapisuje ślad w rejestrze dostępu.
+                                                       `doc.fileUrl` zostaje jako zapas na okres przejściowy. */
+                                                    href={doc.id ? '#' : doc.fileUrl}
+                                                    onClick={doc.id ? (e) => { e.preventDefault(); void otworzDokumentPacjenta(doc.id, doc.type); } : undefined}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     style={{

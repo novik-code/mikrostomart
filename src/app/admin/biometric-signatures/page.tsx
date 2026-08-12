@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { otworzDokumentPersonelu } from '@/lib/staffDocumentLink';
 
 interface BiometricPoint {
     x: number;
@@ -450,11 +451,13 @@ export default function BiometricViewerPage() {
                     {/* PDF link */}
                     {selected.file_url && (
                         <div style={{ ...card, textAlign: 'center' }}>
+                            {/* Narzędzie dowodowe (weryfikacja podpisu) — tym bardziej
+                                musi iść przez pośrednik: podpis 900 s + wpis do audytu. */}
                             <a
-                                href={selected.file_url}
-                                target="_blank"
+                                href="#"
+                                onClick={(e) => { e.preventDefault(); void otworzDokumentPersonelu({ typ: 'consent', id: selected.id }); }}
                                 rel="noopener noreferrer"
-                                style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.9rem' }}
+                                style={{ color: '#38bdf8', textDecoration: 'none', fontSize: '0.9rem', cursor: 'pointer' }}
                             >
                                 📄 Otwórz podpisany PDF →
                             </a>

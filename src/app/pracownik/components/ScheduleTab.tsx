@@ -9,6 +9,7 @@ import { CONSENT_TYPES as HARDCODED_CONSENT_TYPES } from '@/lib/consentTypes';
 import type { Badge, ScheduleAppointment, Visit, ScheduleDay, ScheduleData } from './ScheduleTypes';
 import type { EmployeeTask } from './TaskTypes';
 import { PRODENTIS_COLORS, DEFAULT_COLOR, BADGE_LETTERS, getBadgeLetter, getAppointmentColor, TIME_SLOTS, timeToSlotIndex, timeToMinutes, getMonday, formatDateShort } from './ScheduleTypes';
+import { otworzDokumentPersonelu } from '@/lib/staffDocumentLink';
 
 // ─── CareFlow: kroki po terminie ──────────────────────────────
 /**
@@ -2058,8 +2059,11 @@ export default function ScheduleTab({
                                                     borderRadius: '0.4rem',
                                                     gap: '0.5rem',
                                                 }}>
-                                                    <a href={c.file_url} target="_blank" rel="noopener noreferrer"
-                                                        style={{ fontSize: '0.75rem', color: '#fff', textDecoration: 'none', flex: 1, minWidth: 0 }}
+                                                    {/* Przez trasę-pośrednik: podpis 900 s + wpis do audytu.
+                                                        Wcześniej stał tu publiczny adres — otwarcie zgody
+                                                        pacjenta nie zostawiało ŻADNEGO śladu. */}
+                                                    <a href="#" onClick={(e) => { e.preventDefault(); e.stopPropagation(); void otworzDokumentPersonelu({ typ: 'consent', id: c.id }); }}
+                                                        style={{ fontSize: '0.75rem', color: '#fff', textDecoration: 'none', flex: 1, minWidth: 0, cursor: 'pointer' }}
                                                     >
                                                         📄 {c.consent_label}
                                                     </a>
@@ -2230,7 +2234,12 @@ export default function ScheduleTab({
                                     {/* PDF link */}
                                     {patientPdfUrl && (
                                         <a
-                                            href={patientPdfUrl}
+                                            /* Pośrednik zamiast publicznego adresu: e-Karta niesie PESEL,
+                                               adres i cały wywiad — jej otwarcie MUSI zostawiać ślad.
+                                               Gdy nie znamy id zgłoszenia, zostaje stary adres (okres
+                                               przejściowy — bucket jest jeszcze publiczny). */
+                                            href={intakeSubmissionId ? '#' : patientPdfUrl}
+                                            onClick={intakeSubmissionId ? (e) => { e.preventDefault(); void otworzDokumentPersonelu({ typ: 'ekarta', id: intakeSubmissionId }); } : undefined}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             style={{
@@ -2270,8 +2279,11 @@ export default function ScheduleTab({
                                                     }
                                                     const data = await res.json();
                                                     if (data.pdfUrl) {
-                                                        // Add cache buster to force reload
-                                                        setPatientPdfUrl(data.pdfUrl + '?t=' + Date.now());
+                                                        // 🪤 BYŁ TU CACHE-BUSTER `?t=`. Na adresie PODPISANYM daje drugi
+                                                        // znak zapytania (`...?token=xxx?t=123`), token przestaje się
+                                                        // zgadzać i Storage odpowiada 400. Świeżość i tak zapewnia
+                                                        // pośrednik: podpisuje przy każdym otwarciu, z `no-store`.
+                                                        setPatientPdfUrl(data.pdfUrl);
                                                     } else {
                                                         alert(`Błąd: ${data.error || 'Nie udało się wygenerować PDF'}`);
                                                     }
