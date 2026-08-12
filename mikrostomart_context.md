@@ -2474,6 +2474,50 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
+### 2026-08-12 — 🔕 NEUTRALIZACJA TREŚCI POWIADOMIEŃ (ostatnia z trzech decyzji audytu)
+
+> Commit `58c9260` na produkcji. `tsc` 0 · **vitest 464/464** (było 457) · `next build` OK.
+> Weszła dopiero teraz, bo wymagała transportu identyfikatorów i deep-linku w apce —
+> **neutralizacja bez nich kasowałaby informację, zamiast ją przenieść.**
+
+#### 🔑 Koszt okazał się DUŻO niższy, niż zakładała decyzja
+Zmierzone: **wszystkie 15 tytułów** kierowanych do personelu jest już neutralnych
+(„💬 Nowa wiadomość na czacie", „❌ Pacjent odwołał wizytę") — mówią CO się stało, bez KTO.
+Tożsamość siedzi wyłącznie w TREŚCI. Neutralizujemy więc samą treść, a recepcja zachowuje
+pełną wartość segregacyjną baneru. Założenie „recepcja straci szczegół" było pesymistyczne.
+
+#### Rozdzielenie dostarczania od historii
+`PushPayload.neutral` + `deliveredContent(payload)`: na ekran idzie wariant neutralny,
+do `push_notifications_log` **pełna treść**.
+🔑 Neutralizowanie obu byłoby błędem: baner widzi każdy, kto stoi obok telefonu (także
+pacjent w poczekalni), a feed „Alerty" jest **za logowaniem** i personel ma prawo widzieć
+w nim nazwiska. Neutralizacja historii zabrałaby informację bez żadnego zysku.
+
+#### Zakres — ustalony WYWOŁUJĄCYMI, nie nazwą typu
+15 typów szablonowych przez `broadcastPush` (każdy wychodzi wyłącznie do admin/employee)
++ **3 miejsca budujące treść u siebie**: `tasks` POST i PATCH oraz `sendPushByConfig('task-new')`.
+Typy pacjenta świadomie nietknięte — to jego dane na jego telefonie; zabranie ich zamienia
+powiadomienie w zagadkę. Bramka podwójna: `userType !== 'patient'` **oraz** lista typów.
+`console.log` w `sendToTokens` przestał wypisywać treść (logi Vercela są poza audytem).
+
+#### 🪤 Dwa błędy popełnione po drodze — oba teraz w testach
+1. Globalna podmiana kanałów trafiła **też w `logPushMany`**, czyli zneutralizowałaby
+   HISTORIĘ — odwrotnie do zamiaru. Uratowały mnie tylko rozjeżdżające się typy.
+2. `sendExpoPushToStaffMany` jest wołane w **ośmiu** miejscach, nie w dwóch, które
+   zmapowałem. Stąd `deliveredContent` we wszystkich kanałach — zwraca oryginał, gdy
+   `neutral` nie ma, więc wpięcie jej wszędzie jest bezpieczne i nie da się jej obejść.
+Trzecie miejsce z nazwiskiem (`sendPushByConfig('task-new')`) znalazłem **przypadkiem** —
+błędna wstawka trafiła w pierwsze z dwóch wystąpień kotwicy.
+🪤 Pierwsza wersja strażnika historii używała kruchego regexu i **milczała zamiast
+sprawdzać** — atrapa zielona niezależnie od stanu kodu. Przepisana na szukanie po miejscu
+wywołania. Strażnik dowiedziony **trzema** cofkami.
+
+⚠️ **Deployu nie da się potwierdzić warunkiem publicznym** — zmiana nie dodaje trasy,
+a jedyne wyzwalacze to realne powiadomienia do zespołu. Sprawdzenie: przy najbliższym
+powiadomieniu baner ma pokazać sam rodzaj zdarzenia, a zakładka Alerty — pełną treść.
+
+---
+
 ### 2026-08-11 (#2) — 🔐 2FA OBOWIĄZKOWE DLA CAŁEGO ZESPOŁU OD 1 WRZEŚNIA 2026
 
 > Commit `99de9b5` **NA PRODUKCJI** — zweryfikowane `x-matched-path` = `/api/admin/2fa/enrollment-reminder`
