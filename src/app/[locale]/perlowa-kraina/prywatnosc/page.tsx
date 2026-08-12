@@ -23,7 +23,10 @@ import RevealOnScroll from "@/components/RevealOnScroll";
 export default function PerlowaKrainaPrivacyPage() {
     const t = useTranslations('perlowaKrainaPriv');
 
-    const sekcje = ([1, 2, 3, 4, 5, 6, 7] as const).map((n) => ({
+    // s8 (kamera — czujnik obecności) doszła przy odmrożeniu D2. Stoi na końcu,
+    // bo wstawienie jej w środek wymagałoby przenumerowania kluczy w czterech
+    // locale po obu stronach — to zamiana realnego ryzyka na kosmetykę kolejności.
+    const sekcje = ([1, 2, 3, 4, 5, 6, 7, 8] as const).map((n) => ({
         title: t(`s${n}Title`),
         body: t(`s${n}Body`),
     }));
