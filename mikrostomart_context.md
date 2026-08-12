@@ -2526,6 +2526,39 @@ przepięcie czytelników na klucze, eksport RODO przez Storage zamiast `fetch()`
 robi `continue` → po zamknięciu ZIP wyszedłby PUSTY ze statusem 200) i cache-buster `?t=`
 w `ScheduleTab` (na podpisanym adresie daje dwa znaki zapytania i 400).
 
+### 2026-08-12 (#7) — 🪣 ETAP B: SZABLONY ZGÓD PRZEZ PODPISANY ADRES (bramka tabletu)
+
+> Commit **`dfa0191`** — NA PRODUKCJI. `tsc` 0 · vitest **512/512** · `next build` OK ·
+> cofka 5/5. **Zmierzone na żywej produkcji:** trasa `verify` z realnym tokenem oddaje
+> **4 z 4 szablonów podpisanym adresem** (`/object/sign/`), każdy pobiera się jako
+> `application/pdf`; niezależnie **14 z 14 aktywnych szablonów** podpisuje się i pobiera.
+> Kontrole negatywne: zmyślony token → 404, zmyślony klucz → Storage odmawia podpisu.
+
+**Dlaczego to była najtwardsza bramka.** Wszystkie 14 aktywnych typów zgód ma szablon
+w publicznym `consent-pdfs`. Zamknięcie bucketa bez tej zmiany = pacjent siedzi w fotelu
+i nie ma czego podpisać — 100% zgód, nie część.
+
+**Co weszło:** `getConsentTypesFromDB()` (JEDYNE serwerowe miejsce, w którym `pdf_file`
+staje się adresem widzianym przez tablet) wystawia podpisany adres, gdy wiersz ma klucz ·
+decyzja wyciągnięta do `wybierzAdresSzablonu()` i przetestowana **wykonaniem** ·
+`/api/employee/documents/file?type=consent-template` dla mappera pól ·
+`consent-mappings` POST/PUT przyjmują `pdf_path`.
+
+**🪤 Usunięta DRUGA składarka adresu.** `pdf-mapper` miał własny `getPdfUrl()` z trzema
+gałęziami, niezgodny z `consents/verify` — poprawka w jednym miejscu zostawiała mapper na
+martwym adresie i admin nie zmapowałby pól nowego szablonu. Przy okazji: trasa uploadu
+**od zawsze oddawała gotowy `storagePath`**, a klient go ignorował i zapisywał sam adres.
+
+**🪤 TTL 3600 s, nie 900.** Tablet pobiera szablon TRZY RAZY na jedną zgodę (podgląd →
+wypełnienie → nałożenie podpisu), a pacjent podpisuje kilka dokumentów w trakcie wizyty.
+Przy 900 s ostatni `fetch` padłby dokładnie przy zatwierdzaniu podpisu. Szablon to PUSTY
+formularz, więc dłuższe okno nie odsłania niczyich danych. `pdf.js` w mapperze pobiera
+dokument sam i robi range-requesty — też potrzebuje adresu, nie bajtów w JSON-ie.
+
+**🔑 Podpis działa tak samo na buckecie publicznym i prywatnym**, więc całość dało się
+sprawdzić PRZED zamknięciem. To jest sedno układu etapów A i B: zamknięcie ma być
+nudnym przełącznikiem, nie skokiem w ciemno.
+
 ### 2026-08-12 (#6) — 🔴 EKSPORT RODO NIE DZIAŁAŁ DLA NIKOGO OD PIĘCIU MIESIĘCY
 
 > Commity `508efee`, `d08d2ea`, **`318876d`** — NA PRODUKCJI. `tsc` 0 · vitest **507/507** ·
