@@ -67,14 +67,39 @@ export async function GET(request: NextRequest) {
         const patientId = payload.userId;
 
         // ── 1. Patient core data ──
+        /**
+          * 🔴 BŁĄD ZASTANY, ZNALEZIONY POMIAREM NA PRODUKCJI (2026-08-12, commit `dd7bac2`
+          * z 3 marca). Select prosił o `patients.first_name` i `patients.last_name` —
+          * kolumn, KTÓRYCH W TEJ TABELI NIE MA (tożsamość pacjenta żyje wyłącznie
+          * w Prodentisie). PostgREST odrzuca wtedy CAŁE zapytanie błędem 42703, `patient`
+          * wychodzi `null` i trasa kończy się `404 Nie znaleziono danych`.
+          *
+          * Skutek: **eksport RODO art. 15 nie działał dla ŻADNEGO pacjenta przez pięć
+          * miesięcy.** Z zewnątrz wyglądało to jak „pacjent nie ma danych", więc nikt
+          * tego nie zgłosił. Ta sama klasa co awaria `/api/patients/me` po dodaniu
+          * kolumny `avatar`: jedna nieistniejąca kolumna wywraca cały odczyt.
+          */
         const { data: patient, error: patientError } = await supabase
             .from('patients')
-            .select('id, first_name, last_name, phone, email, locale, account_status, prodentis_id, created_at, last_login')
+            .select('id, phone, email, locale, account_status, prodentis_id, created_at, last_login')
             .eq('id', patientId)
             .single();
 
-        if (patientError || !patient) {
-            console.error('[ExportData] Patient fetch error:', patientError, 'userId:', patientId);
+        /**
+         * 🔑 BŁĄD ZAPYTANIA ≠ BRAK PACJENTA — i to jest powód, dla którego awaria wyżej
+         * przeżyła pięć miesięcy. Jedno wspólne `404 Nie znaleziono danych` sprawiało, że
+         * literówka w kolumnie wyglądała dokładnie tak samo jak „konto nie istnieje":
+         * pacjent widział spokojny komunikat, my nie widzieliśmy nic.
+         * Rozdzielone: awaria odczytu ma krzyczeć 500, brak konta zostaje 404.
+         */
+        if (patientError) {
+            console.error('[ExportData] BŁĄD ODCZYTU patients:', patientError.code, patientError.message, 'userId:', patientId);
+            return NextResponse.json(
+                { error: 'Nie udało się odczytać danych konta. Spróbuj ponownie albo napisz do rejestracji.' },
+                { status: 500, headers: NO_STORE },
+            );
+        }
+        if (!patient) {
             return NextResponse.json({ error: 'Nie znaleziono danych' }, { status: 404, headers: NO_STORE });
         }
 
@@ -162,7 +187,7 @@ export async function GET(request: NextRequest) {
 
         // ── 7. Intake submissions (S8-4) ──
         // S8-7: pesel + medical_notes decrypted via readIntakeSubmissionPii.
-        let intakeSubmissions: Array<{ id: string; pdf_url?: string; pdf_path?: string; submitted_at?: string }> = [];
+        let intakeSubmissions: Array<{ id: string; first_name?: string; last_name?: string; pdf_url?: string; pdf_path?: string; submitted_at?: string }> = [];
         if (patient.prodentis_id) {
             const { data: intake } = await supabase
                 .from('patient_intake_submissions')
@@ -295,8 +320,14 @@ export async function GET(request: NextRequest) {
             rodoArticle: 'Art. 15 — right of access',
             patient: {
                 id: patient.id,
-                firstName: patient.first_name,
-                lastName: patient.last_name,
+                // Konto portalu NIE trzyma imienia i nazwiska — bierzemy je z najświeższej
+                // e-Karty, którą pacjent sam wypełnił. Gdy jej nie ma, zostaje `null`
+                // i nota niżej, zamiast wywracać cały eksport.
+                firstName: intakeSubmissions[0]?.first_name ?? null,
+                lastName: intakeSubmissions[0]?.last_name ?? null,
+                uwagaOTozsamosci: intakeSubmissions.length === 0
+                    ? 'Imię i nazwisko nie są przechowywane przy koncie w portalu — prowadzi je system gabinetu (Prodentis). W tej paczce pojawiają się tylko wtedy, gdy wypełniłeś e-Kartę.'
+                    : undefined,
                 phone: patient.phone,
                 email: patient.email,
                 locale: patient.locale,
