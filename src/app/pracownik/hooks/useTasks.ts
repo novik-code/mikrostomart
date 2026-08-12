@@ -12,6 +12,9 @@ export interface TaskFormData {
     checklist_items: ChecklistItem[];
     image_url: string;
     image_urls: string[];
+    /** Klucze obiektów z odpowiedzi uploadu — WYŁĄCZNIE do podglądu w formularzu.
+     *  Do bazy dalej lecą `image_urls` (kontrakt apki 1.2.0), a klucze wylicza serwer. */
+    image_paths?: string[];
     label_ids?: string[];
     assigned_to: { id: string; name: string }[];
     due_date: string;
@@ -30,6 +33,7 @@ const EMPTY_TASK_FORM: TaskFormData = {
     checklist_items: [],
     image_url: '',
     image_urls: [],
+    image_paths: [],
     assigned_to: [],
     due_date: '',
     linked_appointment_date: '',
@@ -321,6 +325,7 @@ export function useTasks({
             assigned_to: task.assigned_to || [],
             image_url: task.image_url || '',
             image_urls: (task as any).image_urls || (task.image_url ? [task.image_url] : []),
+            image_paths: (task as any).image_paths || [],
             patient_id: task.patient_id || '',
             patient_name: task.patient_name || '',
         });
@@ -418,9 +423,9 @@ export function useTasks({
             if (!res.ok) throw new Error('Upload failed');
             const data = await res.json();
             if (mode === 'create') {
-                setTaskForm(p => ({ ...p, image_url: p.image_url || data.url, image_urls: [...(p.image_urls || []), data.url] }));
+                setTaskForm(p => ({ ...p, image_url: p.image_url || data.url, image_urls: [...(p.image_urls || []), data.url], image_paths: [...(p.image_paths || []), data.path || ''] }));
             } else {
-                setEditForm(p => ({ ...p, image_url: p.image_url || data.url, image_urls: [...(p.image_urls || []), data.url] }));
+                setEditForm(p => ({ ...p, image_url: p.image_url || data.url, image_urls: [...(p.image_urls || []), data.url], image_paths: [...(p.image_paths || []), data.path || ''] }));
             }
         } catch (err) {
             console.error('[Tasks] Image upload error:', err);

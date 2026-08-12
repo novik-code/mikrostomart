@@ -1920,7 +1920,9 @@ export default function TasksTab({
                                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                                     {(taskForm.image_urls || []).map((url, idx) => (
                                         <div key={idx} style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
-                                            <img src={url} alt="" onClick={() => setZoomedImage(url)} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.4rem', border: '1px solid rgba(255,255,255,0.12)', cursor: 'zoom-in' }} />
+                                            {/* Podgląd z KLUCZA (trasa oddaje bajty), gdy upload go zwrócił.
+                                                Inaczej stary adres — bucket jest jeszcze publiczny. */}
+                                            <img src={miniaturaZadania((taskForm.image_paths || [])[idx]) ?? url} alt="" onClick={() => setZoomedImage(miniaturaZadania((taskForm.image_paths || [])[idx]) ?? url)} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.4rem', border: '1px solid rgba(255,255,255,0.12)', cursor: 'zoom-in' }} />
                                             <button onClick={() => setTaskForm(p => { const urls = (p.image_urls || []).filter((_, i) => i !== idx); return { ...p, image_urls: urls, image_url: urls[0] || '' }; })} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.8)', border: 'none', color: '#fff', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: '0.6rem', lineHeight: '18px', textAlign: 'center', padding: 0 }}>✕</button>
                                         </div>
                                     ))}
@@ -2248,7 +2250,7 @@ export default function TasksTab({
                                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                                         {((editForm.image_urls || []) as string[]).map((url: string, idx: number) => (
                                             <div key={idx} style={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
-                                                <img src={url} alt="" onClick={() => setZoomedImage(url)} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.4rem', border: '1px solid rgba(255,255,255,0.12)', cursor: 'zoom-in' }} />
+                                                <img src={miniaturaZadania(((editForm.image_paths || []) as string[])[idx]) ?? url} alt="" onClick={() => setZoomedImage(miniaturaZadania(((editForm.image_paths || []) as string[])[idx]) ?? url)} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.4rem', border: '1px solid rgba(255,255,255,0.12)', cursor: 'zoom-in' }} />
                                                 <button onClick={() => setEditForm(p => { const urls = ((p.image_urls || []) as string[]).filter((_: string, i: number) => i !== idx); return { ...p, image_urls: urls, image_url: urls[0] || '' }; })} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.8)', border: 'none', color: '#fff', borderRadius: '50%', width: 18, height: 18, cursor: 'pointer', fontSize: '0.6rem', lineHeight: '18px', textAlign: 'center', padding: 0 }}>✕</button>
                                             </div>
                                         ))}

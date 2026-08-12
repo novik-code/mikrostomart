@@ -137,6 +137,35 @@ describe('Strażnik: klucze obiektów Storage', () => {
         expect(src).not.toMatch(/pdfUrl\s*\+\s*'\?t='/);
     });
 
+    it('🔴 eksport RODO PRZERYWA przy braku dokumentu, zamiast oddać pusty ZIP', () => {
+        // Obie pętle robiły `fetch(publicznyAdres)` + `console.warn` + `continue`.
+        // Po zamknięciu bucketa pacjent z art. 15 dostałby ZIP ze statusem 200,
+        // bez ani jednego PDF-a i bez sygnału — dla niego i dla nas.
+        const src = read('src/app/api/patients/export-data/route.ts');
+
+        expect(src, 'eksport nie czyta bajtów ze Storage').toContain('readObjectBytes');
+        expect(src, 'brak zbierania braków').toContain('brakujace');
+        // Przerwanie MUSI istnieć i mieć status inny niż 200.
+        // 🪤 Warunek przypięty CO DO ZNAKU — asercja „gdzieś jest `brakujace.length > 0`
+        // i gdzieś dalej 503" przechodziła także po podmianie na `if (false && ...)`.
+        // Zmierzone cofką, nie wydedukowane.
+        expect(src).toContain('if (brakujace.length > 0) {');
+        expect(src).toMatch(/if \(brakujace\.length > 0\) \{[\s\S]{0,700}?status:\s*503/);
+
+        // …i nie wolno wrócić do cichego pomijania dokumentu pacjenta
+        const cicheContinue = src.match(/console\.warn\([^)]*PDF[^)]*\)[\s\S]{0,80}?continue;/g) ?? [];
+        expect(cicheContinue, 'wrócił `warn` + `continue` na dokumencie pacjenta').toEqual([]);
+
+        // sanity: OBIE kategorie trafiają na listę do skompletowania
+        expect(src).toMatch(/patientConsents\.map/);
+        expect(src).toMatch(/intakeSubmissions\.map/);
+        expect(src).toContain('skompletujDokumenty');
+
+        // 🪤 Ten strażnik pilnuje wyłącznie OKABLOWANIA. Samo zachowanie („brak pliku
+        // = brak paczki") sprawdza `patientExportDocs.test.ts` — WYKONANIEM, bo cofka
+        // pokazała, że cztery różne regresje przechodzą przez asercje na treści pliku.
+    });
+
     it('migracja 192 iteruje image_urls niezależnie od typu kolumny', () => {
         // 🔴 `employee_tasks.image_urls` MA INNY TYP W KAŻDYM ŚRODOWISKU (zmierzone
         // w information_schema): produkcja TEXT[], demo jsonb. Każde podejście „na jeden

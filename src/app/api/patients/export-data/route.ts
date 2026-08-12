@@ -6,6 +6,8 @@ import { getUserAIConversations } from '@/lib/aiConversationLog';
 import JSZip from 'jszip';
 import { readIntakeSubmissionPii } from '@/lib/encryptedPiiFields';
 import { loadAttachmentsByMessage } from '@/lib/chatAttachments';
+import { PATIENT_DOC_BUCKET, readObjectBytes } from '@/lib/privateStorage';
+import { skompletujDokumenty, type DokumentDoPaczki } from '@/lib/patientExportDocs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -160,11 +162,11 @@ export async function GET(request: NextRequest) {
 
         // ── 7. Intake submissions (S8-4) ──
         // S8-7: pesel + medical_notes decrypted via readIntakeSubmissionPii.
-        let intakeSubmissions: Array<{ id: string; pdf_url?: string; submitted_at?: string }> = [];
+        let intakeSubmissions: Array<{ id: string; pdf_url?: string; pdf_path?: string; submitted_at?: string }> = [];
         if (patient.prodentis_id) {
             const { data: intake } = await supabase
                 .from('patient_intake_submissions')
-                .select('id, first_name, last_name, pesel, pesel_encrypted, birth_date, gender, street, postal_code, city, phone, email, marketing_consent, contact_consent, rodo_consent, medical_notes, medical_notes_encrypted, submitted_at, pdf_url')
+                .select('id, first_name, last_name, pesel, pesel_encrypted, birth_date, gender, street, postal_code, city, phone, email, marketing_consent, contact_consent, rodo_consent, medical_notes, medical_notes_encrypted, submitted_at, pdf_url, pdf_path')
                 .eq('prodentis_patient_id', patient.prodentis_id)
                 .order('submitted_at', { ascending: false });
             intakeSubmissions = ((intake || []) as any[]).map((row) => {
@@ -180,11 +182,11 @@ export async function GET(request: NextRequest) {
         }
 
         // ── 8. Patient consents (S8-4) ──
-        let patientConsents: Array<{ id: string; consent_type?: string; file_url?: string; signed_at?: string }> = [];
+        let patientConsents: Array<{ id: string; consent_type?: string; file_url?: string; file_path?: string; signed_at?: string }> = [];
         if (patient.prodentis_id) {
             const { data: consents } = await supabase
                 .from('patient_consents')
-                .select('id, consent_type, consent_label, file_url, signed_at, prodentis_synced')
+                .select('id, consent_type, consent_label, file_url, file_path, signed_at, prodentis_synced')
                 .eq('prodentis_patient_id', patient.prodentis_id)
                 .order('signed_at', { ascending: false });
             patientConsents = (consents || []) as typeof patientConsents;
@@ -351,46 +353,70 @@ Prawa przysługujące Ci zgodnie z RODO:
   - Art. 77 — skarga do UODO (uodo.gov.pl)
 `);
 
-        // ── Download signed consent PDFs ──
-        let pdfsAdded = 0;
-        for (const consent of patientConsents) {
-            if (!consent.file_url) continue;
-            try {
-                const url = consent.file_url;
-                // file_url może być signed URL Supabase Storage lub bezpośrednia ścieżka
-                // Pobieramy bezpośrednio
-                const response = await fetch(url);
-                if (!response.ok) {
-                    console.warn(`[ExportData] consent PDF download failed for ${consent.id}: ${response.status}`);
-                    continue;
-                }
-                const buffer = await response.arrayBuffer();
-                const dateStr = consent.signed_at ? new Date(consent.signed_at).toISOString().split('T')[0] : 'unknown';
-                const filename = `consent-${consent.consent_type || 'general'}-${dateStr}-${consent.id.slice(0, 8)}.pdf`;
-                zip.file(`pdfs/${filename}`, buffer);
-                pdfsAdded++;
-            } catch (err) {
-                console.warn(`[ExportData] consent PDF error for ${consent.id}:`, err);
-            }
-        }
+        /**
+         * ── Dokumenty PDF do paczki ────────────────────────────────────────────
+         *
+         * 🔴 CO BYŁO ZEPSUTE. Obie pętle robiły `fetch(publicznyAdres)` bez żadnej
+         * autoryzacji, a przy niepowodzeniu `console.warn` + `continue`. Po zamknięciu
+         * bucketa KAŻDE pobranie zwróciłoby 400, pętla poszłaby dalej i pacjent
+         * korzystający z art. 15 dostałby **ZIP ze statusem 200, bez ani jednego PDF-a
+         * i bez żadnego sygnału** — ani dla niego, ani dla nas. Cichy brak w realizacji
+         * prawa dostępu jest gorszy niż jawny błąd.
+         *
+         * Teraz: czytamy bajty ze Storage kluczem serwisowym (działa też po zamknięciu),
+         * a brak dokumentu, którego wiersz się spodziewa, **PRZERYWA eksport**.
+         *
+         * 🔑 Dlaczego przerwanie, a nie pominięcie: paczka ma być KOMPLETNA albo żadna.
+         * Pacjent nie ma jak zauważyć, że brakuje jednej zgody sprzed trzech lat.
+         */
+        // Lista budowana z OBU kategorii, kompletowanie w `lib/patientExportDocs.ts`
+        // (moduł istnieje po to, żeby dało się to przetestować wykonaniem, a nie grepem).
+        const doPaczki: DokumentDoPaczki[] = [
+            ...patientConsents.map(c => {
+                const dateStr = c.signed_at ? new Date(c.signed_at).toISOString().split('T')[0] : 'unknown';
+                return {
+                    opis: `zgoda ${c.consent_type || 'general'} (${c.id.slice(0, 8)})`,
+                    path: c.file_path,
+                    legacyUrl: c.file_url,
+                    nazwaWPaczce: `consent-${c.consent_type || 'general'}-${dateStr}-${c.id.slice(0, 8)}.pdf`,
+                };
+            }),
+            ...intakeSubmissions.map(i => {
+                const dateStr = i.submitted_at ? new Date(i.submitted_at).toISOString().split('T')[0] : 'unknown';
+                return {
+                    opis: `e-Karta (${i.id.slice(0, 8)})`,
+                    path: i.pdf_path,
+                    legacyUrl: i.pdf_url,
+                    nazwaWPaczce: `intake-ekarta-${dateStr}-${i.id.slice(0, 8)}.pdf`,
+                };
+            }),
+        ];
 
-        // ── Download intake (e-karta) PDFs ──
-        for (const intake of intakeSubmissions) {
-            if (!intake.pdf_url) continue;
-            try {
-                const response = await fetch(intake.pdf_url);
-                if (!response.ok) {
-                    console.warn(`[ExportData] intake PDF download failed for ${intake.id}: ${response.status}`);
-                    continue;
-                }
-                const buffer = await response.arrayBuffer();
-                const dateStr = intake.submitted_at ? new Date(intake.submitted_at).toISOString().split('T')[0] : 'unknown';
-                const filename = `intake-ekarta-${dateStr}-${intake.id.slice(0, 8)}.pdf`;
-                zip.file(`pdfs/${filename}`, buffer);
-                pdfsAdded++;
-            } catch (err) {
-                console.warn(`[ExportData] intake PDF error for ${intake.id}:`, err);
-            }
+        const { pliki, brakujace } = await skompletujDokumenty(doPaczki, {
+            czytajZeStorage: (path) => readObjectBytes(PATIENT_DOC_BUCKET, path),
+            pobierzStarymAdresem: async (url) => {
+                // Okres przejściowy: wiersz sprzed backfillu, bucket jeszcze publiczny.
+                try {
+                    const r = await fetch(url);
+                    return r.ok ? Buffer.from(await r.arrayBuffer()) : null;
+                } catch { return null; }
+            },
+        });
+
+        for (const f of pliki) zip.file(`pdfs/${f.nazwaWPaczce}`, f.bytes);
+        const pdfsAdded = pliki.length;
+
+        if (brakujace.length > 0) {
+            // 503, nie 500: to stan przejściowy (plik zniknął / Storage nie odpowiada),
+            // a pacjent ma spróbować ponownie, nie dostać uszkodzonej paczki.
+            console.error('[ExportData] PRZERWANE — brak dokumentów:', brakujace.join('; '));
+            return NextResponse.json(
+                {
+                    error: 'Nie udało się skompletować dokumentów. Eksport przerwany, żeby nie wydać niepełnej paczki. Spróbuj ponownie za chwilę albo napisz do rejestracji.',
+                    brakujacych: brakujace.length,
+                },
+                { status: 503, headers: NO_STORE },
+            );
         }
 
         console.log(`[ExportData] ZIP ready: ${pdfsAdded} PDFs included, patient ${patientId}`);
