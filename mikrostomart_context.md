@@ -2526,6 +2526,53 @@ przepięcie czytelników na klucze, eksport RODO przez Storage zamiast `fetch()`
 robi `continue` → po zamknięciu ZIP wyszedłby PUSTY ze statusem 200) i cache-buster `?t=`
 w `ScheduleTab` (na podpisanym adresie daje dwa znaki zapytania i 400).
 
+### 2026-08-12 (#8) — 🔒 BUCKET `consents` ZAMKNIĘTY — e-Karty z PESEL-em nie są już publiczne
+
+> Commity `e96aea9` (warunek wstępny) + **`4af8100`** (migracja 193). Wykonane po godzinach
+> przyjęć. **Odwracalne jednym `UPDATE`** — nic nie skasowane, nic nie zmigrowane.
+
+**Stan przed, zmierzony 5 minut wcześniej:** `object/public/consents/<numer_kartoteki>/<plik>.pdf`
+oddawał realny dokument pacjenta z kodem **200 `application/pdf`** — bez logowania, bez klucza,
+bez śladu w audycie. 892 foldery, numer kartoteki kolejny, w środku PESEL, adres, wywiad i podpis.
+
+**Po zamknięciu — osiem pomiarów na żywej produkcji, wszystkie zielone:**
+
+| # | co | wynik |
+|---|---|---|
+| 1 | publiczny adres tego samego pliku | **400** (było 200) |
+| 2 | ten sam obiekt adresem podpisanym | 200 `application/pdf` |
+| 3 | apka pacjenta: lista + otwarcie | 200 / 16 dok. / 200 |
+| 4 | apka personelu: lista + otwarcie | 200 / 16 zgód / 200 |
+| 5 | eksport RODO art. 15 | 200 / **16 z 16** PDF-ów |
+| 6 | trasa-pośrednik personelu | 200, adres podpisany |
+| 7 | **kontrola negatywna:** `social-media` | 200 — został publiczny |
+| 8 | tablet zgód (szablony) | 200 / 4 szablony / pobranie 200 |
+
+**🔴 WARUNEK WSTĘPNY DOROBIONY W OSTATNIEJ CHWILI.** `/api/patients/documents`
+i `/api/employee/patient-consents` oddawały PUBLICZNY adres w polach, które apka 1.2.0
+**ze sklepu** otwiera wprost (`panel.tsx:749` — `Linking.openURL(doc.fileUrl)`,
+`PatientActionSheet.tsx:214` — `WebBrowser.openBrowserAsync(c.file_url)`). Bez podmiany
+wartości tych pól na adres podpisany zamknięcie zgasiłoby dokumenty w zainstalowanych
+binarkach aż do wydania 1.3.0. Apka niczego nie parsuje — bierze string i podaje systemowi,
+więc podpisany adres jest dla niej tym samym typem danych.
+🪤 To ŚWIADOME złamanie reguły „nie podpisuj w liście": lista pacjenta nigdy nie audytowała
+(czyta własne dokumenty), tor personelu loguje `view_consents` przy pobraniu listy, a TTL
+900 s dobrano dokładnie pod ten przypadek. Dokument otwierany z panelu nadal idzie
+pośrednikiem i zostawia ślad.
+
+**Efekt uboczny, zamierzony:** adres skopiowany z apki działał **bezterminowo i dla każdego** —
+teraz umiera po kwadransie.
+
+**🔑 Wzorzec zamykania:** `UPDATE storage.buckets SET public = false` (jak migracja 125),
+NIGDY `INSERT … ON CONFLICT DO UPDATE` z migracji 184 — ten cicho nadpisuje `file_size_limit`
+i `allowed_mime_types`. Sprawdzone po fakcie: `social-media` ma nadal limit 104857600.
+**🔑 Krok 9 planu okazał się zbędny** — w kodzie nie ma ani jednego `createBucket` dla naszej
+trójki, więc bucket nie odtworzy się sam jako publiczny.
+
+**⏳ NASTĘPNY KROK, nie wcześniej niż 13.08 wieczorem:** migracja 194 zamyka `task-images`
+i `consent-pdfs`. Doba obserwacji jest po to, żeby cicha awaria zdążyła się pokazać —
+`<img>` na martwym adresie to pusty prostokąt, nie błąd.
+
 ### 2026-08-12 (#7) — 🪣 ETAP B: SZABLONY ZGÓD PRZEZ PODPISANY ADRES (bramka tabletu)
 
 > Commit **`dfa0191`** — NA PRODUKCJI. `tsc` 0 · vitest **512/512** · `next build` OK ·
