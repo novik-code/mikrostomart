@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendPushByConfig, pushToUsers } from '@/lib/pushService';
 import { deleteEvent } from '@/lib/googleCalendar';
 import { assigneeUserIds } from '@/lib/taskAssignees';
+import { resolveObjectPaths, TASK_IMAGE_BUCKET } from '@/lib/privateStorage';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,6 +116,26 @@ export async function PATCH(
                 }
                 updates[field] = value;
             }
+        }
+
+        /**
+         * 🔒 Ta sama zasada co w POST: klucze obiektów wylicza SERWER z adresów
+         * przysłanych przez klienta (apka 1.2.0 ze sklepu innych nie zna).
+         * To DRUGIE wejście zapisu zdjęć do `employee_tasks` — pominięcie go zostawiłoby
+         * połowę zapisów bez kluczy („jedna naprawa nie wystarczy": policz wszystkich pisarzy).
+         */
+        if ('image_urls' in updates) {
+            const sciezki = await resolveObjectPaths(
+                Array.isArray(updates.image_urls) ? updates.image_urls : [],
+                TASK_IMAGE_BUCKET,
+            );
+            if (sciezki) updates.image_paths = sciezki.filter((p): p is string => !!p);
+        }
+        if ('image_url' in updates) {
+            const jeden = updates.image_url
+                ? (await resolveObjectPaths([updates.image_url], TASK_IMAGE_BUCKET))?.[0] ?? null
+                : null;
+            updates.image_path = jeden;
         }
 
         // Fetch current task before updating (for diff)

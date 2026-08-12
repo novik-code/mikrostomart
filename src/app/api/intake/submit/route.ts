@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { generateEKartaPdf } from '@/app/api/intake/generate-pdf/route';
 import { getProdentisKey } from '@/lib/pmsConfig';
 import { prepareIntakeSubmissionInsert } from '@/lib/encryptedPiiFields';
+import { storagePathsReady } from '@/lib/privateStorage';
 
 /**
  * POST /api/intake/submit
@@ -339,8 +340,15 @@ export async function POST(req: Request) {
                 const { data: urlData } = supabase.storage.from('consents').getPublicUrl(storagePath);
                 pdfUrl = urlData?.publicUrl || storagePath;
 
+                // 🔒 `pdf_path` = KLUCZ obiektu (migracja 192). Od tej chwili zapisujemy go
+                // przy KAŻDYM nowym dokumencie, żeby backfill nie musiał gonić bieżącej pracy.
+                // `pdf_url` zostaje bez zmian — bucket jest jeszcze publiczny, a kolumnę czyta
+                // pół systemu (panel, apka 1.2.0 ze sklepu, eksport RODO). Etap A niczego nie zamyka.
+                // `storagePathsReady()` — patrz lib/privateStorage.ts: dopisanie kolumny,
+                // ktorej nie ma, wywala CALY zapis (42703) i pacjent zostaje bez e-Karty.
+                const zPath = await storagePathsReady();
                 await supabase.from('patient_intake_submissions')
-                    .update({ pdf_url: pdfUrl })
+                    .update({ pdf_url: pdfUrl, ...(zPath ? { pdf_path: storagePath } : {}) })
                     .eq('id', submission.id);
 
                 // Upload to Prodentis documents

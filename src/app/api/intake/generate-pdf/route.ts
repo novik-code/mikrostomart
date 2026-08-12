@@ -8,6 +8,7 @@ import { demoSanitize } from '@/lib/brandConfig';
 import { getProdentisKey } from '@/lib/pmsConfig';
 import { readIntakeSubmissionPii } from '@/lib/encryptedPiiFields';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
+import { storagePathsReady } from '@/lib/privateStorage';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -494,9 +495,14 @@ export async function POST(req: NextRequest) {
         }
 
         // Update submission with PDF URL
+        //
+        // 🔒 `pdf_path` = KLUCZ obiektu (migracja 192). Ta trasa jest DRUGIM, niezależnym
+        // pisarzem tej samej kolumny co `intake/submit` — poprawka w jednym miejscu zostawiłaby
+        // drugie działające po staremu (lekcja: „jedna naprawa nie wystarczy").
+        const zPath = await storagePathsReady();
         await supabase
             .from('patient_intake_submissions')
-            .update({ pdf_url: pdfUrl })
+            .update({ pdf_url: pdfUrl, ...(zPath ? { pdf_path: storagePath } : {}) })
             .eq('id', submission.id);
 
         return NextResponse.json({

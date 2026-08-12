@@ -75,7 +75,20 @@ export async function POST(req: Request) {
             .getPublicUrl(path);
 
         console.log(`[TaskUpload] Uploaded ${filename} by ${user.email}`);
-        return NextResponse.json({ url: urlData.publicUrl });
+        /**
+         * 🔴 KONTRAKT ZE SKLEPEM — `url` MUSI ZOSTAĆ ADRESEM PUBLICZNYM, nie podpisanym.
+         *
+         * Apka 1.2.0 (`lib/api.ts` `uploadTaskImage`) bierze `url` i wkłada go PROSTO
+         * do `image_urls`, które potem odsyła PATCH-em do bazy. Gdyby tu poszedł adres
+         * podpisany, do `employee_tasks` trafiłby token z TTL — wygasłby, a przy okazji
+         * każdy kolejny PATCH widziałby „zmianę zdjęcia" (diff porównuje stringi,
+         * `tasks/[id]/route.ts:177`) i zaśmiecał `task_history` wygasłymi tokenami.
+         *
+         * `path` dochodzi jako pole DODATKOWE — nowi klienci wysyłają je z powrotem,
+         * a serwer i tak sam wylicza klucz z adresu (patrz `tasks/route.ts`), więc
+         * stara binarka ze sklepu niczego nie traci.
+         */
+        return NextResponse.json({ url: urlData.publicUrl, path });
 
     } catch (error: any) {
         console.error('[TaskUpload] Error:', error);

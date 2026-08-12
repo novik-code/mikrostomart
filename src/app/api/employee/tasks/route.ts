@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { sendPushByConfig, pushToUsers } from '@/lib/pushService';
 import { assigneeUserIds } from '@/lib/taskAssignees';
+import { resolveObjectPaths, TASK_IMAGE_BUCKET } from '@/lib/privateStorage';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,6 +90,23 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Title is required' }, { status: 400 });
         }
 
+        /**
+         * 🔒 Klucze obiektów wyliczamy PO STRONIE SERWERA z adresów, które przysłał klient.
+         *
+         * Apka 1.2.0 ze sklepu wysyła wyłącznie adresy (`uploadTaskImage` zwraca `url`
+         * i ona go odsyła) — nie da się jej nauczyć ścieżek bez nowej binarki. Wyliczenie
+         * robi baza (`resolve_object_paths`, migracja 192), żeby reguła istniała w JEDNYM
+         * miejscu i backfill nie rozjechał się z API.
+         *
+         * Gdy RPC nie odpowie (np. migracja jeszcze niewgrana), zapisujemy sam adres —
+         * kolumna zostaje pusta i wiersz dobierze kolejny przebieg `storage_backfill_apply()`.
+         */
+        const wejsciowe: string[] = Array.isArray(body.image_urls) ? body.image_urls : [];
+        const sciezki = await resolveObjectPaths(wejsciowe, TASK_IMAGE_BUCKET);
+        const sciezkaPojedyncza = body.image_url
+            ? (await resolveObjectPaths([body.image_url], TASK_IMAGE_BUCKET))?.[0] ?? null
+            : null;
+
         const task = {
             title: body.title.trim(),
             description: body.description?.trim() || null,
@@ -98,6 +116,8 @@ export async function POST(req: Request) {
             checklist_items: body.checklist_items || [],
             image_url: body.image_url || null,
             image_urls: body.image_urls || [],
+            ...(sciezki ? { image_paths: sciezki.filter((p): p is string => !!p) } : {}),
+            ...(sciezkaPojedyncza ? { image_path: sciezkaPojedyncza } : {}),
             patient_id: body.patient_id || null,
             patient_name: body.patient_name || null,
             appointment_type: body.appointment_type || null,

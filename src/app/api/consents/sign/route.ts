@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getConsentTypesFromDB } from '@/lib/consentTypes';
 import { getProdentisKey } from '@/lib/pmsConfig';
 import { prepareConsentInsert } from '@/lib/encryptedPiiFields';
+import { storagePathsReady } from '@/lib/privateStorage';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -150,6 +151,12 @@ export async function POST(req: NextRequest) {
                 consent_type: consentType,
                 consent_label: consentInfo.label,
                 file_url: fileUrl,
+                // 🔒 KLUCZ obiektu (migracja 192) — źródło prawdy po zamknięciu bucketa.
+                // `file_url` zostaje: bucket jest jeszcze publiczny, a kolumnę czyta panel,
+                // apka 1.2.0 ze sklepu i eksport RODO. Etap A niczego nie zamyka.
+                // Warunkowo: bez wgranej migracji kolumna nie istnieje, a bledny INSERT
+                // znaczylby „pacjent na tablecie nie moze podpisac zgody".
+                ...(await storagePathsReady() ? { file_path: storagePath } : {}),
                 file_name: fileName,
                 created_by: tokenRow.created_by || null,
                 prodentis_synced: prodentisSynced,
