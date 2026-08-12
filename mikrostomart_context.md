@@ -2526,6 +2526,43 @@ przepięcie czytelników na klucze, eksport RODO przez Storage zamiast `fetch()`
 robi `continue` → po zamknięciu ZIP wyszedłby PUSTY ze statusem 200) i cache-buster `?t=`
 w `ScheduleTab` (na podpisanym adresie daje dwa znaki zapytania i 400).
 
+### 2026-08-12 (#6) — 🔴 EKSPORT RODO NIE DZIAŁAŁ DLA NIKOGO OD PIĘCIU MIESIĘCY
+
+> Commity `508efee`, `d08d2ea`, **`318876d`** — NA PRODUKCJI. `tsc` 0 · vitest **507/507** ·
+> `next build` OK. Zweryfikowane na żywym koncie: **200, ZIP 11 MB, 16 z 16 dokumentów**;
+> kontrole negatywne: nieistniejące konto → **404**, bez tokenu → **401**.
+
+**Znalezione POMIAREM, nie w kodzie.** Szedłem naprawić „cichy pusty ZIP po zamknięciu bucketa"
+i przy pierwszej próbie na realnym koncie dostałem `404 Nie znaleziono danych`. Przyczyna:
+select prosił o `patients.first_name` i `patients.last_name` — **kolumn, których w tej tabeli
+nie ma** (tożsamość pacjenta żyje wyłącznie w Prodentisie). PostgREST odrzuca wtedy CAŁE
+zapytanie błędem 42703, `patient` wychodzi `null`, trasa kończy się 404.
+
+**Błąd zastany od `dd7bac2` z 3 marca 2026.** Przez pięć miesięcy każdy pacjent korzystający
+z prawa dostępu (art. 15 RODO) dostawał „nie znaleziono danych". To ta sama klasa co awaria
+`/api/patients/me` po dodaniu kolumny `avatar`: jedna nieistniejąca kolumna wywraca cały odczyt.
+
+**🔑 DLACZEGO TO PRZEŻYŁO PIĘĆ MIESIĘCY — i co z tym zrobiłem.** Trasa miała JEDNO wspólne
+`404` na „błąd zapytania" i „nie ma takiego konta". Literówka w kolumnie wyglądała więc
+identycznie jak nieistniejące konto: pacjent widział spokojny komunikat, my nie widzieliśmy nic.
+Rozdzielone — awaria odczytu to teraz **500 z kodem błędu w logu**, brak konta zostaje 404.
+🪤 Pierwsza wersja tego rozdzielenia była zepsuta: `single()` przy ZERO wierszy zwraca błąd
+(PGRST116), więc nieistniejące konto dostawało 500. **Złapała to kontrola negatywna na
+produkcji**, nie rozumowanie. Poprawione na `maybeSingle()`.
+
+**Przy okazji (to była pierwotna robota):** eksport czyta bajty ze Storage kluczem serwisowym
+zamiast `fetch(publicznyAdres)`, a brak dokumentu **PRZERYWA** eksport (503) zamiast `continue`.
+Paczka ma być kompletna albo żadna — pacjent nie ma jak zauważyć, że brakuje jednej zgody.
+
+**🪤 TRZECI RAZ TEGO DNIA: STRAŻNIK TEKSTOWY OKAZAŁ SIĘ BEZWARTOŚCIOWY.** Pierwsza ochrona tej
+ścieżki sprawdzała obecność `readObjectBytes`, `brakujace` i `status: 503` w pliku. Cofka:
+**cztery** regresje przeszły na ZIELONO — ciche pominięcie, wyłączone przerwanie
+(`if (false && …)`), wypadnięcie e-Kart z listy, zabity odczyt ze Storage. Logika wyjechała do
+`lib/patientExportDocs.ts` i ma **test wykonania** na atrapach źródeł; cofka po poprawce: 5/5.
+🪤 I jeszcze jedno: przypadek „pusty plik (0 B)" przechodził, bo atrapa robiła
+`storage[p] ? … : null` — pusty string jest falsy, więc gałąź nigdy się nie wykonywała.
+**Test, który nie może paść, nie jest testem.**
+
 ### 2026-08-12 (#5) — 🪣 MIGRACJA 192 WGRANA + TRASY-POŚREDNIKI (etap A kroki 1–5, poza RODO)
 
 > Commity `7bb7c05` i **`1ee7e5b`** — **NA PRODUKCJI** (SHA z `/api/health?secret=`, 11. odpytanie).
