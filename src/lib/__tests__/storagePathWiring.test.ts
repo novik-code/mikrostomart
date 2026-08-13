@@ -173,6 +173,32 @@ describe('Strażnik: klucze obiektów Storage', () => {
         expect(wolajacy.length, 'strażnik przestał widzieć czytelników').toBe(3);
     });
 
+    it('🔴 tablet zgód bierze adres szablonu z trasy ZA TOKENEM, nie z publicznej', () => {
+        // Ustalenie z migracji 195. Są DWA źródła i tylko jedno podpisuje:
+        //   `/api/consents/verify` → getConsentTypesFromDB → PODPISANY  ← tego używa fetch
+        //   `/api/admin/consent-mappings` → select('*'), PUBLICZNY, BEZ AUTH ← martwe pole
+        // Gdyby `fetch` przeszedł kiedyś na to drugie, pacjent zostanie z pustym
+        // ekranem zamiast zgody — po zamknięciu bucketa tamte adresy oddają 400.
+        const tablet = read('src/app/zgody/[token]/page.tsx');
+
+        // fetch szablonu MUSI iść po obiekcie z `consents` (stan z verify)
+        const fetche = tablet.match(/fetch\((?:current)?[Cc]onsent(?:Type)?\w*\.file\)/g) ?? [];
+        expect(fetche.length, 'strażnik przestał widzieć pobrania szablonu').toBe(3);
+        for (const f of fetche) {
+            expect(f, `pobranie szablonu z CONSENT_TYPES zamiast z consents: ${f}`)
+                .toMatch(/fetch\((?:currentConsent|consent)\.file\)/);
+        }
+        // …i sanity: `consents` naprawdę pochodzi z verify
+        expect(tablet).toMatch(/consents\/verify/);
+        expect(tablet).toMatch(/setConsents\(data\.consents\)/);
+
+        // publiczna trasa nadal NIE podpisuje — i to jest świadome:
+        // podpisywanie bez uwierzytelnienia unieważniłoby sens zamknięcia bucketa.
+        const trasa = read('src/app/api/admin/consent-mappings/route.ts');
+        expect(trasa, 'publiczny GET zaczął podpisywać — to otwiera bucket z powrotem')
+            .not.toMatch(/export async function GET[\s\S]{0,600}?(signObject|displayUrlFor)/);
+    });
+
     it('cache-buster `?t=` nie wrócił do adresu dokumentu', () => {
         // Na podpisanym adresie daje drugi znak zapytania i Storage odpowiada 400.
         const src = read('src/app/pracownik/components/ScheduleTab.tsx');
