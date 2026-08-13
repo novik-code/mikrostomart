@@ -33,14 +33,43 @@
 -- + `storagePathWiring.test.ts` (okablowanie obu stron, cofka dowiedziona).
 --
 -- ============================================================================
--- WARUNKI WSTĘPNE — WYMAGAJĄ POMIARU NA PRODUKCJI PRZED WGRANIEM
+-- ✅ WGRANA NA PRODUKCJI 2026-08-13 09:5x — WYNIK NIŻEJ
 -- ============================================================================
---   [ ] web z naprawą odczytu JEST na produkcji  → `/api/health?secret=` → `deployment`
---   [ ] `GET /api/employee/tasks` (sesja pracownika) → każdy element `image_urls`
---       zawiera `/object/sign/task-images/` i ANI JEDEN `/object/public/task-images/`
---   [ ] otwarcie takiego adresu → 200
---   [ ] kontrola negatywna: adres publiczny tego samego obiektu → 200 (jeszcze otwarty)
---   [ ] backfill `image_paths`: ZERO wierszy z niepustym `image_urls` i pustym
+-- Stan PRZED (odczytany w SQL Editorze):
+--   wiersze_bez_kluczy 0 · legacy_bez_klucza 0
+--   task-images TRUE · consents FALSE · consent-pdfs TRUE · social-media TRUE
+-- Stan PO (odczytany, nie wywnioskowany z komunikatu „Success"):
+--   task-images FALSE · consents FALSE · consent-pdfs TRUE · social-media TRUE
+--
+-- Weryfikacja poza SQL-em, po zamknięciu:
+--   GET /api/employee/tasks → 200, 298 zadań, 284/284 podpisane, 0 publicznych
+--   otwarcie 10 losowych podpisanych → 10 × 200
+--   edycja zadania (round-trip) → token NIE w bazie, klucze zachowane, historia 5 → 5
+--   publiczny adres z cache-busterem → 400 · consents → 400 (nadal zamknięte)
+--
+-- 🪤 PUŁAPKA, KTÓREJ NIE BYŁO W PLANIE — CACHE KRAWĘDZIOWY PRZEŻYWA ZAMKNIĘCIE.
+--    Zaraz po `UPDATE` publiczny adres zdjęcia nadal oddawał **200** z nagłówkiem
+--    `cf-cache-status: HIT` i `cache-control: public, max-age=3600`. Ten sam adres
+--    z doklejonym `?bust=…` → **400** (`BYPASS`). Na 12 obiektach: 11 × 400, 1 × 200.
+--    Czyli bucket JEST zamknięty, ale obiekty pobrane wcześniej wiszą na krawędzi
+--    Cloudflare do wygaśnięcia TTL (godzina — `cacheControl: '3600'` ustawiane
+--    przy uploadzie w `tasks/upload-image/route.ts`).
+--    🔑 WNIOSEK NA `consent-pdfs`: pomiar „publiczny adres → 400" zrobiony w pierwszej
+--    minucie po zamknięciu MOŻE POKAZAĆ FAŁSZYWE 200. Zawsze mierzyć z cache-busterem
+--    i na obiekcie, którego nikt świeżo nie pobierał. To ta sama klasa co „status HTTP
+--    kłamie": odpowiedź przychodzi, tylko nie z tego miejsca, co się wydaje.
+--    Kontrola: `consents` (zamknięty 12.08, doba temu) oddaje dziś 400 na każdym
+--    obiekcie i każdą drogą — cache wygasł sam.
+--
+-- ============================================================================
+-- WARUNKI WSTĘPNE — ZMIERZONE PRZED WGRANIEM (wszystkie spełnione)
+-- ============================================================================
+--   [x] web z naprawą odczytu JEST na produkcji  → `deployment` = d8ef0f2
+--   [x] `GET /api/employee/tasks` (sesja pracownika) → 284/284 `/object/sign/`,
+--       ZERO `/object/public/`
+--   [x] otwarcie takiego adresu → 200
+--   [x] kontrola negatywna: adres publiczny tego samego obiektu → 200 (jeszcze otwarty)
+--   [x] backfill `image_paths`: ZERO wierszy z niepustym `image_urls` i pustym
 --       `image_paths` (zapytanie kontrolne niżej) — wiersz bez klucza NIE MA
 --       z czego wyliczyć podpisu i zgaśnie
 --
