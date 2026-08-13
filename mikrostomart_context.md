@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-08-13 — 🔒 **BUCKET `consents` ZAMKNIĘTY** (`1c0dd3a` na produkcji). Publiczny adres e-Karty z PESEL-em: **było 200, jest 400**. Poprzedziły to trzy etapy, wszystkie zmierzone na produkcji: klucze obiektów + backfill pięciu torów ze STRATĄ 0 (migracja 192), trzy trasy-pośredniki z audytem, szablony zgód podpisane (14/14), a listy czytane przez apkę 1.2.0 ze sklepu przepięte na adresy podpisane (bez tego zamknięcie zgasiłoby dokumenty w zainstalowanych binarkach). 🔴 **Przy okazji wyszło, że eksport RODO art. 15 nie działał dla NIKOGO od 3 marca** — select prosił o nieistniejące kolumny `patients.first_name`/`last_name`, PostgREST wywalał całe zapytanie błędem 42703 i każdy pacjent dostawał 404 „nie znaleziono danych". Przeżyło pięć miesięcy, bo trasa miała JEDNO 404 na „błąd zapytania" i na „nie ma konta". Naprawione i zweryfikowane na żywym koncie (ZIP 11 MB, 16 z 16 dokumentów). Wcześniej tego samego dnia: `mfa_epoch` — reset 2FA wreszcie odbiera dostęp. ⏳ Dziś wieczorem migracja **194**: `task-images` i `consent-pdfs`. Szczegóły: „📝 Recent Changes" → wpisy 2026-08-12 (#3–#8).
+> **Last Updated:** 2026-08-13 — 🔒 **BUCKET `consents` ZAMKNIĘTY** (migracja 193; kod na produkcji od `4af8100`). Publiczny adres e-Karty z PESEL-em: **było 200, jest 400**. Poprzedziły to trzy etapy, wszystkie zmierzone na produkcji: klucze obiektów + backfill pięciu torów ze STRATĄ 0 (migracja 192), dwie trasy-pośredniki z audytem, szablony zgód podpisane (14/14), a listy czytane przez apkę 1.2.0 ze sklepu przepięte na adresy podpisane (bez tego zamknięcie zgasiłoby dokumenty w zainstalowanych binarkach). 🔴 **Przy okazji wyszło, że eksport RODO art. 15 nie działał dla NIKOGO od 3 marca** — select prosił o nieistniejące kolumny `patients.first_name`/`last_name`, PostgREST wywalał całe zapytanie błędem 42703 i każdy pacjent dostawał 404 „nie znaleziono danych". Przeżyło pięć miesięcy, bo trasa miała JEDNO 404 na „błąd zapytania" i na „nie ma konta". Naprawione i zweryfikowane na żywym koncie (ZIP 11 MB, 16 z 16 dokumentów). Wcześniej tego samego dnia: `mfa_epoch` — reset 2FA wreszcie odbiera dostęp. 🔴 **Migracja 194 (`task-images`, `consent-pdfs`) WSTRZYMANA** — apka 1.2.0 ze sklepu renderuje zdjęcia zadań z adresów PUBLICZNYCH (`lib/tasks.ts:187`), więc zamknięcie `task-images` je zgasi; najpierw trasa `/api/employee/tasks` musi oddawać podpisane `image_urls`. Szczegóły: „📝 Recent Changes" → wpisy 2026-08-12 (#3–#8).
 >
 > **2026-08-06 — 🔐 AUDYT BEZPIECZEŃSTWA + 10 wdrożeń.** 153 agenty, 64 potwierdzone znaleziska, plan napraw 8 grup × 12 kroków. 🔴 Najważniejsze: **2FA personelu nie działało WCALE** — `middleware.ts` bez deklaracji runtime chodził w edge, który nie ma `crypto` z Node, więc weryfikacja drugiego składnika rzucała PRZY KAŻDYM ŻĄDANIU, a `catch` jest fail-open. Konto z włączonym 2FA wchodziło na `/admin` bez kodu; kody TOTP przy logowaniu działały, więc z zewnątrz wyglądało to sprawnie. Naprawa `runtime: 'nodejs'` (`9f0f8ee`), zweryfikowana na logach produkcyjnych (przed: 4 błędy na 4 żądaniach, po: 0 na 9). Dalej: e-Karta z PESEL-em dostępna BEZ logowania (`11eda27`), **migracja 190** domykająca RLS na `sms_reminders` (jedyna polityka bez klauzuli `TO`), sześć usterek pusha, dane pacjenta w logach i w OpenAI, wyrocznie tożsamości bez limitu. Szczegóły i lekcje: „📝 Recent Changes” → 2026-08-06. ⏳ Pięć decyzji czeka na właściciela (cron AI, Telegram, neutralizacja treści, duplikat e-maila, wariant fail-closed 2FA).
 >
@@ -2474,58 +2474,6 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
-### 2026-08-12 (#4) — 🪣 KLUCZE OBIEKTÓW ZAMIAST PUBLICZNYCH ADRESÓW (etap A zamykania bucketów)
-
-> Commit **`baf316a`** — **NA PRODUKCJI** (zweryfikowane SHA z `/api/health?secret=`, 10. odpytanie
-> ≈2,5 min, oraz `x-matched-path` nowej trasy + kontrola negatywna `/_not-found`).
-> ⏳ **Migracja 192 NIEWGRANA** — kod jest na to przygotowany, patrz „bezpiecznik" niżej.
-> `tsc` 0 · **vitest 495/495** · `next build` OK · cofka 6/6.
-
-**Stan wyjściowy.** Buckety `consents` (889 folderów), `consent-pdfs` (22 szablony) i `task-images`
-(250 zdjęć) są publiczne — kto zna albo zgadnie adres, pobiera plik bez klucza i bez śladu.
-W `consents` leżą e-Karty z PESEL-em pod ścieżką `<numer_kartoteki>/<plik>.pdf`, gdzie numer
-kartoteki jest KOLEJNY. Etap A niczego nie zamyka: dokłada klucze, moduł i pierwszą trasę-pośrednik.
-
-**Co weszło:** migracja **192** (kolumny `*_path` w pięciu miejscach, `resolve_object_path`
-z dekodowaniem procentowym + wariant wsadowy, `storage_backfill_report()` i
-`storage_backfill_apply()` **odmawiający pracy przy stracie > 0**, tabela
-`patient_document_access_log` z RLS `TO service_role`) · `lib/privateStorage.ts` (podpis TTL 900 s,
-odczyt bajtów, wyliczanie kluczy **przez bazę**) · sześciu pisarzy zapisuje klucz obok adresu ·
-trasa-pośrednik `/api/patients/documents/[id]/file` z kontrolą właściciela i wpisem do rejestru.
-
-**Pomiary (ręcznie, wąskim `select` — agenci nie mają dostępu do produkcji).** Pięć torów,
-**STRATA 0** w każdym: 2545 zgód · 300 e-Kart · 199 zdjęć zadań · 85 `image_url` · 25 szablonów.
-Mocniejszy test niż sam parser: **każdy wyliczony klucz ma swój obiekt** (przejrzane 892 foldery
-`consents`, 252 `task-images`, 22 `consent-pdfs`), kontrola negatywna z doklejonym `.bak` nie trafia.
-🔴 **Wszystkie 14 AKTYWNYCH typów zgód** siedzi w `consent-pdfs` — zamknięcie tego bucketa bez
-etapu B wyłącza **100%** zgód do podpisu na tablecie, nie 71% jak zakładał plan (tamta liczba
-liczyła też wiersze nieaktywne).
-
-**🪤 TRZY PUŁAPKI ZŁAPANE PRZED WDROŻENIEM:**
-1. **`employee_tasks.image_urls` to `TEXT[]`, nie jsonb** (migracja 047). Pierwsza wersja migracji
-   używała `jsonb_typeof`/`jsonb_array_elements_text` i **cała migracja nie przeszłaby** (42883).
-   **Pomiar przez PostgREST tego NIE POKAZUJE** — TEXT[] wraca po drodze jako tablica JSON, więc
-   z zewnątrz wygląda identycznie. Złapane rozpoznaniem kodu, potwierdzone w migracji 047.
-2. **Dopisanie kolumny `*_path` do INSERT-a przed wgraniem migracji = 42703 i cały zapis pada** —
-   czyli pacjent na tablecie nie podpisze zgody. Zmierzone na żywej bazie. Stąd
-   `storagePathsReady()`: pisarze pytają, zanim dopiszą kolumnę, a wynik pozytywny zapamiętują
-   (po wgraniu migracji klucze zaczynają się zapisywać same, bez redeployu). Kolejność
-   „migracja, potem deploy" zostaje zalecana, ale operacja już na niej nie wisi.
-3. **Dwa adresy mają `%20`** — surowy klucz w buckecie NIE ISTNIEJE, pasuje dopiero zdekodowany.
-   Bez `url_decode_component` te dwie zgody dostałyby podpis do nieistniejącego pliku i zniknęły
-   po cichu. Pierwszy pomiar `patient_consents` zwrócił „1000 wierszy" — obcięcie PostgREST;
-   realnie 2545, wszystkie liczby powtórzone ze stronicowaniem.
-
-**Kontrakt ze sklepem nietknięty.** `upload-image` dalej oddaje `url` publiczny (apka 1.2.0 wkłada
-go prosto do `image_urls` i odsyła PATCH-em — podpisany adres wygasłby w bazie i zaśmiecił
-`task_history` fałszywymi „zmianami zdjęcia"). Klucz dochodzi jako pole DODATKOWE, a serwer i tak
-wylicza go sam z adresu — jedną implementacją w SQL, żeby nie powstał drugi parser w TypeScripcie.
-
-**⏳ Etap A niedokończony:** dwie pozostałe trasy-pośredniki (zgody dla personelu, zdjęcia zadań),
-przepięcie czytelników na klucze, eksport RODO przez Storage zamiast `fetch()` (dziś przy błędzie
-robi `continue` → po zamknięciu ZIP wyszedłby PUSTY ze statusem 200) i cache-buster `?t=`
-w `ScheduleTab` (na podpisanym adresie daje dwa znaki zapytania i 400).
-
 ### 2026-08-12 (#8) — 🔒 BUCKET `consents` ZAMKNIĘTY — e-Karty z PESEL-em nie są już publiczne
 
 > Commity `e96aea9` (warunek wstępny) + **`4af8100`** (migracja 193). Wykonane po godzinach
@@ -2563,15 +2511,24 @@ pośrednikiem i zostawia ślad.
 **Efekt uboczny, zamierzony:** adres skopiowany z apki działał **bezterminowo i dla każdego** —
 teraz umiera po kwadransie.
 
-**🔑 Wzorzec zamykania:** `UPDATE storage.buckets SET public = false` (jak migracja 125),
+**🔑 Wzorzec zamykania:** `UPDATE storage.buckets SET public = false` — sama FORMA `UPDATE`
+jest z migracji 125 (tamta zdejmowała dziurawe polityki `social-media`, nie flagę `public`) —
 NIGDY `INSERT … ON CONFLICT DO UPDATE` z migracji 184 — ten cicho nadpisuje `file_size_limit`
 i `allowed_mime_types`. Sprawdzone po fakcie: `social-media` ma nadal limit 104857600.
 **🔑 Krok 9 planu okazał się zbędny** — w kodzie nie ma ani jednego `createBucket` dla naszej
 trójki, więc bucket nie odtworzy się sam jako publiczny.
 
-**⏳ NASTĘPNY KROK, nie wcześniej niż 13.08 wieczorem:** migracja 194 zamyka `task-images`
-i `consent-pdfs`. Doba obserwacji jest po to, żeby cicha awaria zdążyła się pokazać —
-`<img>` na martwym adresie to pusty prostokąt, nie błąd.
+**⏳ NASTĘPNY KROK — 🔴 WSTRZYMANY 13.08.** Migracja 194 miała zamknąć `task-images`
+i `consent-pdfs` po dobie obserwacji (cicha awaria potrzebuje czasu, żeby się pokazać —
+`<img>` na martwym adresie to pusty prostokąt, nie błąd). **Fakt-check dokumentacji złapał, że
+byłoby to zgaszenie zdjęć zadań w binarce 1.2.0 ze sklepu:** `lib/api.ts:1216` w apce typuje
+odpowiedź uploadu jako `{ url: string }` (pola `path` nikt nie czyta), a `lib/tasks.ts:187`
+renderuje `image_url` + `image_urls`, czyli adresy PUBLICZNE. Panel webowy przeszedł na klucze,
+apka NIE — dokładnie ta klasa awarii, którą dla `consents` wyprzedzono podpisywaniem list.
+**Warunek wejścia migracji 194:** `/api/employee/tasks` oddaje w `image_urls` adresy podpisane,
+z normalizacją po stronie serwera (apka odsyła te same wartości PATCH-em, więc adres z tokenem
+wylądowałby w bazie i robił fałszywy wpis w `task_history` przy każdym zapisie).
+`consent-pdfs` da się zamknąć niezależnie — tego bucketa apka nie czyta wcale.
 
 ### 2026-08-12 (#7) — 🪣 ETAP B: SZABLONY ZGÓD PRZEZ PODPISANY ADRES (bramka tabletu)
 
@@ -2691,10 +2648,63 @@ pracownika i zostawiła 3 wpisy audytowe przypisane jemu. **Usunięte po weryfik
 te trzy id; reszta rejestru — 7465 wpisów — nietknięta). Na przyszłość: do takich prób potrzebne
 konto techniczne, żeby nie mieszać w rejestrze czynności.
 
+### 2026-08-12 (#4) — 🪣 KLUCZE OBIEKTÓW ZAMIAST PUBLICZNYCH ADRESÓW (etap A zamykania bucketów)
+
+> Commit **`baf316a`** — **NA PRODUKCJI** (zweryfikowane SHA z `/api/health?secret=`, 10. odpytanie
+> ≈2,5 min, oraz `x-matched-path` nowej trasy + kontrola negatywna `/_not-found`).
+> ✅ **Migracja 192 WGRANA** (tego samego dnia, oba środowiska; backfill pięciu torów STRATA 0).
+> Kod i tak ma bezpiecznik na kolejność — patrz niżej.
+> `tsc` 0 · **vitest 495/495** · `next build` OK · cofka 6/6.
+
+**Stan wyjściowy.** Buckety `consents` (889 folderów), `consent-pdfs` (22 szablony) i `task-images`
+(250 zdjęć) są publiczne — kto zna albo zgadnie adres, pobiera plik bez klucza i bez śladu.
+W `consents` leżą e-Karty z PESEL-em pod ścieżką `<numer_kartoteki>/<plik>.pdf`, gdzie numer
+kartoteki jest KOLEJNY. Etap A niczego nie zamyka: dokłada klucze, moduł i pierwszą trasę-pośrednik.
+
+**Co weszło:** migracja **192** (kolumny `*_path` w pięciu miejscach, `resolve_object_path`
+z dekodowaniem procentowym + wariant wsadowy, `storage_backfill_report()` i
+`storage_backfill_apply()` **odmawiający pracy przy stracie > 0**, tabela
+`patient_document_access_log` z RLS `TO service_role`) · `lib/privateStorage.ts` (podpis TTL 900 s,
+odczyt bajtów, wyliczanie kluczy **przez bazę**) · sześciu pisarzy zapisuje klucz obok adresu ·
+trasa-pośrednik `/api/patients/documents/[id]/file` z kontrolą właściciela i wpisem do rejestru.
+
+**Pomiary (ręcznie, wąskim `select` — agenci nie mają dostępu do produkcji).** Pięć torów,
+**STRATA 0** w każdym: 2545 zgód · 300 e-Kart · 199 zdjęć zadań · 85 `image_url` · 25 szablonów.
+Mocniejszy test niż sam parser: **każdy wyliczony klucz ma swój obiekt** (przejrzane 892 foldery
+`consents`, 252 `task-images`, 22 `consent-pdfs`), kontrola negatywna z doklejonym `.bak` nie trafia.
+🔴 **Wszystkie 14 AKTYWNYCH typów zgód** siedzi w `consent-pdfs` — zamknięcie tego bucketa bez
+etapu B wyłącza **100%** zgód do podpisu na tablecie, nie 71% jak zakładał plan (tamta liczba
+liczyła też wiersze nieaktywne).
+
+**🪤 TRZY PUŁAPKI ZŁAPANE PRZED WDROŻENIEM:**
+1. **`employee_tasks.image_urls` to `TEXT[]`, nie jsonb** (migracja 047). Pierwsza wersja migracji
+   używała `jsonb_typeof`/`jsonb_array_elements_text` i **cała migracja nie przeszłaby** (42883).
+   **Pomiar przez PostgREST tego NIE POKAZUJE** — TEXT[] wraca po drodze jako tablica JSON, więc
+   z zewnątrz wygląda identycznie. Złapane rozpoznaniem kodu, potwierdzone w migracji 047.
+2. **Dopisanie kolumny `*_path` do INSERT-a przed wgraniem migracji = 42703 i cały zapis pada** —
+   czyli pacjent na tablecie nie podpisze zgody. Zmierzone na żywej bazie. Stąd
+   `storagePathsReady()`: pisarze pytają, zanim dopiszą kolumnę, a wynik pozytywny zapamiętują
+   (po wgraniu migracji klucze zaczynają się zapisywać same, bez redeployu). Kolejność
+   „migracja, potem deploy" zostaje zalecana, ale operacja już na niej nie wisi.
+3. **Dwa adresy mają `%20`** — surowy klucz w buckecie NIE ISTNIEJE, pasuje dopiero zdekodowany.
+   Bez `url_decode_component` te dwie zgody dostałyby podpis do nieistniejącego pliku i zniknęły
+   po cichu. Pierwszy pomiar `patient_consents` zwrócił „1000 wierszy" — obcięcie PostgREST;
+   realnie 2545, wszystkie liczby powtórzone ze stronicowaniem.
+
+**Kontrakt ze sklepem nietknięty.** `upload-image` dalej oddaje `url` publiczny (apka 1.2.0 wkłada
+go prosto do `image_urls` i odsyła PATCH-em — podpisany adres wygasłby w bazie i zaśmiecił
+`task_history` fałszywymi „zmianami zdjęcia"). Klucz dochodzi jako pole DODATKOWE, a serwer i tak
+wylicza go sam z adresu — jedną implementacją w SQL, żeby nie powstał drugi parser w TypeScripcie.
+
+**⏳ Etap A niedokończony:** dwie pozostałe trasy-pośredniki (zgody dla personelu, zdjęcia zadań),
+przepięcie czytelników na klucze, eksport RODO przez Storage zamiast `fetch()` (dziś przy błędzie
+robi `continue` → po zamknięciu ZIP wyszedłby PUSTY ze statusem 200) i cache-buster `?t=`
+w `ScheduleTab` (na podpisanym adresie daje dwa znaki zapytania i 400).
+
 ### 2026-08-12 (#3) — 🔐 `mfa_epoch`: RESET 2FA WRESZCIE ODBIERA DOSTĘP (pozycja 1 planu napraw)
 
-> Commit **`332321b`** — ⏳ **NIEWYPCHNIĘTY** (klasyfikator zablokował push w sesji) i **migracja 191
-> NIEWGRANA**. `tsc` 0 · **vitest 489/489** · `next build` OK · artefakt `.next/server/middleware.js`
+> Commit **`332321b`** — **NA PRODUKCJI** (push wykonał Marcin — klasyfikator zablokował go w sesji),
+> **migracja 191 WGRANA** na oba środowiska. `tsc` 0 · **vitest 489/489** · `next build` OK · artefakt `.next/server/middleware.js`
 > (runtime nodejs zachowany — bez niego cała bramka rzuca, a fail-open ją przepuszcza).
 
 **Co było zepsute.** `verifyMfaSessionToken` sprawdzał wyłącznie podpis, `userId` i termin. Sesja
