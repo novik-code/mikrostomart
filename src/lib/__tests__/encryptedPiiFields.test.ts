@@ -25,7 +25,10 @@ describe('encryptedPiiFields', () => {
             _resetKeyCacheForTests();
         });
 
-        it('prepareIntakeSubmissionInsert writes both plaintext and encrypted', () => {
+        it('🔴 NIE zapisuje już PESEL-u jawnym tekstem, gdy szyfrowanie działa', () => {
+            // Zmiana zachowania 2026-08-13 (koniec okresu przejściowego). Warunek wejścia
+            // zmierzony na produkcji: dla wszystkich 6 par kolumn liczba wierszy
+            // „jawny bez zaszyfrowanego" wynosi 0, a odczyt woli kolumnę `_encrypted`.
             const payload = prepareIntakeSubmissionInsert({
                 pesel: '85120512345',
                 medical_survey: { feelsHealthy: true, allergies: 'penicillin' },
@@ -33,10 +36,10 @@ describe('encryptedPiiFields', () => {
                 signature_data: 'data:image/png;base64,xyz',
             });
 
-            expect(payload.pesel).toBe('85120512345');
-            expect(payload.medical_survey).toEqual({ feelsHealthy: true, allergies: 'penicillin' });
-            expect(payload.medical_notes).toBe('medical text');
-            expect(payload.signature_data).toBe('data:image/png;base64,xyz');
+            expect(payload.pesel, 'PESEL jawnym tekstem wrócił do INSERT-a').toBeUndefined();
+            expect(payload.medical_survey, 'wywiad jawnym tekstem wrócił do INSERT-a').toBeUndefined();
+            expect(payload.medical_notes).toBeUndefined();
+            expect(payload.signature_data).toBeUndefined();
 
             expect(payload.pesel_encrypted).toBeTruthy();
             expect(payload.pesel_hash).toBe(hashPesel('85120512345'));
@@ -53,7 +56,7 @@ describe('encryptedPiiFields', () => {
                 signature_data: null,
             });
 
-            expect(payload.pesel).toBeNull();
+            expect(payload.pesel).toBeUndefined();
             expect(payload.pesel_encrypted).toBeUndefined();
             expect(payload.pesel_hash).toBeUndefined();
             expect(payload.medical_survey_encrypted).toBeUndefined();

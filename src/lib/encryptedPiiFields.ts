@@ -33,10 +33,16 @@ export interface IntakeWriteInput {
 }
 
 export interface IntakePiiPayload {
-    pesel: string | null;
-    medical_survey: unknown;
-    medical_notes: string | null;
-    signature_data: string | null;
+    /**
+     * Kolumny JAWNE — opcjonalne od 2026-08-13. Przy sprawnym szyfrowaniu payload ich
+     * NIE zawiera, więc `INSERT` zostawia je NULL-em. Pojawiają się wyłącznie w torze
+     * awaryjnym (brak konfiguracji szyfrowania albo wyjątek), gdzie jawny PESEL jest
+     * złem mniejszym niż e-Karta bez treści.
+     */
+    pesel?: string | null;
+    medical_survey?: unknown;
+    medical_notes?: string | null;
+    signature_data?: string | null;
     pesel_encrypted?: string | null;
     pesel_hash?: string | null;
     medical_survey_encrypted?: string | null;
@@ -46,10 +52,26 @@ export interface IntakePiiPayload {
 
 /**
  * Build INSERT payload for patient_intake_submissions PII columns.
- * Writes BOTH plaintext (transition) and encrypted (when configured).
+ *
+ * 🔴 OD 2026-08-13 NOWE WIERSZE NIE MAJĄ JUŻ PESEL-U JAWNYM TEKSTEM.
+ *
+ * Dotąd payload niósł OBIE wersje — jawną „na okres przejściowy" i zaszyfrowaną.
+ * Okres przejściowy się skończył: zmierzone na produkcji, że dla WSZYSTKICH sześciu
+ * par kolumn (`patient_intake_submissions`: pesel, medical_survey, medical_notes,
+ * signature_data; `patient_consents`: signature_data, biometric_data) liczba wierszy
+ * „jawny bez zaszyfrowanego" wynosi **0**. Odczyt i tak idzie przez
+ * `readIntakeSubmissionPii`, które woli kolumnę `_encrypted`.
+ *
+ * 🔑 FAIL-SOFT ZOSTAJE I JEST TU NAJWAŻNIEJSZY. Gdy szyfrowanie nie jest skonfigurowane
+ * albo rzuci wyjątkiem, do payloadu wracają kolumny jawne — bo alternatywą byłaby
+ * e-Karta zapisana BEZ PESEL-u w ogóle. Lepszy PESEL jawnym tekstem niż wywiad
+ * medyczny bez pacjenta, którego dotyczy.
+ *
+ * ⏳ To jest takt „kod przed danymi". Kolumny jawne wolno usunąć z bazy dopiero wtedy,
+ * gdy przez jakiś czas nie przybywa w nich nowych wartości — i to osobną migracją.
  */
 export function prepareIntakeSubmissionInsert(input: IntakeWriteInput): IntakePiiPayload {
-    const payload: IntakePiiPayload = {
+    const jawne: IntakePiiPayload = {
         pesel: input.pesel ?? null,
         medical_survey: input.medical_survey ?? null,
         medical_notes: input.medical_notes ?? null,
@@ -57,8 +79,11 @@ export function prepareIntakeSubmissionInsert(input: IntakeWriteInput): IntakePi
     };
 
     if (!isEncryptionConfigured()) {
-        return payload;
+        return jawne;
     }
+
+    // Szyfrowanie działa → jawnych kolumn NIE wypełniamy.
+    const payload: IntakePiiPayload = {};
 
     try {
         if (input.pesel) {
@@ -76,7 +101,14 @@ export function prepareIntakeSubmissionInsert(input: IntakeWriteInput): IntakePi
         }
     } catch (e) {
         console.error('[encryptedPiiFields] prepareIntakeSubmissionInsert encryption error:', (e as Error).message);
-        // Fail-soft: plaintext still in payload, encrypted columns left undefined
+        /**
+         * 🔑 FAIL-SOFT: szyfrowanie padło w połowie → wracamy do kolumn JAWNYCH.
+         * Bez tego e-Karta zapisałaby się bez PESEL-u, bez wywiadu i bez podpisu —
+         * czyli powstałby dokument medyczny bez treści, o czym nikt by się nie dowiedział.
+         * Jawny PESEL jest złem mniejszym niż utrata wywiadu pacjenta.
+         * `payload` może już nieść część pól zaszyfrowanych — scalamy, nie nadpisujemy.
+         */
+        return { ...jawne, ...payload };
     }
 
     return payload;
