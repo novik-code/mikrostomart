@@ -86,6 +86,8 @@ export async function PATCH(
         const status = result.error === 'name_required' ? 400
             : result.error === 'device_name_taken' ? 409
             : result.error === 'employee_not_found' ? 404
+            // Cudze albo nieistniejące urządzenie — dotąd przechodziło jako 200 „zmieniono".
+            : result.error === 'device_not_found' ? 404
             : 500;
         return NextResponse.json({ error: result.error }, { status });
     }

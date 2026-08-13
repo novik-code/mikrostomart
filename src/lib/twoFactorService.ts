@@ -505,17 +505,32 @@ export async function renameDevice(
 
     if (error || !employee) return { ok: false, error: 'employee_not_found' };
 
-    const { error: updateErr } = await supabase
+    /**
+     * 🔑 `.select()` PO `update()` — bez tego trasa kłamała.
+     *
+     * Filtr po `employee_id` chroni dane poprawnie: cudzego urządzenia ta operacja nie
+     * tknie. Ale gdy nic nie pasuje (cudze albo nieistniejące `deviceId`), PostgREST
+     * aktualizuje ZERO wierszy i **nie zgłasza błędu** — `updateErr` jest `null`, funkcja
+     * zwracała `{ ok: true }`, a trasa oddawała **200 „nazwa zmieniona"**. Użytkownik
+     * widział potwierdzenie zmiany, której nie było.
+     *
+     * `removeDevice` ma to od początku dobrze (sprawdza cel osobnym `select`) — to była
+     * jedyna operacja na urządzeniach bez potwierdzenia trafienia.
+     */
+    const { data: zmienione, error: updateErr } = await supabase
         .from('employee_2fa_devices')
         .update({ device_name: trimmed })
         .eq('id', deviceId)
-        .eq('employee_id', employee.id);
+        .eq('employee_id', employee.id)
+        .select('id');
 
     if (updateErr) {
         if (updateErr.code === '23505') return { ok: false, error: 'device_name_taken' };
         console.error('[2FA] renameDevice update error:', updateErr);
         return { ok: false, error: 'database_error' };
     }
+
+    if (!zmienione || zmienione.length === 0) return { ok: false, error: 'device_not_found' };
 
     return { ok: true };
 }
