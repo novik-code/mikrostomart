@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { sendPushByConfig, pushToUsers } from '@/lib/pushService';
 import { assigneeUserIds } from '@/lib/taskAssignees';
-import { resolveObjectPaths, TASK_IMAGE_BUCKET } from '@/lib/privateStorage';
+import { normalizedTaskImageFields, withSignedTaskImages } from '@/lib/taskImages';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +60,13 @@ export async function GET(req: Request) {
         return t.owner_user_id === user.id; // private: only owner sees it
     });
 
-    return NextResponse.json({ tasks });
+    /**
+     * 🔒 Zdjęcia wychodzą PODPISANE — inaczej zamknięcie bucketa `task-images`
+     * zgasi galerie w apce 1.2.0 ze sklepu i w panelu webowym. Świadome odstępstwo
+     * od reguły „podpis przy otwarciu, nigdy w liście": oba klienty renderują te
+     * adresy od razu, więc nie ma czego podpisać osobno (patrz `lib/taskImages.ts`).
+     */
+    return NextResponse.json({ tasks: await withSignedTaskImages(tasks) });
 }
 
 /**
@@ -101,11 +107,7 @@ export async function POST(req: Request) {
          * Gdy RPC nie odpowie (np. migracja jeszcze niewgrana), zapisujemy sam adres —
          * kolumna zostaje pusta i wiersz dobierze kolejny przebieg `storage_backfill_apply()`.
          */
-        const wejsciowe: string[] = Array.isArray(body.image_urls) ? body.image_urls : [];
-        const sciezki = await resolveObjectPaths(wejsciowe, TASK_IMAGE_BUCKET);
-        const sciezkaPojedyncza = body.image_url
-            ? (await resolveObjectPaths([body.image_url], TASK_IMAGE_BUCKET))?.[0] ?? null
-            : null;
+        const zdjecia = await normalizedTaskImageFields(body);
 
         const task = {
             title: body.title.trim(),
@@ -116,8 +118,7 @@ export async function POST(req: Request) {
             checklist_items: body.checklist_items || [],
             image_url: body.image_url || null,
             image_urls: body.image_urls || [],
-            ...(sciezki ? { image_paths: sciezki.filter((p): p is string => !!p) } : {}),
-            ...(sciezkaPojedyncza ? { image_path: sciezkaPojedyncza } : {}),
+            ...zdjecia,
             patient_id: body.patient_id || null,
             patient_name: body.patient_name || null,
             appointment_type: body.appointment_type || null,
@@ -208,7 +209,9 @@ export async function POST(req: Request) {
             console.error('[Tasks] Assignee push error:', assignErr);
         }
 
-        return NextResponse.json({ task: data }, { status: 201 });
+        // Odpowiedź jest dla klienta, nie dla bazy — zdjęcia podpisane, jak w GET.
+        const [zPodpisami] = await withSignedTaskImages([data]);
+        return NextResponse.json({ task: zPodpisami }, { status: 201 });
 
     } catch (error: any) {
         console.error('[Tasks] Error:', error);

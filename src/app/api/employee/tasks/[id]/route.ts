@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendPushByConfig, pushToUsers } from '@/lib/pushService';
 import { deleteEvent } from '@/lib/googleCalendar';
 import { assigneeUserIds } from '@/lib/taskAssignees';
-import { resolveObjectPaths, TASK_IMAGE_BUCKET } from '@/lib/privateStorage';
+import { normalizedTaskImageFields, withSignedTaskImages } from '@/lib/taskImages';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,6 +88,22 @@ export async function PATCH(
     try {
         const body = await req.json();
 
+        /**
+         * 🔒 Adresy zdjęć normalizujemy NA WEJŚCIU — zanim powstaną `updates` i zanim
+         * policzy się diff do `task_history`.
+         *
+         * Klient odsyła to, co dostał w odczycie, a odczyt oddaje od teraz adresy
+         * PODPISANE. Wzięte dosłownie wpisałyby do `employee_tasks` token z TTL:
+         * wiersz martwy po 15 minutach, a diff (`JSON.stringify(oldVal) !== JSON.stringify(newVal)`
+         * niżej) widziałby „zmianę zdjęcia" przy każdym zapisie, bo token jest inny
+         * za każdym razem. Nadpisanie `body` załatwia oba tory naraz — zapis i historię.
+         */
+        // Klucze podaje wyłącznie serwer — kliencka wersja leci do kosza, zanim cokolwiek
+        // zobaczy. Inaczej `image_paths` w ciele żądania podstawiłoby cudze zdjęcie zadania.
+        delete body.image_paths;
+        delete body.image_path;
+        Object.assign(body, await normalizedTaskImageFields(body));
+
         // Only allow updating specific fields
         const allowedFields = [
             'title', 'description', 'status', 'priority',
@@ -119,24 +135,12 @@ export async function PATCH(
         }
 
         /**
-         * 🔒 Ta sama zasada co w POST: klucze obiektów wylicza SERWER z adresów
-         * przysłanych przez klienta (apka 1.2.0 ze sklepu innych nie zna).
-         * To DRUGIE wejście zapisu zdjęć do `employee_tasks` — pominięcie go zostawiłoby
-         * połowę zapisów bez kluczy („jedna naprawa nie wystarczy": policz wszystkich pisarzy).
+         * Klucze obiektów policzyła już `normalizedTaskImageFields` na wejściu — tu tylko
+         * przenosimy je do zapisu. Kolumn `image_paths`/`image_path` nie ma na liście
+         * `allowedFields`, bo klient nie ma prawa ich podać: wylicza je WYŁĄCZNIE serwer.
          */
-        if ('image_urls' in updates) {
-            const sciezki = await resolveObjectPaths(
-                Array.isArray(updates.image_urls) ? updates.image_urls : [],
-                TASK_IMAGE_BUCKET,
-            );
-            if (sciezki) updates.image_paths = sciezki.filter((p): p is string => !!p);
-        }
-        if ('image_url' in updates) {
-            const jeden = updates.image_url
-                ? (await resolveObjectPaths([updates.image_url], TASK_IMAGE_BUCKET))?.[0] ?? null
-                : null;
-            updates.image_path = jeden;
-        }
+        if ('image_paths' in body) updates.image_paths = body.image_paths;
+        if ('image_path' in body) updates.image_path = body.image_path;
 
         // Fetch current task before updating (for diff)
         const { data: oldTask } = await supabase
@@ -310,7 +314,8 @@ export async function PATCH(
             console.error('[Tasks] Assignee push error:', assignErr);
         }
 
-        return NextResponse.json({ task: data });
+        const [zPodpisami] = await withSignedTaskImages([data]);
+        return NextResponse.json({ task: zPodpisami });
 
     } catch (error: any) {
         console.error('[Tasks] Error:', error);
