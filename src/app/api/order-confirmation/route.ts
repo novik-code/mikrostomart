@@ -41,6 +41,14 @@ export const runtime = "nodejs";
  * idempotency).
  */
 export async function POST(req: NextRequest) {
+    /**
+     * Uchwyt do zwolnienia zamka powiadomień, dostępny w `catch`.
+     * `orderId` i klient Supabase powstają WEWNĄTRZ `try`, więc bez tego bloku
+     * obsługa błędu nie miałaby czym zwolnić zamka (i to jest cały sens naprawy).
+     * Ustawiany dopiero po realnym wzięciu zamka — inaczej zwalniałby cudzy.
+     */
+    let zwolnijZamek: (() => Promise<void>) | null = null;
+
     try {
         const body = await req.json().catch(() => ({}));
         const { orderId, locale: requestLocale } = body as {
@@ -104,17 +112,58 @@ export async function POST(req: NextRequest) {
         //      the UPDATE itself doesn't re-check status — that's fine, status
         //      transitions paid → refunded happen only via S8 admin actions,
         //      which won't race against notify polling.
-        const { data: locked, error: lockErr } = await supabase
-            .from("orders")
-            .update({ notified_at: new Date().toISOString() })
-            .eq("id", orderId)
-            .is("notified_at", null)
-            .select("id")
-            .maybeSingle();
+        /**
+         * 🔴 ZAMEK DWUETAPOWY (migracja 196) — „zacząłem" ≠ „skończyłem".
+         *
+         * Poprzednia wersja stawiała `notified_at` PRZED wysyłką. Gdy `sendEmail` rzucił
+         * (Resend padł, timeout SMTP), trasa oddawała 500, a znacznik zostawał — kolejne
+         * odpytanie widziało `alreadyNotified` i powiadomienie przepadało na zawsze.
+         * Klient zapłacił, gabinet nie wiedział o zamówieniu, nikt się nie dowiedział.
+         *
+         * Teraz: `claim` bierze robotę (`notify_started_at`), `finish` domyka ją PO udanej
+         * wysyłce, a `release` zwalnia zamek, gdy wysyłka padła. Zamek starszy niż 5 minut
+         * jest przeterminowany — dzięki temu twarda śmierć procesu (timeout lambdy, przy
+         * którym `catch` się NIE wykona) też się sama leczy.
+         *
+         * 🔑 FALLBACK NA STARY ZAMEK, gdy RPC nie odpowiada (migracja jeszcze niewgrana).
+         * Bez tego push kodu przed migracją wywaliłby KAŻDE zamówienie — a push na `main`
+         * to auto-deploy i wystarczy jedna pomyłka w kolejności.
+         */
+        let locked: { id: string } | null = null;
+        let lockErr: unknown = null;
+        let dwuetapowy = false;
+
+        const { data: claimed, error: claimErr } = await supabase.rpc("claim_order_notification", {
+            p_order_id: orderId,
+            p_stale_minutes: 5,
+        });
+
+        if (!claimErr) {
+            dwuetapowy = true;
+            locked = claimed === true ? { id: orderId } : null;
+        } else {
+            console.warn("[OrderConfirm] RPC zamka niedostępne, stary tor:", claimErr.code);
+            const stary = await supabase
+                .from("orders")
+                .update({ notified_at: new Date().toISOString() })
+                .eq("id", orderId)
+                .is("notified_at", null)
+                .select("id")
+                .maybeSingle();
+            locked = stary.data;
+            lockErr = stary.error;
+        }
 
         if (lockErr) {
             console.error("[OrderConfirm] notified_at lock failed:", lockErr);
             return NextResponse.json({ error: "Lock failed" }, { status: 500 });
+        }
+
+        if (locked && dwuetapowy) {
+            zwolnijZamek = async () => {
+                const { error: relErr } = await supabase.rpc("release_order_notification", { p_order_id: orderId });
+                if (relErr) console.error("[OrderConfirm] zwolnienie zamka nieudane:", relErr.code);
+            };
         }
 
         if (!locked) {
@@ -210,10 +259,33 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // ── Wysyłka się udała — DOPIERO TERAZ „wysłane" ─────────────────────
+        // W torze zapasowym (RPC niedostępne) `notified_at` stoi już od wzięcia zamka.
+        if (dwuetapowy) {
+            const { error: finErr } = await supabase.rpc("finish_order_notification", { p_order_id: orderId });
+            if (finErr) {
+                // Powiadomienia POSZŁY, tylko znacznik nie usiadł. Nie zwalniamy zamka —
+                // ponowienie wysłałoby drugi komplet maili. Zostawiamy głośny ślad:
+                // za 5 minut zamek się przeterminuje i mail pójdzie po raz drugi.
+                console.error("[OrderConfirm] wysłano, ale finish_order_notification padł:", finErr);
+            }
+        }
+
         return NextResponse.json({ success: true, orderId, status: "paid" });
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : "Unknown";
         console.error("Order API Error:", message);
+
+        // 🔑 Wysyłka padła w połowie — ZWALNIAMY zamek, żeby kolejne odpytanie
+        // spróbowało jeszcze raz. Bez tego zamówienie zostaje bez powiadomienia
+        // na zawsze i nikt się o tym nie dowiaduje.
+        // `catch` na zwolnieniu: awaria sprzątania nie może zastąpić pierwotnego błędu.
+        try {
+            await zwolnijZamek?.();
+        } catch (relErr) {
+            console.error("[OrderConfirm] zwolnienie zamka rzuciło:", relErr);
+        }
+
         return NextResponse.json({ error: message }, { status: 500 });
     }
 }

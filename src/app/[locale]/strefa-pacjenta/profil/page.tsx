@@ -502,7 +502,13 @@ export default function PatientProfile() {
                         <div style={{ display: 'grid', gap: '1rem' }}>
                             {[
                                 { key: 'sms_reminders', label: '📱 Przypomnienia SMS o wizytach', desc: 'SMS dzień przed wizytą' },
-                                { key: 'email_reminders', label: '📧 Przypomnienia email', desc: 'Powiadomienia email o wizytach' },
+                                /* 🔴 `email_reminders` USUNIĘTY 2026-08-13 — przełącznik bez pokrycia.
+                                   Zmierzone: żaden z 30 cronów nie wysyła e-mailowych przypomnień
+                                   o wizytach, a poza tym UI kolumny nie czytał NIKT (`grep` po
+                                   całym `src`: zero trafień poza tym ekranem i etykietą
+                                   w Diagnostyce). Pacjent włączał opcję i nic nie przychodziło.
+                                   Wartość zostaje w `notification_preferences` — jest nieszkodliwa,
+                                   a kasowanie jej z bazy nic nie daje. */
                                 { key: 'push_1h_before', label: '📢 Push notification 1h przed', desc: 'Powiadomienie w przeglądarce 1h przed wizytą' },
                                 { key: 'birthday_wishes', label: '🎂 Życzenia urodzinowe', desc: 'SMS z życzeniami w dniu urodzin' },
                                 { key: 'post_visit_sms', label: '⭐ SMS po wizycie', desc: 'Ankieta satysfakcji po wizycie' },

@@ -9,12 +9,33 @@ const supabase = createClient(
 
 /**
  * GET /api/admin/consent-mappings
- * Returns all consent type mappings. Public read (consent signing page needs it).
+ *
+ * Odczyt PUBLICZNY (mimo `/admin/` w ścieżce) — tablet zgód `/zgody/[token]` woła go bez
+ * sesji, żeby dostać `label` i `fields` do wypełnienia formularza. Tego nie da się zamknąć
+ * bez przepisania tabletu, a tablet obsługuje pacjenta w fotelu.
+ *
+ * 🔴 CZEGO PUBLICZNIE NIE ODDAJEMY: `pdf_file` i `pdf_path`, czyli adres i klucz obiektu
+ * w buckecie `consent-pdfs`. Do migracji 195 ta trasa wystawiała je każdemu w internecie
+ * (`select('*')`), co czyniło zamknięcie bucketa pozorem — wystarczyło je stąd przepisać.
+ *
+ * 🔑 DLACZEGO NIE „PODPISAĆ TU ADRESU". Podpis w trasie BEZ uwierzytelnienia unieważnia
+ * zamknięcie bucketa: każdy generowałby sobie ważny adres do każdego aktywnego szablonu.
+ * Adresu nikt tu zresztą nie potrzebuje — tablet pobiera szablon z `consents[].file`
+ * z `/api/consents/verify` (za tokenem, podpisany), a `pdf-mapper` z trasy-pośrednika
+ * `documents/file?type=consent-template` (za sesją pracownika).
+ *
+ * Admin dostaje komplet kolumn, bo `pdf-mapper` pokazuje nazwę pliku i używa jej jako
+ * wartości zapasowej, gdy pośrednik nie odda adresu.
  */
 export async function GET() {
+    const auth = await requireAdmin();
+    const kolumny = auth.ok
+        ? '*'
+        : 'consent_key, label, fields, is_active';
+
     const { data, error } = await supabase
         .from('consent_field_mappings')
-        .select('*')
+        .select(kolumny)
         .eq('is_active', true)
         .order('consent_key');
 

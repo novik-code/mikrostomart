@@ -1,3 +1,16 @@
+-- ⛔⛔⛔ NIE URUCHAMIAĆ TEGO PLIKU ⛔⛔⛔
+--
+-- Ten katalog jest MARTWY — patrz `supabase/migrations/README.md`.
+-- Migracje projektu żyją w `supabase_migrations/` i wgrywa się je ręcznie przez SQL Editor.
+--
+-- 🔴 PONIŻEJ SĄ OTWARTE POLITYKI RLS (`TO authenticated USING (true)`) — dostęp dla KAŻDEGO
+--    konta Supabase, nie tylko personelu. Na produkcji NIE obowiązują (właściwe wgrała
+--    migracja 132; zmierzone 12.08.2026: pracownik widzi 0 z 299 zadań, `insert` → 42501).
+--    Zastosowanie tego pliku otworzyłoby zadania z nazwiskami pacjentów każdemu zalogowanemu.
+--
+-- Plik zostaje wyłącznie jako zapis pierwotnego kształtu tabeli.
+-- ============================================================================
+
 -- Employee Tasks table for task management system
 -- Phase 1: Task CRUD with schedule integration
 

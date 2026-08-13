@@ -1,5 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
-import sharp from 'sharp';
+/**
+ * 🔑 `sharp` ładowany LENIWIE, nie na poziomie modułu.
+ *
+ * Ten plik importuje DZIESIĘĆ tras, a normalizacji obrazu potrzebują z nich tylko te,
+ * które przyjmują upload. Import statyczny wciągał natywny libvips (kilkadziesiąt MB)
+ * także do `delete-account`, `export-data` i listy wiadomości — czyli do lambd, które
+ * o obrazkach nic nie wiedzą. Płaciły za to zimnym startem przy każdym wywołaniu.
+ *
+ * 🪤 Nie zamieniać z powrotem na `import sharp from 'sharp'` „dla czytelności" —
+ * koszt jest niewidoczny w kodzie i w testach, widać go dopiero w czasie odpowiedzi.
+ */
+type SharpFn = typeof import('sharp').default;
+let sharpModul: SharpFn | null = null;
+async function getSharp(): Promise<SharpFn> {
+    if (!sharpModul) sharpModul = (await import('sharp')).default;
+    return sharpModul;
+}
 
 /**
  * Załączniki czatu — warstwa wspólna OBU torów (personel↔personel i pacjent↔recepcja).
@@ -90,6 +106,7 @@ export type NormalizedImage = {
  */
 export async function normalizeImage(input: Buffer): Promise<NormalizedImage | null> {
     try {
+        const sharp = await getSharp();
         const base = sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
             .rotate()
             .flatten({ background: '#ffffff' });
