@@ -50,12 +50,49 @@ describe('Strażnik: klucze obiektów Storage', () => {
     });
 
     it('obie trasy zapisu zadań wyliczają klucze przez bazę, nie własnym parserem', () => {
-        for (const plik of PISARZE_ZADAN) {
-            const src = read(plik);
-            expect(src, `${plik} nie woła resolveObjectPaths`).toContain('resolveObjectPaths');
-            expect(src, `${plik} nie zapisuje image_paths`).toContain('image_paths');
-        }
+        const [lista, detal] = PISARZE_ZADAN.map(read);
+
+        // 🪤 Samo WYWOŁANIE nie wystarcza — wynik musi realnie wejść do zapisu.
+        // `await normalizedTaskImageFields(body)` z porzuconym wynikiem to cicha regresja:
+        // trasa wygląda na naprawioną, a kolumna `image_paths` zostaje pusta.
+        expect(lista).toMatch(/const zdjecia = await normalizedTaskImageFields\(body\)/);
+        expect(lista, 'wynik normalizacji nie wchodzi do insertu').toMatch(/\.\.\.zdjecia/);
+
+        expect(detal).toMatch(/Object\.assign\(body, await normalizedTaskImageFields\(body\)\)/);
+        expect(detal, 'klucze nie trafiają do update').toMatch(/updates\.image_paths = body\.image_paths/);
+        expect(detal, 'legacy klucz nie trafia do update').toMatch(/updates\.image_path = body\.image_path/);
+
         expect(PISARZE_ZADAN).toHaveLength(2);
+        // …a sam moduł nadal pyta bazę, zamiast zgadywać klucz w TS.
+        expect(read('src/lib/taskImages.ts')).toContain('resolveObjectPaths');
+    });
+
+    it('🔴 zadania oddają zdjęcia PODPISANE — warunek wejścia migracji 194', () => {
+        // Bez tego zamknięcie bucketa `task-images` gasi galerie u OBU klientów:
+        // apka 1.2.0 ze sklepu (`lib/tasks.ts:187` renderuje `image_url` + `image_urls`,
+        // pola `path` nie zna) i panel webowy (`TasksTab.tsx:1921` → `<img src>`).
+        const lista = read('src/app/api/employee/tasks/route.ts');
+        const detal = read('src/app/api/employee/tasks/[id]/route.ts');
+
+        // Każde wyjście oddające zadanie musi przejść przez podpisywanie.
+        const wyjscia = [
+            ...(lista.match(/return NextResponse\.json\(\{\s*tasks?:/g) ?? []),
+            ...(detal.match(/return NextResponse\.json\(\{\s*task:/g) ?? []),
+        ];
+        expect(wyjscia.length, 'strażnik przestał widzieć wyjścia z zadaniami').toBe(3);
+        expect((lista.match(/withSignedTaskImages/g) ?? []).length,
+            'lista i odpowiedź POST muszą podpisywać').toBe(3); // import + GET + POST
+        expect((detal.match(/withSignedTaskImages/g) ?? []).length,
+            'odpowiedź PATCH musi podpisywać').toBe(2); // import + PATCH
+
+        // 🪤 I druga połowa: klucze podaje wyłącznie serwer. Kliencki `image_paths`
+        // w ciele żądania podstawiłby cudze zdjęcie zadania.
+        expect(detal, 'PATCH nie odrzuca klienckich kluczy').toMatch(/delete body\.image_paths/);
+        expect(detal.indexOf('delete body.image_paths'))
+            .toBeLessThan(detal.indexOf('normalizedTaskImageFields(body)'));
+
+        // 🪤 Samo ZACHOWANIE (podpis w odczycie, brak tokenu w zapisie) sprawdza
+        // `taskImages.test.ts` — wykonaniem. Cofka: 5 z 13 asercji pada bez naprawy.
     });
 
     it('🔴 upload-image nadal oddaje `url` — kontrakt apki 1.2.0 ze sklepu', () => {
@@ -81,10 +118,15 @@ describe('Strażnik: klucze obiektów Storage', () => {
         // Reguła „adres → klucz" żyje w SQL (`resolve_object_path`, migracja 192).
         // Kopia w TS rozjedzie się z backfillem przy pierwszej korekcie — tak zginął
         // parytet forka planisty CareFlow.
-        const podejrzani = ['src/lib/privateStorage.ts', ...PISARZE_ZADAN, 'src/app/api/patients/documents/[id]/file/route.ts'];
+        const podejrzani = [
+            'src/lib/privateStorage.ts',
+            'src/lib/taskImages.ts',
+            ...PISARZE_ZADAN,
+            'src/app/api/patients/documents/[id]/file/route.ts',
+        ];
         const naruszenia = podejrzani.filter(p => /object\/public\/[^'"`]*\$\{|split\(['"]\/object\/public\//.test(read(p)));
         expect(naruszenia, `pliki parsujące adres samodzielnie: ${naruszenia.join(', ')}`).toEqual([]);
-        expect(podejrzani.length).toBe(4);
+        expect(podejrzani.length).toBe(5);
     });
 
     it('trasa personelu waliduje kształt ścieżki, zanim dotknie zapytania', () => {

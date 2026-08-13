@@ -85,6 +85,66 @@ export async function signObject(
 }
 
 /**
+ * Podpisy dla WIELU obiektów naraz — jedno wywołanie zamiast N.
+ *
+ * 🔑 PO CO OSOBNA FUNKCJA. Reguła 1 („podpis przy otwarciu, nigdy w liście") ma jeden
+ * wyjątek, którego nie da się ominąć: obrazki, które klient RENDERUJE od razu przy
+ * wyświetleniu listy. Zdjęcia zadań są dokładnie tym przypadkiem — apka 1.2.0 ze sklepu
+ * (`lib/tasks.ts` `taskPhotos`) i panel webowy (`TasksTab.tsx`) wkładają adres prosto
+ * w `<Image>`/`<img>`. Nie ma tam „otwarcia", które dałoby się podpisać osobno.
+ * Pętla `signObject` po 200 zdjęciach to 200 żądań do Storage na każde wejście na listę;
+ * `createSignedUrls` załatwia to jednym.
+ *
+ * Zwraca mapę klucz → podpisany adres. Klucze, których podpisać się nie dało, w mapie
+ * NIE WYSTĘPUJĄ — wołający ma wtedy zdecydować sam, a nie dostać `undefined` udające adres.
+ */
+export async function signObjects(
+    bucket: StorageBucket,
+    paths: string[],
+    opts?: { ttlSeconds?: number },
+): Promise<Map<string, string>> {
+    const wynik = new Map<string, string>();
+    const czyste = Array.from(
+        new Set(paths.map(p => (p || '').trim().replace(/^\/+/, '')).filter(Boolean)),
+    );
+    if (!czyste.length) return wynik;
+
+    const { data, error } = await supabase.storage
+        .from(bucket)
+        .createSignedUrls(czyste, opts?.ttlSeconds ?? SIGNED_URL_TTL_SECONDS);
+
+    if (error || !Array.isArray(data)) {
+        console.error('[privateStorage] podpisanie wsadowe nieudane:', bucket, error?.message);
+        return wynik;
+    }
+
+    for (const wiersz of data) {
+        // `path` z odpowiedzi bywa null przy błędzie pozycji — wtedy pomijamy tę pozycję.
+        if (wiersz?.path && wiersz?.signedUrl) wynik.set(wiersz.path, wiersz.signedUrl);
+    }
+    return wynik;
+}
+
+/**
+ * Kanoniczny adres publiczny obiektu — **stabilny, bez tokenu**.
+ *
+ * 🔑 PO CO. Do BAZY wolno zapisać tylko taki adres. Klient odsyła nam z powrotem to,
+ * co dostał w odczycie (apka: `nowe.tsx` → `image_urls`), więc od chwili, w której
+ * odczyt zaczyna oddawać podpisy, każdy zapis niósłby token. Token w kolumnie znaczy
+ * dwie awarie naraz: wiersz z adresem, który umiera po 15 minutach, oraz `task_history`
+ * notujące „zmianę zdjęcia" przy KAŻDYM zapisie, bo diff porównuje stringi.
+ *
+ * Adres liczy `getPublicUrl`, które jest czystym sklejeniem URL-a i **nie pyta serwera** —
+ * działa tak samo na buckecie prywatnym. Po zamknięciu bucketa ten adres przestaje
+ * cokolwiek otwierać i to jest w porządku: nikt go już nie czyta, czytelnicy dostają
+ * podpis wyliczony z kolumny `*_path`. Zostaje jako czytelna wartość zapasowa i ślad.
+ */
+export function publicUrlFor(bucket: StorageBucket, path: string): string {
+    const czysta = (path || '').trim().replace(/^\/+/, '');
+    return supabase.storage.from(bucket).getPublicUrl(czysta).data.publicUrl;
+}
+
+/**
  * Bajty obiektu, czytane kluczem serwisowym.
  *
  * 🔑 Do wszystkiego, co dziś robi `fetch(publicznyAdres)` po stronie serwera —
