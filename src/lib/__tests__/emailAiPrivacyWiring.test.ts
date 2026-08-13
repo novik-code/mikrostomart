@@ -88,6 +88,55 @@ describe('okablowanie pseudonimizacji poczty', () => {
         });
     }
 
+    /**
+     * Wzorce, po których poznajemy WYSYŁKĘ TREŚCI do modelu.
+     *
+     * 🔴 DO 2026-08-12 BYŁ TU JEDEN WZORZEC: `chat/completions` — czyli forma URL-owa.
+     * Zmierzone: tak woła model **3** pliki w `src/`, a formą z SDK
+     * (`chat.completions.create`) — **16**. Strażnik widział więc mniej niż piątą część
+     * powierzchni i nowa trasa napisana przez SDK przechodziła obok niego bezszelestnie.
+     * A to jest strażnik reguły „żadnych danych wrażliwych do OpenAI".
+     *
+     * 🔑 `/v1/models` (kontrola zdrowia w `health/ai`) CELOWO nie jest na liście —
+     * nic nie przesyła, a szersze dopasowanie alarmowało na sprawdzaniu, czy klucz żyje.
+     */
+    const WZORCE_WYSYLKI_DO_MODELU = [
+        'chat/completions',          // REST
+        'chat.completions.create',   // SDK
+        'audio/transcriptions',      // Whisper, REST
+        'audio.transcriptions',      // Whisper, SDK
+        'responses.create',          // Responses API
+        'embeddings.create',
+        'images.generate',
+    ];
+
+    const wolaModel = (src: string) => WZORCE_WYSYLKI_DO_MODELU.some(w => src.includes(w));
+
+    it('wzorce wykrywania modelu NADAL COKOLWIEK ZNAJDUJĄ', () => {
+        // 🪤 Bez tej asercji strażnik niżej świeci na zielono także wtedy, gdy przestał
+        // cokolwiek widzieć (zmiana biblioteki, refaktor, inny SDK). „Zero naruszeń"
+        // i „zero sprawdzonych plików" wyglądają w wyniku IDENTYCZNIE.
+        const trafienia: string[] = [];
+        const walk = (dir: string) => {
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                const full = path.join(dir, entry.name);
+                if (entry.isDirectory()) walk(full);
+                else if (entry.name.endsWith('.ts') && !full.includes('__tests__')) {
+                    if (wolaModel(fs.readFileSync(full, 'utf8'))) trafienia.push(full);
+                }
+            }
+        };
+        // Skanujemy CAŁE `src/` (trasy + biblioteki), nie sam katalog tras — model
+        // wołają też `lib/unifiedAI.ts`, `lib/socialAI.ts`, `lib/assistantActions.ts`.
+        walk(path.join(process.cwd(), 'src'));
+        // Zmierzone 2026-08-12: 23 pliki. Próg z zapasem — chodzi o wykrycie sytuacji
+        // „wzorce przestały pasować", nie o pilnowanie dokładnej liczby.
+        expect(
+            trafienia.length,
+            'wzorce wykrywania wyjścia do modelu przestały cokolwiek znajdować — strażnik niżej jest ślepy',
+        ).toBeGreaterThanOrEqual(15);
+    });
+
     it('nie przybyła trzecia trasa wysyłająca maile do OpenAI poza modułem', () => {
         const found: string[] = [];
         const walk = (dir: string) => {
@@ -96,16 +145,12 @@ describe('okablowanie pseudonimizacji poczty', () => {
                 if (entry.isDirectory()) walk(full);
                 else if (entry.name === 'route.ts') {
                     const src = fs.readFileSync(full, 'utf8');
-                    // 🔑 Liczy się WYSYŁKA TREŚCI, nie samo dotknięcie OpenAI.
-                    // `health/ai` woła `/v1/models` (lista modeli) i nic nie przesyła —
-                    // bez tego zawężenia strażnik alarmował na kontroli zdrowia.
-                    const wolaModel = src.includes('chat/completions');
                     // Heurystyka „ta trasa dotyka poczty": czyta wiadomości z IMAP-a
                     // albo zapisuje drafty mailowe.
                     const dotykaPoczty = src.includes('imapService')
                         || src.includes('email_ai_drafts')
                         || src.includes('getEmail(');
-                    if (wolaModel && dotykaPoczty) found.push(path.relative(ROOT, full));
+                    if (wolaModel(src) && dotykaPoczty) found.push(path.relative(ROOT, full));
                 }
             }
         };
@@ -116,5 +161,8 @@ describe('okablowanie pseudonimizacji poczty', () => {
             nieobjete,
             `nowa trasa wysyła maile do OpenAI bez pseudonimizacji: ${nieobjete.join(', ')}`,
         ).toEqual([]);
+        // Sanity: strażnik nadal WIDZI znane trasy pocztowe — inaczej „brak naruszeń"
+        // znaczyłoby tylko tyle, że heurystyka przestała działać.
+        expect(found.length, 'strażnik przestał rozpoznawać trasy pocztowe wołające model').toBeGreaterThanOrEqual(2);
     });
 });
