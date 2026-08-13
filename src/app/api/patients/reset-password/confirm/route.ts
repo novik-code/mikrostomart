@@ -65,7 +65,17 @@ export async function POST(request: NextRequest) {
         // Update patient password
         const { error: updateError } = await supabase
             .from('patients')
-            .update({ password_hash: hashedPassword })
+            /**
+             * 🔑 TRZECIA droga do zmiany hasła — i najważniejsza dla rewokacji (migracja 197).
+             *
+             * `change-password` używa ktoś, kto ma dostęp. Tej ścieżki używa ktoś, kto go
+             * STRACIŁ — czyli dokładnie ten przypadek, w którym stary token trzeba ubić.
+             * Pominięcie jej zostawiłoby napraw­ę połowiczną: pacjent po przejęciu konta
+             * resetuje hasło, a token napastnika żyje dalej przez 30 dni.
+             * („Jedna naprawa nie wystarczy — policz wszystkich pisarzy": trzy trasy
+             *  dotykają `password_hash`, wszystkie trzy muszą przestawiać datę.)
+             */
+            .update({ password_hash: hashedPassword, sessions_valid_from: new Date().toISOString() })
             .eq('prodentis_id', resetToken.prodentis_id);
 
         if (updateError) {

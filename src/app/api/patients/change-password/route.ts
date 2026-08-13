@@ -70,7 +70,19 @@ export async function POST(request: NextRequest) {
         // Update in DB
         const { error: updateError } = await supabase
             .from('patients')
-            .update({ password_hash: newHash })
+            /**
+             * 🔑 `sessions_valid_from` — zmiana hasła UNIEWAŻNIA stare tokeny (migracja 197).
+             *
+             * Dotąd pacjent, który zmieniał hasło z obawy o wyciek, nie osiągał nic:
+             * token żyje 30 dni w aplikacji i działał dalej. To jedyna obrona, jaką ma,
+             * i była pozorna.
+             *
+             * ⏳ TAKT 1 z 3: kolumna jest już wypełniana, ale NIKT jej jeszcze nie czyta —
+             * strażnik `verifyPatientSession()` wchodzi w takcie 2. Kolejność jest celowa:
+             * gdy strażnik ruszy, zadziała wstecz na wszystkich, którzy zmienili hasło
+             * po tej dacie. Odwrotna kolejność wylogowałaby ludzi, zanim cokolwiek działa.
+             */
+            .update({ password_hash: newHash, sessions_valid_from: new Date().toISOString() })
             .eq('id', payload.userId);
 
         if (updateError) {

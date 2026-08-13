@@ -67,6 +67,13 @@ export async function POST(request: NextRequest) {
                 email: null,
                 password_hash: 'DELETED',
                 account_status: 'deleted',
+                /**
+                 * 🔑 Usunięcie konta unieważnia stare tokeny (migracja 197).
+                 * Usunięcie jest MIĘKKIE, więc bez tego token wydany przed skasowaniem
+                 * nadal otwierałby dane pacjenta — przez 30 dni po tym, jak poprosił
+                 * o usunięcie konta z RODO. ⏳ Czyta to strażnik z taktu 2.
+                 */
+                sessions_valid_from: new Date().toISOString(),
                 notification_preferences: null,
             })
             .eq('id', payload.userId);
