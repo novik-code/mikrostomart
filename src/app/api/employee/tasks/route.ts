@@ -176,7 +176,11 @@ export async function POST(req: Request) {
                         neutral: { body: 'Otwórz, aby zobaczyć szczegóły.' },
                         url: `/pracownik?tab=zadania&taskId=${data.id}`,
                         tag: `task-new-${data.id}`,
-                    }
+                    },
+                    // Przypisani dostaną wersję IMIENNĄ niżej — bez tego wykluczenia
+                    // widzą dwa banery o tym samym zadaniu (różne `tag`, więc nie
+                    // zwijają się w jeden).
+                    assigneeUserIds(task.assigned_to),
                 );
             } catch (tgErr) {
                 console.error('[Tasks] Telegram notification error:', tgErr);

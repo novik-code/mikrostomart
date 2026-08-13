@@ -244,6 +244,11 @@ export async function PATCH(
                     // NOTE: no excludeUserId — all configured recipients get the push
                 );
             } else if ('assigned_to' in body) {
+                // Ta sama zasada co w POST: nowo przypisani dostają niżej powiadomienie
+                // IMIENNE, więc ogłoszenie zespołowe ich pomija. Inaczej jedna zmiana
+                // przypisania daje im dwa banery.
+                const juzByli = new Set(assigneeUserIds(oldTask?.assigned_to));
+                const nowoPrzypisani = assigneeUserIds(data.assigned_to).filter(uid => !juzByli.has(uid));
                 await sendPushByConfig(
                     'task-new',
                     {
@@ -251,7 +256,8 @@ export async function PATCH(
                         body: taskTitle,
                         url: `/pracownik?tab=zadania&taskId=${id}`,
                         tag: `task-assign-${id}`,
-                    }
+                    },
+                    nowoPrzypisani,
                 );
             } else if ('checklist_items' in body && Object.keys(body).length === 1) {
                 // Find which item changed

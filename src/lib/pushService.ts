@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getNeutralPushBody, getPushTranslation, PushNotificationType } from './pushTranslations';
 import { sendExpoPushToPatient, sendExpoPushToStaffMany } from './expoPush';
 import { assigneeUserIds } from './taskAssignees';
+import { zbiorWykluczonych } from '@/lib/pushRecipients';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -867,8 +868,19 @@ export async function pushToGroups(
 export async function pushByConfig(
     configKey: string,
     payload: PushPayload,
-    excludeUserId?: string
+    /**
+     * Kogo POMINĄĆ w wysyłce grupowej. Przyjmuje jedną osobę albo listę.
+     *
+     * 🔑 PO CO LISTA. Ogłoszenie zespołowe i powiadomienie imienne to DWA różne
+     * pushe z różnymi `tag`, więc na telefonie osoby przypisanej nie zwijają się
+     * w jedno — dostawała dwa banery o tym samym zadaniu. Zamiast kombinować
+     * z tagami (kolejność dostarczenia nie jest gwarantowana, więc raz wygrywałby
+     * jeden komunikat, raz drugi) po prostu nie wysyłamy jej ogłoszenia grupowego:
+     * dostanie wersję imienną, która niesie więcej informacji.
+     */
+    exclude?: string | string[]
 ): Promise<{ sent: number; failed: number }> {
+    const pominieci = zbiorWykluczonych(exclude);
     // 1. Fetch config
     const { data: config } = await supabase
         .from('push_notification_config')
@@ -901,7 +913,7 @@ export async function pushByConfig(
     for (const group of groups) {
         const allUsers = await resolveGroupUsers(group);
         for (const u of allUsers) {
-            if (excludeUserId && u.user_id === excludeUserId) continue;
+            if (pominieci.has(u.user_id)) continue;
             if (mutedUserIds.has(u.user_id)) continue;
             if (!loggedUsers.has(u.user_id)) {
                 loggedUsers.add(u.user_id);
