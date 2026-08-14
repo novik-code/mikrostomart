@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-08-13 — 🔒 **BUCKET `consents` ZAMKNIĘTY** (migracja 193; kod na produkcji od `4af8100`). Publiczny adres e-Karty z PESEL-em: **było 200, jest 400**. Poprzedziły to trzy etapy, wszystkie zmierzone na produkcji: klucze obiektów + backfill pięciu torów ze STRATĄ 0 (migracja 192), dwie trasy-pośredniki z audytem, szablony zgód podpisane (14/14), a listy czytane przez apkę 1.2.0 ze sklepu przepięte na adresy podpisane (bez tego zamknięcie zgasiłoby dokumenty w zainstalowanych binarkach). 🔴 **Przy okazji wyszło, że eksport RODO art. 15 nie działał dla NIKOGO od 3 marca** — select prosił o nieistniejące kolumny `patients.first_name`/`last_name`, PostgREST wywalał całe zapytanie błędem 42703 i każdy pacjent dostawał 404 „nie znaleziono danych". Przeżyło pięć miesięcy, bo trasa miała JEDNO 404 na „błąd zapytania" i na „nie ma konta". Naprawione i zweryfikowane na żywym koncie (ZIP 11 MB, 16 z 16 dokumentów). Wcześniej tego samego dnia: `mfa_epoch` — reset 2FA wreszcie odbiera dostęp. 🔴 **Migracja 194 (`task-images`, `consent-pdfs`) WSTRZYMANA** — apka 1.2.0 ze sklepu renderuje zdjęcia zadań z adresów PUBLICZNYCH (`lib/tasks.ts:187`), więc zamknięcie `task-images` je zgasi; najpierw trasa `/api/employee/tasks` musi oddawać podpisane `image_urls`. Szczegóły: „📝 Recent Changes" → wpisy 2026-08-12 (#3–#8).
+> **Last Updated:** 2026-08-13 (wieczór) — 🏁 **ETAP C DOMKNIĘTY: ŻADEN BUCKET Z DOKUMENTAMI NIE JEST PUBLICZNY.** Migracje 193 (`consents`), **194** (`task-images`), **195** (`consent-pdfs`) wgrane i zweryfikowane; publiczny został wyłącznie `social-media` (decyzja właściciela). 🪤 **Cache krawędziowy Cloudflare przeżywa zamknięcie bucketa** — publiczny adres oddaje 200 `HIT` przez ~godzinę, więc pomiar tuż po zamknięciu KŁAMIE; mierzyć z cache-busterem i na świeżym obiekcie. 🔒 **REWOKACJA SESJI PACJENTA DZIAŁA** (migracja **197** + `541b492`): zmiana hasła, reset po przejęciu konta i usunięcie konta z RODO **realnie ubijają stare tokeny** — dotąd token żył 30 dni niezależnie od wszystkiego, więc jedyna obrona pacjenta była pozorna. Zweryfikowane e2e na koncie demo: 200 → unieważnienie → 401 → cofnięcie → 200. 🛒 **Zamek powiadomień o zamówieniu dwuetapowy** (migracja **196**) — `notified_at` stawiany PRZED wysyłką sprawiał, że padnięty `sendEmail` gubił zamówienie po cichu (klient zapłacił, gabinet nie wiedział). 🔴 **PESEL: nowe e-Karty nie zapisują już jawnym tekstem** (fail-soft zostaje — awaria szyfrowania przywraca jawne, bo e-Karta bez treści jest gorsza). Dalej tego dnia: publiczna trasa zgód przestała wystawiać adresy do bucketa, leniwy `sharp`, zdjęty martwy przełącznik `email_reminders`, oznaczony martwy katalog `supabase/migrations` z otwartymi politykami RLS, recepcja może **odesłać plik pacjentowi** (nowa trasa + UI), `PATCH /2fa/devices/[id]` przestał udawać sukces dla cudzego id. Migracje wgrane **do 197**, wolny numer **198**. 🔴 **TERMIN: 1 IX 2026 — 2FA obowiązkowe dla całego personelu**, a 10 z 14 aktywnych pracowników go nie ma; data jest w kodzie (`MFA_MANDATORY_FROM_ISO`), middleware uzbrojony. Szczegóły: „📝 Recent Changes" → 2026-08-13.
 >
 > **2026-08-06 — 🔐 AUDYT BEZPIECZEŃSTWA + 10 wdrożeń.** 153 agenty, 64 potwierdzone znaleziska, plan napraw 8 grup × 12 kroków. 🔴 Najważniejsze: **2FA personelu nie działało WCALE** — `middleware.ts` bez deklaracji runtime chodził w edge, który nie ma `crypto` z Node, więc weryfikacja drugiego składnika rzucała PRZY KAŻDYM ŻĄDANIU, a `catch` jest fail-open. Konto z włączonym 2FA wchodziło na `/admin` bez kodu; kody TOTP przy logowaniu działały, więc z zewnątrz wyglądało to sprawnie. Naprawa `runtime: 'nodejs'` (`9f0f8ee`), zweryfikowana na logach produkcyjnych (przed: 4 błędy na 4 żądaniach, po: 0 na 9). Dalej: e-Karta z PESEL-em dostępna BEZ logowania (`11eda27`), **migracja 190** domykająca RLS na `sms_reminders` (jedyna polityka bez klauzuli `TO`), sześć usterek pusha, dane pacjenta w logach i w OpenAI, wyrocznie tożsamości bez limitu. Szczegóły i lekcje: „📝 Recent Changes” → 2026-08-06. ⏳ Pięć decyzji czeka na właściciela (cron AI, Telegram, neutralizacja treści, duplikat e-maila, wariant fail-closed 2FA).
 >
@@ -2473,6 +2473,92 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-08-13 — 🏁 ETAP C DOMKNIĘTY + REWOKACJA SESJI PACJENTA + DŁUG TECHNICZNY
+
+**Migracje wgrane: 194, 195, 196, 197.** Web na produkcji `cd8b528`. Apka `cbc8b72` (OTA czeka).
+
+#### 🏁 Trzy buckety zamknięte — żaden z dokumentami nie jest publiczny
+- **194 `task-images`.** Bloker był realny i zdjęty naprawą weba (`d8ef0f2`, `lib/taskImages.ts`):
+  migracja 192 nauczyła ZAPIS wyliczać klucze, ale ODCZYT oddawał adresy publiczne.
+  🔴 **Sprostowanie własnego zapisu:** twierdzenie „panel webowy przeszedł na klucze, apka NIE"
+  było NIEŚCISŁE — web **wysyła** `image_paths`, ale **czyta** adresy dokładnie jak apka
+  (`TasksTab.tsx:1921`, `:2251`). Zamknięcie zgasiłoby zdjęcia u OBU klientów; jedna naprawa
+  objęła oba. Zmierzone po zamknięciu: 284/284 podpisane, 0 publicznych, 10× otwarcie 200.
+  🪤 Round-trip: apka odsyła te same wartości PATCH-em, więc serwer normalizuje adres z tokenem
+  z powrotem na kanoniczny **przed** diffem historii — inaczej `task_history` notowałaby
+  „zmianę zdjęcia" przy każdym zapisie.
+- **195 `consent-pdfs`.** Para pytań kontrolnych („kto CZYTA", „czy klient odsyła") zadziałała:
+  tablet bierze podpisany adres z `/api/consents/verify`, pdf-mapper z trasy-pośrednika,
+  round-tripu nie ma. Zmierzone: 14/14 szablonów pobranych podpisem, każdy zaczyna się od `%PDF`.
+- 🪤 **NOWA PUŁAPKA — cache krawędziowy przeżywa zamknięcie.** Zaraz po `UPDATE` publiczny adres
+  oddawał **200** z `cf-cache-status: HIT`; ten sam adres z `?bust=…` → **400**. Na 12 obiektach
+  11 × 400, 1 × 200. TTL godzina (`cacheControl: '3600'` z uploadu). **Pomiar tuż po zamknięciu
+  bez cache-bustera kłamie na korzyść „jeszcze otwarte".**
+- **Publiczna trasa zgód przestała wystawiać adresy.** `GET /api/admin/consent-mappings` jest
+  publiczny (tablet woła go bez sesji) i robił `select('*')`, więc oddawał `pdf_file`/`pdf_path`
+  14 szablonów każdemu — co czyniło zamknięcie bucketa pozorem. Teraz admin dostaje komplet,
+  reszta `consent_key/label/fields/is_active`. 🔑 **Świadomie NIE podpisujemy tej trasy** —
+  podpis bez uwierzytelnienia unieważnia sens zamknięcia.
+
+#### 🔒 Rewokacja sesji pacjenta (migracja 197) — trzy takty
+Token pacjenta żył **30 dni** i nie dało się go unieważnić niczym. Zmiana hasła nie wyrzucała
+nikogo, kradzież telefonu dawała 30 dni dostępu do kartoteki, usunięcie konta z RODO zostawiało
+token żywy (usunięcie jest MIĘKKIE).
+- 🔑 **Skala okazała się mniejsza niż plan:** 31 tras weryfikuje token, ale wszystkie idą przez
+  jedną funkcję `verifyTokenFromRequest` (`lib/jwt.ts`) — strażnik wszedł w JEDNO miejsce.
+- Takt 1: kolumna `sessions_valid_from` z `DEFAULT to_timestamp(0)` (1970 → **nikt nie wylogowany**;
+  zmierzone 107 pacjentów, 0 wylogowanych) + datę przestawiają **TRZY** trasy. `reset-password`
+  jest najważniejszy — używa go ktoś, kto STRACIŁ dostęp.
+- Takt 2: `verifyPatientSession()` z **fail-OPEN przy błędzie bazy** (`me/visits`
+  i `upcoming-appointments` nie dotykają Supabase; 503 wywaliłby historię wizyt i ekran główny apki).
+  🪤 **Tolerancja 2 s** — `iat` ma rozdzielczość sekundy, a `sessions_valid_from` milisekundy:
+  bez niej pacjent zmieniający hasło wylatywałby w tej samej sekundzie, w której się zalogował.
+- Takt 3: przepięcie 33 wywołań. `tsc` był weryfikatorem mechanicznym (funkcja async → pominięte
+  `await` daje niezgodność typu). Zweryfikowane e2e na koncie demo: 200 → unieważnienie → **401**
+  → cofnięcie → 200.
+
+#### 🛒 Zamek powiadomień o zamówieniu (migracja 196)
+🔑 Pierwotny opis długu był NIETRAFNY: zamek jednoetapowy JEST atomowy, a webhooki tylko
+przestawiają status. **Realna dziura była odwrotna** — `notified_at` stawiany PRZED wysyłką,
+więc padnięty `sendEmail` zostawiał znacznik i zamówienie przepadało po cichu (klient zapłacił,
+gabinet nie wiedział). Teraz `claim`/`finish`/`release` + okno 5 min (leczy twardą śmierć procesu)
++ fallback na stary zamek, żeby kolejność deploy/migracja nie psuła sklepu.
+Zaległości nie było: 12 z 15 zamówień bez znacznika to wiersze sprzed 13.05.
+
+#### Reszta długu
+- **PESEL:** nowe e-Karty nie zapisują już jawnym tekstem. Warunek wejścia: 6/6 par kolumn miało
+  lukę 0. 🔑 **Fail-soft ZOSTAJE** — awaria szyfrowania przywraca kolumny jawne, bo e-Karta bez
+  PESEL-u, wywiadu i podpisu to dokument medyczny bez treści. ⏳ DROP kolumn dopiero gdy przestanie
+  w nich przybywać.
+- **Recepcja odsyła plik pacjentowi** — nowa trasa `POST /api/admin/chat/attachment` + przycisk
+  w `AdminChat`. Schemat dopuszczał to od migracji 183, brakowało trasy. `is_health_data=false`
+  (plik pochodzi OD KLINIKI — flaga opisuje pochodzenie, nie temat rozmowy). Odczyt działał bez
+  zmian: apka autoryzuje po własności wątku, nie po `origin`.
+- **`sharp` leniwy** w `lib/chatAttachments.ts` (10 importerów, libvips wchodził też do
+  `delete-account` i `export-data`). `lib/smile/pipeline.ts` zostaje — tam jest potrzebny.
+- **`email_reminders` zdjęty** z weba i apki — żaden z 30 cronów nie wysyłał e-mailowych
+  przypomnień, a kolumny nie czytał nikt poza ekranami, które ją wyświetlały.
+- **`supabase/migrations/` oznaczony jako martwy** — README + nagłówki ⛔ w dwóch plikach
+  z otwartymi politykami RLS (`TO authenticated USING (true)`). Na produkcji nie obowiązują,
+  groźne było tylko to, że ktoś mógłby je kiedyś zastosować.
+- **`PATCH /2fa/devices/[id]`** przestał oddawać 200 dla cudzego/nieistniejącego id. To nie była
+  dziura w danych (filtr po `employee_id` chronił), tylko kłamiąca odpowiedź. Zweryfikowane
+  wykonaniem na produkcji: **404 `device_not_found`**.
+- 🔑 **Sprostowanie:** „brak rate-limitu na `/api/auth/2fa/*`" było NIEAKTUALNE — dławik wszedł
+  commitem `b046a9b` (TOTP 10 prób / 15 min, kody zapasowe 5).
+
+#### 🔴 TERMIN: 1 IX 2026 — 2FA obowiązkowe dla całego personelu
+Data jest w kodzie (`MFA_MANDATORY_FROM_ISO`), `middleware.ts:479` uzbrojony. Zmierzone:
+**10 z 14 aktywnych pracowników bez 2FA**; cztery konta, które je mają, włączyły je w MARCU.
+Adopcja od tamtej pory: zero. Kreator DZIAŁA dla pracownika (wszystkie trasy 2FA na
+`requireEmployeeOrAdmin`) — teza o zepsutym kreatorze była fałszywa.
+Protokół wdrożenia: artifact `https://claude.ai/code/artifact/05eca0b4-77d3-4bd0-bd38-49e2793186d2`.
+Skrypt wysyłki: `~/Desktop/bałagan/wyslij_2fa.js`. **Decyzja właściciela: terminu nie przesuwamy.**
+⏳ Apka ma gotową poprawkę (`15287ba`), która czeka na `eas update` — bez niej pracownik bez 2FA
+zobaczy 1 września surowy `mfa_setup_required` w każdej sekcji.
+
+---
 
 ### 2026-08-12 (#8) — 🔒 BUCKET `consents` ZAMKNIĘTY — e-Karty z PESEL-em nie są już publiczne
 
