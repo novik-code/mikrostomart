@@ -129,6 +129,11 @@ const labels = {
     hAgo: 'h temu',
     dAgo: 'd temu',
     back: '← Wstecz',
+    attach: 'Dodaj zdjęcie',
+    attachmentOnly: '📎 Załącznik',
+    attachmentFailed: 'Wiadomość wysłana, ale zdjęcia nie udało się dołączyć. Spróbuj wysłać je jeszcze raz.',
+    attachTooBig: 'Zdjęcie jest za duże (limit 10 MB).',
+    attachWrongType: 'Dozwolone są zdjęcia: JPG, PNG lub WebP.',
 };
 
 // Plakietka odróżniająca rozmowy gości (niezalogowanych) od pacjentów z kontem.
@@ -160,6 +165,9 @@ export default function AdminChat() {
     const [selectedConv, setSelectedConv] = useState<string | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
     const [newReply, setNewReply] = useState('');
+    /** Zdjęcie czekające na wysyłkę — leci DOPIERO po utworzeniu wiadomości (patrz handleSend). */
+    const [plik, setPlik] = useState<File | null>(null);
+    const polePliku = useRef<HTMLInputElement | null>(null);
     const [loadingConversations, setLoadingConversations] = useState(true);
     const [loadingMessages, setLoadingMessages] = useState(false);
     const [sending, setSending] = useState(false);
@@ -264,11 +272,15 @@ export default function AdminChat() {
 
     // Send reply
     const handleSend = async () => {
-        if (!newReply.trim() || !selectedConv || sending) return;
+        if ((!newReply.trim() && !plik) || !selectedConv || sending) return;
 
         setSending(true);
-        const content = newReply.trim();
+        // Zdjęcie bez słowa komentarza jest w wątku nieczytelne, a backend i tak wymaga
+        // wiadomości (kolejność wiadomość→plik wymusza CHECK `chat_att_one_owner_check`).
+        const content = newReply.trim() || labels.attachmentOnly;
+        const doWyslania = plik;
         setNewReply('');
+        setPlik(null);
 
         try {
             const res = await fetch('/api/admin/chat/messages', {
@@ -280,9 +292,34 @@ export default function AdminChat() {
             if (!res.ok) throw new Error('Failed to send');
 
             const data = await res.json();
+            let wiadomosc = data.message;
+
+            /**
+             * 🔑 PLIK IDZIE PO WIADOMOŚCI, nie razem z nią — tak wymusza schemat
+             * (`chat_att_one_owner_check`: załącznik musi mieć właściciela, który już istnieje).
+             *
+             * Nieudany upload NIE cofa wiadomości: treść już dotarła do pacjenta i udawanie,
+             * że jej nie ma, byłoby gorsze niż brakujące zdjęcie. Zamiast tego mówimy wprost,
+             * co poszło, a co nie.
+             */
+            if (doWyslania) {
+                try {
+                    const fd = new FormData();
+                    fd.append('file', doWyslania);
+                    fd.append('messageId', wiadomosc.id);
+                    const up = await fetch('/api/admin/chat/attachment', { method: 'POST', body: fd });
+                    const upData = await up.json().catch(() => ({}));
+                    if (!up.ok) throw new Error(upData?.error || 'upload failed');
+                    wiadomosc = { ...wiadomosc, attachments: [...(wiadomosc.attachments ?? []), upData.attachment] };
+                } catch (upErr) {
+                    console.error('Attachment error:', upErr);
+                    alert(labels.attachmentFailed);
+                }
+            }
+
             setMessages((prev) => {
-                if (prev.some(m => m.id === data.message.id)) return prev;
-                return [...prev, data.message];
+                if (prev.some(m => m.id === wiadomosc.id)) return prev;
+                return [...prev, wiadomosc];
             });
 
             // Refresh conversations to update last message preview
@@ -290,6 +327,7 @@ export default function AdminChat() {
         } catch (err) {
             console.error('Send error:', err);
             setNewReply(content);
+            setPlik(doWyslania);
         } finally {
             setSending(false);
         }
@@ -688,6 +726,9 @@ export default function AdminChat() {
 
                         {/* Reply Input */}
                         <div style={{
+                            // `relative` jest KONIECZNE: pasek wybranego pliku stoi nad kompozytorem
+                            // jako `absolute` i bez tego zaczepiłby się o przypadkowego przodka.
+                            position: 'relative',
                             padding: '1rem 1.5rem',
                             borderTop: '1px solid var(--color-surface-hover)',
                             display: 'flex',
@@ -720,19 +761,79 @@ export default function AdminChat() {
                                     target.style.height = Math.min(target.scrollHeight, 100) + 'px';
                                 }}
                             />
+                            {/* Nazwa wybranego pliku — bez tego recepcja nie wie, CO właśnie wyśle. */}
+                            {plik ? (
+                                <div style={{
+                                    position: 'absolute', bottom: '100%', left: '1.5rem', right: '1.5rem',
+                                    display: 'flex', alignItems: 'center', gap: '0.5rem',
+                                    padding: '0.5rem 0.75rem', marginBottom: '0.4rem',
+                                    background: 'rgba(var(--color-primary-rgb), 0.12)',
+                                    border: '1px solid var(--color-surface-hover)',
+                                    borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: '#fff',
+                                }}>
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                                        📎 {plik.name}
+                                    </span>
+                                    <button
+                                        onClick={() => setPlik(null)}
+                                        aria-label="Usuń załącznik"
+                                        style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}
+                                    >×</button>
+                                </div>
+                            ) : null}
+                            {/*
+                                Spinacz + ukryte pole pliku. Walidacja po stronie klienta jest
+                                UPRZEJMOŚCIĄ, nie zabezpieczeniem — serwer i tak sprawdza magic
+                                bytes i rozmiar. Chodzi o to, żeby nie wysyłać 20 MB przez telefon
+                                recepcji tylko po to, żeby dostać 413.
+                            */}
+                            <input
+                                ref={polePliku}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                style={{ display: 'none' }}
+                                onChange={(e) => {
+                                    const f = e.target.files?.[0] ?? null;
+                                    e.target.value = '';   // ten sam plik da się wybrać ponownie
+                                    if (!f) return;
+                                    if (!['image/jpeg', 'image/png', 'image/webp'].includes(f.type)) {
+                                        alert(labels.attachWrongType); return;
+                                    }
+                                    if (f.size > 10 * 1024 * 1024) { alert(labels.attachTooBig); return; }
+                                    setPlik(f);
+                                }}
+                            />
+                            <button
+                                onClick={() => polePliku.current?.click()}
+                                disabled={sending}
+                                title={labels.attach}
+                                aria-label={labels.attach}
+                                style={{
+                                    padding: '0.75rem 0.9rem',
+                                    background: plik ? 'rgba(var(--color-primary-rgb), 0.25)' : 'rgba(255,255,255,0.05)',
+                                    border: '1px solid var(--color-surface-hover)',
+                                    borderRadius: 'var(--radius-md)',
+                                    color: plik ? 'var(--color-primary)' : '#fff',
+                                    cursor: sending ? 'not-allowed' : 'pointer',
+                                    fontSize: '1rem',
+                                    lineHeight: 1,
+                                }}
+                            >
+                                📎
+                            </button>
                             <button
                                 onClick={handleSend}
-                                disabled={!newReply.trim() || sending}
+                                disabled={(!newReply.trim() && !plik) || sending}
                                 style={{
                                     padding: '0.75rem 1.25rem',
-                                    background: (!newReply.trim() || sending)
+                                    background: ((!newReply.trim() && !plik) || sending)
                                         ? 'rgba(var(--color-primary-rgb), 0.3)'
                                         : 'var(--color-primary)',
                                     border: 'none',
                                     borderRadius: 'var(--radius-md)',
-                                    color: (!newReply.trim() || sending) ? 'rgba(0,0,0,0.3)' : '#000',
+                                    color: ((!newReply.trim() && !plik) || sending) ? 'rgba(0,0,0,0.3)' : '#000',
                                     fontWeight: 'bold',
-                                    cursor: (!newReply.trim() || sending) ? 'not-allowed' : 'pointer',
+                                    cursor: ((!newReply.trim() && !plik) || sending) ? 'not-allowed' : 'pointer',
                                     fontSize: '0.9rem',
                                     transition: 'all 0.2s',
                                 }}
