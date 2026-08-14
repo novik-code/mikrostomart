@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
+import { revokePatientPushTokens } from '@/lib/patientPushRevoke';
 import { verifyPatientSession } from '@/lib/jwt';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
@@ -47,7 +48,9 @@ export async function POST(request: NextRequest) {
         // Fetch patient from DB
         const { data: patient, error: fetchError } = await supabase
             .from('patients')
-            .select('id, password_hash')
+            // `prodentis_id` potrzebny do zdjęcia tokenów push (patient_push_tokens
+            // kluczuje po prodentis id, nie po UUID konta).
+            .select('id, password_hash, prodentis_id')
             .eq('id', payload.userId)
             .single();
 
@@ -89,6 +92,17 @@ export async function POST(request: NextRequest) {
             console.error('[ChangePassword] Update error:', updateError);
             return NextResponse.json({ error: 'Nie udało się zmienić hasła' }, { status: 500 });
         }
+
+        /**
+         * 🔒 Rewokacja jest niepełna bez zdjęcia tokenów push: sesja pada, ale
+         * urządzenie napastnika nadal dostawałoby powiadomienia z treścią wizyty
+         * i deep-linkiem. Nieblokujące — awaria sprzątania nie może cofnąć zmiany hasła.
+         */
+        await revokePatientPushTokens(
+            supabase,
+            { prodentisId: patient?.prodentis_id ?? null, userId: payload.userId },
+            'ChangePassword',
+        );
 
         console.log('[ChangePassword] Success for user:', payload.userId);
 

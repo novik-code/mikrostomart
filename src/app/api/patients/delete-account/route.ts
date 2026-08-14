@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
+import { revokePatientPushTokens } from '@/lib/patientPushRevoke';
 import { verifyPatientSession } from '@/lib/jwt';
 import { anonymizeCareflowForPatient } from '@/lib/careflowLifecycle';
 import { removeAttachmentFiles } from '@/lib/chatAttachments';
@@ -85,23 +86,13 @@ export async function POST(request: NextRequest) {
 
         // ── Tokeny push: bez tego na urządzeniu dalej lądują powiadomienia ──
         // Nieblokująco względem usunięcia konta — awaria czyszczenia nie może go cofnąć.
-        try {
-            if (patient.prodentis_id) {
-                const { error: expoErr } = await supabase
-                    .from('patient_push_tokens')
-                    .delete()
-                    .eq('patient_id', patient.prodentis_id);
-                if (expoErr) console.error('[DeleteAccount] patient_push_tokens cleanup error:', expoErr);
-            }
-            const { error: fcmErr } = await supabase
-                .from('fcm_tokens')
-                .delete()
-                .eq('user_id', String(payload.userId))
-                .eq('user_type', 'patient');
-            if (fcmErr) console.error('[DeleteAccount] fcm_tokens cleanup error:', fcmErr);
-        } catch (tokenErr) {
-            console.error('[DeleteAccount] Push token cleanup failed:', tokenErr);
-        }
+        // Wspólny helper — ta sama logika co przy zmianie hasła i resecie (jedno
+        // miejsce, żeby kolejna trasa rewokująca sesję nie pominęła tego kroku).
+        await revokePatientPushTokens(
+            supabase,
+            { prodentisId: patient.prodentis_id, userId: payload.userId },
+            'DeleteAccount',
+        );
 
         // ── Załączniki pacjenta: art. 17 (prawo do usunięcia) ─────────────────
         // Zdjęcia przysłane na czacie to dane o zdrowiu. Kaskada z `chat_messages` NIE

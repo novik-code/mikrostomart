@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
+import { revokePatientPushTokens } from '@/lib/patientPushRevoke';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,6 +86,20 @@ export async function POST(request: NextRequest) {
                 { status: 500 }
             );
         }
+
+        /**
+         * 🔒 To jest ścieżka po PRZEJĘCIU KONTA — tu rewokacja musi być kompletna.
+         * Bez zdjęcia tokenów push urządzenie napastnika traci dostęp do danych,
+         * ale nadal dostaje powiadomienia o wizytach razem z deep-linkiem.
+         * Aktualizacja szła po `prodentis_id`, więc mamy go wprost z tokenu resetu;
+         * UUID konta nie jest tu potrzebny do tabeli Expo, a `fcm_tokens` sprząta
+         * gałąź po `userId` (pomijana, gdy go nie znamy — patrz helper).
+         */
+        await revokePatientPushTokens(
+            supabase,
+            { prodentisId: resetToken.prodentis_id, userId: null },
+            'ResetPassword',
+        );
 
         // Mark token as used
         await supabase

@@ -8,6 +8,7 @@ import { samePhone } from '@/lib/phone';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 import { verifyRegistrationToken } from '@/lib/registrationToken';
+import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +52,37 @@ export async function POST(request: Request) {
         }
 
         const prodentisId = tokenPayload.prodentisId;
+
+        /**
+         * 🔒 LIMIT PRÓB REJESTRACJI (dodany 2026-08-14).
+         *
+         * Trasa jest PUBLICZNA i przy każdym wywołaniu robi dwie kosztowne rzeczy:
+         * `bcrypt.hash` (celowo wolny) oraz WYSYŁKĘ MAILA na adres podany w ciele
+         * żądania. Bez limitu dawało to trzy nadużycia naraz:
+         *  · bombardowanie dowolnego adresu e-mail wiadomościami od kliniki,
+         *  · wysycenie lambdy samym bcryptem,
+         *  · zalanie recepcji zgłoszeniami „konto czeka na zatwierdzenie".
+         *
+         * Dwa wymiary, bo każdy łapie co innego: IP odcina masową wysyłkę z jednego
+         * źródła, a token — uporczywe powtarzanie na tej samej, raz zweryfikowanej
+         * tożsamości (token z /verify jest wielorazowy przez pełne 10 minut).
+         *
+         * `failClosed: true` — przy awarii licznika WOLIMY odmówić rejestracji niż
+         * zostawić otwarty kanał wysyłki maili. To ta sama asymetria co przy limitach
+         * symulatora: koszt fałszywej odmowy jest odwracalny, koszt nadużycia nie.
+         */
+        const regIp = getClientIP(request);
+        const [okIp, okToken] = await Promise.all([
+            checkRateLimit(`pregister:ip:${regIp}`, 5, 15 * 60_000, { failClosed: true }),
+            checkRateLimit(`pregister:tok:${prodentisId}`, 3, 60 * 60_000, { failClosed: true }),
+        ]);
+        if (!okIp.allowed || !okToken.allowed) {
+            console.warn('[Register] limit prób rejestracji przekroczony');
+            return NextResponse.json(
+                { error: 'Zbyt wiele prób rejestracji. Spróbuj ponownie za kilkanaście minut.' },
+                { status: 429, headers: { 'Retry-After': String(!okIp.allowed ? 15 * 60 : 60 * 60) } }
+            );
+        }
 
         // Anti-substitution: phone w body musi pasować do phone w tokenie.
         // (Token wystawiony jest na konkretny numer; zmiana phone w body
