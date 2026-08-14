@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 import { getUserRoles } from '@/lib/roles';
 
 const supabase = createClient(
@@ -52,7 +52,7 @@ async function getAuthenticatedUser(request: NextRequest): Promise<
     }
 
     // 2. Try patient JWT cookie (custom auth for /strefa-pacjenta)
-    const patient = verifyTokenFromRequest(request);
+    const patient = await verifyPatientSession(request);
     if (patient && patient.userId) {
         return { userType: 'patient', userId: patient.userId };
     }

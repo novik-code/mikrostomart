@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { getAICompletion } from '@/lib/unifiedAI';
 import { logAIConversation, hashIp, getIpFromRequest } from '@/lib/aiConversationLog';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 
 // Tools Definition
 const tools = [
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
         // S8-4 D4=C+: persist AI conversation per privacy policy §11
         // Logged-in patient: always (disclosed). Anonymous: only with cookie opt-in.
         try {
-            const patientPayload = verifyTokenFromRequest(req);
+            const patientPayload = await verifyPatientSession(req);
             const lastUserMsg = messages[messages.length - 1];
             const userText = typeof lastUserMsg?.content === 'string'
                 ? lastUserMsg.content

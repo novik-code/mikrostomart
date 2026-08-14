@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 import { checkRateLimit } from '@/lib/rateLimit';
 
 const supabase = createClient(
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     try {
         const { id } = await params;
 
-        const payload = verifyTokenFromRequest(request);
+        const payload = await verifyPatientSession(request);
 
         if (!payload) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE });

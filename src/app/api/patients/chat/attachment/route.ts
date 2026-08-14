@@ -12,7 +12,7 @@ import {
     removeAttachmentFiles,
     storeAttachment,
 } from '@/lib/chatAttachments';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 import { checkRateLimit } from '@/lib/rateLimit';
 
 /**
@@ -48,7 +48,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const PATIENT_ATTACH_RATE_LIMIT = { max: 15, windowMs: 60_000 };
 
 export async function POST(request: NextRequest) {
-    const payload = verifyTokenFromRequest(request);
+    const payload = await verifyPatientSession(request);
     if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {

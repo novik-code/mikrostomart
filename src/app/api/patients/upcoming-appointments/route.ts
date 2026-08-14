@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +14,7 @@ const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostom
 export async function GET(request: NextRequest) {
     try {
         
-        const payload = verifyTokenFromRequest(request);
+        const payload = await verifyPatientSession(request);
 
         if (!payload) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

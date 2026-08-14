@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 import { PATIENT_DOC_BUCKET, displayUrlFor } from '@/lib/privateStorage';
 
 /**
@@ -38,7 +38,7 @@ export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> },
 ) {
-    const payload = verifyTokenFromRequest(req);
+    const payload = await verifyPatientSession(req);
     if (!payload) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

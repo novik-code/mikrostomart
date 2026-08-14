@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 import { getClientIP } from '@/lib/rateLimit';
 import { runSmilePipeline } from '@/lib/smile/pipeline';
 import { SMILE_STYLES, SmileStyle } from '@/lib/smile/prompts';
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
             : 'natural';
 
     // Optional patient JWT (Bearer) → per-patient quota; guests fall back to device/IP.
-    const payload = verifyTokenFromRequest(req);
+    const payload = await verifyPatientSession(req);
     const deviceIdRaw = req.headers.get('x-device-id') || '';
     const deviceId = UUID_REGEX.test(deviceIdRaw) ? deviceIdRaw.toLowerCase() : undefined;
     const client = req.headers.get('x-client') === 'native' ? 'native' : 'web';

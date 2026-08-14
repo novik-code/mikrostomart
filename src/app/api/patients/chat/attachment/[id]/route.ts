@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { signAttachment, SIGNED_URL_TTL_SECONDS } from '@/lib/chatAttachments';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 
 /**
  * GET /api/patients/chat/attachment/[id]?thumb=1
@@ -23,7 +23,7 @@ const supabase = createClient(
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-    const payload = verifyTokenFromRequest(request);
+    const payload = await verifyPatientSession(request);
     if (!payload) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE });
     }

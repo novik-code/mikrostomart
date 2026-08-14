@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  * Returns all push notifications sent to this patient in the last 90 days.
  */
 export async function GET(req: NextRequest) {
-    const payload = verifyTokenFromRequest(req);
+    const payload = await verifyPatientSession(req);
     if (!payload) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

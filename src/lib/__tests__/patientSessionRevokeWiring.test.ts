@@ -62,6 +62,37 @@ describe('Strażnik: rewokacja sesji pacjenta', () => {
         expect(src, 'soft-delete zniknął — strażnik mierzy nie to co trzeba').toContain("account_status: 'deleted'");
     });
 
+    it('🔴 ŻADNA trasa pacjenta nie weryfikuje tokenu z pominięciem rewokacji', () => {
+        // Takt 3: wszystkie trasy przeszły z `verifyTokenFromRequest` na `verifyPatientSession`.
+        // Powrót choćby jednej to cicha dziura — trasa działa, tylko nie sprawdza,
+        // czy sesja nie została unieważniona. Nie widać tego, dopóki ktoś nie spróbuje.
+        const trasy: string[] = [];
+        (function skanuj(dir: string) {
+            for (const w of fs.readdirSync(dir, { withFileTypes: true })) {
+                const p = path.join(dir, w.name);
+                if (w.isDirectory()) skanuj(p);
+                else if (w.name === 'route.ts') trasy.push(p);
+            }
+        })(API);
+
+        expect(trasy.length, 'strażnik przestał widzieć trasy pacjenta').toBeGreaterThanOrEqual(25);
+
+        const stare = trasy.filter(p => {
+            const src = fs.readFileSync(p, 'utf8');
+            // Samo słowo bywa w komentarzu (login/route.ts) — szukamy WYWOŁANIA.
+            return /\bverifyTokenFromRequest\s*\(/.test(src);
+        }).map(p => path.relative(process.cwd(), p));
+
+        expect(
+            stare,
+            `trasy omijające sprawdzenie rewokacji: ${stare.join(', ')}`,
+        ).toEqual([]);
+
+        // …i kontrola pozytywna: nowa funkcja jest realnie wołana, z `await`.
+        const zRewokacja = trasy.filter(p => /await verifyPatientSession\s*\(/.test(fs.readFileSync(p, 'utf8')));
+        expect(zRewokacja.length, 'strażnik nie widzi ANI JEDNEJ trasy z rewokacją').toBeGreaterThanOrEqual(20);
+    });
+
     it('logowanie NIE ustawia daty — inaczej każde wejście ubijałoby inne urządzenia', () => {
         // Pacjent bywa zalogowany na telefonie i w przeglądarce naraz. Przestawienie daty
         // przy logowaniu wyrzucałoby go z drugiego urządzenia przy każdym wejściu.

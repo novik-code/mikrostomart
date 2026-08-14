@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,7 +16,7 @@ export async function POST(
 
         // Verify JWT
         
-        const payload = verifyTokenFromRequest(request);
+        const payload = await verifyPatientSession(request);
 
         if (!payload) {
             return NextResponse.json(

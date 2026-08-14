@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/pushService';
 import { recordPushPath } from '@/lib/pushHealth';
@@ -25,7 +25,7 @@ export async function POST(
 
         // Verify JWT
         
-        const payload = verifyTokenFromRequest(request);
+        const payload = await verifyPatientSession(request);
 
         if (!payload) {
             return NextResponse.json(

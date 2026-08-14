@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +16,7 @@ const supabase = createClient(
  * Tabela: patient_push_tokens (mig 173). Wysyłka: src/lib/expoPush.ts.
  */
 export async function POST(request: NextRequest) {
-    const payload = verifyTokenFromRequest(request);
+    const payload = await verifyPatientSession(request);
     if (!payload) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
  * (ten sam wzorzec co `DELETE /api/employee/push-token`).
  */
 export async function DELETE(request: NextRequest) {
-    const payload = verifyTokenFromRequest(request);
+    const payload = await verifyPatientSession(request);
     if (!payload) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

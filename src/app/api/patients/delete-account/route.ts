@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 import { anonymizeCareflowForPatient } from '@/lib/careflowLifecycle';
 import { removeAttachmentFiles } from '@/lib/chatAttachments';
 
@@ -28,7 +28,7 @@ const NO_STORE: Record<string, string> = {
  */
 export async function POST(request: NextRequest) {
     try {
-        const payload = verifyTokenFromRequest(request);
+        const payload = await verifyPatientSession(request);
         if (!payload) {
             return NextResponse.json({ error: 'Nie jesteś zalogowany' }, { status: 401, headers: NO_STORE });
         }

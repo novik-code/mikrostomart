@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ const supabase = createClient(
 // Zamówienia nie mają patient_id → wiązanie po e-mailu (customer_details->>email).
 // Zwracamy tylko realne zakupy (paid/refunded), bez porzuconych pending/failed.
 export async function GET(request: NextRequest) {
-    const payload = verifyTokenFromRequest(request);
+    const payload = await verifyPatientSession(request);
     if (!payload) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

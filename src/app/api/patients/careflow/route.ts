@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 import { checkRateLimit } from '@/lib/rateLimit';
 import type { CareMedication } from '@/lib/careflowSchedule';
 
@@ -112,7 +112,7 @@ function ownershipFilter(prodentisId?: string, userId?: string): string | null {
  */
 export async function GET(request: NextRequest) {
     try {
-        const payload = verifyTokenFromRequest(request);
+        const payload = await verifyPatientSession(request);
 
         if (!payload) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE });

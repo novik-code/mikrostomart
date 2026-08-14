@@ -2,7 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 import { getAICompletion } from '@/lib/unifiedAI';
 import { logAIConversation, hashIp, getIpFromRequest } from '@/lib/aiConversationLog';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 
 export async function POST(req: NextRequest) {
     const ip = getClientIP(req);
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
         // S8-4 D4=C+: persist AI conversation (consent-gated for anon)
         try {
-            const patientPayload = verifyTokenFromRequest(req);
+            const patientPayload = await verifyPatientSession(req);
             const lastUserMsg = messages[messages.length - 1];
             const userText = typeof lastUserMsg?.content === 'string'
                 ? lastUserMsg.content

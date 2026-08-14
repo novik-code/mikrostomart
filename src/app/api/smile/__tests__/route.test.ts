@@ -12,9 +12,12 @@ vi.mock('@/lib/smile/pipeline', () => ({
     runSmilePipeline: (...args: unknown[]) => runSmilePipelineMock(...args),
 }));
 
+// Trasa przeszła na `verifyPatientSession` (migracja 197) — sprawdza też, czy sesja
+// nie została unieważniona, i jest ASYNC. Mock musi mieć tę samą nazwę i kształt,
+// inaczej test mockuje funkcję, której nikt już nie woła.
 const verifyTokenFromRequestMock = vi.fn();
 vi.mock('@/lib/jwt', () => ({
-    verifyTokenFromRequest: (...args: unknown[]) => verifyTokenFromRequestMock(...args),
+    verifyPatientSession: async (...args: unknown[]) => verifyTokenFromRequestMock(...args),
 }));
 
 vi.mock('@/lib/rateLimit', () => ({

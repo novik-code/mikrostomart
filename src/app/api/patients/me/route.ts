@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 import { createClient } from '@supabase/supabase-js';
 import { isDemoMode } from '@/lib/demoMode';
 
@@ -13,7 +13,7 @@ const supabase = createClient(
 export async function GET(request: NextRequest) {
     try {
         // Verify JWT (from httpOnly cookie or Authorization header)
-        const payload = verifyTokenFromRequest(request);
+        const payload = await verifyPatientSession(request);
 
         if (!payload) {
             return NextResponse.json(
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
     try {
         // Verify JWT (from httpOnly cookie or Authorization header)
-        const payload = verifyTokenFromRequest(request);
+        const payload = await verifyPatientSession(request);
 
         if (!payload) {
             return NextResponse.json(

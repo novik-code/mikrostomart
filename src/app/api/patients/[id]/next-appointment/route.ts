@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 
 // Prodentis API base URL
 const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
@@ -10,7 +10,7 @@ export async function GET(
 ) {
     try {
         // ── Auth check ──
-        const payload = verifyTokenFromRequest(request);
+        const payload = await verifyPatientSession(request);
         if (!payload) {
             return NextResponse.json({ error: 'Brak autoryzacji' }, { status: 401 });
         }

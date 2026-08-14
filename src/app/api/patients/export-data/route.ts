@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 import { demoSanitize } from '@/lib/brandConfig';
 import { getUserAIConversations } from '@/lib/aiConversationLog';
 import JSZip from 'jszip';
@@ -59,7 +59,7 @@ const SAFE_ID = /^[A-Za-z0-9_-]+$/;
  */
 export async function GET(request: NextRequest) {
     try {
-        const payload = verifyTokenFromRequest(request);
+        const payload = await verifyPatientSession(request);
         if (!payload) {
             return NextResponse.json({ error: 'Nie jesteś zalogowany' }, { status: 401, headers: NO_STORE });
         }

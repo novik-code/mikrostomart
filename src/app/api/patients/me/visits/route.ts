@@ -1,5 +1,5 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 import { isDemoMode } from '@/lib/demoMode';
 
 export const dynamic = 'force-dynamic';
@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     try {
         // Verify JWT
         
-        const payload = verifyTokenFromRequest(request);
+        const payload = await verifyPatientSession(request);
 
         if (!payload) {
             return NextResponse.json(

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
-import { verifyTokenFromRequest } from '@/lib/jwt';
+import { verifyPatientSession } from '@/lib/jwt';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 
@@ -15,7 +15,7 @@ const supabase = createClient(
 export async function POST(request: NextRequest) {
     try {
         // Verify JWT
-        const payload = verifyTokenFromRequest(request);
+        const payload = await verifyPatientSession(request);
         if (!payload) {
             return NextResponse.json({ error: 'Nie jesteś zalogowany' }, { status: 401 });
         }
