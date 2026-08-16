@@ -8,12 +8,21 @@ export const dynamic = 'force-dynamic';
 const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
- * GET /api/employee/patient-search?q=searchTerm&limit=5
- * 
- * Proxy to Prodentis API patient search for employees.
- * Requires employee or admin role.
+ * Wyszukiwarka pacjentów (proxy do Prodentisa). Rola: employee albo admin.
+ *
+ * W4 — DWA warianty tej samej operacji:
+ *   · `GET ?q=&limit=`  — ZOSTAJE dla zgodności z binarkami 1.1/1.2 ze sklepów,
+ *   · `POST {q, limit}` — nowy, preferowany.
+ *
+ * Powód jest prosty: `q` to fraza wpisana przez pracownika, czyli zwykle NAZWISKO
+ * PACJENTA. W GET ląduje w adresie, a adresy zapisują się w logach brzegowych
+ * Vercela i w historii pośredników — poza rejestrem RODO (art. 30), który prowadzimy
+ * w `logAudit`. Dokładnie ta sama klasa co token gościa w query-stringu, naprawiony
+ * wcześniej. W POST fraza jedzie w ciele i do logu adresu nie trafia.
+ *
+ * Wygaszenie GET-a dopiero, gdy binarki 1.1/1.2 przestaną być używane.
  */
-export async function GET(request: Request) {
+async function szukaj(request: Request, query: string | undefined, limit: string) {
     try {
         // Verify authentication
         const user = await verifyAdmin();
@@ -26,10 +35,6 @@ export async function GET(request: Request) {
         if (!isEmployee && !isAdmin) {
             return NextResponse.json({ error: 'Brak uprawnień pracownika', patients: [] }, { status: 403 });
         }
-
-        const { searchParams } = new URL(request.url);
-        const query = searchParams.get('q')?.trim();
-        const limit = searchParams.get('limit') || '5';
 
         if (!query || query.length < 2) {
             return NextResponse.json({ patients: [] });
@@ -77,4 +82,22 @@ export async function GET(request: Request) {
             { status: 500 }
         );
     }
+}
+
+export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url);
+    return szukaj(request, searchParams.get('q')?.trim(), searchParams.get('limit') || '5');
+}
+
+export async function POST(request: Request) {
+    // Ciało czytane w `try`: nieparsowalny JSON nie może wychodzić surowym 500.
+    let body: { q?: unknown; limit?: unknown };
+    try {
+        body = await request.json();
+    } catch {
+        return NextResponse.json({ patients: [] });
+    }
+    const q = typeof body?.q === 'string' ? body.q.trim() : undefined;
+    const limit = Number.isFinite(Number(body?.limit)) ? String(Math.trunc(Number(body.limit))) : '5';
+    return szukaj(request, q, limit);
 }

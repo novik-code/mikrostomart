@@ -34,8 +34,13 @@ export async function POST(request: NextRequest) {
 
     // `request.json()` MUSI być w try: przy nieparsowalnym ciele Next rzucał surowym 500.
     let content: unknown;
+    /**
+     * W5 — klucz idempotencji nadany przez klienta PRZED wysyłką (mig 198).
+     * Opcjonalny: binarki 1.1/1.2 ze sklepów go nie wysyłają i mają działać dalej.
+     */
+    let clientMsgId: unknown;
     try {
-        ({ content } = await request.json());
+        ({ content, clientMsgId } = await request.json());
     } catch {
         return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
     }
@@ -48,6 +53,12 @@ export async function POST(request: NextRequest) {
             { status: 400 },
         );
     }
+
+    // Klucz przycięty i sprowadzony do bezpiecznego kształtu — nadaje go KLIENT.
+    const kluczIdem =
+        typeof clientMsgId === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(clientMsgId)
+            ? clientMsgId
+            : null;
 
     try {
         // Get patient id from Supabase
@@ -107,10 +118,30 @@ export async function POST(request: NextRequest) {
                 sender_role: 'patient',
                 sender_name: patientName,
                 content: content.trim(),
+                ...(kluczIdem ? { client_msg_id: kluczIdem } : {}),
             })
             .select()
             .single();
 
+        /**
+         * 23505 = naruszenie unikalności `(conversation_id, client_msg_id)`, czyli
+         * TO SAMO żądanie już doszło (pierwsza próba zapisała się, a odpowiedź
+         * przepadła po drodze). Oddajemy wiadomość zapisaną za pierwszym razem —
+         * dla klienta wygląda to jak udana wysyłka, bo nią JEST.
+         *
+         * 🔑 Bez tej gałęzi ponowienie tworzyło drugi dymek u recepcji.
+         */
+        if (msgError && (msgError as { code?: string }).code === '23505' && kluczIdem) {
+            const { data: istniejaca } = await supabase
+                .from('chat_messages')
+                .select()
+                .eq('conversation_id', conversation!.id)
+                .eq('client_msg_id', kluczIdem)
+                .maybeSingle();
+            if (istniejaca) {
+                return NextResponse.json({ message: istniejaca, duplicate: true });
+            }
+        }
         if (msgError) throw msgError;
 
         // Update conversation timestamps and unread flag

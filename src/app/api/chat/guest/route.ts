@@ -100,6 +100,14 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Message content is required' }, { status: 400 });
     }
 
+    /**
+     * W5 — klucz idempotencji nadany przez klienta przed wysyłką (mig 198).
+     * Opcjonalny; binarki ze sklepów go nie wysyłają.
+     */
+    const rawKlucz = (body as { clientMsgId?: unknown })?.clientMsgId;
+    const kluczIdem =
+        typeof rawKlucz === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(rawKlucz) ? rawKlucz : null;
+
     const conv = await findGuestConversation(token);
     if (!conv) {
         return NextResponse.json({ error: 'Konwersacja nie istnieje lub została zamknięta.' }, { status: 404 });
@@ -121,9 +129,23 @@ export async function POST(req: NextRequest) {
             sender_role: 'patient',
             sender_name: senderName,
             content,
+            ...(kluczIdem ? { client_msg_id: kluczIdem } : {}),
         })
         .select()
         .single();
+
+    // 23505 = to samo żądanie już doszło; oddajemy pierwszy zapis zamiast drugiego dymka.
+    if (msgError && (msgError as { code?: string }).code === '23505' && kluczIdem) {
+        const { data: istniejaca } = await supabase
+            .from('chat_messages')
+            .select()
+            .eq('conversation_id', conv.id)
+            .eq('client_msg_id', kluczIdem)
+            .maybeSingle();
+        if (istniejaca) {
+            return NextResponse.json({ message: istniejaca, duplicate: true });
+        }
+    }
 
     if (msgError) {
         console.error('[GuestChat] POST insert error:', msgError);
