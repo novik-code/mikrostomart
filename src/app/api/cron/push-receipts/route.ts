@@ -128,14 +128,59 @@ export async function GET(req: Request) {
             }
         }
 
+        /**
+         * W3 — token personelu PRZEŻYWAŁ wylogowanie bez sieci.
+         *
+         * Apka kasuje swój wpis przy wylogowaniu, ale to żądanie sieciowe: gdy padnie
+         * (a przy wylogowaniu w windzie pada), token zostaje w bazie na zawsze. Urządzenie
+         * przekazane dalej albo porzucone nadal dostaje powiadomienia gabinetu — a te
+         * niosą nazwiska pacjentów.
+         *
+         * `DeviceNotRegistered` z receiptów tego NIE ŁAPIE: aplikacja jest zainstalowana
+         * i token technicznie żywy, tylko nikt się już nim nie loguje.
+         *
+         * 🔑 Próg oparty na POMIARZE, nie na wyczuciu: na produkcji 8 z 11 tokenów
+         * odświeża się w ciągu ~2 dni (apka robi upsert przy KAŻDYM wejściu na wierzch),
+         * więc 7 dni to siedmiokrotność normalnej kadencji. Czynna instalacja rejestruje
+         * się z powrotem przy pierwszym otwarciu — koszt pomyłki to brak pusha do czasu
+         * otwarcia apki, nie utrata dostępu.
+         *
+         * ⚪ ŚWIADOMIE NIE dotyczy `patient_push_tokens`: pacjent otwiera apkę raz na
+         * kilka tygodni, więc ten sam próg wyciąłby przypomnienia o wizytach ludziom,
+         * którzy niczego nie zrobili źle.
+         */
+        const progStaff = new Date(Date.now() - 7 * 24 * 60 * 60_000).toISOString();
+        let staleStaff = 0;
+        {
+            const { data: stare, error: errSel } = await supabase
+                .from('staff_push_tokens')
+                .select('token')
+                .lt('updated_at', progStaff);
+            if (errSel) {
+                console.error(`[PushReceipts] Nie odczytano porzuconych tokenów personelu: ${errSel.message}`);
+            } else if (stare && stare.length > 0) {
+                const tokeny = stare.map((r) => r.token as string);
+                const { error: errDel } = await supabase
+                    .from('staff_push_tokens')
+                    .delete()
+                    .in('token', tokeny);
+                if (errDel) {
+                    console.error(`[PushReceipts] Nie usunięto porzuconych tokenów personelu: ${errDel.message}`);
+                } else {
+                    staleStaff = tokeny.length;
+                    console.log(`[PushReceipts] Usunięto ${staleStaff} porzucony(ch) token(ów) personelu (>7 dni bez odświeżenia)`);
+                }
+            }
+        }
+
         await logCronHeartbeat(
             'push-receipts',
             errors > 0 ? 'warn' : 'ok',
-            `Sprawdzono: ${checked}, usunięto martwych tokenów: ${pruned}${errors ? `, błędy Expo: ${errors}` : ''}`,
+            `Sprawdzono: ${checked}, usunięto martwych tokenów: ${pruned}, porzuconych personelu: ${staleStaff}${errors ? `, błędy Expo: ${errors}` : ''}`,
             Date.now() - started
         );
 
-        return NextResponse.json({ success: true, checked, pruned, expoErrors: errors });
+        return NextResponse.json({ success: true, checked, pruned, staleStaff, expoErrors: errors });
     } catch (err) {
         const msg = err instanceof Error ? err.message : 'Unknown error';
         console.error('[PushReceipts] Fatal:', msg);

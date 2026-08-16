@@ -121,6 +121,35 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
+
+        /**
+         * W4 — listowanie skrzynki wariantem POST.
+         *
+         * `GET ?action=list&search=…` niesie frazę wyszukiwania W ADRESIE, a w poczcie
+         * gabinetu szuka się po NAZWISKU PACJENTA albo po jego adresie. Adresy zapisują
+         * się w logach brzegowych Vercela — poza rejestrem RODO. Ta sama klasa co token
+         * gościa w query-stringu, naprawiony wcześniej.
+         *
+         * GET ZOSTAJE dla binarek 1.1/1.2 ze sklepów i dla panelu webowego; wygaszamy go
+         * dopiero, gdy przestaną być używane.
+         *
+         * 🪤 Gałąź MUSI stać przed odczytem `to`/`subject` i rozpoznawać się po polu,
+         * którego wysyłka nigdy nie niesie. Sprawdzone w obu klientach: apka POST-uje
+         * `{to, subject, html}` (`api.ts` → `sendStaffEmail`), a panel webowy w ogóle nie
+         * POST-uje na tę trasę. `action` żyje wyłącznie w GET i PATCH.
+         */
+        if (body?.action === 'list') {
+            const folder = typeof body.folder === 'string' ? body.folder : 'INBOX';
+            const page = Number.isFinite(Number(body.page)) ? Math.max(1, Math.trunc(Number(body.page))) : 1;
+            const pageSize = Number.isFinite(Number(body.pageSize))
+                ? Math.min(100, Math.max(1, Math.trunc(Number(body.pageSize))))
+                : 30;
+            const search = typeof body.search === 'string' && body.search.trim() ? body.search.trim() : undefined;
+
+            const result = await listEmails(folder, page, pageSize, search);
+            return NextResponse.json(result);
+        }
+
         const { to, cc, subject, html, inReplyTo, references, attachments: rawAttachments } = body;
 
         if (!to || !subject) {

@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPendingOrder, CartValidationError, type CartItemInput } from "@/lib/cartCalculator";
+import { checkRateLimit, getClientIP } from "@/lib/rateLimit";
+import {
+    przytnijDaneKupujacego,
+    MAX_POZYCJI_KOSZYKA,
+} from "@/lib/cartCustomer";
 
 /**
  * POST /api/cart/calculate-total
@@ -29,6 +34,20 @@ import { createPendingOrder, CartValidationError, type CartItemInput } from "@/l
  * (S2-3), so creating throwaway pending orders is harmless beyond row count.
  */
 export async function POST(req: NextRequest) {
+    /**
+     * Trasa TWORZY WIERSZ w bazie bez żadnego uwierzytelnienia. Komentarz wyżej
+     * słusznie mówi, że wiersz `pending` jest nieszkodliwy — ale tylko po jednym.
+     * Bez limitu jest to publiczny generator wierszy w tabeli zamówień kliniki.
+     */
+    const ip = getClientIP(req);
+    const rl = await checkRateLimit(`cart-calc:${ip}`, 20, 60_000, { failClosed: true });
+    if (!rl.allowed) {
+        return NextResponse.json(
+            { error: "Za dużo zapytań. Spróbuj za chwilę." },
+            { status: 429, headers: { "Retry-After": "60" } }
+        );
+    }
+
     let body: { items?: CartItemInput[]; customerDetails?: Record<string, unknown> };
     try {
         body = await req.json();
@@ -40,10 +59,17 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "items[] required" }, { status: 400 });
     }
 
+    if (body.items.length === 0 || body.items.length > MAX_POZYCJI_KOSZYKA) {
+        return NextResponse.json(
+            { error: `items[] must have 1..${MAX_POZYCJI_KOSZYKA} entries` },
+            { status: 400 }
+        );
+    }
+
     try {
         const pending = await createPendingOrder({
             items: body.items,
-            customerDetails: body.customerDetails,
+            customerDetails: przytnijDaneKupujacego(body.customerDetails),
         });
         return NextResponse.json({
             orderId: pending.orderId,

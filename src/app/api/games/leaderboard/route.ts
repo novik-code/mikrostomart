@@ -1,6 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
+
 export const dynamic = 'force-dynamic';
 
 const supabase = createClient(
@@ -19,6 +21,20 @@ export async function GET(request: NextRequest) {
     const period = request.nextUrl.searchParams.get('period') || 'today';
     if (!GAMES.includes(game)) {
         return NextResponse.json({ error: 'Nieznana gra' }, { status: 400 });
+    }
+
+    /**
+     * W6 — odczyt jest tańszy niż zapis, więc limit luźniejszy i BEZ `failClosed`:
+     * przy niedostępnej bazie ranking i tak nie ma czego oddać, a zamykanie odczytu
+     * zabrałoby dziecku ekran wyników przy awarii, której ono nie spowodowało.
+     */
+    const rlIp = getClientIP(request);
+    const rl = await checkRateLimit(`games-board:${rlIp}`, 30, 60_000);
+    if (!rl.allowed) {
+        return NextResponse.json(
+            { error: 'Za dużo zapytań. Spróbuj za chwilę.' },
+            { status: 429, headers: { 'Retry-After': '60' } },
+        );
     }
 
     try {
