@@ -72,9 +72,17 @@ CREATE TABLE IF NOT EXISTS app_reports (
     -- ON DELETE SET NULL zamienia zgłoszenie w anonimowe i to jest właściwe
     -- zachowanie — treść techniczna zostaje, tożsamość znika.
     patient_id       UUID REFERENCES patients(id) ON DELETE SET NULL,
-    -- Migawka nazwiska z chwili zgłoszenia; po usunięciu konta czyszczona razem
-    -- z `patient_id` przez trasę RODO (patrz UWAGA na końcu pliku).
-    reporter_name    TEXT,
+    -- 🔴 ŚWIADOMIE BEZ `reporter_name`. Tabela `patients` **nie ma żadnej kolumny
+    -- z nazwiskiem** — zmierzone przed napisaniem tej migracji wąskim zapytaniem
+    -- (`first_name` NIE ISTNIEJE; są wyłącznie `id`, `email`, `phone`,
+    -- `prodentis_id`, `locale`, `account_status`, `avatar`,
+    -- `notification_preferences`). Nazwiska w apce pochodzą z Prodentisa.
+    -- Kolumna, której nie ma czym wypełnić, to nie zapas — to dług: pierwsza wersja
+    -- tej migracji ją miała, a trasa cicho zapisywałaby KAŻDE zgłoszenie
+    -- zalogowanego jako gościa, bo błędny `select` zwracał `null`.
+    -- Tożsamość niesie `patient_id` — dokładniej niż migawka tekstu.
+    -- ⚪ To zresztą wyjaśnia znany dług „fallback nazwiska «Pacjent»":
+    -- `/api/patients/me` schodzi na literał, bo czyta pole, którego nie ma.
     -- Dobrowolny kontakt zwrotny dla GOŚCIA (e-mail albo telefon). Zalogowany go
     -- nie podaje — jego odpowiedź trafia na ekran „Moje zgłoszenia".
     -- ⚠️ To jest dana osobowa od niezweryfikowanego źródła: limit długości + brak
@@ -166,12 +174,12 @@ COMMIT;
 
 -- ============================================================================
 -- UWAGA DLA ŚCIEŻKI RODO (nie jest częścią tej migracji)
--- `ON DELETE SET NULL` zeruje `patient_id`, ale NIE tyka `reporter_name`
--- ani `contact` — Postgres nie ma na to składni. Trasa usunięcia konta powinna
--- przy okazji wykonać:
---     UPDATE app_reports SET reporter_name = NULL, contact = NULL
---      WHERE patient_id = <id>;
--- PRZED usunięciem wiersza pacjenta. Zapisane tutaj, żeby nie zginęło.
+-- `ON DELETE SET NULL` zeruje `patient_id`, więc po usunięciu konta zgłoszenie
+-- zostaje anonimową treścią techniczną — i to jest właściwe zachowanie.
+-- Jedyne pole, którego Postgres nie wyczyści sam, to `contact` (wypełniany
+-- WYŁĄCZNIE przez gościa, więc u usuwanego konta jest z definicji NULL).
+-- Gdyby kiedyś doszło pole tekstowe z danymi osoby, trasa usunięcia konta musi
+-- je wyzerować PRZED usunięciem wiersza pacjenta. Zapisane, żeby nie zginęło.
 -- ============================================================================
 
 -- ============================================================================

@@ -40,8 +40,11 @@ export interface AppReport {
     id: string;
     kind: ReportKind;
     message: string;
+    /**
+     * `null` = gość. 🔑 Nie ma pola z nazwiskiem: `patients` nie ma żadnej kolumny
+     * z imieniem (zmierzone). Tożsamość niesie ten wskaźnik, dokładniej niż tekst.
+     */
     patient_id: string | null;
-    reporter_name: string | null;
     contact: string | null;
     app_version: string | null;
     platform: string | null;

@@ -98,30 +98,28 @@ export async function POST(request: NextRequest) {
         ? (body.kind as ReportKind)
         : 'bug';
 
-    // Nazwisko zgłaszającego bierzemy Z SESJI, nigdy z ciała żądania — inaczej
-    // dowolny gość podpisałby zgłoszenie cudzym nazwiskiem.
+    /**
+     * Tożsamość bierzemy Z SESJI, nigdy z ciała żądania — inaczej dowolny gość
+     * podpisałby zgłoszenie cudzym kontem.
+     *
+     * 🔴 Zapisujemy WYŁĄCZNIE `patient_id`, bez migawki nazwiska. Tabela `patients`
+     * **nie ma żadnej kolumny z imieniem** — zmierzone wąskim zapytaniem przed
+     * napisaniem tej trasy (`first_name` nie istnieje). Pierwsza wersja tego kodu
+     * selektowała `first_name, last_name, name`; taki `select` wywraca się w całości,
+     * `patient` wychodzi `null`, a KAŻDE zgłoszenie zalogowanego zapisywałoby się
+     * jako gościa — cicho, bez błędu, z pustym ekranem „Moje zgłoszenia".
+     */
     let patientId: string | null = null;
-    let reporterName: string | null = null;
     if (session) {
-        const { data: patient } = await supabase()
+        const { data: patient, error: pErr } = await supabase()
             .from('patients')
-            .select('id, first_name, last_name, name')
+            .select('id')
             .eq('prodentis_id', session.prodentisId)
             .maybeSingle();
-        if (patient) {
-            patientId = patient.id as string;
-            /**
-             * 🔴 ŻADNEGO literału zastępczego. `/api/patients/me` schodzi w tym
-             * miejscu na `'Demo'`/`'Pacjent'`, i to jest znany dług — taki fallback
-             * wyciekł już do zgód podpisywanych na tablecie. Tutaj brak nazwiska
-             * zostaje `null`: zgłoszenie bez podpisu jest uczciwe, zgłoszenie
-             * podpisane słowem „Pacjent" jest fałszywką.
-             */
-            const composed =
-                [patient.first_name, patient.last_name].filter(Boolean).join(' ').trim() ||
-                (typeof patient.name === 'string' ? patient.name.trim() : '');
-            reporterName = composed || null;
-        }
+        // Błąd odczytu ≠ „nie ma konta". Logujemy, żeby cicha degradacja do gościa
+        // nie została znów odkryta dopiero po miesiącach.
+        if (pErr) console.error('[AppReports] odczyt pacjenta nieudany:', pErr.message);
+        if (patient) patientId = patient.id as string;
     }
 
     // Kontakt przyjmujemy WYŁĄCZNIE od gościa: zalogowany dostaje odpowiedź
@@ -136,7 +134,6 @@ export async function POST(request: NextRequest) {
             kind,
             message: message.slice(0, MAX_MESSAGE),
             patient_id: patientId,
-            reporter_name: reporterName,
             contact,
             app_version: diagField(body.appVersion),
             platform: ['ios', 'android', 'web'].includes(String(body.platform))
