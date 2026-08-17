@@ -28,7 +28,10 @@ export type PushPathKey =
     | 'appointment_confirmed'
     // Zdarzeniowa (mig 187): `max_silence_minutes = NULL`, więc cron zdrowia jej
     // NIE alarmuje — cisza znaczy „nikt nic nie zepsuł", nie awarię kanału.
-    | 'incident_blocking';
+    | 'incident_blocking'
+    // Zdarzeniowa (mig 199), z tego samego powodu co wyżej: cisza znaczy „nikt nie
+    // zgłosił usterki". Push idzie tylko przy `kind='bug'` i BEZ treści zgłoszenia.
+    | 'app_report_bug';
 
 export interface PushPathHealthRow {
     path_key: string;
