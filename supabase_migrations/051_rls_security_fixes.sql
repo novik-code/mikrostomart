@@ -36,27 +36,49 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- ============================================================================
+-- 🔴 MINA ROZBROJONA 2026-08-18 — dwa bloki niżej są ZAKOMENTOWANE CELOWO
+-- ============================================================================
+-- Te dwie polityki `authenticated_only` to ŹRÓDŁO NAJPOWAŻNIEJSZEGO WYCIEKU
+-- w historii projektu, zamkniętego migracją 182. Odtworzony wtedy atakiem na
+-- produkcji: konto bez ról + klucz publiczny → treści wiadomości, nazwiska
+-- pacjentów i `guest_token` (czyli pełny dostęp do wątków gości).
+--
+-- 🔴 DLACZEGO STRAŻNIK `IF NOT EXISTS` NIE CHRONI — to jest sedno:
+-- sprawdza `policyname = 'authenticated_only'`, a migracja 182 NIE zostawiła
+-- polityki o tej nazwie (dała `service_only` + wąski SELECT przez
+-- `is_clinic_staff()`). Warunek wyszedłby więc PRAWDZIWY i polityka wróciłaby.
+-- Zabezpieczenie wygląda jak zabezpieczenie i nim NIE JEST.
+--
+-- 🔴 I DRUGA RZECZ: polityki PERMISYWNE w Postgresie łączą się przez OR.
+-- Dołożenie `authenticated_only` obok polityk z 182 NIE „przegrywa" z nimi —
+-- otwiera tabelę na nowo, mimo że tamte nadal istnieją.
+--
+-- `ENABLE ROW LEVEL SECURITY` ZOSTAJE. Właściwe polityki dla tych tabel
+-- ustawia migracja **182** i to ona jest jedynym miejscem, gdzie wolno je ruszać.
+-- ============================================================================
+
 -- Chat tables — AdminChat.tsx uses createBrowserClient (anon key after login)
 -- Must allow authenticated users (admin is always authenticated)
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE tablename = 'chat_messages' AND policyname = 'authenticated_only'
-  ) THEN
-    CREATE POLICY "authenticated_only" ON chat_messages USING (auth.role() = 'authenticated');
-  END IF;
-END $$;
+-- DO $$ BEGIN
+--   IF NOT EXISTS (
+--     SELECT 1 FROM pg_policies
+--     WHERE tablename = 'chat_messages' AND policyname = 'authenticated_only'
+--   ) THEN
+--     CREATE POLICY "authenticated_only" ON chat_messages USING (auth.role() = 'authenticated');
+--   END IF;
+-- END $$;
 
 ALTER TABLE chat_conversations ENABLE ROW LEVEL SECURITY;
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies
-    WHERE tablename = 'chat_conversations' AND policyname = 'authenticated_only'
-  ) THEN
-    CREATE POLICY "authenticated_only" ON chat_conversations USING (auth.role() = 'authenticated');
-  END IF;
-END $$;
+-- DO $$ BEGIN
+--   IF NOT EXISTS (
+--     SELECT 1 FROM pg_policies
+--     WHERE tablename = 'chat_conversations' AND policyname = 'authenticated_only'
+--   ) THEN
+--     CREATE POLICY "authenticated_only" ON chat_conversations USING (auth.role() = 'authenticated');
+--   END IF;
+-- END $$;
 
 -- ============================================================
 -- PRIORITY 2: Remaining tables (all server-only, service_role)
