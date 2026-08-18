@@ -881,7 +881,8 @@
     "sec9Li9": "Cloudflare (USA, SCC + DPA) — CDN + ochrona DDoS + tunel do Prodentis",
     "sec9Li10": "Telegram Messenger LLP (UE/USA) — wewnętrzne powiadomienia operacyjne dla zespołu o zgłoszeniach z formularzy (mogą zawierać podane w nich dane kontaktowe i treść zgłoszenia; bez dokumentacji medycznej)",
     "sec9Li11": "Prodentis (lokalny serwer w klinice, Polska — on-premise) — kalendarz wizyt i dokumentacja medyczna",
-    "sec9Li12": "Expo (Expo Application Services, USA, SCC + DPA) — dostarczanie powiadomień push do aplikacji mobilnej; przetwarza token urządzenia oraz tytuł i treść powiadomienia"
+    "sec9Li12": "Expo (Expo Application Services, USA, SCC + DPA) — dostarczanie powiadomień push do aplikacji mobilnej; przetwarza token urządzenia oraz tytuł i treść powiadomienia",
+    "sec9Li13": "Functional Software, Inc. dba Sentry (siedziba USA; dane przechowywane w regionie UE — Niemcy, SCC + DPA) — diagnostyka awarii aplikacji mobilnej. Przetwarza wyłącznie dane techniczne: typ i komunikat błędu, ślad stosu, wersję aplikacji, system operacyjny, model urządzenia oraz nazwę ekranu pozbawioną identyfikatorów. Aplikacja NIE przekazuje tożsamości użytkownika, zrzutów ekranu ani nagrań sesji, a numery PESEL, telefony, adresy e-mail i identyfikatory są usuwane z treści zgłoszenia przed wysłaniem."
   },
   "regulamin": {
     "tagline": "Zasady Funkcjonowania",

@@ -161,6 +161,12 @@ export default function PrivacyPolicyPage() {
                                     // o zadaniu personelu niesie nazwisko pacjenta). To podmiot
                                     // przetwarzający w rozumieniu art. 28 i musi być wymieniony.
                                     t('sec9Li12'),
+                                    // Sentry dostaje ślad stosu z awarii apki. Komunikat wyjątku
+                                    // POTRAFI nieść treść odpowiedzi serwera, a trasa — id pacjenta,
+                                    // dlatego apka czyści zdarzenie przed wysłaniem (`lib/crashReporting.ts`,
+                                    // 36 asercji). Ale samo istnienie kanału do zewnętrznego dostawcy
+                                    // czyni z niego podmiot przetwarzający w rozumieniu art. 28.
+                                    t('sec9Li13'),
                                 ].map((item, i) => (
                                     <li key={i} style={{ padding: "0.4rem 0 0.4rem 1.25rem", position: "relative" }}>
                                         <span style={{ position: "absolute", left: 0, top: "0.85rem", width: "4px", height: "4px", borderRadius: "50%", background: "var(--color-primary)", opacity: 0.5 }} />
