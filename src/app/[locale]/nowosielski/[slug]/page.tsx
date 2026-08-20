@@ -9,6 +9,7 @@ import ArticleByline from '@/components/ArticleByline';
 import { getTranslations } from 'next-intl/server';
 import { Metadata } from 'next';
 import { brand } from '@/lib/brandConfig';
+import { articleSeoTitle, articleSeoDescription } from '@/lib/articleSeo';
 import { breadcrumbHref, getOgLocale, localizedBreadcrumb } from '@/lib/seo';
 import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
@@ -122,8 +123,9 @@ export async function generateMetadata({
 
     const description = post.excerpt || post.title;
     return {
-        title: { absolute: `${post.title} | ${brand.name}` },
-        description,
+        // 2026-08-20: marka doklejana tylko gdy miesci sie w 60 znakach (patrz articleSeo.ts).
+        title: { absolute: articleSeoTitle(post.title, brand.name) },
+        description: articleSeoDescription(description),
         ...(fellBackToPl ? { robots: { index: false, follow: true } } : {}),
         alternates: { canonical, languages },
         openGraph: {

@@ -9,6 +9,7 @@ import { notFound, permanentRedirect } from 'next/navigation';
 import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { breadcrumbHref, getOgLocale, localizedBreadcrumb } from '@/lib/seo';
+import { articleSeoTitle, articleSeoDescription, cleanArticleTitle } from '@/lib/articleSeo';
 import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
 import RelatedArticles from '@/components/RelatedArticles';
@@ -144,14 +145,18 @@ export async function generateMetadata({
     // dla userów, wypadają z indeksu. follow:true → link equity z in-body/related płynie.
     const isNoindexed = article.group_id ? KB_NOINDEX_GROUP_IDS.has(article.group_id) : false;
 
+    // 2026-08-20: tytul bez doklejanego sufiksu "Baza Wiedzy {brand}" — przy medianie
+    // 74 znakow i tak nigdy nie byl widoczny, a przy 12 artykulach z marka juz w bazie
+    // dawal ja dwa razy. Marka doklejana tylko gdy miesci sie w 60 znakach.
+    const seoTitle = articleSeoTitle(article.title, brand.name);
     return {
-        title: { absolute: `${article.title} | ${t('metaSuffix', brandI18nParams())}` },
-        description: article.excerpt,
+        title: { absolute: seoTitle },
+        description: articleSeoDescription(article.excerpt),
         ...(fellBackToPl || isNoindexed ? { robots: { index: false, follow: true } } : {}),
         alternates: { canonical, languages },
         openGraph: {
-            title: article.title,
-            description: article.excerpt,
+            title: cleanArticleTitle(article.title, brand.name),
+            description: articleSeoDescription(article.excerpt),
             type: 'article',
             url: articleUrl(locale, slug),
             locale: getOgLocale(locale),
@@ -159,8 +164,8 @@ export async function generateMetadata({
         },
         twitter: {
             card: 'summary_large_image',
-            title: article.title,
-            description: article.excerpt,
+            title: cleanArticleTitle(article.title, brand.name),
+            description: articleSeoDescription(article.excerpt),
         },
     };
 }
@@ -314,7 +319,10 @@ export default async function ArticlePage({
                             lineHeight: "1.2",
                             marginBottom: "2rem"
                         }}>
-                            {article.title}
+                            {/* 2026-08-20: 12 tytulow ma " | Mikrostomart Opole" wpisane
+                                juz w bazie — czytelnik widzial marke doklejona do naglowka
+                                artykulu. Zdejmujemy ja przy renderze; zrodlo danych zostaje. */}
+                            {cleanArticleTitle(article.title, brand.name)}
                         </h1>
                         <ArticleByline
                             locale={locale}

@@ -8,6 +8,7 @@ import { Metadata } from 'next';
 import { supabase } from '@/lib/supabaseClient';
 import { getTranslations } from 'next-intl/server';
 import { brand } from '@/lib/brandConfig';
+import { articleSeoTitle, articleSeoDescription } from '@/lib/articleSeo';
 import { breadcrumbHref, getOgLocale, localizedBreadcrumb } from '@/lib/seo';
 import { preferWebp } from '@/lib/imageUrl';
 import { routing } from '@/i18n/routing';
@@ -140,8 +141,9 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
         : undefined;
 
     return {
-        title: { absolute: `${localized.title} | ${brand.name}` },
-        description: localized.excerpt,
+        // 2026-08-20: jak wyzej — marka tylko gdy sie miesci, opis przyciety do 155 znakow.
+        title: { absolute: articleSeoTitle(localized.title, brand.name) },
+        description: articleSeoDescription(localized.excerpt),
         ...(perArticleKeywords ? { keywords: perArticleKeywords } : {}),
         alternates: { canonical, languages },
         openGraph: {

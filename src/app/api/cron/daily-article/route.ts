@@ -36,12 +36,13 @@ function buildRequirements(recentTitles: string[]): string {
 - E-E-A-T: pisz z perspektywy zespołu gabinetu; gdzie zasadne, odwołaj się do technologii/doświadczenia (mikroskop ZEISS, lasery Er:YAG/Nd:YAG, implantologia cyfrowa, M.Sc. RWTH).
 - LINKI WEWNĘTRZNE: wpleć 2-4 trafne linki markdown [tekst](/sciezka) do stron usług (${INTERNAL_LINK_HINTS}). Linki POZA pogrubieniem (nie zagnieżdżaj w **bold**).
 - GUARDRAIL (bezwzględny): NIE promuj unikania dentysty ani metod domowych "zamiast wizyty". Higiena/pielęgnacja domowa wyłącznie jako UZUPEŁNIENIE profesjonalnej opieki + zaproszenie do gabinetu. Treść rzetelna medycznie, bez obietnic gwarantowanych efektów.
-- TYTUŁ: opisowy, konkretny, z frazą kluczową. ZABRONIONE clickbaitowe wzorce: "X zaskakujących…", "sekrety…", "magia…", "niezwykłe…", "czego nie wiesz…".
+- TYTUŁ: opisowy, konkretny, z frazą kluczową, MAKSYMALNIE 60 ZNAKÓW ze spacjami — Google ucina dłuższe w wynikach wyszukiwania. NIE dopisuj nazwy gabinetu ani miasta na końcu tytułu (dokleja je szablon, jeśli się mieści). ZABRONIONE clickbaitowe wzorce: "X zaskakujących…", "sekrety…", "magia…", "niezwykłe…", "czego nie wiesz…".
+- excerpt: MAKSYMALNIE 155 ZNAKÓW ze spacjami — to jest opis w wynikach wyszukiwania, dłuższy zostanie ucięty w połowie zdania.
 - slug: WYŁĄCZNIE ASCII [a-z0-9-], bez polskich znaków, opisowy, unikalny.
 - NIE powielaj istniejących tematów (napisz coś innego): ${recentTitles.slice(0, 25).join(' | ') || '(brak)'}
 
 Zwróć WYŁĄCZNIE obiekt JSON:
-{"title":"...","slug":"...","excerpt":"streszczenie 2 zdania","content":"treść w Markdown (## , ### , * , ** , [tekst](/link))","imagePrompt":"szczegółowy prompt PO ANGIELSKU do fotorealistycznego zdjęcia ilustrującego temat"}`;
+{"title":"... (max 60 znaków)","slug":"...","excerpt":"streszczenie, max 155 znaków","content":"treść w Markdown (## , ### , * , ** , [tekst](/link))","imagePrompt":"szczegółowy prompt PO ANGIELSKU do fotorealistycznego zdjęcia ilustrującego temat"}`;
 }
 
 interface ArticleData {
