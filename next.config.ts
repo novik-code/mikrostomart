@@ -35,6 +35,28 @@ const withSerwist = withSerwistInit({
 // Force Deploy Timestamp: 2025-12-31 21:42
 
 const nextConfig: NextConfig = {
+  // 2026-08-20 (audyt SEO 16.08, "Page Titles / Canonicals / Hreflang: Outside <head>").
+  //
+  // Next 16 domyslnie STRUMIENIUJE metadane: jesli powloka strony wyrenderuje sie
+  // zanim `generateMetadata` sie rozwiaze, znaczniki trafiaja na koniec <body>.
+  // Klienci renderujacy JS to skladaja; crawlery czytajace surowy HTML — nie.
+  //
+  // `htmlLimitedBots` wskazuje user-agenty, dla ktorych Next CZEKA na metadane.
+  // 🪤 PULAPKA: w `shouldServeStreamingMetadata` jest `htmlLimitedBots || DEFAULT`,
+  // czyli wlasna wartosc ZASTEPUJE liste domyslna, a nie rozszerza. Ponizej jest
+  // pelna lista Next 16.2.12 (node_modules/next/dist/shared/lib/router/utils/html-bots.js)
+  // plus nasze dopiski — skrocenie jej wylaczyloby blokowanie dla Facebooka,
+  // Bingbota, LinkedIna i reszty.
+  //
+  // Dopisane i dlaczego:
+  //  - `Googlebot` — domyslne wzorce to `[\w-]+-Google` i `Google-[\w-]+`, wiec samo
+  //    "Googlebot" do zadnego NIE pasuje (Next zaklada, ze Google wyrenderuje JS).
+  //    Wolimy, zeby surowy HTML byl poprawny od razu, zamiast liczyc na renderowanie.
+  //    Koszt to oczekiwanie na metadane w TTFB — po wprowadzeniu pamieci podrecznej
+  //    marki (brandConfig) sa one gotowe od reki.
+  //  - `Screaming Frog|AhrefsBot|SemrushBot` — narzedzia audytowe nie wykonuja JS,
+  //    wiec bez tego kolejny audyt zglosi dokladnie to samo, co ten.
+  htmlLimitedBots: /Googlebot|Screaming Frog|AhrefsBot|SemrushBot|[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight/,
   experimental: {
     // Bundle ffmpeg-static binary with video-process function
     outputFileTracingIncludes: {

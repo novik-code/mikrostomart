@@ -89,7 +89,13 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: themeError.message }, { status: 500 });
         }
 
-        // Save brand if provided
+        // Save brand if provided.
+        // 2026-08-20: `loadBrandFromDB()` trzyma marke w pamieci procesu przez 60 s
+        // (patrz BRAND_CACHE_TTL_MS w brandConfig.ts — zdjeto zapytanie do bazy ze
+        // sciezki krytycznej metadanych). Zmiana zapisana tutaj jest widoczna na
+        // stronie najpozniej po minucie; to nie jest blad zapisu.
+        // Swiadomie NIE wolamy tu invalidateBrandCache(): ta trasa dziala w innej
+        // instancji serverless niz renderujace, wiec wyczyscilaby cudzy cache, nie ich.
         if (brandData && typeof brandData === 'object' && Object.keys(brandData).length > 0) {
             const brandError = await saveSetting('brand', brandData);
             if (brandError) {

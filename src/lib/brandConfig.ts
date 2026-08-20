@@ -299,17 +299,50 @@ export function setBrand(overrides: Partial<BrandConfig>): void {
     brand = { ...DEFAULT_BRAND, ...overrides };
 }
 
+// 2026-08-20 (audyt SEO 16.08, "metadane poza <head>"): pamiec podreczna marki.
+//
+// `loadBrandFromDB()` jest wolane w `generateMetadata` roota, czyli RAZ NA KAZDE
+// zadanie, i robi round-trip do Supabase. Next 16 strumieniuje metadane: jesli
+// powloka strony wyrenderuje sie zanim `generateMetadata` sie rozwiaze, znaczniki
+// title/canonical/hreflang trafiaja na koniec <body> zamiast do <head>.
+//
+// Pomiar na produkcji przed poprawka: 24 zadania na /oferta/implantologia,
+// 5 z metadanymi w body (21%). Zepsute odpowiedzi byly SZYBSZE (mediana 0,76 s
+// vs 0,87 s) — czyli powloka wygrywala wyscig z zapytaniem do bazy.
+//
+// Ustawienia marki zmieniaja sie rzadko (edycja w adminie), wiec trzymamy je w
+// pamieci procesu przez krotki czas. Zapytanie do bazy znika z sciezki krytycznej
+// metadanych, a zmiana w adminie jest widoczna najpozniej po TTL.
+// Wzorzec jak w /api/google-reviews (throttle po znaczniku czasu).
+const BRAND_CACHE_TTL_MS = 60_000;
+let brandCache: { value: BrandConfig; at: number } | null = null;
+
+/** Testy i panel admina: wymus ponowny odczyt z bazy przy nastepnym wywolaniu. */
+export function invalidateBrandCache(): void {
+    brandCache = null;
+}
+
 /**
  * Server-side: load brand config from Supabase site_settings.
  * Returns full BrandConfig (DB values merged with defaults).
  * On ANY error, returns hardcoded defaults — production is never broken.
  */
 export async function loadBrandFromDB(): Promise<BrandConfig> {
+    if (brandCache && Date.now() - brandCache.at < BRAND_CACHE_TTL_MS) {
+        return brandCache.value;
+    }
+    // Zapamietujemy TAKZE wyniki awaryjne (brak env, blad zapytania, wyjatek).
+    // Inaczej kazde zadanie przy niedostepnej bazie znow probowaloby round-tripu
+    // i wyscig o metadane wracalby dokladnie wtedy, gdy jest najgorzej.
+    const memo = (value: BrandConfig): BrandConfig => {
+        brandCache = { value, at: Date.now() };
+        return value;
+    };
     try {
         const { createClient } = await import('@supabase/supabase-js');
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        if (!supabaseUrl || !supabaseKey) return { ...DEFAULT_BRAND };
+        if (!supabaseUrl || !supabaseKey) return memo({ ...DEFAULT_BRAND });
 
         const supabase = createClient(supabaseUrl, supabaseKey);
         const { data, error } = await supabase
@@ -318,7 +351,7 @@ export async function loadBrandFromDB(): Promise<BrandConfig> {
             .eq('key', 'brand')
             .maybeSingle();
 
-        if (error || !data?.value) return { ...DEFAULT_BRAND };
+        if (error || !data?.value) return memo({ ...DEFAULT_BRAND });
 
         const dbBrand = data.value as Partial<BrandConfig>;
         // Never override titleDefault from DB — it controls PWA install name
@@ -344,10 +377,10 @@ export async function loadBrandFromDB(): Promise<BrandConfig> {
         delete dbBrand.geoPosition;
         delete dbBrand.icbm;
         delete dbBrand.mapEmbedUrl;
-        return { ...DEFAULT_BRAND, ...dbBrand };
+        return memo({ ...DEFAULT_BRAND, ...dbBrand });
     } catch {
         // SAFETY: on any error, return hardcoded defaults
-        return { ...DEFAULT_BRAND };
+        return memo({ ...DEFAULT_BRAND });
     }
 }
 
