@@ -245,6 +245,25 @@ const nextConfig: NextConfig = {
       // klaster "pasta/etykiety" → sekrety-pasty-do-zebow-jak-wybrac-produkt-idealny-...
       { source: '/baza-wiedzy/sekrety-zdrowego-usmiechu-etykiety-pasta-do-zebow', destination: '/baza-wiedzy/sekrety-pasty-do-zebow-jak-wybrac-produkt-idealny-dla-twojego-usmiechu', permanent: true },
       { source: '/baza-wiedzy/sekrety-bialego-usmiechu-nawyki-zmieniajace-zeby', destination: '/baza-wiedzy/sekrety-pasty-do-zebow-jak-wybrac-produkt-idealny-dla-twojego-usmiechu', permanent: true },
+
+      // ─── Scalenie stron bliźniaczych (audyt SEO 16.08, "Kanibalizacja") ───
+      // Cztery uslugi mialy po dwie strony o tej samej intencji. Geo-landingi byly
+      // generowane z jednego szablonu (identyczne 8 naglowkow, zdublowana sekcja
+      // opinii) i mialy 3-4x mniej linkow wewnetrznych. Strony /oferta/* sa pisane
+      // recznie i to je Ahrefs pokazuje w rankingu ("implanty opole" poz. 7,
+      // "licowki opole" poz. 12), a geo-landingow nie widzi wcale.
+      // Zwyciezca: /oferta/*. Pliki stron zostaja na dysku — cofniecie decyzji to
+      // usuniecie tych osmiu linii, bez odtwarzania tresci.
+      { source: '/implanty-opole', destination: '/oferta/implantologia', permanent: true },
+      { source: '/all-on-4-opole', destination: '/oferta/all-on-4', permanent: true },
+      { source: '/licowki-opole', destination: '/oferta/stomatologia-estetyczna', permanent: true },
+      { source: '/leczenie-kanalowe-opole-mikroskop', destination: '/oferta/leczenie-kanalowe', permanent: true },
+      // Warianty z prefiksem locale — strony renderowaly sie we wszystkich jezykach
+      // (obcojezyczne jako noindex), wiec same adresy nadal istnieja i trzeba je domknac.
+      { source: '/:locale(en|de|ua)/implanty-opole', destination: '/:locale/oferta/implantologia', permanent: true },
+      { source: '/:locale(en|de|ua)/all-on-4-opole', destination: '/:locale/oferta/all-on-4', permanent: true },
+      { source: '/:locale(en|de|ua)/licowki-opole', destination: '/:locale/oferta/stomatologia-estetyczna', permanent: true },
+      { source: '/:locale(en|de|ua)/leczenie-kanalowe-opole-mikroskop', destination: '/:locale/oferta/leczenie-kanalowe', permanent: true },
     ];
   },
 };

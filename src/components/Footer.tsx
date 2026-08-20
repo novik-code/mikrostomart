@@ -152,12 +152,12 @@ export default function Footer() {
                         <Link href="/oferta" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('services')}</Link>
                         <Link href="/oferta/implantologia" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('implants')}</Link>
                         <Link href="/oferta/all-on-4" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('allon4')}</Link>
-                        <Link href="/implanty-opole" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('implantyOpole')}</Link>
-                        <Link href="/all-on-4-opole" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('allOn4Opole')}</Link>
-                        <Link href="/licowki-opole" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('licowkiOpole')}</Link>
+                        {/* 2026-08-20: usuniete linki do /implanty-opole, /all-on-4-opole,
+                            /licowki-opole i /leczenie-kanalowe-opole-mikroskop — strony scalone
+                            z odpowiednikami /oferta/*, ktore sa w tej liscie wyzej. Zostawienie ich
+                            zrobiloby sitewide linki do przekierowan. */}
                         <Link href="/metamorfoza-usmiechu-opole" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('metamorfozaUsmiechuOpole')}</Link>
                         <Link href="/oferta/leczenie-kanalowe" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('rootCanal')}</Link>
-                        <Link href="/leczenie-kanalowe-opole-mikroskop" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('rootCanalOpoleMicroscope')}</Link>
                         <Link href="/oferta/laser" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('laser')}</Link>
                         <Link href="/oferta/stomatologia-estetyczna" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('aesthetic')}</Link>
                         <Link href="/oferta/ortodoncja" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.85rem' }} className="hover-primary">{tn('orthodontics')}</Link>

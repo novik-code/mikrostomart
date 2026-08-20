@@ -22,9 +22,19 @@ describe('linkifyHtml', () => {
     });
 
     it('prefers the geo landing in pl when a geo phrase is present', () => {
-        const out = linkifyHtml('<p>Robimy implanty Opole od 2016 roku.</p>', 'pl');
-        expect(out).toContain('href="/implanty-opole"');
-        expect(out).not.toContain('href="/oferta/implantologia"');
+        // 2026-08-20: implanty/All-on-4/endo/licowki nie maja juz geo-landingow
+        // (scalone z /oferta/*, audyt 16.08). Mechanizm preferencji geo zostaje
+        // i jest testowany na metamorfozach, ktore wlasny landing zachowaly.
+        const out = linkifyHtml('<p>Robimy metamorfoza uśmiechu Opole od 2016 roku.</p>', 'pl');
+        expect(out).toContain('href="/metamorfoza-usmiechu-opole"');
+        expect(out).not.toContain('href="/metamorfozy"');
+    });
+
+    it('links merged geo phrases to the surviving /oferta page', () => {
+        // Po scaleniu fraza lokalna musi nadal cokolwiek linkowac — do zwyciezcy.
+        const out = linkifyHtml('<p>Robimy implanty zębów Opole od 2016 roku.</p>', 'pl');
+        expect(out).toContain('href="/oferta/implantologia"');
+        expect(out).not.toContain('implanty-opole');
     });
 
     it('never links geo landings outside pl (foreign = noindex)', () => {

@@ -36,23 +36,23 @@ export interface LinkRule {
 // pozycji wygrywa geo (bardziej szczegółowa intencja lokalna).
 const RULES_PL: LinkRule[] = [
     // implanty
-    { id: 'implant', geo: true, path: '/implanty-opole', label: 'Implanty Opole',
-        phrases: ['implanty zębów Opole', 'implanty Opole', 'implant Opole', 'implantolog Opole'] },
+    // 2026-08-20: regula geo usunieta — /implanty-opole scalone z /oferta/implantologia
+    // (kanibalizacja, audyt 16.08). Frazy lokalne lapie regula ogolna ponizej przez
+    // 'implanty zębów' / 'implanty'.
     { id: 'implant', path: '/oferta/implantologia', label: 'Implantologia',
         phrases: ['implantologia', 'implantologii', 'implanty zębów', 'implant zęba', 'implantów', 'implantami', 'implantach', 'wszczepy', 'implanty'] },
     // All-on-X
-    { id: 'allon4', geo: true, path: '/all-on-4-opole', label: 'All-on-4 Opole',
-        phrases: ['All-on-4 Opole', 'All-on-6 Opole', 'All on 4 Opole'] },
+    // 2026-08-20: regula geo usunieta — /all-on-4-opole scalone z /oferta/all-on-4.
     { id: 'allon4', path: '/oferta/all-on-4', label: 'All-on-4 / All-on-6',
         phrases: ['All-on-4', 'All-on-6', 'All-on-X', 'All on 4', 'All on 6', 'stałe zęby na implantach', 'most na implantach'] },
     // endodoncja
-    { id: 'endo', geo: true, path: '/leczenie-kanalowe-opole-mikroskop', label: 'Endodoncja mikroskopowa Opole',
-        phrases: ['leczenie kanałowe Opole', 'endodoncja Opole', 'leczenie kanałowe pod mikroskopem'] },
+    // 2026-08-20: regula geo usunieta — /leczenie-kanalowe-opole-mikroskop scalone
+    // z /oferta/leczenie-kanalowe. Fraze 'leczenie kanałowe pod mikroskopem' dopisano
+    // do reguly ogolnej, zeby nie stracic dopasowania.
     { id: 'endo', path: '/oferta/leczenie-kanalowe', label: 'Leczenie kanałowe',
-        phrases: ['ponowne leczenie kanałowe', 'leczenie kanałowe', 'leczenia kanałowego', 'leczeniu kanałowym', 'endodoncja mikroskopowa', 'endodoncja', 'endodoncji', 're-endo'] },
+        phrases: ['leczenie kanałowe pod mikroskopem', 'ponowne leczenie kanałowe', 'leczenie kanałowe', 'leczenia kanałowego', 'leczeniu kanałowym', 'endodoncja mikroskopowa', 'endodoncja', 'endodoncji', 're-endo'] },
     // licówki / estetyka
-    { id: 'estetyka', geo: true, path: '/licowki-opole', label: 'Licówki Opole',
-        phrases: ['licówki Opole', 'licówka Opole'] },
+    // 2026-08-20: regula geo usunieta — /licowki-opole scalone z /oferta/stomatologia-estetyczna.
     { id: 'estetyka', path: '/oferta/stomatologia-estetyczna', label: 'Stomatologia estetyczna',
         phrases: ['licówki porcelanowe', 'licówki kompozytowe', 'licówek', 'licówki', 'licówka', 'bonding', 'wybielanie zębów', 'Digital Smile Design', 'DSD'] },
     // metamorfozy

@@ -212,40 +212,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.8,
     }];
 
-    // L-1 (2026-05-21 NIGHT+1): /implanty-opole — PL-only local geo page
-    // (foreign locales są noindex via layout.tsx — PL slug bez intencji organicznej w EN/DE/UA).
-    const implantyOpoleRoute: MetadataRoute.Sitemap = [{
-        url: `${BASE_URL}/implanty-opole`,
-        lastModified: lastModForPath('/implanty-opole'),
-        changeFrequency: 'monthly' as const,
-        priority: 0.9, // local geo + high commercial intent
-    }];
+    // 2026-08-20 (audyt 16.08, kanibalizacja): /implanty-opole scalone z
+    // /oferta/implantologia i przekierowane 301 — nie zglaszamy go w sitemapie.
+    // Analogicznie /all-on-4-opole, /licowki-opole i /leczenie-kanalowe-opole-mikroskop
+    // ponizej. Pozostale geo-landingi (metamorfoza, dentysta-centrum, obcojezyczne)
+    // nie mialy bliźniaka i zostaja.
+    const implantyOpoleRoute: MetadataRoute.Sitemap = [];
 
     // L-2 (2026-05-21 NIGHT+1): 2 dodatkowe PL-only local geo pages
     const localGeoRoutes: MetadataRoute.Sitemap = [
-        {
-            url: `${BASE_URL}/all-on-4-opole`,
-            lastModified: lastModForPath('/all-on-4-opole'),
-            changeFrequency: 'monthly' as const,
-            priority: 0.9, // Faza 2B: All-on-X geo, high commercial intent (premium money page)
-        },
-        {
-            url: `${BASE_URL}/licowki-opole`,
-            lastModified: lastModForPath('/licowki-opole'),
-            changeFrequency: 'monthly' as const,
-            priority: 0.9, // Faza 2D: licówki geo, premium aesthetic money keyword
-        },
         {
             url: `${BASE_URL}/metamorfoza-usmiechu-opole`,
             lastModified: lastModForPath('/metamorfoza-usmiechu-opole'),
             changeFrequency: 'monthly' as const,
             priority: 0.9, // Faza 2D: smile makeover geo, premium aesthetic money keyword
-        },
-        {
-            url: `${BASE_URL}/leczenie-kanalowe-opole-mikroskop`,
-            lastModified: lastModForPath('/leczenie-kanalowe-opole-mikroskop'),
-            changeFrequency: 'monthly' as const,
-            priority: 0.9, // specialty + high commercial intent (endodoncja Marcina specjalność)
         },
         {
             url: `${BASE_URL}/dentysta-opole-centrum`,
