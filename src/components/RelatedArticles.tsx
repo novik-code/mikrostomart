@@ -8,6 +8,7 @@
 
 import { supabase } from '@/lib/supabaseClient';
 import { relatedServiceLink } from '@/lib/internalLinks';
+import { isUrlSafeSlug } from '@/lib/safeSlug';
 
 type Kind = 'blog' | 'kb' | 'news';
 
@@ -59,7 +60,8 @@ async function fetchRelated(
 
     const pushRows = (rows: RelatedRow[] | null | undefined) => {
         for (const r of rows || []) {
-            if (!r?.slug || seen.has(r.slug) || items.length >= limit) continue;
+            // 2026-08-20: slugi z diakrytykami zwracaja 404 w routingu — nie linkuj.
+            if (!r?.slug || !isUrlSafeSlug(r.slug) || seen.has(r.slug) || items.length >= limit) continue;
             const title = kind === 'news'
                 ? (locale !== 'pl' && r[`title_${locale}`]) || r.title
                 : r.title;

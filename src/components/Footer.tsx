@@ -262,10 +262,14 @@ export default function Footer() {
                             Ten projekt ma udokumentowany problem z service workerem PWA serwujacym
                             app-shell dla nowych URL-i; pelne przeladowanie gwarantuje swieze ciasteczka
                             i przejscie przez middleware. */}
-                        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-                        <a href="/pracownik" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.7rem', opacity: 0.5, padding: '0.3rem 0.5rem' }}>{t('employee')}</a>
-                        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-                        <a href="/admin" style={{ color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.7rem', opacity: 0.5, padding: '0.3rem 0.5rem' }}>{t('admin')}</a>
+                        {/* 2026-08-20 (audyt SEO 16.08, "Footer"): byly to <a href> obecne na
+                            KAZDEJ stronie publicznej — crawler zbieral je jako linki do 307 +
+                            blokady robots. Przyciski zamiast kotwic zdejmuja link z crawla,
+                            a personel zachowuje wejscie w stopce. window.location.assign daje
+                            to samo pelne przeladowanie co wczesniej <a> (patrz komentarz wyzej
+                            o service workerze), wiec zachowanie dla ludzi jest bez zmian. */}
+                        <button type="button" onClick={() => window.location.assign('/pracownik')} style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.7rem', opacity: 0.5, padding: '0.3rem 0.5rem' }}>{t('employee')}</button>
+                        <button type="button" onClick={() => window.location.assign('/admin')} style={{ background: 'none', border: 'none', cursor: 'pointer', font: 'inherit', color: 'var(--color-text-muted)', textDecoration: 'none', fontSize: '0.7rem', opacity: 0.5, padding: '0.3rem 0.5rem' }}>{t('admin')}</button>
                     </div>
                 </details>
             </div>

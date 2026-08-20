@@ -541,6 +541,7 @@
         "callbackNote": "Wir rufen Sie mit einem vorgeschlagenen Behandlungsplan zurück"
     },
     "mapaBoluUI": {
+        "pageH1": "Zahnschmerz-Karte",
         "heroTitle": "Schmerzlandkarte",
         "heroSub": "Tippen Sie auf einen Zahn oder Bereich, der schmerzt — wir schlagen mögliche Ursachen vor und wann Sie einen Termin buchen sollten.",
         "disclaimer": "Dieses Tool dient nur zur Information und ersetzt keinen Facharztbesuch.",

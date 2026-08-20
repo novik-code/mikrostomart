@@ -116,7 +116,9 @@ const PROD_BRAND: BrandConfig = {
     region: 'opolskie',
     country: 'PL',
     mapQuery: 'Mikrostomart+Opole+ul.+Centralna+33a',
-    mapEmbedUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2533.8!2d17.866163!3d50.677682!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zNTDCsDQwJzM5LjciTiAxN8KwNTEnNTguMiJF!5e0!3m2!1spl!2spl',
+    // 2026-08-20: embed centrowany na rzeczywistym gabinecie (Centralna 33a, Chmielowice).
+    // Poprzednia wartosc wskazywala 50.677682;17.866163 — 3055 m na polnoc od gabinetu.
+    mapEmbedUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2528.274384666504!2d17.8678691!3d50.6502565!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x471053a479cde783%3A0xe544973347f32770!2sCentralna%2033a%2C%2045-940%20Opole!5e0!3m2!1spl!2spl!4v1714488800000!5m2!1spl!2spl',
 
     // Legal Entity
     legalEntity: {
@@ -167,8 +169,11 @@ const PROD_BRAND: BrandConfig = {
     // Geo
     geoRegion: 'PL-OP',
     geoPlacename: 'Opole',
-    geoPosition: '50.677682;17.866163',
-    icbm: '50.677682, 17.866163',
+    // 2026-08-20: zsynchronizowane z pinezka wizytowki Google (Places API).
+    // Stara wartosc 50.677682;17.866163 lezala 3055 m od gabinetu i szla do
+    // schematu LocalBusiness (geo), meta geo.position oraz ICBM.
+    geoPosition: '50.6502565;17.8678691',
+    icbm: '50.6502565, 17.8678691',
 
     // SMS
     smsSenderName: 'Mikrostomart',
@@ -329,6 +334,16 @@ export async function loadBrandFromDB(): Promise<BrandConfig> {
         delete dbBrand.schemaId;
         delete dbBrand.schemaImage;
         delete dbBrand.schemaLogo;
+        // 2026-08-20 (audyt SEO 16.08): to samo co wyzej, ale dla geolokalizacji.
+        // `site_settings.brand` trzymal stary geokod 50.677682;17.866163 — 3055 m
+        // od gabinetu. Skutek byl rozszczepiony: schema LocalBusiness czytala
+        // `brand` z pliku (poprawny), a meta `geo.position` i `ICBM` szly z bazy
+        // (bledny), wiec Google dostawal z jednej strony dwa rozne punkty.
+        // Wspolrzedne sa faktem o swiecie, nie ustawieniem edytowalnym w adminie —
+        // zrodlem prawdy zostaje kod, tak jak dla domeny i URL-i powyzej.
+        delete dbBrand.geoPosition;
+        delete dbBrand.icbm;
+        delete dbBrand.mapEmbedUrl;
         return { ...DEFAULT_BRAND, ...dbBrand };
     } catch {
         // SAFETY: on any error, return hardcoded defaults

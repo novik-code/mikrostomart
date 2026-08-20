@@ -4,6 +4,7 @@ import { Link } from '@/i18n/navigation';
 import Image from 'next/image';
 import RevealOnScroll from '@/components/RevealOnScroll';
 import { useTranslations } from 'next-intl';
+import { isUrlSafeSlug } from '@/lib/safeSlug';
 
 interface Article {
     id: string;
@@ -16,6 +17,8 @@ interface Article {
 
 export default function ArticleCarousel({ articles }: { articles: Article[] }) {
     const t = useTranslations('bazaWiedzy');
+    // 2026-08-20: slugi z diakrytykami zwracaja 404 w routingu — nie renderuj kafla.
+    articles = articles.filter((a) => isUrlSafeSlug(a.slug));
     return (
         <>
             {/* Custom Scrollbar and Responsive Carousel Item Styles */}

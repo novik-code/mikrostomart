@@ -541,6 +541,7 @@
         "callbackNote": "We'll call you back with a suggested treatment plan"
     },
     "mapaBoluUI": {
+        "pageH1": "Tooth Pain Map",
         "heroTitle": "Pain Map",
         "heroSub": "Tap a tooth or area that hurts — we'll suggest possible causes and when to book a visit.",
         "disclaimer": "This tool is informational and does not replace a specialist visit.",

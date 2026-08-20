@@ -15,8 +15,11 @@ export default function ContactPage() {
 
     // Maps embed URL: prefer brand config, then env var, then isDemoMode fallback
     const DEMO_MAP = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2443.907!2d21.012229!3d52.229676!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x471ecc669a869f01%3A0x72f0be2a88ead3fc!2sWarszawa!5e0!3m2!1spl!2spl";
-    const PROD_MAP  = "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2528.274384666504!2d17.86616297693526!3d50.677682371636184!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x471053a479cde783%3A0xe544973347f32770!2sCentralna%2033a%2C%2045-940%20Opole!5e0!3m2!1spl!2spl!4v1714488800000!5m2!1spl!2spl";
-    const mapSrc = (brand as any).mapsEmbedUrl || (isDemoMode ? DEMO_MAP : PROD_MAP);
+    // 2026-08-20: jedno zrodlo prawdy dla embeda — brandConfig.mapEmbedUrl.
+    // Wczesniej czytano `mapsEmbedUrl` (literowka, pole nie istnieje), wiec ta
+    // sciezka nigdy nie dzialala i zawsze schodzila do zaszytego PROD_MAP
+    // wycentrowanego 3 km od gabinetu.
+    const mapSrc = isDemoMode ? DEMO_MAP : brand.mapEmbedUrl;
 
     const phone1Tel = formatPhoneForTel(brand.phone1);
     const phone2Tel = formatPhoneForTel(brand.phone2);

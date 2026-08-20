@@ -210,7 +210,22 @@ export async function middleware(request: NextRequest) {
         }
 
         // Patient zone doesn't need Supabase auth — apply intl + security
-        return addSecurityHeaders(intlMiddleware(request));
+        const patientResponse = addSecurityHeaders(intlMiddleware(request));
+        // 2026-08-20 (audyt SEO 16.08): crawler wykryl /strefa-pacjenta jako URL
+        // indexowalny (brak H1, 37 slow) MIMO wpisu w robots.txt. Powod: regula
+        // brzmi `Disallow: /strefa-pacjenta/` — ZE SLASZEM — wiec goly URL bez
+        // slasha do niej nie pasuje i jest w pelni crawlowalny.
+        //
+        // Zostawiamy robots.txt bez zmian (poddrzewo jest za logowaniem i nie ma
+        // powodu go pobierac) i domykamy sama luke naglowkiem. To sie skalda:
+        // goly URL jest pobieralny, wiec Google ZOBACZY X-Robots-Tag i wyrzuci go
+        // z indeksu. Gdyby byl zablokowany w robots.txt, naglowek bylby martwy —
+        // robots.txt zabrania POBIERANIA, a nie INDEKSOWANIA.
+        //
+        // Naglowek zamiast `metadata` takze dlatego, ze layout strefy pacjenta jest
+        // komponentem klienckim i nie moze eksportowac metadanych.
+        patientResponse.headers.set('X-Robots-Tag', 'noindex, nofollow');
+        return patientResponse;
     }
 
     // ─── Non-locale paths (admin, pracownik, api, etc.): only Supabase auth ──

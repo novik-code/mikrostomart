@@ -711,6 +711,7 @@
         "callbackNote": "Oddzwonimy z proponowanym planem leczenia"
     },
     "mapaBoluUI": {
+        "pageH1": "Mapa bólu zębów",
         "heroTitle": "Mapa Bólu",
         "heroSub": "Dotknij ząb lub obszar, który Cię boli — podpowiemy, co może być przyczyną i kiedy warto umówić wizytę.",
         "disclaimer": "Narzędzie ma charakter informacyjny i nie zastępuje wizyty u specjalisty.",
