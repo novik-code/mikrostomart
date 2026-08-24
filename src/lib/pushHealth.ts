@@ -89,6 +89,59 @@ export async function recordPushPath(
 }
 
 /**
+ * Ile godzin po terminie zadanie bez ANI JEDNEJ próby pusha uznajemy za zaniedbane.
+ *
+ * Cisza nocna kończy się o 07:00, a `careflow-push` chodzi co 5 minut od 05:00 UTC,
+ * więc dwie godziny to zapas ponad ćwierć setki przebiegów. Górna granica to
+ * `GRACE_HOURS` (12) z tego crona: powyżej niej zadanie i tak zamyka się samo jako
+ * `skipped_at` i przestaje być sygnałem o kanale.
+ */
+const ZANIEDBANE_PO_H = 2;
+const GRACE_H = 12;
+
+/**
+ * Sondy dla ścieżek ZDARZENIOWYCH — odpowiadają na pytanie „czy kanał ZAWIÓDŁ",
+ * a nie „czy było cicho".
+ *
+ * 🔴 PO CO TO ISTNIEJE. `careflow_task` miała `max_silence_minutes = 180` i była
+ * przez to traktowana jak ścieżka CYKLICZNA — a jest zdarzeniowa: odzywa się tylko,
+ * gdy któryś pacjent ma akurat dawkę. Skutek był strukturalny, nie losowy:
+ * **sama cisza nocna (00:00–07:00 = 420 minut) to 2,3× próg**, a alarm chodzi o 09:00.
+ * Zdrowa ścieżka alarmowała więc KAŻDEGO RANKA — zmierzone 24.08: cisza 801 minut
+ * przy progu 180, mimo że poprzedniego dnia wszystko zadziałało.
+ *
+ * 🔑 Alarmu NIE zdejmujemy przez `max_silence_minutes = NULL`. To ukryłoby realną
+ * awarię kanału, a rejestr istnieje właśnie po to, żeby ją widzieć. Zmieniamy PYTANIE:
+ * zamiast zegara patrzymy, czy jest ZALEGŁY KANDYDAT, którego nie powiadomiliśmy.
+ */
+const SONDY_ZDARZENIOWE: Record<string, () => Promise<{ zaniedbane: number } | null>> = {
+    careflow_task: async () => {
+        const teraz = Date.now();
+        const gorna = new Date(teraz - ZANIEDBANE_PO_H * 3600_000).toISOString();
+        const dolna = new Date(teraz - GRACE_H * 3600_000).toISOString();
+
+        const { data, error } = await supabase
+            .from('care_tasks')
+            .select('id')
+            .is('completed_at', null)
+            .is('skipped_at', null)
+            .eq('push_sent_count', 0)
+            .lt('scheduled_at', gorna)
+            .gt('scheduled_at', dolna)
+            .limit(50);
+
+        // 🪤 Błąd odczytu NIE jest dowodem, że wszystko gra. Zwracamy `null`, czyli
+        // „nie wiem" — wołający zostawia wtedy stary warunek zegarowy zamiast
+        // po cichu wygasić alarm. Tak samo jak przy `getTwoFactorStatus` (fail-closed).
+        if (error) {
+            console.error('[PushHealth] Sonda careflow_task:', error.message);
+            return null;
+        }
+        return { zaniedbane: (data ?? []).length };
+    },
+};
+
+/**
  * Ścieżki, które milczą dłużej, niż powinny.
  *
  * Bierzemy pod uwagę WYŁĄCZNIE wiersze z ustawionym `max_silence_minutes` — dla ścieżek
@@ -133,6 +186,27 @@ export async function findSilentPushPaths(): Promise<
          * pierwszego odbiorcę", a nie „kanał padł".
          */
         if (!row.last_attempt_at) continue;
+
+        /**
+         * Ścieżka ZDARZENIOWA z sondą — zegar jej nie dotyczy.
+         * `null` z sondy = nie udało się sprawdzić; wtedy zostawiamy stary warunek
+         * zegarowy, bo lepszy alarm nadmiarowy niż cicho zgaszony.
+         */
+        const sonda = SONDY_ZDARZENIOWE[row.path_key];
+        if (sonda) {
+            const wynik = await sonda();
+            if (wynik !== null) {
+                if (wynik.zaniedbane > 0) {
+                    out.push({
+                        path_key: row.path_key,
+                        label: row.label,
+                        silentMinutes: null,
+                        lastError: `zaległe zadania bez próby pusha: ${wynik.zaniedbane}`,
+                    });
+                }
+                continue;
+            }
+        }
 
         // Podjęta, ale nigdy nieudana — to JEST awaria (są kandydaci, brak sukcesów).
         const silent = row.last_success_at
