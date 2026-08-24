@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
-import { removeDevice, renameDevice } from '@/lib/twoFactorService';
+import { removeDevice, renameDevice, MFA_RATE_LIMITED } from '@/lib/twoFactorService';
 import { clearMfaSessionCookie } from '@/lib/mfaSession';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,12 +40,30 @@ export async function DELETE(
 
     const result = await removeDevice(auth.user.id, deviceId, code);
     if (!result.ok) {
-        const status = result.error === 'invalid_code' ? 400
+        const status = result.error === MFA_RATE_LIMITED ? 429
+            : result.error === 'invalid_code' ? 400
             : result.error === 'device_not_found' ? 404
             : result.error === 'employee_not_found' ? 404
             : 500;
-        return NextResponse.json({ error: result.error }, { status });
+        return NextResponse.json(
+            { error: result.error },
+            // Bez `Retry-After` klient nie wie, ile czekać, i wraca po sekundzie —
+            // czyli dławik hamuje serwer, a człowieka zostawia w pętli.
+            { status, ...(status === 429 ? { headers: { 'Retry-After': '900' } } : {}) },
+        );
     }
+
+    // Ślad w audycie. `allDisabled` = to było OSTATNIE urządzenie, czyli operacja
+    // równoważna wyłączeniu 2FA — dlatego leci w metadanych, a nie ginie.
+    await logAudit({
+        userId: auth.user.id,
+        userEmail: auth.user.email || '',
+        action: 'mfa_device_removed',
+        resourceType: 'two_factor',
+        resourceId: deviceId,
+        metadata: { allDisabled: result.allDisabled },
+        request,
+    });
 
     if (result.allDisabled) {
         await clearMfaSessionCookie();

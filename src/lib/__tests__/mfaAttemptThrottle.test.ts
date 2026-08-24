@@ -65,6 +65,36 @@ describe('Dławik: przy przekroczeniu progu odmawia PRZED odczytem sekretu', () 
         expect(fromMock).not.toHaveBeenCalled();
     });
 
+    /**
+     * 🔴 SEDNO POPRAWKI Z 24.08 — operacje NISZCZĄCE drugi składnik.
+     *
+     * Strażnik okablowania niżej jest STATYCZNY (czyta plik). Te trzy testy są
+     * WYKONANIEM: wołają realne funkcje przy odmowie limitera i sprawdzają, że nie
+     * doszło do ANI JEDNEGO zapytania do bazy. Bez nich `guardMfaAttempts` mogłoby
+     * stać w pliku i nic nie robić — a strażnik świeciłby na zielono.
+     */
+    it.each([
+        ['disableAll', (m: Record<string, Function>) => m.disableAll(USER, '123456')],
+        ['removeDevice', (m: Record<string, Function>) => m.removeDevice(USER, 'dev-1', '123456')],
+        ['regenerateBackupCodes', (m: Record<string, Function>) => m.regenerateBackupCodes(USER, '123456')],
+    ])('%s — odmawia PRZED odczytem, kubełek WSPÓLNY z logowaniem', async (_nazwa, wywolaj) => {
+        checkRateLimitMock.mockResolvedValue({ allowed: false, remaining: 0 });
+        const mod = await import('@/lib/twoFactorService');
+
+        const res = await wywolaj(mod as unknown as Record<string, Function>);
+
+        expect(res).toEqual({ ok: false, error: mod.MFA_RATE_LIMITED });
+        /**
+         * 🔑 Kubełek `mfa:totp:<userId>` — TEN SAM co `/challenge`, świadomie.
+         * Osobny znaczyłby, że po wyczerpaniu 10 prób na logowaniu wystarczy
+         * przełączyć się na wyłączanie 2FA i dostać kolejne 10. Limit dotyczy
+         * KONTA, nie trasy.
+         */
+        expect(checkRateLimitMock).toHaveBeenCalledWith(`mfa:totp:${USER}`, 10, 15 * 60_000);
+        // Dławik przed odczytem — inaczej każda próba i tak kosztuje bazę i TOTP.
+        expect(fromMock, 'dławik przepuścił żądanie do bazy').not.toHaveBeenCalled();
+    });
+
     it('poniżej progu przepuszcza dalej (dławik nie blokuje normalnej pracy)', async () => {
         checkRateLimitMock.mockResolvedValue({ allowed: true, remaining: 9 });
         fromMock.mockReturnValue({
@@ -89,7 +119,18 @@ describe('Strażnik okablowania — dławik obejmuje WSZYSTKIE wejścia', () => 
         // 🪤 Strażnik przypięty do JEDNEJ trasy powiela błąd, któremu ma zapobiegać —
         // ta klasa pomyłki wróciła w tym projekcie trzy razy przy pushu. Dlatego
         // sprawdzamy każdą funkcję z osobna, a nie „czy gdziekolwiek jest dławik".
-        const funkcje = ['verifyAndEnableDevice', 'verifyChallenge', 'verifyBackupChallenge', 'verifyAndEnable'];
+        /**
+         * 🔴 2026-08-24 — lista urosła o TRZY pozycje i to jest sedno tej poprawki.
+         * Dławik obejmował wyłącznie ścieżki NADAJĄCE dostęp (logowanie, włączenie 2FA).
+         * Operacje NISZCZĄCE drugi składnik — wyłączenie go, usunięcie urządzenia,
+         * przegenerowanie kodów zapasowych — sprawdzały kod BEZ ograniczeń.
+         * Napastnik ze skradzionym hasłem, czyli w scenariuszu, dla którego 2FA
+         * istnieje, mógł zgadywać sześć cyfr bez końca i po prostu je WYŁĄCZYĆ.
+         */
+        const funkcje = [
+            'verifyAndEnableDevice', 'verifyChallenge', 'verifyBackupChallenge', 'verifyAndEnable',
+            'removeDevice', 'disableAll', 'regenerateBackupCodes',
+        ];
         const bez: string[] = [];
         for (const fn of funkcje) {
             const i = s.indexOf(`export async function ${fn}(`);
@@ -105,6 +146,12 @@ describe('Strażnik okablowania — dławik obejmuje WSZYSTKIE wejścia', () => 
             'src/app/api/auth/2fa/challenge/route.ts',
             'src/app/api/auth/2fa/verify/route.ts',
             'src/app/api/auth/2fa/devices/[id]/verify/route.ts',
+            // Dołożone 24.08 razem z dławikiem operacji NISZCZĄCYCH. Bez mapowania
+            // oddawały `too_many_attempts` jako **500** — czyli dławik czytałby się
+            // jak awaria serwera i nikt by nie zrozumiał, co się stało.
+            'src/app/api/auth/2fa/disable/route.ts',
+            'src/app/api/auth/2fa/regenerate-backup-codes/route.ts',
+            'src/app/api/auth/2fa/devices/[id]/route.ts',
         ];
         for (const t of trasy) {
             const s = readFileSync(join(process.cwd(), t), 'utf8');

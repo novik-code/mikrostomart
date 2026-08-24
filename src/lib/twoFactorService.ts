@@ -374,6 +374,11 @@ export async function removeDevice(
     deviceId: string,
     proofCode: string
 ): Promise<{ ok: true; allDisabled: boolean } | { ok: false; error: string }> {
+    // Dławik: TEN SAM kubełek co logowanie — osobny dawałby świeże 10 prób po
+    // wyczerpaniu limitu na `/challenge`. Powód pełny: `mfaAttemptThrottle.test.ts`.
+    const throttle = await guardMfaAttempts(userId, 'totp');
+    if (!throttle.ok) return { ok: false, error: throttle.error };
+
     const { data: employee, error } = await supabase
         .from('employees')
         .select('id, totp_backup_codes')
@@ -654,6 +659,11 @@ export async function disableAll(
     userId: string,
     proofCode: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+    // Dławik: TEN SAM kubełek co logowanie — osobny dawałby świeże 10 prób po
+    // wyczerpaniu limitu na `/challenge`. Powód pełny: `mfaAttemptThrottle.test.ts`.
+    const throttle = await guardMfaAttempts(userId, 'totp');
+    if (!throttle.ok) return { ok: false, error: throttle.error };
+
     const { data: employee, error } = await supabase
         .from('employees')
         .select('id, totp_enabled, totp_backup_codes')
@@ -752,6 +762,11 @@ export async function regenerateBackupCodes(
     userId: string,
     currentCode: string
 ): Promise<{ ok: true; backupCodes: string[] } | { ok: false; error: string }> {
+    // Dławik: TEN SAM kubełek co logowanie — osobny dawałby świeże 10 prób po
+    // wyczerpaniu limitu na `/challenge`. Powód pełny: `mfaAttemptThrottle.test.ts`.
+    const throttle = await guardMfaAttempts(userId, 'totp');
+    if (!throttle.ok) return { ok: false, error: throttle.error };
+
     const { data: employee, error } = await supabase
         .from('employees')
         .select('id, totp_enabled')

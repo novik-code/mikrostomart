@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
-import { regenerateBackupCodes } from '@/lib/twoFactorService';
+import { regenerateBackupCodes, MFA_RATE_LIMITED } from '@/lib/twoFactorService';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,11 +30,26 @@ export async function POST(request: NextRequest) {
 
     const result = await regenerateBackupCodes(auth.user.id, body.code);
     if (!result.ok) {
-        const status = result.error === 'invalid_code' ? 400
+        const status = result.error === MFA_RATE_LIMITED ? 429
+            : result.error === 'invalid_code' ? 400
             : result.error === 'not_enabled' ? 400
             : 500;
-        return NextResponse.json({ error: result.error }, { status });
+        return NextResponse.json(
+            { error: result.error },
+            // Bez `Retry-After` klient nie wie, ile czekać, i wraca po sekundzie —
+            // czyli dławik hamuje serwer, a człowieka zostawia w pętli.
+            { status, ...(status === 429 ? { headers: { 'Retry-After': '900' } } : {}) },
+        );
     }
+
+    // Ślad w audycie: stare kody przestają działać, nowe zna wyłącznie ten, kto je zobaczył.
+    await logAudit({
+        userId: auth.user.id,
+        userEmail: auth.user.email || '',
+        action: 'mfa_backup_codes_regenerated',
+        resourceType: 'two_factor',
+        request,
+    });
 
     return NextResponse.json({ ok: true, backupCodes: result.backupCodes });
 }
