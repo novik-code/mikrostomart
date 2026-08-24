@@ -115,6 +115,72 @@ const GRACE_H = 12;
  * zamiast zegara patrzymy, czy jest ZALEGŁY KANDYDAT, którego nie powiadomiliśmy.
  */
 const SONDY_ZDARZENIOWE: Record<string, () => Promise<{ zaniedbane: number } | null>> = {
+    /**
+     * `appointment_reminder` — DRUGA sztuka tego samego defektu, znaleziona przy okazji.
+     *
+     * Ścieżka wygląda na cykliczną (przypomnienia idą codziennie), ale gałąź PUSH odzywa
+     * się wyłącznie wtedy, gdy odbiorca ma aplikację. Zmierzone na produkcji 24.08:
+     * wczoraj 17 przypomnień, **wszystkie SMS-em**; tylko JEDEN odbiorca miał konto,
+     * a ten jeden ma **zero tokenów push** (48 tokenów na całą bazę pacjentów).
+     * Push-first zadziałał więc POPRAWNIE — sprawdził, nie znalazł, zszedł na SMS.
+     * Rejestr notuje sukces tylko przy realnej wysyłce pusha, więc cisza rosła i alarm
+     * szedł. To znowu „było cicho", a nie „kanał zawiódł".
+     *
+     * 🔑 Pytanie, które ma sens: czy ktoś, kto MA token push, dostał mimo to SMS-a?
+     * To jest awaria push-first — czwarta odsłona tej samej klasy błędu wróciłaby
+     * dokładnie tak.
+     */
+    appointment_reminder: async () => {
+        const od = new Date(Date.now() - 26 * 3600_000).toISOString();
+
+        const { data: przypomnienia, error: e1 } = await supabase
+            .from('sms_reminders')
+            .select('patient_id, delivery_channel')
+            .eq('sms_type', 'reminder')
+            .not('patient_id', 'is', null)
+            .gte('sent_at', od)
+            .limit(200);
+        if (e1) {
+            console.error('[PushHealth] Sonda appointment_reminder (przypomnienia):', e1.message);
+            return null;
+        }
+        const smsem = (przypomnienia ?? []).filter(
+            (r) => (r as { delivery_channel?: string }).delivery_channel !== 'push',
+        );
+        if (smsem.length === 0) return { zaniedbane: 0 };
+
+        // UUID konta → prodentis_id (klucz, którym kluczowana jest tabela tokenów).
+        const uuidy = [...new Set(smsem.map((r) => (r as { patient_id: string }).patient_id))];
+        const { data: konta, error: e2 } = await supabase
+            .from('patients')
+            .select('prodentis_id')
+            .in('id', uuidy);
+        if (e2) {
+            console.error('[PushHealth] Sonda appointment_reminder (konta):', e2.message);
+            return null;
+        }
+        const pidy = (konta ?? [])
+            .map((k) => (k as { prodentis_id?: string }).prodentis_id)
+            .filter(Boolean) as string[];
+        if (pidy.length === 0) return { zaniedbane: 0 };
+
+        /**
+         * 🪤 `patient_push_tokens.patient_id` trzyma **prodentis id**, NIE UUID konta —
+         * mimo nazwy kolumny. Pomyłka tutaj daje zawsze zero trafień, czyli ciche
+         * „nikt nie ma apki" i sondę, która nigdy nie strzeli.
+         */
+        const { data: tokeny, error: e3 } = await supabase
+            .from('patient_push_tokens')
+            .select('patient_id')
+            .in('patient_id', pidy);
+        if (e3) {
+            console.error('[PushHealth] Sonda appointment_reminder (tokeny):', e3.message);
+            return null;
+        }
+        // Ma token, a dostał SMS-a → push-first zawiódł.
+        return { zaniedbane: (tokeny ?? []).length };
+    },
+
     careflow_task: async () => {
         const teraz = Date.now();
         const gorna = new Date(teraz - ZANIEDBANE_PO_H * 3600_000).toISOString();

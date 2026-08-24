@@ -17,15 +17,22 @@ let rows: unknown[];
 let zaniedbane: unknown[];
 /** Gdy ustawione — sonda dostaje BŁĄD zamiast danych (kontrola fail-safe). */
 let bladSondy: { message: string } | null;
+/** Tabele czytane przez sondę `appointment_reminder`. */
+let tabeleSondy: Record<string, unknown[]>;
 
 function makeQuery(tabela: string) {
     const q: Record<string, unknown> = {};
-    for (const m of ['select', 'eq', 'not', 'in', 'update', 'maybeSingle', 'is', 'lt', 'gt', 'limit'])
+    for (const m of ['select', 'eq', 'not', 'in', 'update', 'maybeSingle', 'is', 'lt', 'gt', 'gte', 'limit'])
         q[m] = () => q;
     q.then = (resolve: (v: unknown) => unknown) => {
         if (tabela === 'care_tasks') {
             return Promise.resolve(
                 bladSondy ? { data: null, error: bladSondy } : { data: zaniedbane, error: null },
+            ).then(resolve);
+        }
+        if (tabela in tabeleSondy) {
+            return Promise.resolve(
+                bladSondy ? { data: null, error: bladSondy } : { data: tabeleSondy[tabela], error: null },
             ).then(resolve);
         }
         return Promise.resolve({ data: rows, error: null }).then(resolve);
@@ -47,6 +54,7 @@ beforeEach(() => {
     rows = [];
     zaniedbane = [];
     bladSondy = null;
+    tabeleSondy = { sms_reminders: [], patients: [], patient_push_tokens: [] };
 });
 
 describe('findSilentPushPaths', () => {
@@ -181,5 +189,49 @@ describe('careflow_task — ścieżka ZDARZENIOWA: pytamy „czy kanał zawiód�
          * rodzina „jeden kod błędu na dwie przyczyny".
          */
         expect(await findSilentPushPaths()).toHaveLength(1);
+    });
+});
+
+describe('appointment_reminder — DRUGA sztuka tego samego defektu', () => {
+    const wiersz = () => [{
+        path_key: 'appointment_reminder',
+        label: 'Przypomnienia o wizytach',
+        max_silence_minutes: 1560,
+        last_attempt_at: ago(5591),
+        last_success_at: ago(5591),
+        last_error: null,
+    }];
+
+    it('🔴 SEDNO: cisza 4 dni, ale ZADEN odbiorca SMS-a nie ma tokenu push → BEZ alarmu', async () => {
+        rows = wiersz();
+        // 17 przypomnien SMS-em do jednego posiadacza konta, ktory NIE ma apki —
+        // dokladnie stan zmierzony na produkcji 24.08.
+        tabeleSondy = {
+            sms_reminders: [{ patient_id: 'u1', delivery_channel: 'sms' }],
+            patients: [{ prodentis_id: '0100001711' }],
+            patient_push_tokens: [],
+        };
+        const { findSilentPushPaths } = await import('../pushHealth');
+
+        /**
+         * Push-first zadziałał POPRAWNIE: sprawdził, nie znalazł tokenu, zszedł na SMS.
+         * Rejestr notuje sukces tylko przy realnej wysyłce pusha, więc cisza rosła —
+         * ale to „nie było kandydata z apką", nie „kanał padł".
+         */
+        expect(await findSilentPushPaths()).toEqual([]);
+    });
+
+    it('ale gdy odbiorca MA token push, a dostał SMS-a → alarmuje (awaria push-first)', async () => {
+        rows = wiersz();
+        tabeleSondy = {
+            sms_reminders: [{ patient_id: 'u1', delivery_channel: 'sms' }],
+            patients: [{ prodentis_id: '0100001711' }],
+            patient_push_tokens: [{ patient_id: '0100001711' }],
+        };
+        const { findSilentPushPaths } = await import('../pushHealth');
+
+        const out = await findSilentPushPaths();
+        expect(out).toHaveLength(1);
+        expect(out[0].path_key).toBe('appointment_reminder');
     });
 });
