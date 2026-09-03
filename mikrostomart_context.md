@@ -2480,6 +2480,68 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
+### 2026-09-03 (#2) — 🚨 DWIE DZIURY W REZERWACJI ONLINE: FAŁSZYWE „POTWIERDZONA" I SUBMIT STRZAŁKĄ
+
+> Commity **`c6fb2db`** + **`eb99d1c`**. ⏳ **NIEWYPCHNIĘTE.**
+> Bramki: `tsc` czysto · `vitest` **605/605** (55 plików, +8 nowych) · `next build` OK.
+> Źródło: pełny przegląd umawiania wizyt (8 osi, 159 ustaleń kluczowych), zrobiony przy okazji
+> korespondencji z deweloperem PMS o wolnych terminach.
+
+#### 🔴 (1) Pacjent dostawał „wizyta POTWIERDZONA", choć wizyty w grafiku NIE BYŁO
+`admin/online-bookings`: po `approve` nieudany zapis do Prodentisa **nie przerywał niczego** —
+status szedł na `approved` + `schedule_error`, a powiadomienie leciało na warunku
+`action === 'approve' || action === 'reject'`, **bez wglądu w wynik zapisu**. Pacjent dostawał
+SMS „została POTWIERDZONA. Do zobaczenia!", push i e-mail. Ten sam skutek dawał **brak klucza
+API** — wtedy kod nawet nie próbował zapisać. Błąd widział wyłącznie pracownik: `alert()`
+w chwili kliknięcia i czerwona plakietka.
+
+🔑 **Scenariusz, który to realizuje:** dwoje pacjentów na ten sam termin → recepcja zatwierdza
+oba → drugi zapis wraca z **409** → drugi pacjent przyjeżdża na wizytę, której nie ma w grafiku.
+
+Reguła po naprawie — **potwierdzamy tylko to, co realnie stoi w grafiku**: `approve` powiadamia
+przy udanym zapisie; `schedule` (ręczne ponowienie) powiadamia, gdy wizyta właśnie weszła;
+ponowienie na wizycie już zapisanej milczy (żaden drugi SMS); `reject` bez zmian.
+Decyzja wydzielona do `lib/onlineBookingNotify.ts`, żeby dała się **wykonać** w teście.
+**Cofka dowiedziona:** stary warunek wywala dokładnie te 2 z 8 asercji, które opisują usterkę.
+
+#### 🔴 (2) Strzałka „następny tydzień" wysyłała formularz — z pominięciem zgody RODO
+W kalendarzu nie było **ani jednego** `type="button"`, a komponent stoi wewnątrz `<form>` —
+czyli każdy przycisk był domyślnie `submit`. Kafelki dni i godzin ratował `preventDefault()`;
+strzałki tygodnia **nie**. Pacjent z wypełnionymi danymi i wybranym terminem, klikając „obejrzę
+następny tydzień", **wysyłał rezerwację**. Do tego `onSubmit` nie sprawdzał zgody RODO —
+pilnował jej wyłącznie `disabled` przycisku wysyłki, którego ta droga nie dotyka.
+
+Naprawa podwójna, bo to dwie różne dziury: `type="button"` + `preventDefault()` w strzałkach
+**oraz** bramka zgody na początku `onSubmit` (miejsce, przez które przechodzi KAŻDA droga
+wysłania — klik, Enter w polu, przycisk bez `type`). Nowy klucz `reservationForm.rodoRequired`
+w czterech locale, parytet 65/65/65/65.
+⚪ Przy okazji: przewijanie tygodni w przód nie miało **żadnego** ograniczenia — dołożone ~358 dni.
+
+**🔬 Dowód wykonaniem w obie strony** (dev, POST zablokowany w przeglądarce, żeby nieudana
+naprawa nie utworzyła prawdziwej rezerwacji w gabinecie):
+
+| kod | klik w strzałkę przy wypełnionym formularzu |
+|---|---|
+| stary | **`submit` za każdym razem** (2 kliknięcia = 2 submity) |
+| nowy | **0 submitów**, tydzień się przewija |
+
+🔑 Cofka pokazała przy okazji, że **bramka RODO działa jako drugi bezpiecznik**: przy starym
+kalendarzu formularz submitował się dwa razy, a POST nie wyszedł ani razu.
+
+#### ⚠️ Czego świadomie NIE zrobiłem
+Nie testowałem ścieżki wysyłki na produkcji — każdy taki test tworzy **prawdziwą rezerwację
+w gabinecie**. Stąd blokada `fetch` w teście lokalnym zamiast pomiaru na żywym systemie.
+
+#### Pliki
+- `src/lib/onlineBookingNotify.ts` (nowy) + `src/lib/__tests__/onlineBookingNotify.test.ts` (8 asercji)
+- `src/app/api/admin/online-bookings/route.ts`
+- `src/components/scheduler/AppointmentScheduler.tsx`, `src/components/ReservationForm.tsx`
+- `messages/{pl,en,de,ua}/common.json`
+
+> ⚠️ REQUIRES: brak migracji, brak nowych zmiennych środowiskowych.
+
+---
+
 ### 2026-09-03 — 🔢 LICZNIK NA STRONIE GŁÓWNEJ POKAZYWAŁ LICZBY Z FALLBACKU POD PLAKIETKĄ „LIVE"
 
 > Commity **`7d36c6d`** (naprawa) + **`dc6e473`** (odświeżenie fallbacku). ✅ **NA PRODUKCJI**
