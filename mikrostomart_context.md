@@ -1,6 +1,6 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-09-03 — 🔢 **LICZNIK NA STRONIE GŁÓWNEJ KŁAMAŁ POD PLAKIETKĄ „LIVE".** Sekcja „10 lat doświadczenia w liczbach" pokazywała hardcoded snapshot z 14.06 (1288/2304/6247), podczas gdy API i stan Reacta miały świeże 1378/2355/6417 — zmierzone na produkcji odczytem fibera obok DOM-u. Przyczyna: w `AnimatedCounter` stan `display` zapisywała **wyłącznie animacja count-up**, a efekt wychodził pierwszą linią przy `startedRef.current === true`; świeże dane przychodzą ~0,9 s (cache HIT) do ~7 s (MISS) po montowaniu, czyli po starcie animacji, więc zmiana wartości nie miała drogi do DOM-u. Naprawa `7d36c6d` + odświeżony fallback `dc6e473` (⏳ **niewypchnięte**), dowód w obie strony przy fallbacku rozjechanym z produkcją. 🪤 **Pierwsza wersja poprawki była niepełna i wyłapała ją dopiero kontrola negatywna** — gdyby fallback zgadzał się z produkcją, test pokazałby „naprawione". Szczegóły: „📝 Recent Changes" → 2026-09-03.
+> **Last Updated:** 2026-09-03 — 🔢 **LICZNIK NA STRONIE GŁÓWNEJ KŁAMAŁ POD PLAKIETKĄ „LIVE".** Sekcja „10 lat doświadczenia w liczbach" pokazywała hardcoded snapshot z 14.06 (1288/2304/6247), podczas gdy API i stan Reacta miały świeże 1378/2355/6417 — zmierzone na produkcji odczytem fibera obok DOM-u. Przyczyna: w `AnimatedCounter` stan `display` zapisywała **wyłącznie animacja count-up**, a efekt wychodził pierwszą linią przy `startedRef.current === true`; świeże dane przychodzą ~0,9 s (cache HIT) do ~7 s (MISS) po montowaniu, czyli po starcie animacji, więc zmiana wartości nie miała drogi do DOM-u. Naprawa `7d36c6d` + odświeżony fallback `dc6e473` — ✅ **NA PRODUKCJI** (`c04bddb`, zmierzone: DOM `1378/2355/6417` = stan Reacta, rozjazd zero), dowód w obie strony przy fallbacku rozjechanym z produkcją. 🪤 **Pierwsza wersja poprawki była niepełna i wyłapała ją dopiero kontrola negatywna** — gdyby fallback zgadzał się z produkcją, test pokazałby „naprawione". Szczegóły: „📝 Recent Changes" → 2026-09-03.
 >
 > **Last Updated:** 2026-09-03 — 🧾 **ZAMKNIĘTA LUKA W CHANGELOGU 17–24.08.** Przez trzy tygodnie ten plik kończył się na 13.08, a repo miało **dwanaście** commitów bez ani jednego wpisu — wszystkie powstały w sesjach nad APKĄ i ich opis leżał wyłącznie w `~/mikrostomart-app/CONTEXT.md`. Odtworzone z REALNYCH DIFFÓW pięć wpisów: **17.08** (kanał zgłoszeń z apki, mig 199 + trzy trasy), **18.08** (trzy miny w plikach migracji 051/055/096 + Sentry w polityce RODO), **20.08** (wdrożenie audytu SEO: geokod, kanibalizacja, metadane, snippety), **21.08** (`/api/patients/chat/unread` dla pulpitu apki), **24.08** (dławik 2FA na operacjach NISZCZĄCYCH + rejestr pusha pytał o złą rzecz). Każdy wpis przeszedł adwersaryjną weryfikację twierdzenie po twierdzeniu — **13 poprawek, w tym jedna krytyczna** (fałszywa teza, że mig 199 nie istniała jeszcze w drzewie `7d2880f`). 🪤 **To klasa błędu, nie wpadka:** zmiana w webie zrobiona przy pracy nad apką ląduje w kontekście APKI i znika z kontekstu WEBA — wpis ma iść do OBU plików w tej samej sesji. **Stan zmierzony 03.09, nie przepisany:** `main` = `origin/main` = **`fa6f799`** i **produkcja stoi na tym samym SHA** (`/api/health` → `checks.environment.deployment`; 🪤 apex oddaje 308 na `www`, `curl` bez `-L` zwraca gołe „Redirecting…"); `vitest` **597/597** w 54 plikach; migracje wgrane **do 199** (`app_reports` odczytana na produkcji, kontrola negatywna: nieistniejąca tabela → 404), **wolny numer 200**. 🔐 **2FA: termin 1 IX MINĄŁ — 13 z 14 pracowników MA, została jedna osoba** (dwie niezależne drogi pomiaru, rozjazd zero; 🪤 kolumna nazywa się `enabled`, NIE `is_active`). ⚪ `/api/health` oddaje `degraded` z powodu `crons: warning` — 11 z 21 „stale", z czego 7 to „Awaiting first monitored run" od 184 dni; **to rejestr bez wpisu, nie martwe crony** — ta sama klasa co fałszywe alarmy pusha z 24.08.
 >
@@ -2482,7 +2482,8 @@ NODE_ENV=production
 
 ### 2026-09-03 — 🔢 LICZNIK NA STRONIE GŁÓWNEJ POKAZYWAŁ LICZBY Z FALLBACKU POD PLAKIETKĄ „LIVE"
 
-> Commity **`7d36c6d`** (naprawa) + **`dc6e473`** (odświeżenie fallbacku). ⏳ **NIEWYPCHNIĘTE.**
+> Commity **`7d36c6d`** (naprawa) + **`dc6e473`** (odświeżenie fallbacku). ✅ **NA PRODUKCJI**
+> jako `c04bddb` — SHA zrównało się przy **1. odpytaniu** `/api/health`.
 > Bramki: `tsc` czysto · `vitest` **597/597** (54 pliki) · `next build` OK.
 > Zgłoszenie właściciela: „licznik pacjentów i procedur — dane od jakiegoś czasu się nie
 > zmieniają, mimo że pokazuje, że są live".
@@ -2549,11 +2550,22 @@ Warunek testowy: `clinic.implants` w fallbacku ustawione **celowo na 111**, żyw
 | **stary** | **111** | **111** | 🟢 LIVE |
 | **nowy** | **1 378** | **1 378** (i po powrocie) | 🟢 LIVE |
 
-⚠️ **Czego NIE udowodniłem:** że sama animacja count-up nadal wizualnie „jedzie" — panel
-podglądu był schowany, a wtedy `requestAnimationFrame` jest dławiony przez przeglądarkę
-i klatek nie da się rzetelnie zmierzyć. Mechanizm jest nietknięty (efekt nadal robi
-`setDisplay(0)` i ramp), ale to jedyna rzecz w tej zmianie oparta na czytaniu kodu,
-nie na pomiarze — **do sprawdzenia okiem po deployu**.
+#### ✅ Weryfikacja PO DEPLOYU (produkcja `c04bddb`)
+| co | wynik |
+|---|---|
+| DOM | **1 378 / 2 355 / 6 417** |
+| stan Reacta (fiber) | **1378 / 6417**, `source: live` |
+| rozjazd stan ↔ DOM | **ZERO** (przed naprawą: 1378 w stanie, 1288 w DOM) |
+
+⚠️ **Czego nadal NIE udowodniłem pomiarem:** że animacja count-up wizualnie „jedzie".
+Trzy podejścia (MutationObserver, próbkowanie co 60–120 ms, zrzut ekranu) oddały zero —
+i to jest **znany artefakt narzędzia, nie objaw usterki**: wewnętrzna przeglądarka
+**zamraża animacje CSS i dławi `requestAnimationFrame`**. Dowód, że to narzędzie:
+karty mają klasę `reveal fade-up **active**` (czyli `RevealOnScroll` zadziałał), a mimo to
+`opacity: 0` i `translateY(40px)` — przejście CSS nigdy nie ruszyło, stąd czarny zrzut.
+Opisane w pamięci AI: `reference_headless_preview_transition_freeze.md`.
+🔑 Sam mechanizm animacji jest w kodzie nietknięty (`setDisplay(0)` + ramp) — zmieniło się
+wyłącznie to, SKĄD `step` czyta cel. Sprawdzenie okiem zostaje przy właścicielu.
 
 #### 🔁 Policzeni wszyscy wywołujący
 `grep` po repo: **nie ma** innej kopii `AnimatedCounter`, `easeOutQuint` ani żadnego innego
