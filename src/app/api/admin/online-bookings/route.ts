@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getDoctorInfo } from '@/lib/doctorMapping';
 import { requireAdmin } from '@/lib/authGuards';
+import { decideBookingNotification } from '@/lib/onlineBookingNotify';
 import { sendTranslatedPushToUser } from '@/lib/pushService';
 import { sendSMS } from '@/lib/smsService';
 import { sendBookingConfirmedEmail, sendBookingRejectedEmail } from '@/lib/emailService';
@@ -230,6 +231,9 @@ export async function PUT(request: Request) {
         const now = new Date().toISOString();
         const updateData: BookingUpdate = { updated_at: now };
         let scheduleResult: { success: boolean; appointmentId?: string; error?: string } | null = null;
+        // Czy wizyta stała w grafiku JUŻ PRZED tą operacją — chroni przed drugim SMS-em
+        // przy ponownym kliknięciu „zapisz w grafiku" na rezerwacji, która już tam jest.
+        let scheduledBefore = false;
         const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
 
         switch (action) {
@@ -270,6 +274,8 @@ export async function PUT(request: Request) {
                     .select('*')
                     .eq('id', id)
                     .single();
+
+                scheduledBefore = bookingForSchedule?.schedule_status === 'scheduled';
 
                 if (bookingForSchedule && PRODENTIS_KEY) {
                     scheduleResult = await scheduleInProdentis(bookingForSchedule);
@@ -325,10 +331,26 @@ export async function PUT(request: Request) {
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        // ── Notify patient on approve/reject (fire-and-forget) ──
-        if (data && (action === 'approve' || action === 'reject')) {
-            notifyPatientAboutBooking(data, action).catch(err =>
+        // ── Powiadomienie pacjenta (fire-and-forget) ──
+        // 🔴 2026-09-03: warunek PATRZY TERAZ NA WYNIK ZAPISU W GRAFIKU. Wcześniej brzmiał
+        // `action === 'approve' || action === 'reject'` i wysyłał „wizyta POTWIERDZONA"
+        // także wtedy, gdy zapis do Prodentisa padł albo nie został nawet podjęty (brak
+        // klucza API) — pacjent przyjeżdżał na wizytę, której w grafiku nie ma.
+        // Reguła i jej uzasadnienie: `lib/onlineBookingNotify.ts` (+ 8 asercji strażnika).
+        const notification = decideBookingNotification({
+            action,
+            scheduledNow: scheduleResult?.success === true,
+            scheduledBefore,
+        });
+        if (data && notification) {
+            notifyPatientAboutBooking(data, notification === 'confirmed' ? 'approve' : 'reject').catch(err =>
                 console.error('[OnlineBookings] Patient notification error:', err)
+            );
+        } else if (data && action === 'approve') {
+            console.warn(
+                `[OnlineBookings] Zatwierdzono ${id}, ale wizyta NIE weszła do grafiku ` +
+                `(${updateData.schedule_error ?? 'brak powodu'}) — pacjent NIE dostał potwierdzenia. ` +
+                `Po ponowieniu zapisu ('schedule') potwierdzenie pójdzie automatycznie.`
             );
         }
 
