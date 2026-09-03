@@ -79,6 +79,32 @@ function AnimatedCounter({ value }: { value: number }) {
     // progressive enhancement uruchamiany tylko po stronie klienta (IntersectionObserver).
     const [display, setDisplay] = useState(value);
     const startedRef = useRef(false);
+    // 🔴 FIX 2026-09-03: cel animacji trzymamy w REFIE, nie w domknięciu `step`.
+    // Bez tego licznik dojeżdżał do liczby, która była aktualna w chwili STARTU
+    // animacji, i nic nie potrafiło go już ruszyć.
+    const targetRef = useRef(value);
+    // Czy count-up trwa W TEJ CHWILI. Rozróżnienie jest konieczne: „animacja się już
+    // odbyła" i „animacja leci" wymagają przeciwnych zachowań przy świeżych danych.
+    const runningRef = useRef(false);
+
+    // 🔴 FIX 2026-09-03 — sedno usterki „liczby stoją, a plakietka mówi LIVE".
+    // `display` był zapisywany WYŁĄCZNIE przez animację, a efekt niżej wychodzi
+    // natychmiast przy `startedRef.current === true`. Świeże dane z
+    // /api/clinic-stats przychodzą PO montowaniu (zmierzone: ~0,9 s przy trafieniu
+    // w cache brzegowy, ~7 s przy pudle), czyli praktycznie zawsze PO tym, jak
+    // count-up zdążył wystartować i zablokować efekt. Skutek: stan komponentu miał
+    // liczby żywe (1378/2355/6417), a w DOM stały liczby z fallbacku (1288/2304/6247)
+    // — zmierzone na produkcji 2026-09-03 odczytem fibera Reacta obok DOM-u.
+    // Ten efekt jest jedynym miejscem, które dociąga licznik do świeżej wartości.
+    // 🪤 Kontrola negatywna (fallback celowo ustawiony na 111 przy żywym 1378) pokazała,
+    // że warunek `if (startedRef.current)` NIE WYSTARCZA: gdy świeże dane przyjdą, zanim
+    // sekcja wjedzie w widok, animacja jeszcze nie ruszyła, więc licznik zostawał na
+    // liczbie z montowania. Aktualizujemy zawsze, GDY NIE TRWA animacja — a gdy trwa,
+    // `step` i tak czyta cel z `targetRef` i dojedzie do świeżej wartości.
+    useEffect(() => {
+        targetRef.current = value;
+        if (!runningRef.current) setDisplay(value);
+    }, [value]);
 
     useEffect(() => {
         const node = ref.current;
@@ -92,6 +118,7 @@ function AnimatedCounter({ value }: { value: number }) {
                 for (const entry of entries) {
                     if (entry.isIntersecting && !startedRef.current) {
                         startedRef.current = true;
+                        runningRef.current = true;
                         io.disconnect();
                         // Client-only: reset do 0 i animuj w górę (SSR już wyrenderował
                         // realną liczbę, więc crawlery/no-JS jej nie tracą).
@@ -104,8 +131,15 @@ function AnimatedCounter({ value }: { value: number }) {
                             const t = Math.min(1, elapsed / duration);
                             // easeOutQuint dla snappy finish
                             const eased = 1 - Math.pow(1 - t, 5);
-                            setDisplay(Math.round(value * eased));
-                            if (t < 1) requestAnimationFrame(step);
+                            // Cel czytany z refa: jeśli świeże dane przyjdą W TRAKCIE
+                            // animacji, licznik dojedzie do NOWEJ liczby, nie do starej.
+                            setDisplay(Math.round(targetRef.current * eased));
+                            if (t < 1) {
+                                requestAnimationFrame(step);
+                            } else {
+                                runningRef.current = false;
+                                setDisplay(targetRef.current);
+                            }
                         };
                         requestAnimationFrame(step);
                     }
@@ -115,7 +149,12 @@ function AnimatedCounter({ value }: { value: number }) {
         );
         io.observe(node);
         return () => io.disconnect();
-    }, [value]);
+        // Celowo pusta lista zależności: obserwator zakłada się RAZ, a zmiany
+        // `value` obsługuje efekt synchronizujący wyżej. Wcześniej `[value]`
+        // wyglądało na zabezpieczenie, ale przy `startedRef.current === true`
+        // efekt i tak wychodził pierwszą linią — i to była cała usterka.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     return (
         <span ref={ref}>
