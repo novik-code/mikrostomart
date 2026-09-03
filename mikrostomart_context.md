@@ -1,6 +1,10 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-08-16 — 🔒 **W3–W7 WDROŻONE LOKALNIE, NIEWYPCHNIĘTE** (3 commity ponad `origin/main`; push na `main` = auto-deploy na produkcję, więc moment wybiera właściciel). **W3** cron `push-receipts` kasuje tokeny personelu bez odświeżenia >7 dni — token PRZEŻYWAŁ wylogowanie bez sieci, a `DeviceNotRegistered` tego nie łapie (apka zainstalowana, token żywy, tylko nikt się nim nie loguje). 🔑 Próg z POMIARU: 8 z 11 tokenów odświeża się w ~2 dni, 3 stały 9,8/11,8/17,8 dnia. ⚪ Świadomie NIE dotyczy `patient_push_tokens`. **W4** warianty POST dla `patient-search` i listy poczty — `q`/`search` to zwykle NAZWISKO PACJENTA, a w GET ląduje w adresie i w logach brzegowych Vercela, poza rejestrem RODO; GET-y ZOSTAJĄ dla binarek 1.1/1.2. ⏳ Przełączenie apki na POST dopiero PO deployu weba. **W5** idempotencja czatu pacjenta — migracja **198** (client_msg_id + indeks CZĘŚCIOWY) + obsługa 23505; zerwana sieć + „ponów" dawała TĘ SAMĄ wiadomość dwa razy u recepcji (ta sama klasa domknięta w czacie zespołu mig 183). **W6** limity na `/api/games/*`. **W7** `/api/cart/calculate-total`: publiczna trasa TWORZĄCA WIERSZ w tabeli zamówień bez limitu i bez filtra — `customerDetails` szło jako dowolny obiekt wprost do kolumny JSON; teraz limit fail-closed + whitelist 8 pól (`lib/cartCustomer.ts`) + granica 50 pozycji. 🛡️ Strażnik `webHardeningW3W7.test.ts` (15 asercji) z **dowiedzioną cofką** (2 padają bez naprawy); filtr testowany WYKONANIEM, nie odczytem pliku. ✅ **Migracja 198 WGRANA I ZWERYFIKOWANA na produkcji** (16.08): 159 wiadomości, 0 z kluczem (historia nietknięta), indeks realnie CZĘŚCIOWY — `WHERE (client_msg_id IS NOT NULL)` odczytane z `pg_indexes`, nie z komunikatu o powodzeniu. 🔴 **Migracja 199 (RLS sugestii) OKAZAŁA SIĘ ZBĘDNA I ZOSTAŁA USUNIĘTA.** Zdjęcie `pg_policies` PRZED wgraniem pokazało, że produkcja ma już `feature_suggestions_service_only` i `feature_suggestion_comments_service_only` (ALL, `{service_role}`), a RLS jest włączone — polityk `TO authenticated USING (true)` z mig 055 dawno nie ma. Dług #11 z CONTEXT był NIEAKTUALNY. 🪤 **ŻADNA migracja w repo tego nie tworzy** — poprawkę wykonano ręcznie w konsoli, poza historią migracji, więc pliki w `supabase_migrations/` NIE ODZWIERCIEDLAJĄ produkcji dla tej tabeli. Wolny numer migracji: **199**. `vitest` **576/576**, `next build` OK. 🔴 **TERMIN 1 IX 2026 bez zmian: 10 z 14 pracowników nadal bez 2FA** (zmierzone 16.08 — ci sami czterej co w marcu, zero ruchu od 13.08).
+> **Last Updated:** 2026-09-03 — 🔢 **LICZNIK NA STRONIE GŁÓWNEJ KŁAMAŁ POD PLAKIETKĄ „LIVE".** Sekcja „10 lat doświadczenia w liczbach" pokazywała hardcoded snapshot z 14.06 (1288/2304/6247), podczas gdy API i stan Reacta miały świeże 1378/2355/6417 — zmierzone na produkcji odczytem fibera obok DOM-u. Przyczyna: w `AnimatedCounter` stan `display` zapisywała **wyłącznie animacja count-up**, a efekt wychodził pierwszą linią przy `startedRef.current === true`; świeże dane przychodzą ~0,9 s (cache HIT) do ~7 s (MISS) po montowaniu, czyli po starcie animacji, więc zmiana wartości nie miała drogi do DOM-u. Naprawa `7d36c6d` + odświeżony fallback `dc6e473` (⏳ **niewypchnięte**), dowód w obie strony przy fallbacku rozjechanym z produkcją. 🪤 **Pierwsza wersja poprawki była niepełna i wyłapała ją dopiero kontrola negatywna** — gdyby fallback zgadzał się z produkcją, test pokazałby „naprawione". Szczegóły: „📝 Recent Changes" → 2026-09-03.
+>
+> **Last Updated:** 2026-09-03 — 🧾 **ZAMKNIĘTA LUKA W CHANGELOGU 17–24.08.** Przez trzy tygodnie ten plik kończył się na 13.08, a repo miało **dwanaście** commitów bez ani jednego wpisu — wszystkie powstały w sesjach nad APKĄ i ich opis leżał wyłącznie w `~/mikrostomart-app/CONTEXT.md`. Odtworzone z REALNYCH DIFFÓW pięć wpisów: **17.08** (kanał zgłoszeń z apki, mig 199 + trzy trasy), **18.08** (trzy miny w plikach migracji 051/055/096 + Sentry w polityce RODO), **20.08** (wdrożenie audytu SEO: geokod, kanibalizacja, metadane, snippety), **21.08** (`/api/patients/chat/unread` dla pulpitu apki), **24.08** (dławik 2FA na operacjach NISZCZĄCYCH + rejestr pusha pytał o złą rzecz). Każdy wpis przeszedł adwersaryjną weryfikację twierdzenie po twierdzeniu — **13 poprawek, w tym jedna krytyczna** (fałszywa teza, że mig 199 nie istniała jeszcze w drzewie `7d2880f`). 🪤 **To klasa błędu, nie wpadka:** zmiana w webie zrobiona przy pracy nad apką ląduje w kontekście APKI i znika z kontekstu WEBA — wpis ma iść do OBU plików w tej samej sesji. **Stan zmierzony 03.09, nie przepisany:** `main` = `origin/main` = **`fa6f799`** i **produkcja stoi na tym samym SHA** (`/api/health` → `checks.environment.deployment`; 🪤 apex oddaje 308 na `www`, `curl` bez `-L` zwraca gołe „Redirecting…"); `vitest` **597/597** w 54 plikach; migracje wgrane **do 199** (`app_reports` odczytana na produkcji, kontrola negatywna: nieistniejąca tabela → 404), **wolny numer 200**. 🔐 **2FA: termin 1 IX MINĄŁ — 13 z 14 pracowników MA, została jedna osoba** (dwie niezależne drogi pomiaru, rozjazd zero; 🪤 kolumna nazywa się `enabled`, NIE `is_active`). ⚪ `/api/health` oddaje `degraded` z powodu `crons: warning` — 11 z 21 „stale", z czego 7 to „Awaiting first monitored run" od 184 dni; **to rejestr bez wpisu, nie martwe crony** — ta sama klasa co fałszywe alarmy pusha z 24.08.
+>
+> **Last Updated:** 2026-08-16 — 🔒 **W3–W7 WDROŻONE LOKALNIE, NIEWYPCHNIĘTE** *(⚠️ zapis historyczny — W3–W7 są NA PRODUKCJI od 16.08, patrz blok z 03.09 wyżej)* (3 commity ponad `origin/main`; push na `main` = auto-deploy na produkcję, więc moment wybiera właściciel). **W3** cron `push-receipts` kasuje tokeny personelu bez odświeżenia >7 dni — token PRZEŻYWAŁ wylogowanie bez sieci, a `DeviceNotRegistered` tego nie łapie (apka zainstalowana, token żywy, tylko nikt się nim nie loguje). 🔑 Próg z POMIARU: 8 z 11 tokenów odświeża się w ~2 dni, 3 stały 9,8/11,8/17,8 dnia. ⚪ Świadomie NIE dotyczy `patient_push_tokens`. **W4** warianty POST dla `patient-search` i listy poczty — `q`/`search` to zwykle NAZWISKO PACJENTA, a w GET ląduje w adresie i w logach brzegowych Vercela, poza rejestrem RODO; GET-y ZOSTAJĄ dla binarek 1.1/1.2. ⏳ Przełączenie apki na POST dopiero PO deployu weba. **W5** idempotencja czatu pacjenta — migracja **198** (client_msg_id + indeks CZĘŚCIOWY) + obsługa 23505; zerwana sieć + „ponów" dawała TĘ SAMĄ wiadomość dwa razy u recepcji (ta sama klasa domknięta w czacie zespołu mig 183). **W6** limity na `/api/games/*`. **W7** `/api/cart/calculate-total`: publiczna trasa TWORZĄCA WIERSZ w tabeli zamówień bez limitu i bez filtra — `customerDetails` szło jako dowolny obiekt wprost do kolumny JSON; teraz limit fail-closed + whitelist 8 pól (`lib/cartCustomer.ts`) + granica 50 pozycji. 🛡️ Strażnik `webHardeningW3W7.test.ts` (15 asercji) z **dowiedzioną cofką** (2 padają bez naprawy); filtr testowany WYKONANIEM, nie odczytem pliku. ✅ **Migracja 198 WGRANA I ZWERYFIKOWANA na produkcji** (16.08): 159 wiadomości, 0 z kluczem (historia nietknięta), indeks realnie CZĘŚCIOWY — `WHERE (client_msg_id IS NOT NULL)` odczytane z `pg_indexes`, nie z komunikatu o powodzeniu. 🔴 **Migracja 199 (RLS sugestii) OKAZAŁA SIĘ ZBĘDNA I ZOSTAŁA USUNIĘTA.** Zdjęcie `pg_policies` PRZED wgraniem pokazało, że produkcja ma już `feature_suggestions_service_only` i `feature_suggestion_comments_service_only` (ALL, `{service_role}`), a RLS jest włączone — polityk `TO authenticated USING (true)` z mig 055 dawno nie ma. Dług #11 z CONTEXT był NIEAKTUALNY. 🪤 **ŻADNA migracja w repo tego nie tworzy** — poprawkę wykonano ręcznie w konsoli, poza historią migracji, więc pliki w `supabase_migrations/` NIE ODZWIERCIEDLAJĄ produkcji dla tej tabeli. Wolny numer migracji: **199**. `vitest` **576/576**, `next build` OK. 🔴 **TERMIN 1 IX 2026 bez zmian: 10 z 14 pracowników nadal bez 2FA** (zmierzone 16.08 — ci sami czterej co w marcu, zero ruchu od 13.08).
 >
 > **Last Updated:** 2026-08-13 (wieczór) — 🏁 **ETAP C DOMKNIĘTY: ŻADEN BUCKET Z DOKUMENTAMI NIE JEST PUBLICZNY.** Migracje 193 (`consents`), **194** (`task-images`), **195** (`consent-pdfs`) wgrane i zweryfikowane; publiczny został wyłącznie `social-media` (decyzja właściciela). 🪤 **Cache krawędziowy Cloudflare przeżywa zamknięcie bucketa** — publiczny adres oddaje 200 `HIT` przez ~godzinę, więc pomiar tuż po zamknięciu KŁAMIE; mierzyć z cache-busterem i na świeżym obiekcie. 🔒 **REWOKACJA SESJI PACJENTA DZIAŁA** (migracja **197** + `541b492`): zmiana hasła, reset po przejęciu konta i usunięcie konta z RODO **realnie ubijają stare tokeny** — dotąd token żył 30 dni niezależnie od wszystkiego, więc jedyna obrona pacjenta była pozorna. Zweryfikowane e2e na koncie demo: 200 → unieważnienie → 401 → cofnięcie → 200. 🛒 **Zamek powiadomień o zamówieniu dwuetapowy** (migracja **196**) — `notified_at` stawiany PRZED wysyłką sprawiał, że padnięty `sendEmail` gubił zamówienie po cichu (klient zapłacił, gabinet nie wiedział). 🔴 **PESEL: nowe e-Karty nie zapisują już jawnym tekstem** (fail-soft zostaje — awaria szyfrowania przywraca jawne, bo e-Karta bez treści jest gorsza). Dalej tego dnia: publiczna trasa zgód przestała wystawiać adresy do bucketa, leniwy `sharp`, zdjęty martwy przełącznik `email_reminders`, oznaczony martwy katalog `supabase/migrations` z otwartymi politykami RLS, recepcja może **odesłać plik pacjentowi** (nowa trasa + UI), `PATCH /2fa/devices/[id]` przestał udawać sukces dla cudzego id. Migracje wgrane **do 197**, wolny numer **198**. 🔴 **TERMIN: 1 IX 2026 — 2FA obowiązkowe dla całego personelu**, a 10 z 14 aktywnych pracowników go nie ma; data jest w kodzie (`MFA_MANDATORY_FROM_ISO`), middleware uzbrojony. Szczegóły: „📝 Recent Changes" → 2026-08-13.
 >
@@ -2475,6 +2479,867 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-09-03 — 🔢 LICZNIK NA STRONIE GŁÓWNEJ POKAZYWAŁ LICZBY Z FALLBACKU POD PLAKIETKĄ „LIVE"
+
+> Commity **`7d36c6d`** (naprawa) + **`dc6e473`** (odświeżenie fallbacku). ⏳ **NIEWYPCHNIĘTE.**
+> Bramki: `tsc` czysto · `vitest` **597/597** (54 pliki) · `next build` OK.
+> Zgłoszenie właściciela: „licznik pacjentów i procedur — dane od jakiegoś czasu się nie
+> zmieniają, mimo że pokazuje, że są live".
+
+#### 🔴 Objaw i pomiar, który go rozstrzygnął
+Sekcja „10 lat doświadczenia w liczbach" (`TrustStats`) pokazywała **1 288 implantów /
+2 304 leczeń kanałowych / 6 247 pacjentów** — czyli dokładnie hardcoded snapshot
+z `src/data/clinic-stats.ts` z **2026-06-14** — i robiła to pod **zieloną plakietką
+„LIVE · dane z systemu kliniki"** ze świeżą godziną.
+
+Rozstrzygnięcie wymagało zajrzenia OBOK DOM-u. Odczyt fibera Reacta na żywej produkcji
+(`__reactFiber$…` → `memoizedState` komponentu) obok tego samego DOM-u:
+
+| warstwa | implanty | kanałowe | pacjenci | `source` |
+|---|---|---|---|---|
+| `/api/clinic-stats` (Prodentis) | **1378** | **2355** | **6417** | `live` |
+| stan Reacta w komponencie | **1378** | **2355** | **6417** | `live` |
+| **DOM — to, co widzi człowiek** | **1288** | **2304** | **6247** | — |
+| SSR HTML (crawlery, no-JS) | 1288 | 2304 | — | — |
+
+🔑 **Dane docierały poprawnie, a plakietka mówiła prawdę o ŹRÓDLE.** Kłamał wyłącznie
+licznik — i to jest właśnie ta konfiguracja, która najdłużej uchodzi na sucho: każdy
+element z osobna wygląda na sprawny.
+
+#### 🧩 Przyczyna — `display` miał tylko JEDNEGO pisarza
+W `AnimatedCounter` stan `display` był zapisywany **wyłącznie przez animację count-up**,
+a efekt zakładający `IntersectionObserver` wychodzi **pierwszą linią** przy
+`startedRef.current === true`:
+
+```
+const [display, setDisplay] = useState(value);   // zapamiętane RAZ, przy montowaniu
+…
+if (!node || startedRef.current) return;          // po pierwszej animacji: koniec
+```
+
+Świeże dane z `/api/clinic-stats` przychodzą **po** zamontowaniu — zmierzone z przeglądarki:
+**~0,9 s** przy trafieniu w cache brzegowy Vercela, **~7,0 s** przy pudle (zapytanie skanuje
+~148 tys. rekordów zabiegów). Sekcja stoi 1063 px od góry przy oknie 720 px, ale w pierwszej
+klatce — zanim doładują się obrazy hero — bywa w kadrze, więc animacja startuje przed
+odpowiedzią API. Od tej chwili zmiana propsa `value` **nie ma żadnej drogi do DOM-u**:
+efekt wychodzi, a `display` nikt inny nie zapisuje. Stan zamarza do końca życia strony.
+
+⚪ To NIE był problem Prodentisa, cache'u ani `source` — wszystkie trzy działały poprawnie.
+
+#### 🔧 Naprawa
+- cel animacji w **refie** (`targetRef`), nie w domknięciu `step` — świeże dane w TRAKCIE
+  animacji przekierowują ją na nową liczbę zamiast dojechać do starej;
+- osobny efekt dociągający `display`, **gdy animacja nie trwa** (`runningRef`) — pokrywa
+  oba przypadki: „dane przyszły przed animacją" i „dane przyszły po animacji";
+- clamp `setDisplay(targetRef.current)` na ostatniej klatce.
+
+🪤 **Pierwsza wersja poprawki była NIEPEŁNA i wyłapała ją dopiero kontrola negatywna.**
+Warunek brzmiał `if (startedRef.current) setDisplay(value)` — czyli aktualizował tylko po
+animacji. Gdy świeże dane przychodzą, **zanim** sekcja wjedzie w kadr, animacja jeszcze nie
+ruszyła, więc licznik zostawał na liczbie z montowania. Gdyby fallback zgadzał się z produkcją
+(a zgadzał się po odświeżeniu danych!), test pokazałby „naprawione" i wpuściłbym połowę
+poprawki. Dopiero rozjechanie fallbacku z produkcją zrobiło z pomiaru dowód.
+
+#### 🔬 Dowód w obie strony (dev, twarde przeładowanie)
+Warunek testowy: `clinic.implants` w fallbacku ustawione **celowo na 111**, żywe **1378**.
+
+| kod | licznik bez scrolla | po scrollu | plakietka |
+|---|---|---|---|
+| **stary** | **111** | **111** | 🟢 LIVE |
+| **nowy** | **1 378** | **1 378** (i po powrocie) | 🟢 LIVE |
+
+⚠️ **Czego NIE udowodniłem:** że sama animacja count-up nadal wizualnie „jedzie" — panel
+podglądu był schowany, a wtedy `requestAnimationFrame` jest dławiony przez przeglądarkę
+i klatek nie da się rzetelnie zmierzyć. Mechanizm jest nietknięty (efekt nadal robi
+`setDisplay(0)` i ramp), ale to jedyna rzecz w tej zmianie oparta na czytaniu kodu,
+nie na pomiarze — **do sprawdzenia okiem po deployu**.
+
+#### 🔁 Policzeni wszyscy wywołujący
+`grep` po repo: **nie ma** innej kopii `AnimatedCounter`, `easeOutQuint` ani żadnego innego
+miejsca czytającego `CLINIC_STATS` / `/api/clinic-stats`. Jedno wystąpienie wzorca, jedna naprawa.
+
+#### 📅 Druga połowa: fallback był o trzy miesiące do tyłu
+Snapshot z 14.06 rozjechał się o **+90 implantów, +51 leczeń kanałowych, +170 pacjentów**.
+Odświeżony z żywego odczytu (`source=live`, `lastUpdated 2026-09-03T08:38:10Z`). To ma
+znaczenie także poza usterką: **fallback trafia do SSR HTML**, więc crawlery i przeglądarki
+bez JS widzą właśnie jego.
+🪤 Dwie wartości **spadły** wobec snapshotu z 05.12 (`marcin.fillings` 10468 → 10083,
+`marcin.softTissueGrafts` 196 → 156). To nie ubytek zabiegów, tylko inne **kategoryzowanie**
+po stronie API niż w ręcznym eksporcie z Prodentis500; żadne z tych pól nie jest wyświetlane.
+
+#### ⚪ Zauważone przy okazji, nie naprawiane
+- `/api/clinic-stats` ustawia `s-maxage=3600, stale-while-revalidate=86400`, ale do klienta
+  wychodzi samo `cache-control: public` (Vercel przepisuje nagłówek). Brzegowy cache działa
+  poprawnie (`x-vercel-cache: HIT`, `age: 3414`), natomiast **przeglądarka dostaje `public`
+  bez `max-age`**, czyli wolno jej cache'ować heurystycznie. Nie zaobserwowałem z tego szkody.
+- Plakietka pokazuje godzinę **napełnienia cache'u**, nie godzinę bieżącą — przez godzinę
+  stoi ta sama. To zachowanie poprawne, ale łatwe do wzięcia za zamrożenie.
+
+#### Pliki
+- `src/components/TrustStats.tsx` — `AnimatedCounter` (+42/−3)
+- `src/data/clinic-stats.ts` — odświeżony snapshot (+34/−23)
+
+> ⚠️ REQUIRES: brak migracji, brak nowych zmiennych środowiskowych. Po deployu warto zerknąć
+> okiem na stronę główną — liczby mają być zgodne z `/api/clinic-stats?…` i mają dojechać animacją.
+
+---
+
+### 2026-08-24 — 🔒 DŁAWIK NA OPERACJACH NISZCZĄCYCH 2FA + REJESTR PUSHA PYTAŁ O ZŁĄ RZECZ
+
+**Żadnej migracji.** Trzy commity dnia — `ca9b372`, `72312cc`, `fa6f799` — wszystkie w `origin/main`
+i **wszystkie na produkcji**. Każdy wdrażał się osobno i każdy potwierdzony **odpytaniem w pętli**
+(`/api/health` → `checks.environment.deployment`), za każdym razem zrównanie przy **8. odpytaniu**.
+Przy `ca9b372` pierwszych siedem odpytań oddawało jeszcze `b85f47b` — jego rodzica; przy kolejnych
+dwóch stanem produkcji był odpowiednio `ca9b372` i `72312cc`. Bramki na `fa6f799`: `tsc` czysto ·
+`vitest` **597/597** · `next build` OK. Dwa niezależne wątki: utwardzenie 2FA i alarm ciszy pusha.
+
+#### 🔒 Dławik obejmował tylko POŁOWĘ powierzchni 2FA (`ca9b372`)
+Dławik prób chronił wyłącznie ścieżki **NADAJĄCE** dostęp — `verifyChallenge`, `verifyBackupChallenge`,
+`verifyAndEnable`, `verifyAndEnableDevice`. Operacje **NISZCZĄCE** drugi składnik sprawdzały sześć cyfr
+**bez żadnego ograniczenia**:
+
+| Operacja | Skutek | Dławik przed 24.08 |
+|---|---|---|
+| `disableAll` | wyłącza 2FA całkowicie | ❌ brak |
+| `removeDevice` | usuwa urządzenie (ostatnie = to samo co wyłączenie) | ❌ brak |
+| `regenerateBackupCodes` | unieważnia stare kody zapasowe | ❌ brak |
+
+🔴 **To jest odwrotnie, niż powinno.** Napastnik ze skradzionym **hasłem** — czyli dokładnie w scenariuszu,
+dla którego 2FA istnieje — mógł zgadywać kod bez końca i po prostu drugi składnik **wyłączyć**.
+Od `MFA_MANDATORY_FROM_ISO = '2026-09-01T00:00:00+02:00'` opiera się na nim cały zespół.
+- 🔑 **Kubełek WSPÓLNY z logowaniem**, świadomie: `guardMfaAttempts(userId, 'totp')` bije w `mfa:totp:<userId>`,
+  ten sam co `/challenge`. Osobny znaczyłby, że po wyczerpaniu limitu na logowaniu wystarczy przełączyć się
+  na `/disable` i dostać kolejną pulę. **Limit dotyczy KONTA, nie trasy.** Progi z kodu
+  (`twoFactorService.ts:283–296`): TOTP **10 prób / 15 min**, kody zapasowe **5**.
+- Trzy trasy oddawały `too_many_attempts` jako **500** — dławik czytałby się jak awaria serwera. Dołożone
+  mapowanie `MFA_RATE_LIMITED ? 429` + nagłówek `Retry-After: 900` (dokładnie okno `MFA_ATTEMPT_WINDOW_MS`),
+  wzorzec z `/challenge`. Bez `Retry-After` klient wraca po sekundzie: dławik hamuje serwer, a człowieka
+  zostawia w pętli.
+- Trasa `/disable` woła eksport `disable()` (`twoFactorService.ts:1029`), który jest cienką nakładką na
+  `disableAll()` — dławik wstawiony do `disableAll` obejmuje obie drogi.
+
+#### 🧾 Audyt — druga połowa tego samego długu
+Trzy najcięższe operacje zostawiają teraz ślad: `mfa_disabled`, `mfa_device_removed` (z metadaną
+`allDisabled` — bo usunięcie OSTATNIEGO urządzenia jest równoważne wyłączeniu 2FA) i
+`mfa_backup_codes_regenerated`. Bez wpisu nie da się odpowiedzieć na pytanie „kto i kiedy to wyłączył",
+a przy przejęciu konta to pierwsze pytanie. `logAudit` pisze do `employee_audit_log` w `try/catch`
+(`auditLog.ts:22–42`) — jest nieblokujący z założenia, więc **żadnej migracji ani zmiany schematu**.
+
+#### 🪤 Strażnik złapał mnie na gorącym
+Pierwsza wersja miała **długi komentarz PRZED** wywołaniem dławika i wypchnęła je poza **okno 900 znaków**
+liczone od `export async function <nazwa>(`, którym strażnik pilnuje, że dławik stoi **PIERWSZY** w funkcji.
+Zapalił się na czerwono i **miał rację** — skróciłem komentarz, zamiast poszerzać okno.
+- Strażnik rozszerzony **4 → 7 funkcji** i **3 → 6 tras** (dołożone `disable/route.ts`,
+  `regenerate-backup-codes/route.ts`, `devices/[id]/route.ts`; asercje na `MFA_RATE_LIMITED ? 429`
+  i `'Retry-After'`).
+- 🔑 Sam strażnik jest STATYCZNY (czyta plik), więc dołożone **trzy testy WYKONANIA** (`it.each` po
+  `disableAll` / `removeDevice` / `regenerateBackupCodes`): wołają realne funkcje przy odmowie limitera,
+  sprawdzają zwrot `MFA_RATE_LIMITED`, wywołanie z kluczem `mfa:totp:${USER}` i **brak ANI JEDNEGO**
+  zapytania do bazy (`expect(fromMock).not.toHaveBeenCalled()`). Bez nich `guardMfaAttempts` mogłoby stać
+  w pliku i nic nie robić, a strażnik świeciłby na zielono.
+- **Dowody cofki w OBU warstwach:** usunięcie dławika z `disableAll` wywala strażnika okablowania;
+  z `removeDevice` — także test wykonania (**2 padnięte z 9**). Po przywróceniu **9/9**.
+
+#### 🔬 Sprostowania w tym wątku
+- ⚪ **„Trzy braki 2FA w webie" to był JEDEN.** `PATCH /devices/[id]` jest już naprawiony (oddaje **404**),
+  a `POST /setup` **nie jest destrukcyjny** — zaczyna od `already_enabled`, więc na koncie z żywym 2FA
+  nie ruszy. Zostawał wyłącznie rate-limit — i on jest zrobiony tym commitem.
+- 🪤 **Data wejścia dławika w treści commita jest błędna.** Komunikat mówi „istniał od 26.07"; git mówi
+  co innego: `guardMfaAttempts` weszło **12.08 commitem `b046a9b`** (`git log -S` po
+  `twoFactorService.ts`), a w `2fa/*` nigdy wcześniej nie było odwołania do `checkRateLimit`.
+  Wpis z 13.08 mówi to samo. **Zmierzone dwiema drogami, rozjazd zero.**
+
+#### 🔕 `careflow_task`: warunek był NIESPEŁNIALNY z definicji (`72312cc`)
+Alarm „Milczące ścieżki: careflow_task" był fałszywy nie przez pech, tylko przez **arytmetykę**:
+
+| | |
+|---|---|
+| próg ciszy (`max_silence_minutes`) | **180 min** |
+| sama cisza nocna 00:00–07:00 | **420 min = 2,3× próg** |
+| cron zdrowia — `/api/cron/push-health-alert` (`vercel.json`) | **`0 9 * * *`** |
+| zmierzona cisza 24.08 | **801 min** (ostatni sukces 23.08 15:40 UTC) |
+
+🔑 **Zdrowa ścieżka nie miała ŻADNEJ możliwości zmieścić się w progu** — alarmowała każdego ranka mimo
+poprawnie zadziałanego dnia poprzedniego. Rejestr sam deklaruje regułę „alarmujemy WYŁĄCZNIE ścieżki
+cykliczne, bo dla zdarzeniowych cisza znaczy «nikt nic nie zrobił» i alerty nauczyłyby zespół je ignorować"
+— i ta jedna ścieżka tę regułę łamała.
+- 🔑 **Alarmu NIE zdejmujemy** przez `max_silence_minutes = NULL` — to ukryłoby REALNĄ awarię kanału,
+  a rejestr istnieje właśnie po to, żeby ją widzieć. **Zmieniamy PYTANIE**: zamiast zegara sonda pyta,
+  czy jest **zaległy kandydat**, którego nie powiadomiliśmy — otwarte zadanie w `care_tasks`
+  (`completed_at`/`skipped_at` NULL) z `push_sent_count = 0`, którego `scheduled_at` minął **>2 h** temu
+  i mieści się jeszcze w oknie **12 h** (`ZANIEDBANE_PO_H = 2`, `GRACE_H = 12`, `.limit(50)`).
+- Granice nie są z sufitu: cisza kończy się o 07:00, a `careflow-push` chodzi `*/5 5-22 * * *`, więc 2 h
+  to zapas ponad dwadzieścia przebiegów. Powyżej `GRACE_HOURS` zadanie zamyka się samo jako `skipped_at`
+  i przestaje być sygnałem o kanale.
+- 🪤 **Błąd odczytu sondy zwraca `null`, czyli „nie wiem"** — wołający spada wtedy na stary warunek zegarowy.
+  Gdyby błąd zwracał zero zaległych, awaria SONDY wyciszałaby alarm o awarii KANAŁU: rodzina
+  „jeden kod błędu na dwie przyczyny".
+- Dowody: trzy nowe testy (cisza **801 min** bez zaległych → BEZ alarmu · z zaległymi → alarmuje ·
+  błąd sondy → spada na zegar), mock jest teraz **świadomy tabeli** (sonda pyta `care_tasks`, rejestr
+  `push_path_health`). **Cofka:** po usunięciu gałęzi sondy pierwszy przypadek pada (**2 z 8**),
+  po przywróceniu **8/8**. Na produkcji: **0 zaległych** zadań.
+  ⚪ Uczciwie: w tym oknie nie było dziś **żadnych** otwartych zadań, więc gałęzi pozytywnej produkcja
+  nie przećwiczyła — dowodzą jej testy.
+
+#### 📵 `appointment_reminder` — DRUGA sztuka tego samego defektu (`fa6f799`)
+Ten sam cron zgłaszał też `appointment_reminder`. Zmierzenie rozstrzygnęło, że **push-first NIE jest
+zepsuty** — rejestr zadawał złe pytanie:
+
+| | |
+|---|---|
+| przypomnień wczoraj | **17**, `sms-auto-send`: „Push: 0, SMS: 17" |
+| z rozwiązanym kontem | **1** |
+| ten jeden ma tokenów push | **0** (48 tokenów na CAŁĄ bazę pacjentów) |
+| cisza / próg | **5591 min / 1560** |
+
+Push-first zadziałał **poprawnie**: sprawdził, nie znalazł tokenu, zszedł na SMS. Rejestr notuje sukces
+tylko przy realnej wysyłce pusha, więc cisza rosła i alarm szedł. Znowu **„było cicho", a nie
+„kanał zawiódł"**.
+- 🔑 **Pytanie, które ma sens:** czy ktoś, kto **MA** token push, dostał mimo to SMS-a? To JEST awaria
+  push-first — czwarta odsłona tej klasy błędu wyglądałaby dokładnie tak, a stary alarm nie odróżniłby
+  jej od zwykłego braku kandydata z apką.
+- Sonda: `sms_reminders` (`sms_type = 'reminder'`, `patient_id` nie-NULL, `sent_at` z ostatnich **26 h**,
+  `.limit(200)`) → odfiltrowanie `delivery_channel !== 'push'` → UUID kont rozwiązane na `prodentis_id`
+  przez `patients` → sprawdzenie `patient_push_tokens`.
+- 🪤 **Znany FAŁSZYWY DODATNI sondy — do zawężenia przy pierwszym takim alarmie.** Filtr odrzuca wyłącznie
+  `delivery_channel === 'push'` (`pushHealth.ts:148`), więc wiersz **`push+sms`** przez niego **PRZECHODZI**
+  — a jego odbiorca z definicji **MA** token, czyli trafia dokładnie w warunek alarmu. Takie wiersze stawiają
+  DWIE drogi, obie **zgodne z projektem**: cron `push-escalation` (`0 9-18 * * *`), gdy push poszedł, a pacjent
+  nie odpowiedział w 2 h (`push-escalation/route.ts:112` i `:123` — i przy okazji przestawia `sent_at` na
+  czas eskalacji, więc wiersz ląduje w oknie 26 h sondy), oraz `forceSms`, które celowo wysyła obydwoma
+  kanałami (`patientDelivery.ts:210`). Eskalacja to NIE awaria push-first. Testy tego przypadku nie mają
+  (mock zna tylko `'sms'`). Lek: `!== 'push' && !== 'push+sms'`.
+- 🪤 **`patient_push_tokens.patient_id` trzyma PRODENTIS ID, nie UUID konta — mimo nazwy kolumny.**
+  Pomyłka tutaj daje zawsze zero trafień, czyli ciche „nikt nie ma apki" i sondę, która nigdy nie strzeli.
+- ⚪ Precyzyjnie: sonda oddaje liczbę **wierszy tokenów**, nie liczbę osób — do alarmu (>0) to wystarcza,
+  ale liczby w treści alertu nie należy czytać jako „tylu pacjentów".
+- Dowody: dwa nowe testy (cisza 4 dni bez tokenów → BEZ alarmu · odbiorca **Z** tokenem dostał SMS →
+  alarmuje), mock rozszerzony o `gte` i o trzy tabele sondy. **Cofka:** po usunięciu sondy pierwszy
+  przypadek pada, po przywróceniu **10/10**. Sonda puszczona **na sucho na produkcji**: 1 przypomnienie
+  do posiadacza konta, 0 tokenów → po poprawce alarm nie idzie, przed poprawką szedł.
+- ⚪ **Obserwacja produktowa, nie zadanie:** 48 tokenów push na całą bazę, a wśród 17 wczorajszych
+  odbiorców przypomnień tylko 1 miał w ogóle konto. Gałąź push będzie milczeć często — i to jest normalne,
+  dopóki apka nie dotrze do pacjentów dostających przypomnienia.
+
+#### ✅ Zmierzone na produkcji po wdrożeniu
+- **2FA — trasy żyją i są zamknięte** (bez uwierzytelnienia): `DELETE /api/auth/2fa/disable` → **401**,
+  `POST /api/auth/2fa/regenerate-backup-codes` → **401**, `DELETE /api/auth/2fa/devices/[id]` → **401**,
+  każda z realnym `x-matched-path`.
+  **Kontrola negatywna:** nieistniejąca `2fa/nie-ma-takiej` → `x-matched-path: /_not-found` przy
+  **HTTP 200** — trzecia odsłona pułapki „status HTTP kłamie", tym razem potwierdza, że miernik jest uczciwy.
+- 🪤 `/disable` przyjmuje **DELETE**, nie POST — pierwszy strzał POST-em oddał **405** i przez chwilę
+  wyglądał na problem z trasą.
+- ⚠️ **Świadomie NIEZWERYFIKOWANE na produkcji: samo 429.** Wywołanie go wymaga 10+ nieudanych prób kodu
+  na REALNYM koncie, co zablokowałoby żywemu człowiekowi drugi składnik na 15 minut. To działanie przeciw
+  koledze z zespołu, nie test — ścieżka 429 jest dowiedziona testami (9/9, cofki w obu warstwach).
+- **Cron zdrowia zawołany ręcznie:** `HTTP 200 {"success":true,"silent":[]}`, heartbeat
+  `ok | Wszystkie ścieżki push odpowiadają`. Przed poprawką ten sam cron zapisał
+  `warn | Milczące ścieżki: appointment_reminder`. Telegram **nie poszedł** — bo nie było o czym.
+- 🔑 **Alarm został UZBROJONY, nie wyciszony.** Ścieżki bez sondy idą dalej przez zegar —
+  `appointment_confirmed` przy ciszy **518 min** i progu **2880** — więc mechanizm zegarowy żyje
+  i zadziała, gdy któraś realnie zamilknie.
+
+#### Pliki
+`src/lib/twoFactorService.ts` · `src/app/api/auth/2fa/disable/route.ts` ·
+`src/app/api/auth/2fa/regenerate-backup-codes/route.ts` · `src/app/api/auth/2fa/devices/[id]/route.ts` ·
+`src/lib/__tests__/mfaAttemptThrottle.test.ts` · `src/lib/pushHealth.ts` ·
+`src/lib/__tests__/pushHealthSilence.test.ts`. Auto: `public/sw.js`, `src/lib/generated-route-mtimes.ts`
+(`buildTime` 2026-08-21 → 2026-08-24).
+
+**Brak migracji. Brak nowych zmiennych środowiskowych.**
+
+---
+
+### 2026-08-21 — 💬 LICZNIK NIEPRZECZYTANYCH DLA PULPITU APKI — OSOBNA TRASA ODCZYTOWA
+
+**Migracji BRAK** — trasa czysto odczytowa (najwyższa w drzewie: 199, wolny numer 200). Web `b85f47b`
+na produkcji (push właściciela wieczorem 21.08). Druga połowa w apce: `fcb19ee` (repo
+`mikrostomart-app`, 15:28 — dwie minuty po commicie weba), wysłana jako OTA #3.
+Bramki weba wg commita: `tsc` czysto, `next build` OK.
+
+#### 🔴 Problem: odpowiedź recepcji nie dawała pacjentowi ŻADNEGO sygnału
+- Pulpit pacjenta miał kafelek „Porozmawiaj z nami" bez plakietki — żeby dowiedzieć się, czy
+  recepcja odpisała, trzeba było **wejść w czat i sprawdzić**. Komponent `Tile` w apce nie miał
+  nawet propsa `badge`, więc to nie był defekt renderu, tylko **brak funkcji**.
+- 🔑 Zgłoszenie właściciela brzmiało szerzej („oba czaty personelu też nie pokazują
+  nieprzeczytanych") i **pomiar rozstrzygnął je inaczej niż brzmiało**. Zmierzone wąskimi
+  zapytaniami na produkcji: po stronie personelu **0** nieprzeczytanych (oba kafelki, oba konta
+  właściciela) — kod działał, nie było czego pokazać; po stronie pacjenta czekała **1 wiadomość
+  od recepcji** (`chat_conversations.unread_by_patient = true`, `chat_messages.read = false`).
+  Skutek: zmiana weszła **wyłącznie** na torze pacjenta, w kodzie personelu **zero linii**.
+
+#### 🔑 Dlaczego OSOBNA trasa, a nie istniejący `GET /api/patients/chat`
+Tamta trasa przy **każdym** wywołaniu oznacza wątek jako przeczytany — `patients/chat/route.ts:239`
+ustawia `chat_messages.read = true` dla `sender_role='reception'`, a `:249` gasi
+`chat_conversations.unread_by_patient`. Pulpit wołający ją po to, żeby pokazać licznik,
+**skasowałby dokładnie to, co miał pokazać**: plakietka gasłaby w tej samej chwili, w której miała
+się zapalić. To ta sama pułapka, przez którą wątku czatu nie pollujemy po stronie personelu.
+Nowa trasa jest **czysto odczytowa** — zero `update`, zero `insert`, zero powiadomień, zero
+audytu — i dlatego wolno ją wołać przy każdym wejściu na pulpit.
+
+#### 📄 Kontrakt `GET /api/patients/chat/unread` (nowy plik, 75 linii)
+| Wejście | Odpowiedź |
+|---|---|
+| poprawny token pacjenta | `200 { "unread": <liczba> }` |
+| brak / zły / **unieważniony** token | `401 { "error": "Unauthorized" }` |
+| token OK, brak wiersza w `patients` | `200 { "unread": 0 }` |
+| token OK, brak otwartej rozmowy | `200 { "unread": 0 }` |
+| błąd zapytania zliczającego `chat_messages` | `200 { "unread": 0 }` + `console.error('[PatientChat] Unread count error:')` |
+| błąd bazy przy szukaniu pacjenta lub rozmowy | `200 { "unread": 0 }` — **bez logu**: oba te zapytania destrukturyzują wyłącznie `data`, więc awaria bazy jest tu nie do odróżnienia od „brak wiersza" |
+
+- Strażnikiem jest `verifyPatientSession` (`src/lib/jwt.ts:105`) — **ta sama** funkcja z rewokacją
+  sesji z migracji 197, więc trasa dziedziczy unieważnianie tokenów bez ani jednej własnej linii.
+- Zapytanie: `chat_messages` po `conversation_id` **otwartej** rozmowy + `sender_role='reception'`
+  + `read=false`, z `{ count: 'exact', head: true }`. 🔑 `head:true` znaczy, że **do apki nie
+  wychodzi ani jedno zdanie treści** — sam licznik. To nie kosmetyka: `chat_messages.content`
+  bywa danymi o zdrowiu (przykład z audytu cytowany w `patients/chat/route.ts`).
+- 🔑 **Awaria oddaje `0`, a nie 5xx.** Plakietka to dodatek i jej awaria nie może wywrócić pulpitu
+  pacjenta; rozróżnienie „błąd" od „zero" i tak nie zmienia tego, co widzi człowiek.
+- 🪤 **Ale ciche zero ma DWA źródła i tylko jedno zostawia ślad w logu.** Zapytanie o pacjenta
+  i o rozmowę destrukturyzują **wyłącznie `data`** (`const { data: patient } = await supabase…`,
+  `const { data: conversation } = await supabase…`) — pole `error` nie jest w ogóle odczytywane.
+  Przy awarii bazy `data` jest `null`, trasa wchodzi w gałąź `if (!patient)` / `if (!conversation)`
+  i oddaje `0` **bez żadnego `console.error`**. Do `catch` i do logu prowadzi **tylko** zapytanie
+  zliczające (`const { count, error } = …; if (error) throw error;`). Wniosek na przyszłe
+  debugowanie: **brak wpisu w logu niczego nie wyklucza** — nie znaczy „baza odpowiedziała".
+- ⚪ Liczy **wiadomości, nie wątki** — pacjent ma najwyżej jedną otwartą rozmowę z recepcją,
+  więc „3 nowe" czyta się naturalnie.
+- ⚪ Filtr `status='open'` jest **dosłownie ten sam** co w trasie wątku (`patients/chat/route.ts:231`),
+  więc licznik i czat widzą tę samą rozmowę — nie da się mieć plakietki nad wątkiem,
+  którego pacjent nie otworzy.
+- Dowód „dwóch nadawców" **w kodzie**, nie tylko z produkcji: w całym `src/app/api` są **trzy**
+  miejsca wstawiające `sender_role` — `patients/chat/route.ts:118` i `chat/guest/route.ts:129`
+  z `'patient'` oraz `admin/chat/messages/route.ts:108` z `'reception'`. Filtr po `'reception'`
+  wyczerpuje więc pojęcie „wiadomość od kliniki".
+- Załączniki nie wymagają osobnego liczenia: `admin/chat/attachment/route.ts:98` doczepia plik
+  **wyłącznie** do wiadomości o `sender_role === 'reception'`, więc każdy przysłany plik ma już
+  policzoną wiadomość-nosiciela.
+
+#### 🪤 Weryfikacja na produkcji — status HTTP KŁAMIE, wierzyć tylko `x-matched-path`
+- 🔴 Dla **nowej** trasy Next serwuje 404 jako **HTTP 200 z HTML-em** (`x-matched-path: /_not-found`).
+  Skutek dla klienta: `api()` nie rzuca, `r.unread ?? 0` daje `0`, plakietka się nie zapala — i przez
+  chwilę wygląda to jak defekt renderu apki zamiast „trasy jeszcze nie ma na produkcji".
+  Zachowanie apki jest POPRAWNE (lepiej brak plakietki niż zmyślona liczba), ale **jedynym
+  uczciwym miernikiem obecności trasy jest nagłówek `x-matched-path`** — nie kod statusu i nie ciało.
+  To trzecia odsłona tej pułapki w projekcie.
+- Deploy potwierdzony **odpytaniem W PĘTLI**: przy **3. odpytaniu** trasa przestała oddawać
+  `/_not-found`; pierwsze dwa jeszcze kłamały. 🔑 **Pojedynczy pomiar tuż po pushu zawsze skłamie.**
+- Zebrane dowody: `x-matched-path: /api/patients/chat/unread` (realna trasa) · ciało `{"unread":0}`
+  dla konta demo — poprawnie, to nie jego wiadomość czeka · **kontrola negatywna: bez tokenu → 401**.
+- Pomiar powtórzony 23.08: `/api/health?secret=…` → `checks.environment.deployment: b85f47b`
+  (`api/health/route.ts:147` czyta `VERCEL_GIT_COMMIT_SHA`), trasa dalej z realnym `x-matched-path`
+  i 401 bez tokenu; kontrola negatywna nieistniejącej trasy → `/_not-found`.
+
+#### 📱 Druga połowa — apka (`fcb19ee`, repo `mikrostomart-app`)
+- `components/ui/Tile.tsx`: nowy prop `badge` — złota pigułka (`colors.gold`, tekst `colors.ink`,
+  `fontSize: 11.5`) w prawym górnym rogu, `zIndex: 2`, świadomie **pod** `TileSheen`, żeby refleks
+  przechodził po niej jak po reszcie kafelka. Kafelek dostaje gotowy napis i **nie interpretuje liczby**.
+- `app/(patient)/index.tsx`: licznik pobierany w `useFocusEffect` przy wejściu na pulpit,
+  **tylko dla zalogowanego** (gość ma osobny wątek bez historii między sesjami), błąd połykany.
+- `lib/api.ts`: `fetchPatientChatUnread()` z komentarzem-ostrzeżeniem, że **nie wolno** podmienić
+  tej trasy na `GET /api/patients/chat`.
+- i18n `home.unreadMsgs` w czterech wariantach mnogich (`_one/_few/_many/_other`) × 4 locale.
+- Bramki apki wg commita: `tsc` czysto · i18n **1994 × 4** · **8 harnessów = 163 asercje** ·
+  `expo export` OK · render plakietki dowiedziony na symulatorze („3 nowe" na kafelku) po celowym
+  pominięciu fetcha, atrapy cofnięte, `grep` po `src/` = 0.
+
+#### 🧱 Dwa z trzech plików w commicie to artefakty budowania
+Commit dotyka 3 plików (**+77 / −2**), ale kodem jest tylko jeden z nich:
+- `public/sw.js` — regenerowany Workbox: manifest precache `_next/static/chunks/*` plus identyfikator
+  debugowy Sentry. Zero zmian semantycznych.
+- `src/lib/generated-route-mtimes.ts` — plik z nagłówkiem `AUTO-GENERATED … DO NOT EDIT`;
+  word-diff pokazał zmianę **jednej** wartości: `buildTime` `2026-08-20T12:40:10.274Z` →
+  `2026-08-21T13:18:41.410Z`. Mapa `routeMtimes` (sygnał świeżości dla `sitemap.xml`) **nietknięta**.
+
+#### Pliki
+- `src/app/api/patients/chat/unread/route.ts` — **nowy**, 75 linii
+- `public/sw.js` — artefakt budowania
+- `src/lib/generated-route-mtimes.ts` — artefakt budowania (sam `buildTime`)
+- czytane przy analizie, niezmienione: `src/app/api/patients/chat/route.ts` (`:231`, `:239`, `:249`),
+  `src/lib/jwt.ts` (`:105`), `src/app/api/admin/chat/messages/route.ts` (`:108`),
+  `src/app/api/admin/chat/attachment/route.ts` (`:98`), `src/app/api/chat/guest/route.ts` (`:129`),
+  `src/app/api/health/route.ts` (`:147`)
+- apka (`mikrostomart-app`, `fcb19ee`): `src/components/ui/Tile.tsx`, `src/app/(patient)/index.tsx`,
+  `src/lib/api.ts`, `src/locales/{pl,en,de,uk}.json`
+- kontekst weryfikacji na produkcji: `mikrostomart-app/CONTEXT.md`
+
+> ⚠️ REQUIRES: **brak nowej migracji i brak nowej zmiennej środowiskowej** — trasa korzysta
+> z istniejących `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` i `JWT_SECRET`.
+> Plakietka w apce zapala się dopiero po wdrożeniu weba — bez tego apka poprawnie pokazuje zero.
+
+---
+
+### 2026-08-20 — 🔎 WDROŻENIE AUDYTU SEO 16.08: GEOKOD, KANIBALIZACJA, METADANE, SNIPPETY
+
+**Bez migracji, bez nowych zmiennych środowiskowych.** Cztery commity, każdy weryfikowany na zbudowanym artefakcie (`next build` + `next start`): `4498ade` → `e12a9dc` → `e5baba5` → `a8ac26b`. Testy **576 → 589**. Tego samego dnia uzyskany dostęp do Search Console (`sc-domain:mikrostomart.pl`) — audyt powstał **bez** tych danych.
+
+#### 🔴 Co audyt kazał zrobić, a POMIAR OBALIŁ
+Najcenniejsza część dnia. Cztery zalecenia poszły do kosza, w tym jedno oznaczone jako P0.
+- **P0 „pinezka wizytówki wskazuje stary adres, przenieś profil" — BŁĘDNE.** Zmierzone trzy punkty:
+  pinezka wizytówki `50.6502565, 17.8678691` · geokod Centralna 33a `50.6502286, 17.8679234` → **5 m** ·
+  stary adres Zwycięstwa 65 `50.6640011, 17.8899991` → **2184 m**. Audytor podał **poprawne**
+  współrzędne i podpisał je jako stare. Wykonanie zalecenia oznaczałoby edycję adresu i ponowną
+  weryfikację profilu z 386 opiniami — ryzyko bez zysku. 🔑 **Sprzeczne sygnały szły ze STRONY, nie z wizytówki.**
+- **„schema ma stary `place_id`" — fałszywe.** `hasMap` składane jest z `brand.googlePlaceId`
+  = `ChIJ-5k3xu5SEEcRJhqtusOhhwM` (`src/app/layout.tsx:147`); wartość nietknięta przez cały dzień.
+- **„brak canonicala na `/rezerwacja?reason=`" — nie potwierdziło się.** Parametr już wskazywał
+  czysty `/rezerwacja`. Bez zmian w kodzie.
+- **„metadane poza `<head>` na 63–70 URL, bo strony są zepsute" — zła diagnoza.** Problem był
+  niedeterministyczny, nie per-strona (patrz faza 2).
+
+#### 📍 Faza 1 — geokod zgodny z wizytówką + higiena crawla (`4498ade`)
+- **Rozjazd 3055 m.** `brandConfig` trzymał `50.677682;17.866163` — 3055 m na północ od gabinetu — i ta
+  wartość szła do schema `LocalBusiness.geo`, meta `geo.position`, `ICBM` oraz do embeda mapy.
+  Zmierzone `git grep` na `4498ade^`: **9 stron czytało `brand.mapEmbedUrl`** (8 geo-landingów
+  + `/dla-pacjentow-przyjezdnych`). Człowiek dostawał mapę wskazującą cudze miejsce, Google — sprzeczny adres.
+- 🪤 **Brand ładuje się z BAZY i to rozszczepiło stronę na dwa punkty.** `site_settings.brand` trzymał
+  stary geokod, a `layout.tsx` czyta z DWÓCH źródeł: meta `geo.position`/`ICBM` z obiektu po merge'u
+  z bazą (`:82–83`), a schema `geo` z modułowej stałej z pliku (`:144–145`). Skutek: **jedna strona
+  podawała Google dwa różne punkty**. Naprawa wzorcem, który już istniał dla domeny —
+  `delete dbBrand.geoPosition/icbm/mapEmbedUrl` w `loadBrandFromDB`. 🔑 Współrzędne to fakt o świecie,
+  nie ustawienie z panelu; źródłem prawdy zostaje kod. **Bez migracji.**
+- 🪤 **Literówka, przez którą konfiguracja nigdy nie działała.** `kontakt/page.tsx` sięgał po
+  `(brand as any).mapsEmbedUrl` — pole o takiej nazwie **nie istnieje** w `BrandConfig`, więc wyrażenie
+  zawsze było `undefined` i strona zawsze schodziła do zaszytego `PROD_MAP`. Rzutowanie na `any` zdjęło
+  jedyną bramkę, która by to złapała. Teraz jedno źródło: `brand.mapEmbedUrl`.
+- **Stary embed sam podpisywał złą pinezkę.** W jego etykiecie siedziało base64
+  `NTDCsDQwJzM5LjciTiAxN8KwNTEnNTguMiJF`, które dekoduje się do `50°40'39.7"N 17°51'58.2"E` — dokładnie
+  ten błędny punkt. Nowy embed centrowany na `2d17.8678691!3d50.6502565` z etykietą `Centralna 33a`.
+- **Trzy wewnętrzne 404 z crawla** — w `articles` są wiersze ze slugami zawierającymi polskie
+  i niemieckie znaki (`lęk`, `świeżości`, `błyszczacy`, `natürliches` — 4 wiersze wg komentarza
+  `sitemap.ts:121`), a routing Next zwraca dla nich 404. `sitemap.ts` filtrował je własnym `SAFE_SLUG`
+  od S10-4, ale **komponenty linkujące nie** — nowy `src/lib/safeSlug.ts` wpięty w `RelatedArticles`
+  i `ArticleCarousel`. ⚪ To łatanie objawu: docelowo slugi w bazie do przemianowania albo usunięcia z 301.
+- **Footer: `/admin` i `/pracownik` z `<a href>` na przyciski.** Były to kotwice obecne na KAŻDEJ
+  stronie publicznej, więc crawler zbierał je jako sitewide linki do blokowanych ścieżek.
+  `window.location.assign` daje to samo pełne przeładowanie co `<a>` — a to jest wymóg (udokumentowany
+  problem z service workerem PWA serwującym app-shell dla nowych URL-i), więc zachowanie dla ludzi bez zmian.
+- **`/mapa-bolu` nie miała ŻADNEGO H1** — jedynym nagłówkiem był H2 w nakładce intro, która się zamyka.
+  Widok jest celowo pełnoekranowy, więc H1 wszedł jako `sr-only` (klasa dopisana do `globals.css` — wcześniej
+  **nie istniała**, 0 wystąpień) + nowy klucz `pageH1` w 4 plikach `messages/*/common.json`.
+- 🪤 **`/strefa-pacjenta` była indeksowalna MIMO wpisu w robots.txt**, bo reguła brzmi
+  `Disallow: /strefa-pacjenta/` — **ze slashem** — a goły URL bez slasha do niej nie pasuje.
+  Domknięte `X-Robots-Tag: noindex, nofollow` w middleware. 🔑 **Robots.txt zostaje bez zmian celowo:**
+  goły URL musi być pobieralny, żeby Google w ogóle ZOBACZYŁ nagłówek — robots.txt zabrania POBIERANIA,
+  nie INDEKSOWANIA. Nagłówek zamiast `metadata` także dlatego, że layout strefy jest komponentem klienckim.
+- Weryfikacja: schema `geo`, meta `geo.position` i `ICBM` zgodne (`50.6502565`/`17.8678691`),
+  stary geokod `50.677682` **nie występuje w HTML ani razu**, `tsc` czysty, 576/576 testów.
+
+#### 🔀 Faza 3 — kanibalizacja: cztery pary bliźniaczych stron scalone w `/oferta/*` (`e12a9dc`)
+Marcin oddał decyzję („nie wiem która główna, oceń sam"), więc porównane zostały obie strony w każdej parze:
+
+| para | słowa | H2/H3 | linki wewn. | Ahrefs |
+|---|---|---|---|---|
+| implanty | 1237 / **1645** | 8-8 / **10-27** | 6 / **26** | `/oferta` poz. 7 |
+| licówki | 825 / **2040** | 8-8 / **13-26** | 5 / **22** | `/oferta` poz. 12 |
+| All-on-4 | 923 / **1140** | 8-8 / **12-17** | 5 / **14** | brak wolumenu |
+| endodoncja | 1359 / **1966** | 8-8 / **10-24** | 5 / **21** | brak |
+
+- 🔑 **Kolumna „H2/H3" mówi wszystko: geo-landingi to JEDEN szablon** — identyczne osiem nagłówków
+  z podmienioną nazwą zabiegu i **zdublowana sekcja opinii** („Opinie pacjentów" obok „Opinie Pacjentów")
+  na wszystkich czterech. Zero unikalnej treści lokalnej, schema `City`/`AdministrativeArea` identyczna
+  po obu stronach. Strony `/oferta/*` są pisane ręcznie (drzewa decyzyjne, porównania materiałów, cennik,
+  Re-Endo, DSD, All-on-4 vs All-on-6 vs zygomatyczne). Zwycięzca we wszystkich czterech parach: `/oferta/*`.
+- **8 przekierowań 301** w `next.config`: 4 PL + 4 z prefiksem `:locale(en|de|ua)` — strony renderowały się
+  także w obcych językach (jako noindex), więc same adresy istniały i trzeba je było domknąć.
+- **Sitemapa:** `implantyOpoleRoute` zredukowane do pustej listy, trzy wpisy usunięte z `localGeoRoutes`
+  (`all-on-4-opole`, `licowki-opole`, `leczenie-kanalowe-opole-mikroskop`).
+  Geo-landingi bez bliźniaka (`metamorfoza-usmiechu-opole`, `dentysta-opole-centrum`, obcojęzyczne) zostają.
+- **Stopka linkowała RÓWNOLEGLE do geo-landingu i do `/oferta/*` tej samej usługi** — po scaleniu byłyby to
+  sitewide linki do przekierowań, czyli osobny punkt z tego samego audytu. 4 linki usunięte.
+- **`internalLinks.ts`: 6 reguł `geo: true` → 2** (zostały metamorfozy i dentysta-centrum). Frazę
+  `leczenie kanałowe pod mikroskopem` przeniesiono do reguły ogólnej, żeby nie stracić dopasowania.
+  Efekt uboczny na plus: te tematy linkują się teraz także w en/de/ua, bo `/oferta/*` jest indeksowalne
+  we wszystkich językach, w odróżnieniu od geo-landingów.
+- **Test przepięty, nie skasowany:** preferencja geo jest nadal sprawdzana, tylko na metamorfozach, które
+  własny landing zachowały; doszedł drugi test pilnujący, że `implanty zębów Opole` linkuje do zwycięzcy,
+  **a nie donikąd** (14 → 15 asercji w `internalLinks.test.ts`).
+- ⚪ **Pliki stron zostają na dysku.** Cofnięcie decyzji to usunięcie ośmiu linii z `next.config`, bez
+  odtwarzania treści. Weryfikacja: 577/577 testów, cztery adresy PL i próbka locale zwracają 308 na właściwy
+  cel, wszystkie cztery cele 200, w sitemapie 0 wystąpień scalonych adresów, w stopce 0 linków do scalonych.
+
+#### 🏷️ Faza 2 — metadane zawsze w `<head>` (`e5baba5`)
+- 🔬 **Diagnoza audytu była myląca: problem NIE jest per-strona, tylko NIEDETERMINISTYCZNY.**
+  24 żądania na `/oferta/implantologia` przed poprawką: **19 z metadanymi w `<head>`** (mediana 0,87 s),
+  **5 w `<body>`** (mediana 0,76 s) = **21 % zepsutych**. 🔑 **Zepsute odpowiedzi były SZYBSZE** — to wyścig,
+  nie zepsute pliki: Next 16 strumieniuje metadane, więc gdy powłoka wyrenderuje się przed rozwiązaniem
+  `generateMetadata`, znaczniki lądują na końcu `<body>`. Klient renderujący JS to poskłada, crawler czytający
+  surowy HTML — nie.
+- **Źródłem opóźnienia był jeden `await`:** `generateMetadata` roota (`src/app/layout.tsx:30`) woła
+  `loadBrandFromDB()`, czyli round-trip do Supabase **na każde żądanie**. Grep potwierdza, że to jedyne
+  wywołanie w całym drzewie renderującym i jedyna praca asynchroniczna w ścieżce metadanych.
+- **Naprawa 1 — pamięć podręczna marki w `brandConfig.ts`, TTL 60 s.** Zapytanie znika ze ścieżki krytycznej,
+  metadane rozwiązują się od ręki i wygrywają wyścig. 🔑 **Zapamiętywane są TAKŻE wyniki awaryjne** (brak env,
+  błąd zapytania, wyjątek) — inaczej przy niedostępnej bazie każde żądanie próbowałoby round-tripu i wyścig
+  wracałby dokładnie wtedy, gdy jest najgorzej. Dodany `invalidateBrandCache()` dla testów.
+- 🪤 **Zmiana marki w adminie jest widoczna do 60 s — to NIE jest błąd zapisu.** Komentarz stoi
+  w `api/admin/theme/route.ts`. Świadomie bez `invalidateBrandCache()` w tej trasie: działa ona w innej
+  instancji serverless niż renderujące, więc czyściłaby cudzy cache, nie ich.
+- **Naprawa 2 — `htmlLimitedBots` w `next.config`:** lista user-agentów, dla których Next CZEKA na metadane.
+  🪤 **`shouldServeStreamingMetadata` robi `new RegExp(htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING)` —
+  własna wartość ZASTĘPUJE domyślną, nie rozszerza jej.** Zweryfikowane w źródle:
+  `node_modules/next/dist/server/lib/streaming-metadata.js`. Trzeba wpisać całą listę Next 16.2.12 plus dopiski,
+  inaczej skrócenie wyłącza blokowanie dla Facebooka, Bingbota, LinkedIna i reszty.
+- 🪤 **Domyślne wzorce to `[\w-]+-Google` i `Google-[\w-]+` — samo „Googlebot" do żadnego NIE pasuje.**
+  Sprawdzone w `node_modules/next/dist/shared/lib/router/utils/html-bots.js`; Next zakłada, że Google wyrenderuje
+  JS. Wolimy poprawny surowy HTML od razu. Dopisane 4 wzorce: `Googlebot`, `Screaming Frog`, `AhrefsBot`,
+  `SemrushBot` — trzy ostatnie nie wykonują JS, więc bez nich kolejny audyt zgłosiłby dokładnie to samo.
+- Weryfikacja na zbudowanym artefakcie, 10 prób × 4 strony × 4 user-agenty: Googlebot **40/40**,
+  Screaming Frog **40/40**, facebookexternalhit **40/40**, zwykła przeglądarka **40/40** = 100 %.
+  🔑 Sama pamięć podręczna usunęła wyścig także dla klientów strumieniowych. Komplet
+  `title+description+canonical+hreflang` w `<head>`, 0 poza `<head>` na 6 stronach z różnych locale.
+  Bez regresji: geokod, telefon, adres i title poprawne po cache. 577/577 testów.
+
+#### ✂️ Snippety — tytuły i opisy artykułów pod wyniki wyszukiwania (`a8ac26b`)
+Pierwsza zmiana tego dnia napędzona danymi z Search Console, których audyt nie miał.
+
+| strona | wyśw. | pozycja | CTR |
+|---|---|---|---|
+| `/oferta` | 4 445 | **3,6** | **1,8 %** (norma ~10 %) |
+| `/rezerwacja` | 3 601 | 5,6 | 2,6 % |
+| `/baza-wiedzy/ile-kanalow-maja-zeby` | **15 358** | 8,5 | **0,36 %** |
+| `/kontakt` | 10 897 | 8,5 | 0,65 % |
+| `/oferta/implantologia` | 5 546 | 8,6 | 1,1 % |
+
+- 🔑 **Google nas POKAZUJE, ludzie nie klikają.** Problem jest w tym, co widzą w wynikach, nie w rankingu.
+- **Pomiar bazy (wąski `select`, 526 opublikowanych artykułów):** **455 (87 %) tytułów > 60 znaków**,
+  **415 (79 %) opisów > 155 znaków**, **12 tytułów ma „ | Mikrostomart Opole" wpisane już W BAZIE**.
+  Do tego szablon doklejał „ | Baza Wiedzy Mikrostomart" (**27 znaków**) do KAŻDEGO artykułu — przy medianie
+  tytułu 74 znaki sufiks nigdy nie był widoczny, a przy tych 12 marka wychodziła **dwa razy, także w H1**:
+  czytelnik widział „…nieumiejętni dentyści | Mikrostomart Opole" jako nagłówek artykułu.
+- **Nowy `src/lib/articleSeo.ts`, trzy funkcje:** `cleanArticleTitle` zdejmuje do trzech ogonów z nazwą marki,
+  ale **NIE rusza pionowej kreski będącej częścią tytułu** („Implanty | koszt i przebieg" zostaje) i nigdy
+  nie zwraca pustego łańcucha; `articleSeoTitle` dokleja markę **tylko gdy całość mieści się w 60 znakach** —
+  inaczej zjadałaby budżet, nie będąc widoczna; `articleSeoDescription` przycina **na granicy słowa**
+  (tylko gdy spacja wypada po 60 % limitu), zdejmuje wiszącą interpunkcję i dokleja „…".
+- Wpięte w bazę wiedzy (`title`, `description`, `og:title`, `twitter` **oraz H1** — markę zdejmujemy przy
+  renderze, dane w bazie zostają), `/nowosielski` i `/aktualnosci`.
+- **Generator `cron/daily-article` dostał limity 60/155 w prompcie ORAZ w schemacie JSON** + zakaz doklejania
+  nazwy gabinetu do tytułu. Bez tego problem wracałby z każdym nowym wpisem. 🔑 Naprawa u ŹRÓDŁA, nie tylko
+  na wyjściu.
+- **12 testów helpera** (w tym przypadek kreski wewnątrz tytułu i przycinania na granicy słowa).
+  🪤 Jeden test wyłapał błąd **w moim własnym teście** — łańcuch miał 151 znaków, więc nie było czego przycinać.
+- Weryfikacja, losowa próbka 14 artykułów (baza wiedzy + aktualności + blog, cztery języki):
+  **0 opisów > 155 znaków** (przed: 79 %), **0 tytułów z podwojoną marką**, mediana opisu **151**.
+  Sztandarowy przypadek: tytuł **125 → 77** znaków, opis **296 → 153**, marka zdjęta z tytułu ORAZ z H1.
+  589/589 testów.
+- ⚪ **Czego to NIE robi:** 12 z 14 tytułów w próbce nadal przekracza 60 znaków, bo tak są napisane w bazie.
+  Skrócenie 455 tytułów to praca **redakcyjna**, nie mechaniczna — automatyczne ucinanie zniszczyłoby sens.
+  Tu zdjęto tylko marnowane 27 znaków sufiksu i duplikację marki.
+
+#### 🔑 Search Console — obraz, którego audyt nie widział
+- Stan za 3 miesiące: **2,56 tys. kliknięć · 137 tys. wyświetleń · CTR 1,9 % · średnia pozycja 10,9.**
+- Indeksowanie: **853 zindeksowane wobec 2 298 niezindeksowanych** — 759 przekierowań, **634 × 404**,
+  **740 „zeskanowana, ale niezindeksowana"**, 115 noindex.
+- **Ruch jest niemal wyłącznie markowy:** „mikrostomart" 563 kliknięcia, „mikrostomart opole" 106,
+  „marcin nowosielski dentysta" 67. Jedyne duże niemarkowe: **„dentysta opole" — 3 897 wyświetleń,
+  26 kliknięć (0,7 %)**. 🔑 **Kto nas zna, ten trafia; nowi z wyszukiwarki nie przychodzą.**
+- 🪤 **Fałszywy alarm sprawdzony i odrzucony:** `http://mikrostomart.pl/` figuruje w GSC jako osobna strona
+  z 210 kliknięciami, ale przekierowania są dziś poprawne (308 na całej ścieżce http→https→www).
+  To dane historyczne, Google to skonsoliduje.
+- 🪤 **634 × 404 to głównie usunięte artykuły bazy wiedzy w EN/DE/UA** — czyszczenie GEO 5.3 dodało
+  przekierowania tylko dla polskich slugów. Treści naprawdę nie ma (obie wersje 404), więc nie ma czego
+  przekierować. Nie priorytet.
+
+#### ⏳ Otwarte po tym dniu
+- **740 stron „zeskanowana, ale niezindeksowana"** — cienka baza wiedzy, sygnał jakości. Największy temat.
+- **455 zbyt długich tytułów** do przepisania redakcyjnie.
+- **„dentysta opole"**: 3 897 wyświetleń, pozycja ~18. Odpowiedzią jest napisana strona, nie reaktywacja
+  szablonu geo — ten sam szablon właśnie scaliliśmy.
+- Faza 4 (obrazy/HTML) niezrobiona. ⛔ Katalogi odpadają jako kanał — Marcin nie ma tam kont, korespondencja
+  zostaje bez odzewu (próbował).
+
+#### Pliki
+- `src/lib/brandConfig.ts` (geokod, embed, `delete` pól z bazy, cache TTL 60 s, `invalidateBrandCache`)
+- `src/lib/safeSlug.ts` · `src/lib/articleSeo.ts` (nowe) + `src/lib/__tests__/articleSeo.test.ts`
+- `src/lib/internalLinks.ts` + `src/lib/__tests__/internalLinks.test.ts`
+- `next.config.ts` (8 przekierowań 301, `htmlLimitedBots`)
+- `src/middleware.ts` · `src/app/sitemap.ts` · `src/app/api/admin/theme/route.ts` · `src/app/api/cron/daily-article/route.ts`
+- `src/app/[locale]/kontakt/page.tsx` · `src/app/[locale]/mapa-bolu/page.tsx`
+- `src/app/[locale]/baza-wiedzy/[slug]/page.tsx` · `src/app/[locale]/aktualnosci/[slug]/page.tsx` · `src/app/[locale]/nowosielski/[slug]/page.tsx`
+- `src/components/Footer.tsx` · `src/components/RelatedArticles.tsx` · `src/components/ArticleCarousel.tsx`
+- `src/app/globals.css` (klasa `.sr-only`) · `messages/{pl,en,de,ua}/common.json` (klucz `pageH1`)
+- artefakty budowania: `public/sw.js`, `src/lib/generated-route-mtimes.ts`
+
+> ⚠️ REQUIRES: brak migracji i brak nowych zmiennych środowiskowych. Jedyny efekt operacyjny:
+> **zmiana marki w panelu admina propaguje się do 60 s** (`BRAND_CACHE_TTL_MS` w `src/lib/brandConfig.ts`).
+
+---
+
+### 2026-08-18 — 🧨 TRZY MINY W PLIKACH MIGRACJI ROZBROJONE + SENTRY W POLITYCE PRYWATNOŚCI (art. 28)
+
+**Żadnej nowej migracji — zmiana dotyczy PLIKÓW w repo, nie bazy** (wolny numer **200**; 199 zajęła migracja `199_app_reports.sql` z 17.08, commit `5c04141` — nagłówek CONTEXT z 16.08 mówiący „wolny 199" jest NIEAKTUALNY, powstał zanim numer został wzięty; schemat i polityki RLS na produkcji nietknięte). Dwa niezależne wątki, dwa commity: `7d2880f` (miny, 12:38:51) i `343af7e` (polityka prywatności, 12:39:14) — oba na `origin/main`.
+
+#### 🧨 Trzy miny: `051`, `055`, `096` — polityki wpuszczające `authenticated`
+- **Na czym polegała mina.** Trzy pliki migracji tworzyły polityki RLS wpuszczające rolę `authenticated`.
+  W Supabase `authenticated` to **KAŻDE konto**, nie personel kliniki — a chodzi o `chat_messages`
+  i `chat_conversations` (treści rozmów, nazwiska, `guest_token`), `employee_tasks` (nazwiska pacjentów
+  i opisy zabiegów) oraz `feature_suggestions` + `feature_suggestion_comments` (tablica wewnętrzna zespołu).
+  🪤 **Dwa różne wzorce, nie jeden:** 055 i 096 mają `TO authenticated USING (true)`; 051 ma
+  `USING (auth.role() = 'authenticated')` **bez klauzuli `TO`** (czyli rola `public`, ten sam kształt co 091).
+  Grep po `TO authenticated` znajduje tylko dwie z trzech min.
+- 🔑 **Czy dotyczyło produkcji: NIE — ale ROZŁOŻENIE zasług jest inne dla każdej tabeli.**
+  - `feature_suggestions` i `feature_suggestion_comments` zdjęła migracja **081** (`service_only USING (false)`,
+    wiersze 75–88), a **190** powtórzyła zamiatanie pętlą po `pg_policies`.
+  - `employee_tasks` zamknęła **DOPIERO 190**. Migracja 081 tej tabeli **nie dotyka ani razu** (grep: zero
+    trafień) i dotknąć nie mogła — 096 jest PÓŹNIEJSZA niż 081. Tabelę zamykały wcześniej 052 i 053, ale
+    **096 otworzyła ją z powrotem**, więc 190 jest pierwszą i jedyną migracją, która zdjęła polityki z 096.
+  - Tabele czatu zamknęła **182** (`chat_*_service_only` + wąski `chat_*_staff_read` przez `is_clinic_staff()`).
+  🪤 **Nagłówki dopisane dziś do 055 i 096 powtarzają błędne „zdjęła je migracja 081"** — dla 096 to nieprawda;
+  do sprostowania w plikach.
+- **Pomiar zachowaniem — co do której tabeli.** README martwego katalogu (13.08) notuje pomiar z 12.08:
+  `employee_tasks` — pracownik z kluczem publicznym widzi **0 wierszy z 299**, `insert` → `42501`.
+  🪤 Nagłówki dopisane dziś do 055 i 096 podają **0 z 25**. Liczba 25 nie ma w repo żadnego innego śladu poza
+  tymi dwoma nagłówkami, a migracja 182 (w. 142–144) podaje liczności `feature_suggestions` /
+  `feature_suggestion_comments` / `employee_tasks` = **25 / 12 / 265** — czyli „0 z 25" pasuje do
+  `feature_suggestions`, a w pliku o `employee_tasks` stoi **liczba z cudzej tabeli**. Do sprostowania w 096.
+- 🔴 **Groźne było WYŁĄCZNIE ponowne uruchomienie pliku.** Migracje w tym projekcie wkleja się **ręcznie
+  w SQL Editorze**, bez runnera i bez tabeli śledzącej wgrane wersje. Nic nie powstrzymywało kogoś przed
+  otwarciem starego pliku „bo tworzy tabelę" — a to otwierało tabele z powrotem. Migracja 190 nazwała ten
+  problem już 06.08 i **celowo go nie ruszyła** („ta migracja naprawia BAZĘ"); dziś dług został zamknięty.
+- 🔴 **051 była najgroźniejsza.** To źródło wycieku domkniętego migracją 182, odtworzonego atakiem na
+  produkcji **27.07**: konto bez żadnych ról, zalogowane kluczem publicznym, odczytało treści wiadomości,
+  nazwiska pacjentów i `guest_token`.
+- 🪤 **Strażnik `IF NOT EXISTS` w 051 wyglądał jak zabezpieczenie i nim NIE BYŁ.** Sprawdzał
+  `policyname = 'authenticated_only'`, a migracja 182 nazwała swoje polityki **inaczej**
+  (`chat_messages_service_only`, `chat_messages_staff_read` — sprawdzone w pliku 182). Warunek wyszedłby
+  więc PRAWDZIWY i otwarta polityka wróciłaby.
+- 🪤 **Polityki permisywne łączą się przez OR.** Dołożone `authenticated_only` nie „przegrywa" z istniejącym
+  `service_only FOR ALL USING (false)` — otwiera tabelę mimo że tamta nadal istnieje.
+- **Jak rozbrojone.** Zakomentowane **11 instrukcji `CREATE POLICY` na 5 tabelach**: 051 → 2 (czat),
+  055 → 5 (sugestie 3 + komentarze 2), 096 → 4 (`employee_tasks` SELECT/INSERT/UPDATE/DELETE).
+  Diff: **+112 / −38 w 3 plikach**.
+- 🔑 **Dlaczego zakomentowanie jest bezpieczne, a nie odwrotnie.** `ALTER TABLE … ENABLE ROW LEVEL SECURITY`
+  **ZOSTAJE** we wszystkich trzech plikach (051 ma ich 17 aktywnych), `CREATE TABLE` i `CREATE INDEX`
+  nietknięte. RLS włączone **bez polityk** = odmowa dla `anon` i `authenticated`, a `service_role` i tak
+  omija RLS → świeże środowisko jest zamknięte od pierwszej sekundy, zamiast czekać na 081 (a dla
+  `employee_tasks` — na 190).
+  Dla środowisk, które te pliki już przeszły, zmiana nie robi **NIC**.
+- **Kontrola po zmianie (zmierzona w repo).** 051 nadal tworzy **15 aktywnych** polityk
+  `service_only … USING (false)`, bloki `DO $$ BEGIN` / `END $$;` zbalansowane (po 17 wystąpień, z czego
+  2 zakomentowane → 15 aktywnych par). W całym `supabase_migrations/` jedyne aktywne `TO authenticated`
+  to **dwa wąskie SELECT-y z migracji 182** przez `is_clinic_staff()` — celowe, bez nich Realtime
+  w panelu admina przestaje dostarczać zdarzenia.
+
+#### 🔑 Sprostowanie zapisu z 16.08 — to NIE była ręczna poprawka w konsoli
+Nagłówek CONTEXT z 16.08 twierdzi, że polityk `feature_suggestions_service_only` /
+`feature_suggestion_comments_service_only` „**ŻADNA migracja w repo nie tworzy**", więc poprawkę wykonano
+ręcznie poza historią migracji. **To nieprawda — tworzy je migracja 190** (wgrana i zweryfikowana 06.08),
+której pętla obejmuje `sms_reminders`, `employee_tasks`, `feature_suggestions` i `feature_suggestion_comments`.
+🪤 **Nazwa nie da się wygrepować, bo powstaje dynamicznie:**
+`EXECUTE format('CREATE POLICY %I ON public.%I …', tabela || '_service_only', tabela)`.
+Grep po nazwie polityki jest ślepy na polityki budowane `format()`-em — pomiar odpowiedział „nie ma",
+choć jest. 🪤 Ten sam nagłówek niesie DRUGI nieaktualny zapis — „wolny numer migracji: **199**" — obalony
+dzień później przez `199_app_reports.sql`.
+
+#### ⏳ Czego ten przebieg NIE objął (zmierzone dziś w repo)
+- **`supabase_migrations/091_page_templates.sql` — czwarta mina tej samej rodziny, nadal uzbrojona.**
+  Wzorzec identyczny jak w 051: `FOR SELECT USING (true)` **bez klauzuli `TO`** (czyli rola `public` = także
+  `anon`) plus trzy polityki `auth.role() = 'authenticated'` na INSERT/UPDATE/DELETE. Na produkcji zdjęła je
+  migracja 182 (`page_templates_service_only`), ale PLIK nadal je tworzy.
+  🔴 **Powodu pominięcia 091 NIE DA SIĘ odtworzyć z repo.** Nasuwające się wyjaśnienie „kontrola szukała
+  łańcucha `TO authenticated`, którego 091 nie zawiera" **nie broni się**: 051 również nie zawiera tego
+  łańcucha, a mimo to zostało w tym commicie znalezione i rozbrojone. Treść commita `7d2880f` opisuje
+  kontrolę inaczej — „zero aktywnych polityk authenticated w calym katalogu" — a 091 zawiera
+  `auth.role() = 'authenticated'` **trzy razy**, więc przy TAK opisanej kontroli nie wyszłoby czysto.
+  Do wyjaśnienia przy rozbrajaniu 091.
+- **`supabase/migrations/` (martwy katalog)** — dwa pliki z otwartymi politykami zostają w oryginale;
+  rozbrojono je 13.08 **nagłówkiem ⛔**, nie zakomentowaniem. Dwie różne metody na tę samą klasę miny.
+  🪤 README tego katalogu przypisuje zamknięcie `employee_tasks` migracji **132**, a 132 tej tabeli
+  **w ogóle nie zawiera** (osiem tabel `care_*`, `fcm_tokens`, `push_notifications_log`, `ai_conversations`).
+  Trzeci nieprawdziwy przypis do tej samej tabeli — do sprostowania.
+
+#### 🛡️ Sentry na liście podmiotów przetwarzających (RODO art. 28) × 4 locale
+- **Powód.** Apka mobilna dostała tego samego dnia raportowanie awarii (`@sentry/react-native ~7.11.0`,
+  repo `mikrostomart-app`, commit `c0f4730` o 12:41:49). Kanał do zewnętrznego dostawcy musi być
+  wymieniony, zanim binarka trafi do ludzi — wpis do polityki wszedł 2,5 minuty **przed** commitem apki.
+- **Treść `sec9Li13`:** Functional Software, Inc. dba Sentry — siedziba USA, dane przechowywane w regionie
+  UE (Niemcy), SCC + DPA; **wyłącznie dane techniczne** (typ i komunikat błędu, ślad stosu, wersja apki,
+  system, model urządzenia, nazwa ekranu pozbawiona identyfikatorów), **BEZ** tożsamości, zrzutów ekranu
+  i nagrań sesji; PESEL, telefony, e-maile i identyfikatory usuwane z treści zgłoszenia przed wysłaniem.
+- 🪤 **Sam klucz w JSON byłby martwym tekstem.** Lista w `polityka-prywatnosci/page.tsx` jest wypisana
+  **RĘCZNIE** (`t('sec9Li1')` … `t('sec9Li12')`), a nie mapowana po kluczach — bez dopisania `t('sec9Li13')`
+  wpis nigdy by się nie wyrenderował. Zmienione OBA miejsca. Zmierzone po zmianie: **13 kluczy `sec9Li*`
+  w każdym z czterech locale** (`pl`, `en`, `de`, `ua`), najwyższy numer 13.
+- **Diff:** +2 / −1 na każdy plik JSON (4 pliki) + 6 linii w `page.tsx` (5 linii uzasadnienia i wywołanie);
+  łącznie **+14 / −4 w 5 plikach**. JSON wstawiony stringiem, nie `json.dump` — dump przeformatował kiedyś
+  4400 linii za jedną dopisaną.
+- 🪤 **Weryfikacja RENDEREM, nie grepem po źródle — dwa pierwsze pomiary kłamały.** Słowo „Sentry" siedzi
+  w banerze zgód na KAŻDEJ stronie (`common.json` → „Analityka błędów (Sentry)"), a fraza
+  „Functional Software" jest w ładunku RSC każdej strony, bo next-intl wysyła cały namespace `pages.json`
+  do klienta. Rozstrzygnął render na `next start` + kontrola negatywna `/regulamin` → 0 wystąpień.
+- **Uzasadnienie zostało w kodzie**, nie w commicie: komentarz nad `t('sec9Li13')` mówi, że komunikat
+  wyjątku POTRAFI nieść treść odpowiedzi serwera, a trasa — id pacjenta, dlatego apka czyści zdarzenie
+  przed wysłaniem. Liczba z komentarza sprawdzona u źródła: harness `src/lib/__tests__/scrubEvent.test.js`
+  w repo apki liczy **36 asercji** (37 wywołań `ok(` minus definicja funkcji).
+- ⏳ **Zakres wpisu jest węższy niż faktyczne przetwarzanie.** `sec9Li13` mówi wyłącznie o „diagnostyce
+  awarii aplikacji mobilnej", a Sentry jest podpięte także do **samej strony**: `next.config.ts` owija build
+  `withSentryConfig`, w korzeniu leżą `sentry.client.config.ts` / `sentry.server.config.ts` /
+  `sentry.edge.config.ts` (`enabled: NODE_ENV === 'production'`), `middleware.ts` buduje z DSN-a
+  `report-uri` dla CSP, a baner zgód ma osobną kategorię „Analityka błędów (Sentry)".
+  `@sentry/nextjs` jest w repo od commita `1811ef8` (05.03.2026). Podmiot jest już na liście — do
+  poprawienia zostaje **opis zakresu**.
+
+#### Pliki
+- `supabase_migrations/051_rls_security_fixes.sql` — 2 polityki `authenticated_only` zakomentowane, RLS zostaje
+- `supabase_migrations/055_feature_suggestions.sql` — 5 polityk zakomentowanych
+- `supabase_migrations/096_employee_tasks_update.sql` — 4 polityki zakomentowane
+- `messages/pl/pages.json`, `messages/en/pages.json`, `messages/de/pages.json`, `messages/ua/pages.json` — klucz `sec9Li13`
+- `src/app/[locale]/polityka-prywatnosci/page.tsx` — `t('sec9Li13')` w ręcznie wypisanej liście
+
+> ⚠️ REQUIRES: **nic** — żadnej migracji do wgrania i żadnej nowej zmiennej środowiskowej.
+> Zmiana w migracjach dotyczy wyłącznie plików w repo (świeże środowiska), a wpis do polityki
+> wchodzi zwykłym deployem weba.
+> 📌 DŁUG ZOSTAWIONY: (1) nagłówki 055 i 096 mówią „zdjęła je migracja 081" — dla `employee_tasks` fałsz;
+> (2) nagłówek 096 podaje „0 z 25", czyli liczność `feature_suggestions`, nie `employee_tasks` (265/299);
+> (3) README martwego katalogu przypisuje zamknięcie `employee_tasks` migracji 132, która tej tabeli nie
+> zawiera; (4) 091 nadal uzbrojone i bez odtwarzalnego powodu pominięcia.
+
+---
+
+### 2026-08-17 — 📮 KANAŁ ZGŁOSZEŃ Z APLIKACJI: MIGRACJA 199 + TRZY TRASY
+
+**Migracja 199 NAPISANA, w commitach dnia BRAK dowodu wgrania** (ostatnia z dowodem: 198, 16.08).
+Commity: `5c04141` (kanał, 738 wstawionych linii w 6 plikach) + `86e4fcf` (poprawka, +38/−30 w 3 plikach).
+Bramki z opisów commitów: `tsc` czysto, `next build` exit 0. Brak potwierdzenia deployu weba.
+
+#### 📮 Czego nie było
+- Do 1.3.1 apka **nie miała kanału zwrotnego**. Jedyną drogą był czat z recepcją, czyli usterka
+  oprogramowania lądowała w tej samej skrzynce co pytanie o leczenie — a te dwie rzeczy mają
+  zupełnie inny czas reakcji. Teraz: użytkownik zgłasza, personel widzi, zmienia status i **odpowiada**.
+- Osobna tabela `app_reports` (18 kolumn, 2 indeksy — drugi CZĘŚCIOWY `WHERE patient_id IS NOT NULL`,
+  1 trigger `updated_at`, 1 polityka RLS). Nie `incidents` (mig 187 = usterki SPRZĘTU zgłaszane przez
+  personel, cykl serwisowy, zdjęcia), nie `feature_suggestions` (mig 055 = wewnętrzna tablica pomysłów zespołu).
+- 🪤 **Uzasadnienie osobnej tabeli w nagłówku migracji (akapit „DLACZEGO OSOBNA TABELA"; w opisie
+  commita numerowane jako D3) było nieaktualne już w chwili pisania.** Plik mówi, że
+  `feature_suggestions` ma dług RLS `TO authenticated USING (true)`, a pomiar `pg_policies` z 16.08
+  pokazał na produkcji `feature_suggestions_service_only` na `{service_role}`. **Dług siedzi w PLIKACH
+  migracji (051/055/096), nie na produkcji** — rozbrojone dzień później (`7d2880f`, 18.08). Decyzja
+  o osobnej tabeli zostaje, ale stoi na innym argumencie (inny cykl życia, trzeci najemca zepsułby obie listy).
+  🪤 Uwaga na numerację: `D3` w NAGŁÓWKU migracji znaczy co innego — „TRZY RODZAJE (`kind`):
+  usterka / pomysł / inne".
+
+#### 🔐 Kto to czyta
+- RLS: jedna polityka `app_reports_service_only`, `FOR ALL **TO service_role**`. 🔴 Stawka wyższa niż
+  zwykle: polityka bez klauzuli `TO` ma `roles={public}`, więc **każdy z kluczem anon czytałby cudze
+  zgłoszenia razem z treścią i kontaktem zwrotnym**. Apka nie dotyka tabeli — chodzi wyłącznie przez REST weba.
+- Personel: `GET /api/employee/reports` + `PATCH /api/employee/reports/[id]`, oba na
+  `requireEmployeeOrAdmin()` (`lib/authGuards.ts:86` — przechodzi rola `admin` LUB `employee`).
+  Druga warstwa jest w middlewarze: prefiks `/api/employee` stoi w `PROTECTED_PREFIXES`
+  (`middleware.ts:418`), więc obie trasy chodzą przez bramkę 2FA **JUŻ DZIŚ** (admin bez 2FA → kreator
+  `/pracownik/security?force=true`, każdy z włączonym 2FA → `/auth/2fa-challenge`), a od 1 IX 2026
+  (`MFA_MANDATORY_FROM_ISO`, `lib/mfaPolicy.ts:26`) obowiązek obejmie każdego pracownika.
+- 🔑 **Asymetria widoku jest celowa.** Personel dostaje `select('*')`, bo diagnostyka jest CAŁYM sensem
+  tej listy (limit 200 wierszy). Pacjent dostaje `PATIENT_VISIBLE_COLUMNS` — 9 kolumn, **bez** `patient_id`,
+  `contact`, `replied_by` i bez całej diagnostyki (limit 50).
+- Zgłoszenia widzi każdy pracownik, nie tylko admin: usterkę apki rozpoznaje ten, kto jej używa.
+
+#### 🚪 D1: zgłasza także GOŚĆ — i tu jest cała trudność
+- POST działa **bez sesji**, świadomie: człowiek, któremu psuje się logowanie albo rejestracja, nie
+  zgłosi tego jako zalogowany, a to jest dokładnie ta klasa usterki, o której trzeba wiedzieć najbardziej.
+  `/api/patients` nie występuje w `PROTECTED_PREFIXES`, więc trasa jest realnie publiczna.
+- Ceną jest spam, płaconą limitem, nie zamknięciem kanału: **gość 3/godz. po IP** (`appreport:ip:<ip>`),
+  **zalogowany 10/godz. PO KONCIE** (`appreport:pat:<userId>`). 🔑 Klucz po koncie, nie po IP — inaczej
+  poczekalnia na wspólnym wi-fi albo rodzina za jednym NAT-em dzielą się trzema zgłoszeniami na godzinę.
+- 🪤 **`failClosed: true` jest przekazany BEZWARUNKOWO** (`patients/reports/route.ts:59`), a nie tylko dla
+  gościa, jak mówi opis commita. Skutek: padnięty licznik (`degrade()` w `lib/rateLimit.ts:181`) odcina
+  **także zalogowanego** — 429 zamiast zapisu. Do świadomej decyzji, nie do przeoczenia.
+- `contact` (max 200 zn.) przyjmowany **wyłącznie od gościa** — zalogowany dostaje odpowiedź na ekranie
+  „Moje zgłoszenia", więc pole byłoby zbieraniem danych bez celu. Nic z tego pola nie wysyła maila automatycznie.
+
+#### 🔒 D2: zamknięcie bez odpowiedzi jest niemożliwe NA POZIOMIE BAZY
+- CHECK `app_reports_closing_requires_reply`:
+  `status NOT IN ('done','declined') OR (reply IS NOT NULL AND length(btrim(reply)) >= 3)`.
+  🪤 Człon `reply IS NOT NULL` jest OBOWIĄZKOWY — bez niego przy `reply = NULL` wyrażenie
+  `length(btrim(NULL)) >= 3` daje NULL, całe `false OR NULL` = NULL, a CHECK-a o wyniku NULL Postgres
+  **przepuszcza**; skrócona wersja wpuściłaby dokładnie ten przypadek, który ma blokować.
+  🔑 `in_progress` odpowiedzi NIE wymaga — „zajmujemy się tym" to stan pośredni. Bramkę w kodzie da się
+  ominąć (skrypt, przyszła trasa), CHECK-a nie; ta sama zasada co `incidents_resolution_requires_note`.
+- W kodzie stoi lustro `closingNeedsReply()` — **tylko** po to, żeby oddać czytelny `400 reply_required`
+  zamiast surowego błędu Postgresa. PATCH czyta stan obecny, bo warunek dotyczy stanu WYNIKOWEGO
+  (żądanie może zmieniać sam status, sam tekst albo oba).
+- 🔑 **404 rozdzielone od 500** w PATCH: „nie ma takiego zgłoszenia" to inna informacja niż „zapytanie się
+  wywróciło". Zlepienie tych dwóch ukryło już raz awarię eksportu RODO na pięć miesięcy.
+- Autor odpowiedzi (`replied_by` / `replied_name` / `replied_at`) stemplowany **wyłącznie przy realnej
+  zmianie tekstu** — inaczej samo przełączenie statusu przepisywałoby cudzą odpowiedź na siebie.
+  Nazwisko przez `resolveStaffName()` (`employees.name`, fallback e-mail, potem literał `Pracownik`).
+
+#### 🧼 Diagnostyka bez identyfikatorów (D4–D6)
+- Sześć pól: `app_version`, `platform` (CHECK `ios|android|web`), `os_version`, `device_model`, `locale`,
+  `screen`; każde przycinane do 120 znaków (`MAX_DIAG`). ⚪ Świadomie **BEZ IDFV i ANDROID_ID** —
+  `device_model` to nazwa handlowa, nie identyfikator sprzętu.
+- `sanitizeScreen()` zamienia na `:id` każdy segment trasy, który jest samą cyfrą, ma prefiks UUID albo
+  jest dłuższy niż 20 znaków i zawiera cyfrę. 🔑 **Czyszczenie stoi PO STRONIE SERWERA, mimo że apka robi
+  to samo u siebie** — serwer nie może ufać temu, co przyśle klient, a w tym polu potrafi przyjechać
+  `/(staff)/pacjenci/<uuid>`, czyli id pacjenta w polu, które personel ogląda przy każdym zgłoszeniu.
+- ⚪ D5: zero załączników w v1. Zrzut ekranu z apki pacjenta niemal zawsze zawiera dane zdrowotne (art. 9),
+  a apka od 1.3.0 celowo BLOKUJE zrzuty na takich ekranach — dokładanie bucketa, do którego użytkownik sam
+  wgrywa taki materiał, otwiera nową powierzchnię RODO dla wygody jeszcze nieudowodnionej.
+- D6: push tylko przy `kind='bug'`, tylko do grupy `admin`, **bez treści zgłoszenia** — sam sygnał i link.
+  Zgłoszenie potrafi zawierać zdanie o własnym leczeniu, a push ląduje na ekranie blokady.
+- Ścieżka `app_report_bug` zasiana w `push_path_health` z `max_silence_minutes = NULL` (ZDARZENIOWA — cisza
+  znaczy „nikt nie zgłosił usterki", nie awarię kanału; ten sam powód co `incident_blocking` z mig 187).
+  `recordPushPath()` dostaje REALNY `{sent, failed}`, nie samo „próbowałem". Awaria pusha **nie wywraca**
+  zapisu — zgłoszenie jest już w bazie.
+- 🪤 POST **czeka** na wysyłkę (`await pushToGroups`, `patients/reports/route.ts:172`), podczas gdy trasy
+  awarii, sugestii i urlopów robią `void pushToGroups(...)`. Czekanie NIE jest do rzetelnego rejestru
+  konieczne — trasa awarii zapisuje realny `{sent, failed}` bez blokowania odpowiedzi, przez
+  `void pushToGroups(...).then(res => recordPushPath('incident_blocking', ...))`
+  (`employee/incidents/route.ts:117`). Tutaj `await` opóźnia odpowiedź o czas wysyłki i jest do przemyślenia.
+- ⏳ `url: '/pracownik/zgloszenia'` **nie ma odpowiednika w tym repo**: `src/app/pracownik/` to jedna strona
+  z 13 zakładkami (`page.tsx:82`), a `zgloszenia` nie ma na tej liście — tak samo jak starszego `?tab=awarie`
+  z migracji 187. Panel personelu dla obu kanałów jeszcze nie powstał; na dziś personel dojdzie do zgłoszeń
+  wyłącznie trasą API.
+
+#### 🔴 Drugi commit: kolumna, której nie ma, cicho zamieniała pacjenta w gościa
+- Pierwsza wersja trasy robiła `select('id, first_name, last_name, name')` na `patients`. **Tabela `patients`
+  nie ma kolumny z imieniem ani nazwiskiem** — tożsamość żyje w Prodentisie. To nie jest nowe odkrycie:
+  dokładnie to samo zmierzono na produkcji 12.08 przy awarii eksportu RODO (komentarz w
+  `patients/export-data/route.ts:70-81`).
+- Łańcuch skutku: PostgREST odrzuca **CAŁE** zapytanie (42703) → `patient` wychodzi `null` → `patientId`
+  zostaje `null` → **każde zgłoszenie zalogowanego zapisywałoby się jako zgłoszenie gościa**, a ekran
+  „Moje zgłoszenia" byłby ZAWSZE pusty. Cicho, bez błędu widocznego dla człowieka, **przy zielonym `tsc`
+  i udanym `next build`** — nazwa kolumny to dla kompilatora zwykły string.
+- Naprawa: `select('id')`, kolumna `reporter_name` **usunięta z migracji 199** (kolumna, której nie ma czym
+  wypełnić, to nie zapas, tylko dług), tożsamość niesie sam `patient_id`. Błąd odczytu pacjenta jest teraz
+  **logowany** (`[AppReports] odczyt pacjenta nieudany`) — cicha degradacja do gościa nie może znów zostać
+  odkryta dopiero po miesiącach.
+- Uproszczona przy okazji uwaga RODO w migracji: `ON DELETE SET NULL` zamienia zgłoszenie w anonimową treść
+  techniczną, a `contact` u konta jest z definicji NULL (wypełnia go wyłącznie gość), więc nie ma już czego
+  dodatkowo zerować przy usuwaniu konta.
+- ⚪ **Sprostowanie do notatki „fallback nazwiska «Pacjent»":** `/api/patients/me` i `/api/patients/login`
+  robią `select('*')`, więc się NIE wywracają — pola po prostu wracają puste i kod schodzi na literał
+  `Demo`/`Pacjent`. Obie te gałęzie siedzą jednak pod `isDemoMode`, a na produkcji `NEXT_PUBLIC_DEMO_MODE`
+  nie istnieje (`lib/demoMode.ts`), więc na produkcji ten literał nie wychodzi.
+- ⏳ **Do sprawdzenia POMIAREM, nie rozumowaniem** (nie zrobione tego dnia): dwie inne trasy nadal wymieniają
+  `first_name` z `patients` **po nazwie**, więc podlegają dokładnie temu samemu mechanizmowi —
+  `patients/delete-account/route.ts:46` (`select('id, password_hash, first_name, last_name, phone, prodentis_id')`
+  + `.single()`, a potem `update({ first_name: 'Usunięty', last_name: 'Pacjent' })`) oraz
+  `patients/change-password/route.ts:113` (`select('email, first_name')` w nieblokującym `try` — tam poszkodowany
+  byłby tylko e-mail o zmianie hasła). Żadna z nich nie jest pod `isDemoMode`. Jeśli pomiar potwierdzi,
+  usunięcie konta z RODO nie działa dla nikogo — ta sama klasa, która zjadła eksport RODO na pięć miesięcy.
+
+#### 🪤 Kolejność: migracja PRZED deployem
+- Nagłówek `199_app_reports.sql` mówi wprost: **wgrać na OBA środowiska Supabase (produkcja + demo) PRZED
+  deployem kodu.** Trasy odwołują się do `app_reports` bez żadnego fallbacku, więc deploy przed migracją nie
+  da pustej listy, tylko surowy błąd PostgREST: `GET /api/employee/reports` → 500 z `error.message`,
+  `GET /api/patients/reports` → 500 `read_failed`, POST → 500 `save_failed`.
+- Migracja jest idempotentna (`CREATE TABLE IF NOT EXISTS`, `DROP POLICY IF EXISTS`, `ON CONFLICT DO NOTHING`).
+  Na końcu pliku blok weryfikacyjny: **6 kontroli** (oczekiwane 6× `OK`), **2 kontrole NEGATYWNE**, które MUSZĄ
+  paść (zamknięcie bez odpowiedzi; pusta treść), i 1 kontrola pozytywna ze sprzątaniem.
+- 🪤 Migracje w tym projekcie wkleja się **ręcznie, bez runnera i bez tabeli śledzącej** — plik w repo nie jest
+  dowodem, że produkcja go ma. Dowodem tej zasady jest właśnie `feature_suggestions` z akapitu wyżej.
+
+#### Pliki
+`supabase_migrations/199_app_reports.sql` [NEW, 244 linie], `src/lib/appReports.ts` [NEW, 114],
+`src/app/api/patients/reports/route.ts` [NEW, 230], `src/app/api/employee/reports/route.ts` [NEW, 47],
+`src/app/api/employee/reports/[id]/route.ts` [NEW, 107], `src/lib/pushHealth.ts` (+`app_report_bug` w `PushPathKey`).
+
+> ⚠️ REQUIRES: migracja **199** wgrana na **produkcję I demo** PRZED deployem kodu. Bez niej trzy trasy
+> oddają 500, nie pustą listę. Brak nowych zmiennych środowiskowych.
+
+---
 
 ### 2026-08-13 — 🏁 ETAP C DOMKNIĘTY + REWOKACJA SESJI PACJENTA + DŁUG TECHNICZNY
 
