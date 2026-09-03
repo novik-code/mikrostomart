@@ -365,6 +365,7 @@
         "validationDate": "Wählen Sie ein Datum aus dem Kalender",
         "dataAdmin": "{brandName} ist der Verantwortliche für Ihre personenbezogenen Daten. Die Daten werden zur Bearbeitung Ihrer Anfrage verarbeitet.",
         "rodoConsent": "Ich stimme der Verarbeitung meiner personenbezogenen Daten zur Terminvereinbarung zu, gemäß der",
+        "rodoRequired": "Bitte stimmen Sie der Datenverarbeitung zu — ohne diese Zustimmung können wir die Reservierung nicht bearbeiten.",
         "rodoClause": "DSGVO-Klausel",
         "rodoAnd": "und der",
         "privacyPolicy": "Datenschutzrichtlinie",

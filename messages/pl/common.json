@@ -535,6 +535,7 @@
         "validationDate": "Wybierz termin z kalendarza",
         "dataAdmin": "Administratorem Twoich danych osobowych jest {brandName}. Dane będą przetwarzane w celu obsługi zgłoszenia.",
         "rodoConsent": "Wyrażam zgodę na przetwarzanie moich danych osobowych w celu umówienia wizyty, zgodnie z",
+        "rodoRequired": "Zaznacz zgodę na przetwarzanie danych — bez niej nie możemy obsłużyć rezerwacji.",
         "rodoClause": "Klauzulą RODO",
         "rodoAnd": "oraz",
         "privacyPolicy": "Polityką Prywatności",

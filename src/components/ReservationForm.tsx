@@ -136,6 +136,16 @@ export default function ReservationForm() {
     };
 
     const onSubmit = async (data: ReservationFormData) => {
+        // 🔴 2026-09-03: zgody RODO pilnował WYŁĄCZNIE atrybut `disabled` przycisku wysyłki,
+        // a `onSubmit` nie sprawdzał jej wcale. Każda inna droga do wysłania formularza —
+        // np. przycisk bez `type="button"` wewnątrz <form>, Enter w polu tekstowym — omijała
+        // tę bramkę i tworzyła zgłoszenie BEZ zgody na przetwarzanie danych. Bramka musi stać
+        // w miejscu, przez które przechodzi KAŻDA droga, nie tylko ta z kliknięciem w przycisk.
+        if (!rodoConsent) {
+            setError(t('rodoRequired'));
+            return;
+        }
+
         setIsSubmitting(true);
         setError(null);
 

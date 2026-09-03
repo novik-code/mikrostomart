@@ -113,15 +113,29 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [currentWeekStart, specialistId, duration, minDaysAhead]);
 
-    const handlePrevWeek = () => {
+    // 🔴 2026-09-03: te dwie funkcje siedzą wewnątrz <form> formularza rezerwacji, a żaden
+    // przycisk w tym pliku nie miał `type`, więc domyślnie był `type="submit"`. Kafelki dni
+    // i godzin ratował `e.preventDefault()` w onClick — strzałki tygodnia NIE. Efekt: pacjent
+    // z wypełnionym formularzem i wybranym terminem, który klikał „obejrzę następny tydzień",
+    // WYSYŁAŁ rezerwację. Naprawa jest podwójna (pas i szelki): `type="button"` na każdym
+    // przycisku + `preventDefault` tutaj. Nie zdejmować ani jednego z tych zabezpieczeń.
+    const handlePrevWeek = (e?: React.MouseEvent) => {
+        e?.preventDefault();
         const now = new Date();
         const prev = addDays(currentWeekStart, -7);
         if (prev < startOfWeek(now, { weekStartsOn: 1 })) return;
         setCurrentWeekStart(prev);
     };
 
-    const handleNextWeek = () => {
-        setCurrentWeekStart(prev => addDays(prev, 7));
+    const handleNextWeek = (e?: React.MouseEvent) => {
+        e?.preventDefault();
+        // Górna granica: dalej niż rok w przód PMS i tak odrzuci (DATE_OUT_OF_RANGE),
+        // a każde kliknięcie kosztuje 5 z limitu 30 zapytań/min.
+        setCurrentWeekStart(prev => {
+            const next = addDays(prev, 7);
+            const maxStart = addDays(new Date(), 358);
+            return next > maxStart ? prev : next;
+        });
     };
 
     const handleSlotClick = (slot: Slot) => {
@@ -173,6 +187,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                 gap: "0.5rem"
             }}>
                 <button
+                    type="button"
                     onClick={handlePrevWeek}
                     disabled={isSameDay(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 }))}
                     style={{
@@ -217,6 +232,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                 </div>
 
                 <button
+                    type="button"
                     onClick={handleNextWeek}
                     style={{
                         padding: "0.625rem",
@@ -269,6 +285,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
 
                             return (
                                 <button
+                                    type="button"
                                     key={day.toString()}
                                     onClick={(e) => { e.preventDefault(); if (hasSlots) setSelectedDateView(day); }}
                                     disabled={!hasSlots}
@@ -367,6 +384,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
 
                                         return (
                                             <button
+                                                type="button"
                                                 key={fullStr}
                                                 onClick={(e) => { e.preventDefault(); handleSlotClick(slot); }}
                                                 style={{
