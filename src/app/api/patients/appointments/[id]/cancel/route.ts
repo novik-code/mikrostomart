@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { powodPortalu } from '@/lib/portalReason';
 import { createClient } from '@supabase/supabase-js';
 import { verifyPatientSession } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
@@ -104,7 +105,11 @@ export async function POST(
                         'Content-Type': 'application/json',
                         'X-API-Key': PRODENTIS_KEY,
                     },
-                    body: JSON.stringify({ reason: body.reason || 'Odwołane przez pacjenta z portalu' }),
+                    // 🔑 Uzgodnione z PMS: prefiks maszynowy + opis dla recepcji (`lib/portalReason.ts`).
+                    // Kod skreślenia `106` jest NATYWNYM kodem Prodentisa (~15 tys. użyć przez
+                    // personel), więc nie da się z niego poznać, kto odwołał. To pole jest jedynym
+                    // działającym znacznikiem pochodzenia — wysyłamy je ZAWSZE.
+                    body: JSON.stringify({ reason: powodPortalu('cancel', body.reason) }),
                     signal: AbortSignal.timeout(15000),
                 });
 

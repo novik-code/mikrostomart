@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { powodPortalu } from '@/lib/portalReason';
 import { createClient } from '@supabase/supabase-js';
 import { verifyPatientSession } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
@@ -117,7 +118,7 @@ export async function POST(
                     body: JSON.stringify({
                         newDate: body.newDate,
                         newStartTime: body.newStartTime,
-                        reason: body.reason || 'Przełożone przez pacjenta z portalu',
+                        reason: powodPortalu('reschedule', body.reason),
                     }),
                     signal: AbortSignal.timeout(15000),
                 });
