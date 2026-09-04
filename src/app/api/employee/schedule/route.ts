@@ -3,10 +3,10 @@ import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
 import { demoSanitize } from '@/lib/brandConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
 
-const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -115,10 +115,7 @@ export async function GET(req: Request) {
         const dayName = POLISH_DAYS[date.getDay()];
 
         try {
-            const apiUrl = `${PRODENTIS_API_URL}/api/appointments/by-date?date=${dateStr}`;
-            const response = await fetch(apiUrl, {
-                headers: { 'Content-Type': 'application/json' },
-            });
+            const response = await prodentisFetch(`/api/appointments/by-date?date=${dateStr}`);
 
             if (!response.ok) {
                 console.error(`[Schedule] Failed to fetch ${dateStr}: ${response.status}`);

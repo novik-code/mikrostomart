@@ -9,10 +9,9 @@ import { randomUUID } from 'crypto';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
 import { demoSanitize, brand } from '@/lib/brandConfig';
 import { requireAdmin } from '@/lib/authGuards';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const maxDuration = 120;
-
-const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.trim()) || [
     'Marcin Nowosielski',
@@ -140,8 +139,7 @@ export async function GET(req: Request) {
         const targetDateStr = targetDate.toISOString().split('T')[0];
         console.log(`📅 [Post-Visit SMS] Target date: ${targetDateStr}`);
 
-        const apiUrl = `${PRODENTIS_API_URL}/api/appointments/by-date?date=${targetDateStr}`;
-        const apiResponse = await fetch(apiUrl, { headers: { 'Content-Type': 'application/json' } });
+        const apiResponse = await prodentisFetch(`/api/appointments/by-date?date=${targetDateStr}`);
         if (!apiResponse.ok) throw new Error(`Prodentis API error: ${apiResponse.status}`);
 
         const data = await apiResponse.json();
@@ -162,7 +160,7 @@ export async function GET(req: Request) {
         // Load patient reviews list
         let reviewerNames: string[] = [];
         try {
-            const reviewsRes = await fetch(`${PRODENTIS_API_URL}/api/patient-reviews?minRating=4`);
+            const reviewsRes = await prodentisFetch('/api/patient-reviews?minRating=4');
             if (reviewsRes.ok) {
                 const reviewsData = await reviewsRes.json();
                 reviewerNames = (reviewsData.reviews || []).map((r: any) => r.patientName || '').filter(Boolean);

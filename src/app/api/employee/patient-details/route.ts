@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,14 +27,8 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Missing patientId' }, { status: 400 });
     }
 
-    const apiUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-
     try {
-        const res = await fetch(`${apiUrl}/api/patient/${patientId}/details`, {
-            headers: { 'Content-Type': 'application/json' },
-            signal: AbortSignal.timeout(8000),
-            cache: 'no-store',
-        });
+        const res = await prodentisFetch(`/api/patient/${patientId}/details`);
 
         if (!res.ok) {
             return NextResponse.json(

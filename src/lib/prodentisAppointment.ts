@@ -19,7 +19,7 @@
  * którą naprawialiśmy w kalendarzu: jeden widok na dwie różne przyczyny.
  */
 
-const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export interface WizytaPMS {
     id: string;
@@ -47,19 +47,20 @@ export type StanWizyty =
 
 /**
  * @param prodentisId identyfikator zapamiętany u nas
- * @param apiKey      klucz PMS (gdy pusty → `unavailable`, bo nie umiemy zapytać)
+ * @param _apiKey     ⚠️ PRZESTARZAŁY, ignorowany. Klucz wstrzykuje `prodentisFetch` i tylko on;
+ *                    parametr został wyłącznie po to, żeby nie łamać istniejących wywołań.
+ *                    Brak klucza to dziś `BrakKluczaPMS` — łapie go `catch` niżej jako
+ *                    `unavailable`, czyli „nie wiemy", zgodnie z regułą tego pliku.
  */
 export async function odswiezWizyte(
     prodentisId: string | null | undefined,
-    apiKey: string,
+    _apiKey?: string,
 ): Promise<StanWizyty> {
-    if (!prodentisId || !apiKey) return { ok: false, powod: 'unavailable' };
+    if (!prodentisId) return { ok: false, powod: 'unavailable' };
 
     try {
-        const res = await fetch(`${PRODENTIS_API}/api/schedule/appointment/${prodentisId}`, {
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
-            signal: AbortSignal.timeout(10_000),
-            cache: 'no-store',
+        const res = await prodentisFetch(`/api/schedule/appointment/${prodentisId}`, {
+            timeoutMs: 10_000,
         });
 
         if (res.status === 404) return { ok: false, powod: 'not_found' };

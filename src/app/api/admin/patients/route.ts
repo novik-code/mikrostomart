@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/authGuards';
 import { logAudit } from '@/lib/auditLog';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,8 +10,6 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 export async function GET(request: Request) {
     try {
@@ -33,10 +32,8 @@ export async function GET(request: Request) {
         const enrichedPatients = await Promise.all(
             (patients || []).map(async (patient) => {
                 try {
-                    const detailsRes = await fetch(
-                        `${prodentisUrl}/api/patient/${patient.prodentis_id}/details`,
-                        { signal: AbortSignal.timeout(3000) }
-                    );
+                    const detailsRes = await prodentisFetch(
+                        `/api/patient/${patient.prodentis_id}/details`, { timeoutMs: 3000 });
 
                     if (detailsRes.ok) {
                         const details = await detailsRes.json();

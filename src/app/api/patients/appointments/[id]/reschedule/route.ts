@@ -10,6 +10,7 @@ import type { RescheduleAppointmentRequest, AppointmentActionResponse, Appointme
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 import { getProdentisKey } from '@/lib/pmsConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 import { rescheduleCareflowForAppointment } from '@/lib/careflowLifecycle';
 import { warsawIso } from '@/lib/careflowSchedule';
 
@@ -24,8 +25,6 @@ export const dynamic = 'force-dynamic';
 const NO_STORE: Record<string, string> = {
     'Cache-Control': 'no-store, no-cache, must-revalidate, private',
 };
-
-const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 export async function POST(
     request: NextRequest,
@@ -136,18 +135,14 @@ export async function POST(
 
         if (prodentisAptId && PRODENTIS_KEY) {
             try {
-                const rescheduleRes = await fetch(`${PRODENTIS_API}/api/schedule/appointment/${prodentisAptId}/reschedule`, {
+                const rescheduleRes = await prodentisFetch(`/api/schedule/appointment/${prodentisAptId}/reschedule`, {
                     method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': PRODENTIS_KEY,
-                    },
                     body: JSON.stringify({
                         newDate: body.newDate,
                         newStartTime: body.newStartTime,
                         reason: powodPortalu('reschedule', body.reason),
                     }),
-                    signal: AbortSignal.timeout(15000),
+                    timeoutMs: 15000,
                 });
 
                 if (rescheduleRes.ok) {
@@ -258,9 +253,7 @@ export async function POST(
         // ── Get patient name ──
         let patientName = '';
         try {
-            const detRes = await fetch(`${PRODENTIS_API}/api/patient/${patient.prodentis_id}/details`, {
-                signal: AbortSignal.timeout(5000),
-            });
+            const detRes = await prodentisFetch(`/api/patient/${patient.prodentis_id}/details`);
             if (detRes.ok) {
                 const det = await detRes.json();
                 patientName = `${det.firstName || ''} ${det.lastName || ''}`.trim();

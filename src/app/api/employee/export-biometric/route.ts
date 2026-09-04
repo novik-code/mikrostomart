@@ -4,14 +4,13 @@ import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
 import { getProdentisKey } from '@/lib/pmsConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 import { readPatientConsentPii } from '@/lib/encryptedPiiFields';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 const polishToAscii = (str: string) => str
     .replace(/ą/g, 'a').replace(/ć/g, 'c').replace(/ę/g, 'e')
@@ -30,6 +29,8 @@ const polishToAscii = (str: string) => str
  * Body: { consentId }
  */
 export async function POST(req: NextRequest) {
+    // 🔑 Sam klucz wstrzykuje `prodentisFetch` — tutaj sprawdzamy TYLKO jego obecność,
+    // żeby brak konfiguracji dał od razu 500, zanim ruszymy dane zgody z bazy.
     const PRODENTIS_API_KEY = await getProdentisKey();
     if (!PRODENTIS_API_KEY) {
         console.error('[Employee/ExportBiometric] PRODENTIS_API_KEY not configured (DB + env both empty)');
@@ -84,14 +85,10 @@ export async function POST(req: NextRequest) {
                 const pngBase64 = base64Match ? base64Match[1] : consentPii.signature_data;
                 const signatureFileName = `Podpis_${safeType}_${safeName}_${date}.png`;
 
-                const res = await fetch(
-                    `${PRODENTIS_API}/api/patients/${consent.prodentis_patient_id}/documents`,
+                const res = await prodentisFetch(
+                    `/api/patients/${consent.prodentis_patient_id}/documents`,
                     {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-API-Key': PRODENTIS_API_KEY,
-                        },
                         body: JSON.stringify({
                             fileBase64: pngBase64,
                             fileName: signatureFileName,
@@ -123,14 +120,10 @@ export async function POST(req: NextRequest) {
                 const jsonBase64 = Buffer.from(biometricJson, 'utf-8').toString('base64');
                 const biometricFileName = `Biometria_${safeType}_${safeName}_${date}.json`;
 
-                const res = await fetch(
-                    `${PRODENTIS_API}/api/patients/${consent.prodentis_patient_id}/documents`,
+                const res = await prodentisFetch(
+                    `/api/patients/${consent.prodentis_patient_id}/documents`,
                     {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-API-Key': PRODENTIS_API_KEY,
-                        },
                         body: JSON.stringify({
                             fileBase64: jsonBase64,
                             fileName: biometricFileName,

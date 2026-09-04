@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 import { isDemoMode } from '@/lib/demoMode';
 import { zbudujZapytanieSlotow } from '@/lib/slotsQuery';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic'; // Always fetch fresh data
 
@@ -47,27 +48,16 @@ export async function GET(request: Request) {
         return NextResponse.json(slots);
     }
 
-    const apiUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-    const endpoint = `${apiUrl}/api/slots/free?${zapytanie.query}`;
+    const sciezka = `/api/slots/free?${zapytanie.query}`;
 
     try {
-        console.log(`Fetching Prodentis slots from: ${endpoint}`);
+        console.log(`Fetching Prodentis slots from: ${sciezka}`);
 
-        // Set a timeout to avoid hanging the Vercel function
-        const controller = new AbortController();
-        // 🪤 `days=14` to w jednym żądaniu praca za czternaście — zmierzone u dostawcy:
-        // osiem żądań `meta=1` w 1,2 s, ale margines zostawiamy większy niż dla jednego dnia.
-        const timeoutId = setTimeout(() => controller.abort(), searchParams.get('days') ? 12000 : 5000);
-
-        const response = await fetch(endpoint, {
-            signal: controller.signal,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            cache: 'no-store'
+        const response = await prodentisFetch(sciezka, {
+            // 🪤 `days=14` to w jednym żądaniu praca za czternaście — zmierzone u dostawcy:
+            // osiem żądań `meta=1` w 1,2 s, ale margines zostawiamy większy niż dla jednego dnia.
+            timeoutMs: searchParams.get('days') ? 12000 : 5000,
         });
-
-        clearTimeout(timeoutId);
 
         if (!response.ok) {
             console.error(`Prodentis API Error: ${response.status} ${response.statusText}`);

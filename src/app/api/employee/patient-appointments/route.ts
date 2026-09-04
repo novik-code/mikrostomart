@@ -2,10 +2,9 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
-
-const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
  * GET /api/employee/patient-appointments?patientId={prodentisId}
@@ -35,10 +34,7 @@ export async function GET(req: Request) {
 
     try {
         // Fetch patient's full appointment history from Prodentis
-        const apiUrl = `${PRODENTIS_API_URL}/api/patient/${patientId}/appointments?limit=100`;
-        const response = await fetch(apiUrl, {
-            headers: { 'Content-Type': 'application/json' },
-        });
+        const response = await prodentisFetch(`/api/patient/${patientId}/appointments?limit=100`);
 
         if (!response.ok) {
             console.error(`[PatientAppointments] Prodentis API error: ${response.status}`);

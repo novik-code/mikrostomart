@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/authGuards';
 import { createClient } from '@supabase/supabase-js';
 import { createOrUpdateEmployee } from '@/lib/employeeService';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
-
-const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -62,13 +61,8 @@ export async function GET() {
             fetchPromises.push(
                 (async () => {
                     try {
-                        const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 5000);
-                        const res = await fetch(
-                            `${PRODENTIS_API_URL}/api/appointments/by-date?date=${dateStr}`,
-                            { signal: controller.signal, headers: { 'Content-Type': 'application/json' } }
-                        );
-                        clearTimeout(timeoutId);
+                        const res = await prodentisFetch(
+                            `/api/appointments/by-date?date=${dateStr}`, { timeoutMs: 5000 });
                         if (res.ok) {
                             const data = await res.json();
                             for (const apt of (data.appointments || [])) {
@@ -87,6 +81,12 @@ export async function GET() {
 
         await Promise.all(fetchPromises);
         const prodentisAvailable = prodentisDoctors.size > 0;
+        if (!prodentisAvailable) {
+            // Pojedynczy dzień bez wizyt jest normalny — CAŁY skan bez ani jednego operatora
+            // nie jest. Log zbiorczy, żeby awaria PMS (np. brak klucza) nie zginęła w 74 cichych
+            // `catch`-ach wyżej; per-dzień nie logujemy, bo to 74 linie szumu.
+            console.error('[Employees] Skan Prodentisa nie zwrócił ANI JEDNEGO operatora — sprawdź tunel i klucz PMS.');
+        }
 
         // ─── Step 2: Get ALL employees from DB (active + inactive) ───
         const { data: allEmployees } = await supabase

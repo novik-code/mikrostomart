@@ -5,7 +5,7 @@ import fontkit from '@pdf-lib/fontkit';
 import fs from 'fs';
 import path from 'path';
 import { demoSanitize } from '@/lib/brandConfig';
-import { getProdentisKey } from '@/lib/pmsConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 import { readIntakeSubmissionPii } from '@/lib/encryptedPiiFields';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { storagePathsReady } from '@/lib/privateStorage';
@@ -14,8 +14,6 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 // ─── Helpers ─────────────────────────────────────────────
 
@@ -465,17 +463,16 @@ export async function POST(req: NextRequest) {
 
         // Upload to Prodentis
         let prodentisSynced = false;
-        const PRODENTIS_API_KEY = (await getProdentisKey()) ?? '';
-        if (patientProdentisId && PRODENTIS_API_KEY) {
+        // 🔴 Bramka tylko na identyfikator pacjenta. Warunek „i jest klucz" po cichu
+        // pomijał wysyłkę dokumentu: e-Karta lądowała w naszym storage, a w PMS jej nie było,
+        // i nikt się o tym nie dowiadywał. Brak klucza to dziś `BrakKluczaPMS` — łapie go
+        // `catch` niżej i zapisuje w logu.
+        if (patientProdentisId) {
             try {
-                const prodentisRes = await fetch(
-                    `${PRODENTIS_API}/api/patients/${patientProdentisId}/documents`,
+                const prodentisRes = await prodentisFetch(
+                    `/api/patients/${patientProdentisId}/documents`,
                     {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-API-Key': PRODENTIS_API_KEY,
-                        },
                         body: JSON.stringify({
                             fileBase64: pdfBase64,
                             fileName: fileName,

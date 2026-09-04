@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/authGuards';
 import { logAudit } from '@/lib/auditLog';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
-
-const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
  * GET /api/admin/patients/search?q=searchTerm&limit=10
@@ -26,14 +25,11 @@ export async function GET(request: Request) {
         }
 
         // Call Prodentis API 5.0 patient search
-        const prodentisUrl = `${PRODENTIS_API_URL}/api/patients/search?q=${encodeURIComponent(query)}&limit=${limit}`;
+        const sciezka = `/api/patients/search?q=${encodeURIComponent(query)}&limit=${limit}`;
 
-        console.log(`[Patient Search] Querying Prodentis: ${prodentisUrl}`);
+        console.log(`[Patient Search] Querying Prodentis: ${sciezka}`);
 
-        const res = await fetch(prodentisUrl, {
-            headers: { 'Content-Type': 'application/json' },
-            signal: AbortSignal.timeout(5000)
-        });
+        const res = await prodentisFetch(sciezka, { timeoutMs: 5000 });
 
         if (!res.ok) {
             const errorText = await res.text();

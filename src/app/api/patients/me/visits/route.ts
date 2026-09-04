@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { verifyPatientSession } from '@/lib/jwt';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 import { isDemoMode } from '@/lib/demoMode';
 
 export const dynamic = 'force-dynamic';
@@ -29,12 +30,11 @@ export async function GET(request: NextRequest) {
         const offset = searchParams.get('offset') || '0';
 
         // Fetch visits from Prodentis
-        const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-        const url = `${prodentisUrl}/api/patient/${payload.prodentisId}/appointments?limit=${limit}&offset=${offset}`;
+        const path = `/api/patient/${payload.prodentisId}/appointments?limit=${limit}&offset=${offset}`;
 
-        console.log('[Visits] Fetching from:', url);
+        console.log('[Visits] Fetching from:', path);
 
-        const response = await fetch(url);
+        const response = await prodentisFetch(path);
 
         if (!response.ok) {
             console.error('[Visits] Prodentis API error:', response.status);

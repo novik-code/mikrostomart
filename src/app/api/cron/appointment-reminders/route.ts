@@ -8,11 +8,9 @@ import { randomUUID } from 'crypto';
 import { nanoid } from 'nanoid';
 import { demoSanitize, brand } from '@/lib/brandConfig';
 import { requireAdmin } from '@/lib/authGuards';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const maxDuration = 120; // Vercel function timeout (increased: many appointments + multiple DB queries per appointment)
-
-// Prodentis API base URL
-const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 // Doctor list for reminders (comma-separated env variable)
 const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.trim()) || [
@@ -130,12 +128,10 @@ export async function GET(req: Request) {
         console.log(`📅 [SMS Reminders] Fetching appointments for: ${targetDateStr}${isMondayMode ? ' (Monday mode)' : ' (tomorrow)'}`);
 
         // 4. Fetch ALL appointments for target date from Prodentis API 4.0
-        const apiUrl = `${PRODENTIS_API_URL}/api/appointments/by-date?date=${targetDateStr}`;
-        console.log(`🔍 [SMS Reminders] Calling: ${apiUrl}`);
+        const apiPath = `/api/appointments/by-date?date=${targetDateStr}`;
+        console.log(`🔍 [SMS Reminders] Calling: ${apiPath}`);
 
-        const apiResponse = await fetch(apiUrl, {
-            headers: { 'Content-Type': 'application/json' }
-        });
+        const apiResponse = await prodentisFetch(apiPath);
 
         if (!apiResponse.ok) {
             throw new Error(`Prodentis API error: ${apiResponse.status} ${apiResponse.statusText}`);
@@ -198,15 +194,13 @@ export async function GET(req: Request) {
         // We use it ONLY to confirm which doctors are working today (for logging).
         // We do NOT use it for filtering because earliest free slot ≠ earliest working hour
         // (a doctor with fully booked mornings would show free slots starting at e.g. 10:00).
-        const slotsUrl = `${PRODENTIS_API_URL}/api/slots/free?date=${targetDateStr}&duration=30`;
-        console.log(`📋 [SMS Reminders] Fetching working doctors from: ${slotsUrl}`);
+        const slotsPath = `/api/slots/free?date=${targetDateStr}&duration=30`;
+        console.log(`📋 [SMS Reminders] Fetching working doctors from: ${slotsPath}`);
 
         let workingDoctorIds = new Set<string>();
 
         try {
-            const slotsResponse = await fetch(slotsUrl, {
-                headers: { 'Content-Type': 'application/json' }
-            });
+            const slotsResponse = await prodentisFetch(slotsPath);
 
             if (slotsResponse.ok) {
                 const slotsData: Array<{ doctor: string; doctorName: string; start: string; end: string }> = await slotsResponse.json();

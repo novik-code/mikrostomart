@@ -37,6 +37,12 @@ export default function AppointmentScheduler({ specialistId, specialistName, dur
     // Status operatora per dzień z `meta=1` — dzięki temu pusty dzień przestaje znaczyć
     // sześć różnych rzeczy naraz (patrz `lib/statusOperatora.ts`).
     const [statusyDni, setStatusyDni] = useState<Record<string, { status?: string; nextAvailable?: string | null }>>({});
+    /**
+     * Górna granica okna dat PMS (`window.maxDate` z koperty `meta=1`).
+     * 🔑 Dotąd granica przewijania była ZASZYTA na 358 dni. Bierzemy ją teraz z odpowiedzi —
+     * gdy gabinet wydłuży horyzont, kalendarz pójdzie za nim bez naszego deployu.
+     */
+    const [maxDate, setMaxDate] = useState<string | null>(null);
 
     // 🔴 FIX 2026-09-04: czas trwania bierzemy z danych zespołu, nie z porównania ze slugiem.
     // Poprzednia wersja brzmiała `specialistId === 'malgorzata' ? '60' : '30'`, a na /rezerwacja
@@ -136,6 +142,8 @@ export default function AppointmentScheduler({ specialistId, specialistName, dur
             };
 
             const wszystkieSloty: Slot[] = [];
+            const okno: string | undefined = dane?.window?.maxDate;
+            if (okno) setMaxDate(okno);
             const statusy: Record<string, { status?: string; nextAvailable?: string | null }> = {};
 
             for (const dzien of dni) {
@@ -203,7 +211,9 @@ export default function AppointmentScheduler({ specialistId, specialistName, dur
         // a każde kliknięcie kosztuje 5 z limitu 30 zapytań/min.
         setCurrentWeekStart(prev => {
             const next = addDays(prev, 7);
-            const maxStart = addDays(new Date(), 358);
+            // Granica z koperty PMS; bez niej zostaje stary zapas 358 dni, żeby brak
+            // `meta=1` nie zablokował kalendarza.
+            const maxStart = maxDate ? parseISO(maxDate) : addDays(new Date(), 358);
             return next > maxStart ? prev : next;
         });
     };
@@ -510,6 +520,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, dur
                                     const k = komunikatStatusu(stanDnia?.status, {
                                         imie: specialistName,
                                         nextAvailable: stanDnia?.nextAvailable,
+                                        maxDate,
                                     });
                                     return (
                                         <div style={{

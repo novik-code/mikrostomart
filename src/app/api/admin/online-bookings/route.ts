@@ -6,7 +6,7 @@ import { decideBookingNotification } from '@/lib/onlineBookingNotify';
 import { sendTranslatedPushToUser } from '@/lib/pushService';
 import { sendSMS } from '@/lib/smsService';
 import { sendBookingConfirmedEmail, sendBookingRejectedEmail } from '@/lib/emailService';
-import { getProdentisKey } from '@/lib/pmsConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
@@ -15,8 +15,6 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
  * Wiersz tabeli `online_bookings` — pola używane w tym module.
@@ -99,11 +97,7 @@ async function scheduleInProdentis(booking: OnlineBookingRow): Promise<{ success
  */
 async function findExistingAppointment(patientId: string, booking: OnlineBookingRow): Promise<string | null> {
     try {
-        const res = await fetch(`${PRODENTIS_API}/api/patient/${patientId}/future-appointments?days=180`, {
-            headers: { 'Content-Type': 'application/json' },
-            cache: 'no-store',
-            signal: AbortSignal.timeout(8000),
-        });
+        const res = await prodentisFetch(`/api/patient/${patientId}/future-appointments?days=180`);
         if (!res.ok) return null;
         const data = await res.json();
         const wantDate = String(booking.appointment_date).slice(0, 10); // YYYY-MM-DD
@@ -128,15 +122,9 @@ async function scheduleWithIds(doctorId: string, patientId: string | null | unde
         return { success: false, error: 'MISSING_PATIENT_ID' };
     }
 
-    const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
-
     try {
-        const res = await fetch(`${PRODENTIS_API}/api/schedule/appointment`, {
+        const res = await prodentisFetch('/api/schedule/appointment', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-Key': PRODENTIS_KEY,
-            },
             body: JSON.stringify({
                 doctorId,
                 patientId,
@@ -147,7 +135,7 @@ async function scheduleWithIds(doctorId: string, patientId: string | null | unde
                 source: 'online_booking',
                 labels: ['ONLINE'],
             }),
-            signal: AbortSignal.timeout(15000),
+            timeoutMs: 15000,
         });
 
         const data = await res.json();
@@ -234,7 +222,6 @@ export async function PUT(request: Request) {
         // Czy wizyta stała w grafiku JUŻ PRZED tą operacją — chroni przed drugim SMS-em
         // przy ponownym kliknięciu „zapisz w grafiku" na rezerwacji, która już tam jest.
         let scheduledBefore = false;
-        const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
 
         switch (action) {
             case 'approve': {
@@ -248,7 +235,7 @@ export async function PUT(request: Request) {
                     .eq('id', id)
                     .single();
 
-                if (bookingForApprove && PRODENTIS_KEY) {
+                if (bookingForApprove) {
                     scheduleResult = await scheduleInProdentis(bookingForApprove);
 
                     if (scheduleResult.success) {
@@ -263,7 +250,6 @@ export async function PUT(request: Request) {
                     }
                 } else {
                     updateData.schedule_status = 'approved';
-                    if (!PRODENTIS_KEY) updateData.schedule_error = 'MISSING_API_KEY';
                 }
                 break;
             }
@@ -277,7 +263,7 @@ export async function PUT(request: Request) {
 
                 scheduledBefore = bookingForSchedule?.schedule_status === 'scheduled';
 
-                if (bookingForSchedule && PRODENTIS_KEY) {
+                if (bookingForSchedule) {
                     scheduleResult = await scheduleInProdentis(bookingForSchedule);
 
                     if (scheduleResult.success) {
@@ -290,7 +276,7 @@ export async function PUT(request: Request) {
                         console.warn(`[OnlineBookings] Schedule retry failed: ${scheduleResult.error}`);
                     }
                 } else {
-                    updateData.schedule_error = PRODENTIS_KEY ? 'BOOKING_NOT_FOUND' : 'MISSING_API_KEY';
+                    updateData.schedule_error = 'BOOKING_NOT_FOUND';
                 }
                 break;
             }

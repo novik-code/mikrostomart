@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getConsentTypesFromDB } from '@/lib/consentTypes';
 import { getProdentisKey } from '@/lib/pmsConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 import { prepareConsentInsert } from '@/lib/encryptedPiiFields';
 import { storagePathsReady } from '@/lib/privateStorage';
 
@@ -9,8 +10,6 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
  * POST /api/consents/sign
@@ -21,8 +20,11 @@ const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostom
  * Body: { token, consentType, signedPdfBase64, signatureDataUrl }
  */
 export async function POST(req: NextRequest) {
-    const PRODENTIS_API_KEY = await getProdentisKey();
-    if (!PRODENTIS_API_KEY) {
+    // 🔑 PRZEDBIEG, nie wstrzykiwanie klucza — nagłówek dokłada wyłącznie `prodentisFetch`.
+    // Tu sprawdzamy tylko, CZY klucz w ogóle jest, i odmawiamy PRZED zapisem czegokolwiek:
+    // bez tego pacjent podpisałby zgodę, my zapisalibyśmy ją u siebie, a do PMS nigdy
+    // by nie dojechała — i odpowiedź i tak byłaby `success: true`.
+    if (!(await getProdentisKey())) {
         console.error('[Consents/Sign] PRODENTIS_API_KEY not configured (DB + env both empty)');
         return NextResponse.json({ error: 'Service misconfigured' }, { status: 500 });
     }
@@ -106,14 +108,10 @@ export async function POST(req: NextRequest) {
         if (tokenRow.prodentis_patient_id) {
             try {
                 // Upload actual PDF file via documents API (requires fileBase64 + fileName)
-                const prodentisRes = await fetch(
-                    `${PRODENTIS_API}/api/patients/${tokenRow.prodentis_patient_id}/documents`,
+                const prodentisRes = await prodentisFetch(
+                    `/api/patients/${tokenRow.prodentis_patient_id}/documents`,
                     {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-API-Key': PRODENTIS_API_KEY,
-                        },
                         body: JSON.stringify({
                             fileBase64: signedPdfBase64,
                             fileName: fileName,
@@ -180,11 +178,10 @@ export async function POST(req: NextRequest) {
                     const pngBase64 = base64Match ? base64Match[1] : signatureDataUrl;
                     const sigFileName = `Podpis_${safeLabel}_${safeName}_${date}.png`;
 
-                    const sigRes = await fetch(
-                        `${PRODENTIS_API}/api/patients/${tokenRow.prodentis_patient_id}/documents`,
+                    const sigRes = await prodentisFetch(
+                        `/api/patients/${tokenRow.prodentis_patient_id}/documents`,
                         {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-API-Key': PRODENTIS_API_KEY },
                             body: JSON.stringify({ fileBase64: pngBase64, fileName: sigFileName, description: `Podpis biometryczny — ${consentInfo.label} (${date})` }),
                         }
                     );
@@ -206,11 +203,10 @@ export async function POST(req: NextRequest) {
                     const bioBase64 = Buffer.from(bioJson, 'utf-8').toString('base64');
                     const bioFileName = `Biometria_${safeLabel}_${safeName}_${date}.json`;
 
-                    const bioRes = await fetch(
-                        `${PRODENTIS_API}/api/patients/${tokenRow.prodentis_patient_id}/documents`,
+                    const bioRes = await prodentisFetch(
+                        `/api/patients/${tokenRow.prodentis_patient_id}/documents`,
                         {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-API-Key': PRODENTIS_API_KEY },
                             body: JSON.stringify({ fileBase64: bioBase64, fileName: bioFileName, description: `Dane biometryczne podpisu — ${consentInfo.label} (${date})` }),
                         }
                     );

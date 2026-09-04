@@ -16,25 +16,12 @@ import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 import { prodentisTime, prodentisTypeName } from '@/lib/assistantGuards';
 import { createScrubber } from '@/lib/aiAnonymizer';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const PRODENTIS_TUNNEL_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-const PRODENTIS_FALLBACK_URL = process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
-
-/** Fetch from Prodentis with automatic tunnel→direct-IP fallback */
-async function prodentisFetch(path: string): Promise<Response> {
-    try {
-        const res = await fetch(`${PRODENTIS_TUNNEL_URL}${path}`);
-        if (res.ok) return res;
-        throw new Error(`Tunnel: ${res.status}`);
-    } catch {
-        return fetch(`${PRODENTIS_FALLBACK_URL}${path}`);
-    }
-}
 
 // ─── Types ───────────────────────────────────────────────────
 

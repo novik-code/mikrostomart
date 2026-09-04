@@ -8,10 +8,10 @@ import { randomUUID } from 'crypto';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
 import { demoSanitize, brand } from '@/lib/brandConfig';
 import { requireAdmin } from '@/lib/authGuards';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const maxDuration = 120;
 
-const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 const APP_URL = `${brand.appUrl}/aplikacja`;
 
 const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.trim()) || [
@@ -113,8 +113,7 @@ export async function GET(req: Request) {
         const targetDateStr = targetDate.toISOString().split('T')[0];
         console.log(`📅 [Week-After-Visit SMS] Target date (7 days ago): ${targetDateStr}`);
 
-        const apiUrl = `${PRODENTIS_API_URL}/api/appointments/by-date?date=${targetDateStr}`;
-        const apiResponse = await fetch(apiUrl, { headers: { 'Content-Type': 'application/json' } });
+        const apiResponse = await prodentisFetch(`/api/appointments/by-date?date=${targetDateStr}`);
         if (!apiResponse.ok) throw new Error(`Prodentis API error: ${apiResponse.status}`);
 
         const data = await apiResponse.json();

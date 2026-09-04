@@ -10,6 +10,7 @@ import type { CancelAppointmentRequest, AppointmentActionResponse, AppointmentAc
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 import { getProdentisKey } from '@/lib/pmsConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 import { cancelCareflowForAppointment } from '@/lib/careflowLifecycle';
 
 const supabase = createClient(
@@ -23,8 +24,6 @@ export const dynamic = 'force-dynamic';
 const NO_STORE: Record<string, string> = {
     'Cache-Control': 'no-store, no-cache, must-revalidate, private',
 };
-
-const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 export async function POST(
     request: NextRequest,
@@ -124,20 +123,19 @@ export async function POST(
             if (roznice.length) console.warn(`[CANCEL] Rozjazd stanu wizyty ${prodentisAptId}: ${roznice.join(' · ')}`);
         }
 
-        if (prodentisAptId && PRODENTIS_KEY) {
+        // 🔑 Bramka sprawdza już TYLKO identyfikator wizyty. Brak klucza nie może po cichu
+        // pominąć skreślenia — wtedy `prodentisFetch` rzuca `BrakKluczaPMS`, a poniższy
+        // `catch` robi z tego głośny log zamiast cichej rezygnacji.
+        if (prodentisAptId) {
             try {
-                const deleteRes = await fetch(`${PRODENTIS_API}/api/schedule/appointment/${prodentisAptId}`, {
+                const deleteRes = await prodentisFetch(`/api/schedule/appointment/${prodentisAptId}`, {
                     method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': PRODENTIS_KEY,
-                    },
                     // 🔑 Uzgodnione z PMS: prefiks maszynowy + opis dla recepcji (`lib/portalReason.ts`).
                     // Kod skreślenia `106` jest NATYWNYM kodem Prodentisa (~15 tys. użyć przez
                     // personel), więc nie da się z niego poznać, kto odwołał. To pole jest jedynym
                     // działającym znacznikiem pochodzenia — wysyłamy je ZAWSZE.
                     body: JSON.stringify({ reason: powodPortalu('cancel', body.reason) }),
-                    signal: AbortSignal.timeout(15000),
+                    timeoutMs: 15000,
                 });
 
                 if (deleteRes.ok) {
@@ -156,7 +154,7 @@ export async function POST(
                 console.error('[CANCEL] Prodentis DELETE error:', prodErr);
             }
         } else {
-            console.warn('[CANCEL] No prodentis_id or API key — skipping DELETE');
+            console.warn('[CANCEL] No prodentis_id — skipping DELETE');
         }
 
         // ── Update appointment action ──
@@ -179,9 +177,7 @@ export async function POST(
         // Get patient name from Prodentis
         let patientName = '';
         try {
-            const detRes = await fetch(`${PRODENTIS_API}/api/patient/${patient.prodentis_id}/details`, {
-                signal: AbortSignal.timeout(5000),
-            });
+            const detRes = await prodentisFetch(`/api/patient/${patient.prodentis_id}/details`);
             if (detRes.ok) {
                 const det = await detRes.json();
                 patientName = `${det.firstName || ''} ${det.lastName || ''}`.trim();

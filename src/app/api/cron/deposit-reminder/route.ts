@@ -7,6 +7,7 @@ import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
 import { demoSanitize, brand } from '@/lib/brandConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -15,8 +16,6 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
  * GET /api/cron/deposit-reminder
@@ -102,9 +101,7 @@ export async function GET(req: NextRequest) {
             let patientName = '';
             let firstName = '';
             try {
-                const res = await fetch(`${PRODENTIS_API}/api/patient/${patient.prodentis_id}/details`, {
-                    signal: AbortSignal.timeout(5000),
-                });
+                const res = await prodentisFetch(`/api/patient/${patient.prodentis_id}/details`);
                 if (res.ok) {
                     const det = await res.json();
                     patientName = `${det.firstName || ''} ${det.lastName || ''}`.trim();

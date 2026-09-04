@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateEKartaPdf } from '@/app/api/intake/generate-pdf/route';
-import { getProdentisKey } from '@/lib/pmsConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 import { prepareIntakeSubmissionInsert } from '@/lib/encryptedPiiFields';
 import { storagePathsReady } from '@/lib/privateStorage';
 
@@ -196,98 +196,91 @@ export async function POST(req: Request) {
         .eq('id', tokenRow.id);
 
     // 5. Send to Prodentis API (synchronous — Vercel kills fire-and-forget)
-    const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-    const prodentisKey = (await getProdentisKey()) ?? '';
-
     let prodentisStatus = 'pending';
     let prodentisPatientId = tokenRow.prodentis_patient_id || null;
     let prodentisError = '';
 
-    if (prodentisKey) {
-        try {
-            const patientPayload = {
-                firstName: formData.firstName,
-                middleName: formData.middleName || '',
-                lastName: formData.lastName,
-                maidenName: formData.maidenName || '',
-                pesel: formData.pesel || '',
-                birthDate: formData.birthDate || '',
-                gender: formData.gender || '',
-                address: {
-                    street: formData.street || '',
-                    postalCode: formData.postalCode || '',
-                    city: formData.city || '',
-                },
-                phone: formData.phone || '',
-                email: formData.email || '',
-                marketingConsent: formData.marketingConsent || false,
-                contactConsent: formData.contactConsent !== false,
-                notes: medicalNotes,
-            };
+    // 🔴 Bez bramki „jeśli mamy klucz". Wcześniej brak klucza po cichu POMIJAŁ całą wysyłkę,
+    // a zgłoszenie zostawało tylko u nas ze statusem `pending` — nie do odróżnienia od PMS,
+    // który jeszcze nie odpowiedział. Dziś `prodentisFetch` rzuca `BrakKluczaPMS`,
+    // poniższy `catch` loguje to i zapisuje jako `failed` z komunikatem.
+    try {
+        const patientPayload = {
+            firstName: formData.firstName,
+            middleName: formData.middleName || '',
+            lastName: formData.lastName,
+            maidenName: formData.maidenName || '',
+            pesel: formData.pesel || '',
+            birthDate: formData.birthDate || '',
+            gender: formData.gender || '',
+            address: {
+                street: formData.street || '',
+                postalCode: formData.postalCode || '',
+                city: formData.city || '',
+            },
+            phone: formData.phone || '',
+            email: formData.email || '',
+            marketingConsent: formData.marketingConsent || false,
+            contactConsent: formData.contactConsent !== false,
+            notes: medicalNotes,
+        };
 
-            if (prodentisPatientId) {
-                // Known patient → PATCH existing + add notes
-                const patchRes = await fetch(`${prodentisUrl}/api/patients/${prodentisPatientId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
-                    body: JSON.stringify(patientPayload),
-                    signal: AbortSignal.timeout(10000),
-                });
-                if (patchRes.ok) {
-                    await fetch(`${prodentisUrl}/api/patients/${prodentisPatientId}/notes`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
-                        body: JSON.stringify({ category: 'medical_intake', text: medicalNotes, appendMode: true }),
-                        signal: AbortSignal.timeout(10000),
-                    });
-                    prodentisStatus = 'sent';
-                }
-            } else {
-                // New patient → POST create
-                const createRes = await fetch(`${prodentisUrl}/api/patients`, {
+        if (prodentisPatientId) {
+            // Known patient → PATCH existing + add notes
+            const patchRes = await prodentisFetch(`/api/patients/${prodentisPatientId}`, {
+                method: 'PATCH',
+                body: JSON.stringify(patientPayload),
+                timeoutMs: 10000,
+            });
+            if (patchRes.ok) {
+                await prodentisFetch(`/api/patients/${prodentisPatientId}/notes`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
-                    body: JSON.stringify(patientPayload),
-                    signal: AbortSignal.timeout(10000),
+                    body: JSON.stringify({ category: 'medical_intake', text: medicalNotes, appendMode: true }),
+                    timeoutMs: 10000,
                 });
-                const result = await createRes.json();
-
-                if (createRes.status === 201 && result.prodentisId) {
-                    // Created successfully — now also write notes to XML field
-                    prodentisPatientId = result.prodentisId;
-                    await fetch(`${prodentisUrl}/api/patients/${prodentisPatientId}/notes`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
-                        body: JSON.stringify({ category: 'medical_intake', text: medicalNotes, appendMode: true }),
-                        signal: AbortSignal.timeout(10000),
-                    });
-                    prodentisStatus = 'sent';
-                } else if (result.error === 'PATIENT_EXISTS' && result.prodentisId) {
-                    // PESEL conflict → PATCH + notes
-                    prodentisPatientId = result.prodentisId;
-                    await fetch(`${prodentisUrl}/api/patients/${prodentisPatientId}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
-                        body: JSON.stringify(patientPayload),
-                        signal: AbortSignal.timeout(10000),
-                    });
-                    await fetch(`${prodentisUrl}/api/patients/${prodentisPatientId}/notes`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
-                        body: JSON.stringify({ category: 'medical_intake', text: medicalNotes, appendMode: true }),
-                        signal: AbortSignal.timeout(10000),
-                    });
-                    prodentisStatus = 'sent';
-                } else {
-                    prodentisStatus = 'failed';
-                    prodentisError = result.error || `HTTP ${createRes.status}`;
-                }
+                prodentisStatus = 'sent';
             }
-        } catch (e: any) {
-            console.error('Prodentis send failed:', e.message);
-            prodentisStatus = 'failed';
-            prodentisError = e.message;
+        } else {
+            // New patient → POST create
+            const createRes = await prodentisFetch('/api/patients', {
+                method: 'POST',
+                body: JSON.stringify(patientPayload),
+                timeoutMs: 10000,
+            });
+            const result = await createRes.json();
+
+            if (createRes.status === 201 && result.prodentisId) {
+                // Created successfully — now also write notes to XML field
+                prodentisPatientId = result.prodentisId;
+                await prodentisFetch(`/api/patients/${prodentisPatientId}/notes`, {
+                    method: 'POST',
+                    body: JSON.stringify({ category: 'medical_intake', text: medicalNotes, appendMode: true }),
+                    timeoutMs: 10000,
+                });
+                prodentisStatus = 'sent';
+            } else if (result.error === 'PATIENT_EXISTS' && result.prodentisId) {
+                // PESEL conflict → PATCH + notes
+                prodentisPatientId = result.prodentisId;
+                await prodentisFetch(`/api/patients/${prodentisPatientId}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(patientPayload),
+                    timeoutMs: 10000,
+                });
+                await prodentisFetch(`/api/patients/${prodentisPatientId}/notes`, {
+                    method: 'POST',
+                    body: JSON.stringify({ category: 'medical_intake', text: medicalNotes, appendMode: true }),
+                    timeoutMs: 10000,
+                });
+                prodentisStatus = 'sent';
+            } else {
+                prodentisStatus = 'failed';
+                prodentisError = result.error || `HTTP ${createRes.status}`;
+            }
         }
+    } catch (e: any) {
+        console.error('Prodentis send failed:', e.message);
+        prodentisStatus = 'failed';
+        prodentisError = e.message;
     }
 
     // 6. Update submission with Prodentis result
@@ -352,17 +345,16 @@ export async function POST(req: Request) {
                     .eq('id', submission.id);
 
                 // Upload to Prodentis documents
-                if (resolvedProdentisId && resolvedProdentisId !== 'unknown' && prodentisKey) {
+                if (resolvedProdentisId && resolvedProdentisId !== 'unknown') {
                     try {
-                        await fetch(`${prodentisUrl}/api/patients/${resolvedProdentisId}/documents`, {
+                        await prodentisFetch(`/api/patients/${resolvedProdentisId}/documents`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
                             body: JSON.stringify({
                                 fileBase64: pdfBase64,
                                 fileName,
                                 description: `E-Karta pacjenta — ${firstName} ${lastName} — ${dateStr}`,
                             }),
-                            signal: AbortSignal.timeout(10000),
+                            timeoutMs: 10000,
                         });
                         console.log(`[IntakeSubmit] PDF uploaded to Prodentis for patient ${resolvedProdentisId}`);
                     } catch (pe) {

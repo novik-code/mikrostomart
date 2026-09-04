@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { zbudujKontekstTerminow } from '@/lib/prodentisSlots';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
@@ -89,7 +90,6 @@ export async function POST(req: NextRequest) {
         // Fetch available appointment slots from Prodentis (next 7 days)
         let appointmentSlotsContext = '';
         try {
-            const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
             // 🔑 3e (2026-09-04): JEDNO żądanie na siedem dni zamiast siedmiu, i z `meta=1` —
             // czyli asystent dostaje też statusy. Dotąd dzień z kompletem zapisów był dla niego
             // nieodróżnialny od dnia wolnego: po prostu go pomijał, więc na pytanie „kiedy się
@@ -99,9 +99,9 @@ export async function POST(req: NextRequest) {
             const odKiedy = dzisiaj.toISOString().split('T')[0];
             let kontekstDni = '';
             try {
-                const res = await fetch(
-                    `${PRODENTIS_API_URL}/api/slots/free?date=${odKiedy}&days=7&duration=30&meta=1`,
-                    { signal: AbortSignal.timeout(12000) },
+                const res = await prodentisFetch(
+                    `/api/slots/free?date=${odKiedy}&days=7&duration=30&meta=1`,
+                    { timeoutMs: 12000 },
                 );
                 if (res.ok) {
                     kontekstDni = zbudujKontekstTerminow(await res.json(), (data) => {
@@ -109,7 +109,10 @@ export async function POST(req: NextRequest) {
                         return d.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
                     });
                 }
-            } catch { /* brak kontekstu terminów jest lepszy niż zły kontekst */ }
+            } catch (e) {
+                /* brak kontekstu terminów jest lepszy niż zły kontekst — ale awaria ma zostawić ślad */
+                console.error('[Generate Reply] Nie udało się pobrać wolnych terminów z PMS:', e);
+            }
 
             if (kontekstDni) {
                 appointmentSlotsContext = '\n\n## WOLNE TERMINY WIZYT (NAJBLIŻSZE 7 DNI)\n'

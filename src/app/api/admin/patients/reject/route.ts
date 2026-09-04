@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/authGuards';
 import { logAudit } from '@/lib/auditLog';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,8 +42,7 @@ export async function POST(request: Request) {
         // Get firstName for email
         let firstName = 'Pacjencie';
         try {
-            const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-            const res = await fetch(`${prodentisUrl}/api/patient/${patient.prodentis_id}/details`);
+            const res = await prodentisFetch(`/api/patient/${patient.prodentis_id}/details`);
             if (res.ok) {
                 const details = await res.json();
                 firstName = details.firstName || 'Pacjencie';
