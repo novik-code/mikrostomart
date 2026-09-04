@@ -2480,6 +2480,52 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
+### 2026-09-04 (#4) — 🔌 PMS WYDAŁ v11.0 · TRASA POŚREDNICZĄCA PRZEPUSZCZA NOWE PARAMETRY
+
+> Commit **`f3dd896`**. ⏳ **NIEWYPCHNIĘTY.** Bramki: `tsc` · `vitest` **641/641** (59 plików, +10) · `next build` OK.
+
+#### Co wydał dostawca (zweryfikowane POMIAREM, nie odczytem pisma)
+`meta=1` (koperta z `doctors[]` i pięcioma statusami) · `days=1..14` · `doctor=<id>` ·
+`nextAvailable` + `nextAvailableSearchedDays` · `policy=strict` (domyślnie wyłączona) ·
+`GET /api/doctors` z `title` i `bookableOnline` · poprawka godzin pracy (czwartki dr Milicz).
+
+| kontrola | wynik |
+|---|---|
+| gwarancja wsteczna (bez `meta`) | ✅ goła tablica, pola bez zmian |
+| statusy na 9.09 | ✅ 3 × `fully_booked`, 2 × `not_working`, 1 × `available` |
+| `days=5` | ✅ 5 dni × 6 operatorów |
+| `policy=strict` (16.09) | ✅ 7 slotów (2 kwadranse) → 5 slotów (zero) |
+| kody błędów | ✅ `DOCTOR_NOT_FOUND` · `DAYS_OUT_OF_RANGE` · `MISSING_DURATION` · `DATE_OUT_OF_RANGE` |
+| **zmiana czasu** | ✅ 19.10 → **+2 h**, 2.11 → **+1 h** — `startUtc` liczone dla konkretnej daty |
+
+🪤 **Dwie rzeczy, których w ich piśmie NIE MA, a wyszły z pomiaru:**
+1. **`DATE_OUT_OF_RANGE` działa WYŁĄCZNIE przy `meta=1`.** Bez koperty `date=2020-01-01`
+   oddaje 110 slotów, a `date=2030-01-01` — 148. Prawdopodobnie celowo (dołożenie 400 do gołej
+   tablicy byłoby zmianą łamiącą), ale w tabeli wydania „Granice dat" mają ✅ bez zastrzeżenia.
+   **Nasz własny limit przewijania w kalendarzu zostaje** — dwie bariery są tu tańsze niż jedna.
+2. **`days` może przekroczyć `maxDate`** — walidowana jest tylko data początkowa.
+
+#### Nasza zmiana: trasa pośrednicząca przepuszczała TYLKO `date` i `duration`
+Czyli nowej funkcjonalności **nie dało się nawet zmierzyć**, nie mówiąc o przełączeniu.
+`lib/slotsQuery.ts` jest teraz jedynym miejscem budującym adres do PMS-u.
+
+🔴 **Gwarancja wsteczna:** bez nowych parametrów adres jest **dokładnie taki jak dotąd**
+(`date` + `duration`), odpowiedź pozostaje gołą tablicą. Od tego zależy **apka zamrożona
+w sklepach**. Osobna asercja pilnuje tego wprost.
+
+🪤 **Walidacja stoi na NASZYM brzegu**, bo PMS na śmieciowy parametr odpowiada **pustą tablicą**,
+a nie błędem (zmierzone: `duration=abc` → `[]`). U nas pusta tablica jest nieodróżnialna
+od „brak wolnych terminów", więc literówka wyglądałaby dla pacjenta jak pełny grafik.
+Odrzucamy: `duration` niebędący liczbą dodatnią, `days` poza 1–14, `doctor` niebędący dziesięcioma
+cyframi, `policy` inne niż `strict`. `meta` przepuszczamy **wyłącznie jako `1`**.
+🪤 Timeout przy `days` podniesiony 5 s → 12 s — jedno żądanie robi wtedy pracę za czternaście.
+
+#### Pliki
+- `src/lib/slotsQuery.ts` (nowy) + `src/lib/__tests__/slotsQuery.test.ts`
+- `src/app/api/prodentis/slots/route.ts`
+
+---
+
 ### 2026-09-04 (#3) — 🏷️ ZNACZNIK POCHODZENIA PRZY ODWOŁANIU I PRZEŁOŻENIU (punkt 3g)
 
 > Commit **`9b383b6`**. ⏳ **NIEWYPCHNIĘTY.** Bramki: `tsc` · `vitest` **631/631** (58 plików, +7) · `next build` OK.
