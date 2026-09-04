@@ -17,10 +17,15 @@ interface Slot {
 interface AppointmentSchedulerProps {
     specialistId: string;
     specialistName: string;
+    /**
+     * Czas trwania wizyty u tego specjalisty, w minutach — z `/api/specialists`
+     * (kolumna `booking_duration_minutes`). Steruje zapytaniem o wolne okna.
+     */
+    durationMin?: number;
     onSlotSelect: (slot: { date: string, time: string, doctor: string } | null) => void;
 }
 
-export default function AppointmentScheduler({ specialistId, specialistName, onSlotSelect }: AppointmentSchedulerProps) {
+export default function AppointmentScheduler({ specialistId, specialistName, durationMin, onSlotSelect }: AppointmentSchedulerProps) {
     const [currentWeekStart, setCurrentWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
     const [loading, setLoading] = useState(false);
     const [slots, setSlots] = useState<Slot[]>([]);
@@ -29,7 +34,14 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
     const [error, setError] = useState<string | null>(null);
     const [minDaysAhead, setMinDaysAhead] = useState(1); // 1 = tomorrow by default
 
-    const duration = specialistId === 'malgorzata' ? '60' : '30';
+    // 🔴 FIX 2026-09-04: czas trwania bierzemy z danych zespołu, nie z porównania ze slugiem.
+    // Poprzednia wersja brzmiała `specialistId === 'malgorzata' ? '60' : '30'`, a na /rezerwacja
+    // `specialistId` to identyfikator Prodentisa (`0100000030`) — warunek NIGDY nie był prawdziwy.
+    // Skutek: formularz pokazywał „Czas trwania: 60min", a pytał o okna 30-minutowe, więc
+    // wizyty higienizacyjne trafiały w luki o połowę za krótkie. W Strefie Pacjenta, gdzie lista
+    // była zaszyta ze slugami, ten sam kod działał — czyli ten sam pacjent widział inne terminy
+    // zależnie od tego, czy jest zalogowany.
+    const duration = String(durationMin ?? 30);
 
     // Fetch admin-controlled minimum-days-ahead setting
     useEffect(() => {

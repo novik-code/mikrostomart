@@ -417,6 +417,7 @@ export default function ReservationForm() {
                         <AppointmentScheduler
                             specialistId={selectedSpecialist.id}
                             specialistName={selectedSpecialist.name}
+                            durationMin={selectedSpecialist.durationMin}
                             onSlotSelect={handleSlotSelect}
                         />
                         {/* Hidden inputs to hold values for react-hook-form validation */}

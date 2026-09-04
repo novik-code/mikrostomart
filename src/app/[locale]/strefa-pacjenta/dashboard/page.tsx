@@ -24,13 +24,26 @@ interface PatientDocument {
 const AppointmentScheduler = dynamic(() => import('@/components/scheduler/AppointmentScheduler'), { ssr: false });
 
 // ── Specialist & service data (mirrored from ReservationForm) ──
-const SPECIALISTS = [
-    { id: 'marcin', name: 'lek. dent. Marcin Nowosielski', role: 'doctor' },
-    { id: 'ilona', name: 'lek. dent. Ilona Piechaczek', role: 'doctor' },
-    { id: 'katarzyna', name: 'lek. dent. Katarzyna Halupczok', role: 'doctor' },
-    { id: 'dominika', name: 'lek. dent. Dominika Milicz', role: 'doctor' },
-    { id: 'malgorzata', name: 'hig. stom. Małgorzata Maćków-Huras', role: 'hygienist' },
-] as const;
+interface Specialist {
+    id: string;
+    name: string;
+    role: string;
+    durationMin?: number;
+}
+
+// 🔴 2026-09-04: ta lista była ZASZYTA i przez to Strefa Pacjenta miała inny skład zespołu
+// niż formularz publiczny — nie było w niej Elżbiety Nowosielskiej, a nazwiska szły bez
+// polskich znaków. Dziś jest to wyłącznie AWARYJNY fallback; źródłem prawdy jest
+// `/api/specialists` (kolumny `show_in_booking` / `booking_role` / `booking_duration_minutes`).
+// 🪤 Identyfikatory w fallbacku to slugi, a z API przychodzą identyfikatory Prodentisa —
+// obie formy rozwiązuje `getDoctorInfo()` po stronie serwera, więc rezerwacja działa z każdą.
+const FALLBACK_SPECIALISTS: Specialist[] = [
+    { id: 'marcin', name: 'lek. dent. Marcin Nowosielski', role: 'doctor', durationMin: 30 },
+    { id: 'ilona', name: 'lek. dent. Ilona Piechaczek', role: 'doctor', durationMin: 30 },
+    { id: 'katarzyna', name: 'lek. dent. Katarzyna Hałupczok', role: 'doctor', durationMin: 30 },
+    { id: 'dominika', name: 'lek. dent. Dominika Milicz', role: 'doctor', durationMin: 30 },
+    { id: 'malgorzata', name: 'hig. stom. Małgorzata Maćków-Huras', role: 'hygienist', durationMin: 60 },
+];
 
 const SERVICE_IDS: Record<string, { id: string; label: string }[]> = {
     doctor: [
@@ -112,9 +125,22 @@ export default function PatientDashboard() {
     const [bookingError, setBookingError] = useState<string | null>(null);
     const [pendingBookings, setPendingBookings] = useState<OnlineBooking[]>([]);
     const [patientDocs, setPatientDocs] = useState<PatientDocument[]>([]);
+    const [specialists, setSpecialists] = useState<Specialist[]>(FALLBACK_SPECIALISTS);
     const router = useRouter();
 
-    const selectedSpec = SPECIALISTS.find(s => s.id === bookingSpecialist);
+    // Jedno źródło prawdy o składzie zespołu — ta sama trasa, z której korzysta formularz
+    // publiczny. Przy awarii zostaje lista awaryjna wyżej (lepsza niż pusty select).
+    useEffect(() => {
+        fetch('/api/specialists')
+            .then(r => r.json())
+            .then((d) => {
+                const lista: Specialist[] = Array.isArray(d) ? d : (d?.specialists ?? []);
+                if (lista.length > 0) setSpecialists(lista);
+            })
+            .catch(() => { /* zostaje FALLBACK_SPECIALISTS */ });
+    }, []);
+
+    const selectedSpec = specialists.find(s => s.id === bookingSpecialist);
     const availableServices = selectedSpec ? (SERVICE_IDS[selectedSpec.role] || []) : [];
 
     useEffect(() => {
@@ -298,7 +324,7 @@ export default function PatientDashboard() {
         setBookingError(null);
         try {
             const token = getAuthToken();
-            const spec = SPECIALISTS.find(s => s.id === bookingSpecialist);
+            const spec = specialists.find(s => s.id === bookingSpecialist);
             const res = await fetch('/api/patients/appointments/book', {
                 method: 'POST',
                 headers: {
@@ -645,7 +671,7 @@ export default function PatientDashboard() {
                                                 style={{ width: '100%', padding: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '0.5rem', color: '#fff', fontSize: '0.9rem', outline: 'none' }}
                                             >
                                                 <option value="">Wybierz specjalistę</option>
-                                                {SPECIALISTS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                                                {specialists.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                             </select>
                                         </div>
 
@@ -671,6 +697,7 @@ export default function PatientDashboard() {
                                                 <AppointmentScheduler
                                                     specialistId={selectedSpec.id}
                                                     specialistName={selectedSpec.name}
+                                                    durationMin={selectedSpec.durationMin}
                                                     onSlotSelect={(slot) => {
                                                         if (slot) { setBookingDate(slot.date); setBookingTime(slot.time); }
                                                         else { setBookingDate(''); setBookingTime(''); }

@@ -19,10 +19,17 @@ export const DOCTOR_MAPPING: Record<string, DoctorInfo> = {
         defaultDuration: 30,
     },
     elzbieta: {
-        prodentisId: '0100000002',
+        // 🔴 2026-09-04: było `0100000002` — identyfikator MARTWY. Dostawca PMS potwierdził
+        // pomiarem, że to duplikat tożsamości z ZEREM dni pracy, a żywy identyfikator
+        // Elżbiety to `0100000003` (25 dni pracy w VI–VIII, 93 wizyty w przyszłości).
+        // Błąd nie odzywał się, bo nikt jej stąd nie rozwiązywał — do chwili, gdy została
+        // włączona do rezerwacji online. Wtedy `getDoctorInfo('0100000003')` zwracałoby
+        // `null`, `doctor_prodentis_id` zapisywałby się jako NULL, a zatwierdzenie
+        // rezerwacji kończyłoby się błędem `MISSING_DOCTOR_ID`.
+        prodentisId: '0100000003',
         name: 'hig. stom. Elżbieta Nowosielska',
         role: 'hygienist',
-        defaultDuration: 30,
+        defaultDuration: 60,
     },
     ilona: {
         prodentisId: '0100000024',
@@ -30,9 +37,13 @@ export const DOCTOR_MAPPING: Record<string, DoctorInfo> = {
         role: 'doctor',
         defaultDuration: 30,
     },
+    // ⚪ Aleksandra i Wiktoria pracują w REJESTRACJI, nie przyjmują pacjentów (potwierdzone
+    // przez dostawcę PMS: zero dni pracy, brak wzorca grafiku; to one skreślają rezerwacje
+    // online w Prodentisie). Zostają w mapie, bo pojawiają się jako autorki operacji, ale
+    // nie są i nie mają być rezerwowalne — `show_in_booking` w bazie trzyma je poza formularzem.
     aleksandra: {
         prodentisId: '0100000028',
-        name: 'lek. dent. Aleksandra Modelska-Kępa',
+        name: 'Aleksandra Modelska-Kępa (rejestracja)',
         role: 'doctor',
         defaultDuration: 30,
     },
@@ -56,7 +67,7 @@ export const DOCTOR_MAPPING: Record<string, DoctorInfo> = {
     },
     wiktoria: {
         prodentisId: '0100000037',
-        name: 'lek. dent. Wiktoria Leja',
+        name: 'Wiktoria Leja (rejestracja)',
         role: 'doctor',
         defaultDuration: 30,
     },
