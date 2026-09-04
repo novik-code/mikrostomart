@@ -269,4 +269,17 @@ describe('górna granica okna PMS (window.maxDate)', () => {
         });
         expect(teraz.tresc).not.toContain('zajęte');
     });
+
+    it('powód „za krótka wizyta" NIE jest brakiem terminów — to nasze złe zapytanie', () => {
+        const k = komunikatStatusu('fully_booked', { imie: 'Marcin', powod: 'duration_below_minimum' });
+        expect(k.tresc).not.toContain('zajęte');
+        expect(k.ton).toBe('ostrzegawczy');
+        expect(k.telefon).toBe(true);
+    });
+
+    it('podsumowanie dnia też nie ogłasza wtedy pustki', () => {
+        const k = podsumujDzienOperatorow([{ status: 'fully_booked', reason: 'duration_below_minimum' }]);
+        expect(k?.tresc).toContain('To nie znaczy');
+        expect(k?.ton).toBe('ostrzegawczy');
+    });
 });

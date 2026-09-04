@@ -51,9 +51,13 @@ describe('zbudujZapytanieSlotow', () => {
         expect(q('date=2026-09-09&doctor=010000000').ok).toBe(false);
     });
 
-    it('policy przyjmuje wyłącznie strict', () => {
+    it('policy przyjmuje OBIE znane wartości, resztę odrzuca', () => {
         expect(query('date=2026-09-09&policy=strict')).toContain('policy=strict');
-        expect(q('date=2026-09-09&policy=legacy').ok).toBe(false);
+        // 🔴 Od v11.13 `strict` jest domyślne, a `legacy` to JEDYNE wyjście awaryjne
+        // przywracające starty :15/:45. Blokując je, odcinaliśmy sobie drogę odwrotu.
+        expect(query('date=2026-09-09&policy=legacy')).toContain('policy=legacy');
+        expect(q('date=2026-09-09&policy=nieznana').ok).toBe(false);
+        expect(q('date=2026-09-09&policy=').ok).toBe(false);
     });
 
     it('komplet parametrów w stabilnej kolejności', () => {

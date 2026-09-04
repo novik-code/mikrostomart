@@ -66,6 +66,20 @@ export function komunikatStatusu(
     // upchnąć). PMS raportuje wtedy `fully_booked`, ale to NIE jest komplet zapisów — lekarz
     // może mieć wolne okna, po prostu nie tą drogą. Zdanie „wszystkie terminy zajęte" byłoby
     // tu nieprawdą, a dostawca prosi wprost, żeby pacjent go nie zobaczył.
+    // 🪤 To samo, piętro niżej (PMS v11.13): przy `duration` poniżej minimum polityki
+    // (30 min pod `strict`, 15 pod `legacy`) API oddaje `fully_booked` + ten powód.
+    // Lekarz może mieć wolną CAŁĄ GODZINĘ — to nasze zapytanie jest złe, nie jego grafik.
+    // Dziś żaden specjalista nie ma czasu wizyty poniżej 30 min (zmierzone), więc gałąź
+    // jest zabezpieczeniem na przyszłość: wystarczy, że ktoś ustawi 15 min w panelu.
+    if (powod === 'duration_below_minimum') {
+        return {
+            tresc: `Nie potrafimy w tej chwili pokazać terminów${kiedy}.`
+                + ' To nie znaczy, że ich nie ma — zadzwoń do rejestracji.',
+            telefon: true,
+            ton: 'ostrzegawczy',
+        };
+    }
+
     if (powod === 'same_day_not_bookable') {
         return {
             tresc: `Na ten dzień${kiedy} nie prowadzimy rezerwacji online.`
@@ -176,6 +190,16 @@ export function podsumujDzienOperatorow(operatorzy: OperatorDnia[], maxDate?: st
 
     // 🔴 Zaraz po `unknown`, bo „na dziś dzwoń" jest prawdziwe niezależnie od tego, co dalej
     // raportują poszczególni lekarze — patrz `komunikatStatusu`.
+    if (operatorzy.some(o => o.reason === 'duration_below_minimum')) {
+        // Nasze zapytanie jest złe, nie grafik lekarza — nie wolno tego ogłosić jako braku terminów.
+        return {
+            tresc: 'Nie potrafimy w tej chwili pokazać terminów na ten dzień.'
+                + ' To nie znaczy, że ich nie ma — zadzwoń do rejestracji.',
+            telefon: true,
+            ton: 'ostrzegawczy',
+        };
+    }
+
     if (operatorzy.some(o => o.reason === 'same_day_not_bookable')) {
         const najblizszyDzis = operatorzy
             .map(o => o.nextAvailable)

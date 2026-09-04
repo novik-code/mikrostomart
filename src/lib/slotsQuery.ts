@@ -62,12 +62,20 @@ export function zbudujZapytanieSlotow(p: URLSearchParams): WynikZapytania {
         czesci.push(`doctor=${doctor}`);
     }
 
+    // 🔴 2026-09-04 wieczorem SEMANTYKA SIĘ ODWRÓCIŁA (PMS v11.13): `strict` jest teraz
+    // DOMYŚLNE, a `legacy` to wyjście awaryjne przywracające starty o :15 i :45.
+    // Pierwsza wersja tego walidatora (napisana rano, gdy domyślne było `legacy`)
+    // przepuszczała WYŁĄCZNIE `strict` — czyli od wieczora blokowała jedyną drogę odwrotu,
+    // i to po NASZEJ stronie, mimo że PMS `legacy` przyjmuje bez zastrzeżeń (zmierzone).
+    // 🪤 Lista zostaje zamknięta na dwie znane wartości: PMS na śmieciowy parametr oddaje
+    // PUSTĄ TABLICĘ, a ta jest u nas nieodróżnialna od „brak terminów".
+    const POLITYKI = ['strict', 'legacy'];
     const policy = p.get('policy');
     if (policy !== null) {
-        if (policy !== 'strict') {
-            return { ok: false, kod: 'invalid_policy', blad: "policy accepts only 'strict'" };
+        if (!POLITYKI.includes(policy)) {
+            return { ok: false, kod: 'invalid_policy', blad: "policy accepts only 'strict' or 'legacy'" };
         }
-        czesci.push('policy=strict');
+        czesci.push(`policy=${policy}`);
     }
 
     // `meta` przepuszczamy wyłącznie jako `1` — inne wartości milcząco pomijamy, żeby
