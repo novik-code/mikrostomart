@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 import { isDemoMode } from '@/lib/demoMode';
+import { zbudujZapytanieSlotow } from '@/lib/slotsQuery';
 
 export const dynamic = 'force-dynamic'; // Always fetch fresh data
 
@@ -20,8 +21,14 @@ export async function GET(request: Request) {
     const date = searchParams.get('date');
     const duration = searchParams.get('duration');
 
-    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return NextResponse.json({ error: 'Missing or invalid date parameter' }, { status: 400 });
+    // 🔑 2026-09-04 (PMS v11.0): przepuszczamy też `meta`, `days`, `doctor`, `policy`.
+    // Walidacja stoi TUTAJ, na naszym brzegu, bo PMS na śmieciowy parametr odpowiada PUSTĄ
+    // TABLICĄ, a nie błędem — a pusta tablica jest u nas nieodróżnialna od „brak terminów".
+    // 🔴 Gdy nie podano żadnego z nowych parametrów, adres jest DOKŁADNIE taki jak dotąd:
+    // od tego zależy aplikacja mobilna zamrożona w sklepach.
+    const zapytanie = zbudujZapytanieSlotow(searchParams);
+    if (!zapytanie.ok) {
+        return NextResponse.json({ error: zapytanie.blad, code: zapytanie.kod }, { status: 400 });
     }
 
     // Demo mode: return synthetic slots so the demo flow works without hitting prod Prodentis.
@@ -41,14 +48,16 @@ export async function GET(request: Request) {
     }
 
     const apiUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-    const endpoint = `${apiUrl}/api/slots/free?date=${date}&duration=${duration || '30'}`;
+    const endpoint = `${apiUrl}/api/slots/free?${zapytanie.query}`;
 
     try {
         console.log(`Fetching Prodentis slots from: ${endpoint}`);
 
         // Set a timeout to avoid hanging the Vercel function
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 sec timeout
+        // 🪤 `days=14` to w jednym żądaniu praca za czternaście — zmierzone u dostawcy:
+        // osiem żądań `meta=1` w 1,2 s, ale margines zostawiamy większy niż dla jednego dnia.
+        const timeoutId = setTimeout(() => controller.abort(), searchParams.get('days') ? 12000 : 5000);
 
         const response = await fetch(endpoint, {
             signal: controller.signal,
