@@ -2480,6 +2480,56 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
+### 2026-09-04 (#6) — 🚦 KALENDARZ NA `meta=1`: KONIEC JEDNEGO NAPISU NA SZEŚĆ PRAWD (punkt 3e)
+
+> Commit **`ac701bb`**. ⏳ **NIEWYPCHNIĘTY.** Bramki: `tsc` · `vitest` **661/661** (61 plików, +9) · `next build` OK.
+> Obejmuje **dwie z pięciu powierzchni naraz** — `/rezerwacja` i Strefę Pacjenta (wspólny komponent).
+
+#### Tydzień to teraz JEDNO żądanie, nie pięć
+`days=5` + `meta=1` + `doctor=`. Limit 30/min starcza więc na **30 spojrzeń na kalendarz zamiast
+sześciu**, a `doctor=` zdejmuje z odpowiedzi dane pozostałych osób, o które pacjent nie pytał.
+
+#### Sześć prawd, sześć komunikatów (`lib/statusOperatora.ts`)
+| status | co widzi pacjent |
+|---|---|
+| `fully_booked` | „przyjmuje tego dnia, ale wszystkie terminy online są już zajęte" + **przycisk skoku** do najbliższego wolnego |
+| `not_bookable_online` | „przyjmuje, ale terminów na ten dzień nie umówimy online" + telefon |
+| `not_working` | „nie przyjmuje tego dnia" (+ skok, gdy PMS zna termin) |
+| `unknown` **i każdy nieznany** | „Nie potrafimy potwierdzić. **To nie znaczy, że ich nie ma.**" |
+| `available` | dopiero TU wolno powiedzieć „brak wolnych terminów w tym dniu" |
+
+🪤 **Reguła, której nie wolno złamać:** przy `unknown` NIE twierdzimy, że terminów nie ma.
+Dostawca wprowadził ten status świadomie, a nasz asystent AI powtarza takie zdania pacjentowi
+w mailu. ⚪ Powodu nieobecności (urlop) nie pokazujemy — dana kadrowa, pacjentowi nie pomaga.
+
+#### 🪤 Dwie stare wady złapane dopiero przy tym wdrożeniu
+1. **Kalendarz otwiera się na poniedziałku bieżącego tygodnia**, a od wtorku to przeszłość.
+   Przy `meta=1` PMS odrzuca taką datę kodem `DATE_OUT_OF_RANGE` (na starej ścieżce **przechodziła**),
+   więc cały tydzień wracał jako awaria. Pytamy od dziś, o tyle dni, ile z tygodnia zostało.
+2. **Domyślnie zaznaczony był dzień z przeszłości** — zmierzone 03.09: wejście w czwartek
+   pokazywało poniedziałek 31 sierpnia z napisem „brak terminów". To była pierwsza rzecz,
+   jaką zobaczyłem w tej sprawie, i domyka się dopiero teraz.
+
+#### 🔬 Dowód wykonaniem — ten sam dzień, dwoje specjalistów
+```
+Marcin    → „przyjmuje tego dnia, ale wszystkie terminy online są już zajęte"
+             + Najbliższy wolny termin: 11 września
+Elżbieta  → „nie przyjmuje tego dnia" + Najbliższy wolny termin: 5 października
+klik skoku → tydzień 5–9 października, termin 13:00 gotowy do wyboru
+```
+Wcześniej **oba** przypadki mówiły „Brak wolnych terminów w wybranym dniu", a dojście do 5.10
+wymagało **pięciu kliknięć strzałką** — czyli także trafienia w limit zapytań.
+
+#### Co zostaje z punktu 3e
+Aplikacja mobilna (`SlotPicker`), okno „Przełóż wizytę" i asystent AI — te trzy powierzchnie
+nadal chodzą po starej ścieżce (goła tablica). Działają poprawnie, tylko bez statusów.
+
+#### Pliki
+- `src/lib/statusOperatora.ts` (nowy) + `src/lib/__tests__/statusOperatora.test.ts`
+- `src/components/scheduler/AppointmentScheduler.tsx`
+
+---
+
 ### 2026-09-04 (#5) — 🔄 ODŚWIEŻANIE STANU WIZYTY PRZED ZAPISEM (punkt 3h)
 
 > Commit **`c89ba84`**. ⏳ **NIEWYPCHNIĘTY.** Bramki: `tsc` · `vitest` **652/652** (60 plików, +11) · `next build` OK.
