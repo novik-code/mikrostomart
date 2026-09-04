@@ -5,6 +5,7 @@ import { Loader2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { format, addDays, startOfWeek, isSameDay, parseISO, getMinutes } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { brand } from '@/lib/brandConfig';
+import { ocenTydzien, type WynikDnia } from '@/lib/slotsFetchOutcome';
 
 interface Slot {
     doctor: string;
@@ -49,11 +50,20 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
         }
 
         try {
-            const promises = weekDates.map(date => {
+            // 🔴 FIX 2026-09-03: każdy dzień zwraca WYNIK (udany/padnięty + status), a nie samo
+            // `[]`. Wcześniej `.catch(() => [])` zamieniał 429, 502 i zerwaną sieć w pustą listę,
+            // a `Promise.all` nad promisami łapiącymi własne wyjątki NIGDY nie odrzuca — więc
+            // `catch` niżej był kodem martwym i pacjent na każdą awarię dostawał komunikat
+            // „Brak wolnych terminów w wybranym dniu". Reguła rozstrzygająca: `lib/slotsFetchOutcome.ts`.
+            const promises: Array<Promise<{ wynik: WynikDnia; sloty: Slot[] }>> = weekDates.map(date => {
                 const dateStr = format(date, 'yyyy-MM-dd');
                 return fetch(`/api/prodentis/slots?date=${dateStr}&duration=${duration}`)
                     .then(res => {
-                        if (!res.ok) throw new Error('Failed');
+                        if (!res.ok) {
+                            const e = new Error('Failed') as Error & { status?: number };
+                            e.status = res.status;
+                            throw e;
+                        }
                         return res.json();
                     })
                     .then((data: Slot[]) => {
@@ -62,7 +72,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                         cutoff.setHours(0, 0, 0, 0);
                         cutoff.setDate(cutoff.getDate() + minDaysAhead);
 
-                        return data.filter(slot => {
+                        const przefiltrowane = data.filter(slot => {
                             const apiName = slot.doctorName.toLowerCase();
                             const targetName = specialistName.toLowerCase().replace('lek. dent. ', '').replace('hig. stom. ', '');
 
@@ -87,13 +97,26 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                             const minutes = getMinutes(slotDate);
                             return minutes === 0 || minutes === 30;
                         });
+                        return { wynik: { ok: true, liczbaSlotow: przefiltrowane.length } as WynikDnia, sloty: przefiltrowane };
                     })
-                    .catch(() => []);
+                    .catch((e: Error & { status?: number }) => ({
+                        wynik: { ok: false, status: e?.status } as WynikDnia,
+                        sloty: [] as Slot[],
+                    }));
             });
 
             const results = await Promise.all(promises);
-            const flatSlots = results.flat();
+            const flatSlots = results.flatMap(r => r.sloty);
             setSlots(flatSlots);
+
+            const stan = ocenTydzien(results.map(r => r.wynik), flatSlots.length);
+            if (stan.rodzaj === 'blad') {
+                setError(stan.powod === 'limit'
+                    ? 'Za dużo zapytań w krótkim czasie. Odczekaj minutę i spróbuj ponownie — '
+                      + `albo zadzwoń, umówimy termin od ręki: ${brand.phone1} / ${brand.phone2}.`
+                    : 'Nie udało się pobrać terminów — to awaria po naszej stronie, nie brak wolnych '
+                      + `miejsc. Spróbuj ponownie lub zadzwoń: ${brand.phone1} / ${brand.phone2}.`);
+            }
 
             const firstDayWithSlots = weekDates.find(day =>
                 flatSlots.some(s => isSameDay(parseISO(s.start), day))
@@ -102,6 +125,8 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
             setSelectedDateView(firstDayWithSlots || weekDates[0]);
 
         } catch (err) {
+            // Zapasowa siatka bezpieczeństwa: tu trafi wyłącznie awaria POZA pobieraniem dni
+            // (np. błąd `format`/`parseISO`). Sama ścieżka sieciowa jest rozstrzygana wyżej.
             setError(`Nie udało się pobrać terminów. Spróbuj później lub zadzwoń: ${brand.phone1} / ${brand.phone2}.`);
         } finally {
             setLoading(false);
@@ -268,7 +293,28 @@ export default function AppointmentScheduler({ specialistId, specialistName, onS
                     borderRadius: "0.5rem",
                     border: "1px solid rgba(239, 68, 68, 0.3)",
                     fontSize: "0.875rem"
-                }}>{error}</div>
+                }}>
+                    <div>{error}</div>
+                    {/* Ślepy zaułek jest gorszy niż awaria: pacjent musi mieć co kliknąć.
+                        Ponowienie jest tanie — pobranie tygodnia to pięć zapytań GET. */}
+                    <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); fetchSlotsForWeek(); }}
+                        style={{
+                            marginTop: "0.75rem",
+                            padding: "0.5rem 1.25rem",
+                            borderRadius: "999px",
+                            border: "1px solid #ef4444",
+                            background: "transparent",
+                            color: "#ef4444",
+                            fontSize: "0.8rem",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                        }}
+                    >
+                        Spróbuj ponownie
+                    </button>
+                </div>
             ) : (
                 <>
                     {/* Days Grid */}
