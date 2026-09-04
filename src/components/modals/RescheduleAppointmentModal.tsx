@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react';
 import { podsumujDzienOperatorow } from '@/lib/statusOperatora';
 import { brand } from '@/lib/brandConfig';
 
+/**
+ * Jak daleko w przyszłość sięga TO okno. Jedno źródło dla pola daty i dla komunikatu
+ * o najbliższym wolnym terminie — rozjazd między nimi rodzi obietnicę bez pokrycia.
+ */
+const HORYZONT_DNI = 60;
+
 interface RescheduleAppointmentModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -86,7 +92,22 @@ export default function RescheduleAppointmentModal({
                         // 🔴 3e: dotąd stał tu jeden napis na wszystkie przypadki. Teraz mówimy,
                         // czy specjaliści mają komplet, czy gabinet nie pracuje — a przy `unknown`
                         // NIE twierdzimy, że terminów nie ma.
-                        const k = podsumujDzienOperatorow(Array.isArray(data) ? [] : (data.doctors || []));
+                        // 🪤 GRANICA MUSI TU BYĆ. Bez niej `podsumujDzienOperatorow` pokazywał
+                        // datę spoza zasięgu TEGO okna (pole daty ma `max` = dziś+60), a przy
+                        // okazji GASIŁ numer telefonu — bo uznawał, że dał pacjentowi wyjście.
+                        // Efekt: „najbliższy wolny termin: <data>", której nie da się wybrać,
+                        // i żadnej drogi dalej. Ślepy zaułek zamiast pomocy.
+                        // Zaciskamy do TWARDSZEJ z dwóch granic: naszego okna i okna PMS.
+                        const horyzont = new Date();
+                        horyzont.setDate(horyzont.getDate() + HORYZONT_DNI);
+                        const naszaGranica = horyzont.toISOString().split('T')[0];
+                        const oknoPms = Array.isArray(data) ? undefined : data?.window?.maxDate;
+                        const granica = oknoPms && oknoPms < naszaGranica ? oknoPms : naszaGranica;
+
+                        const k = podsumujDzienOperatorow(
+                            Array.isArray(data) ? [] : (data.doctors || []),
+                            granica,
+                        );
                         setError(k
                             ? k.tresc + (k.skokDo ? ` Najbliższy wolny termin: ${k.skokDo}.` : '')
                                       + (k.telefon ? ` Telefon: ${brand.phone1} / ${brand.phone2}.` : '')
@@ -114,7 +135,7 @@ export default function RescheduleAppointmentModal({
 
     // Max date = 60 days from now
     const maxDateObj = new Date();
-    maxDateObj.setDate(maxDateObj.getDate() + 60);
+    maxDateObj.setDate(maxDateObj.getDate() + HORYZONT_DNI);
     const maxDate = maxDateObj.toISOString().split('T')[0];
 
     const handleConfirm = async () => {

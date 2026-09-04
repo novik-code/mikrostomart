@@ -101,6 +101,9 @@ export async function POST(
         // 🪤 `unavailable` znaczy „nie wiemy" i celowo NIE przerywa operacji — awaria łączności
         // nie może udawać, że wizyta zniknęła.
         const stanWizyty = await odswiezWizyte(prodentisAptId);
+        // 🔑 Czy PMS POTWIERDZIŁ nam stan tej wizyty? `unavailable` znaczy „nie wiemy" —
+        // i tej niewiedzy nie wolno później zamienić w pewność (patrz gałąź 404 niżej).
+        const stanPotwierdzony = stanWizyty.ok || stanWizyty.powod === 'cancelled';
         if (!stanWizyty.ok && stanWizyty.powod === 'not_found') {
             console.warn(`[CANCEL] prodentis_id ${prodentisAptId} nieaktualny — wizyta przeniesiona lub usunięta`);
             return NextResponse.json(
@@ -142,10 +145,25 @@ export async function POST(
                 } else {
                     const errData = await deleteRes.json().catch(() => ({}));
                     console.error(`[CANCEL] Prodentis DELETE failed (${deleteRes.status}):`, errData);
-                    // If 404, appointment may already be deleted — treat as success
+                    // 🪤 404 MA DWIE PRZYCZYNY: wizyta naprawdę już nie istnieje ALBO nasz
+                    // `prodentis_id` jest nieaktualny (recepcja przesunęła wizytę ręcznie na
+                    // pulpicie — Prodentis soft-deletuje wiersz i tworzy nowy, z nowym id;
+                    // potwierdzone przez dostawcę 04.09). W tym drugim przypadku wizyta ZOSTAJE
+                    // w grafiku, a my zaraportowalibyśmy gabinetowi „✅ usunięto: TAK" i NIE
+                    // zawołali recepcji do ręcznego sprzątnięcia — czyli zablokowany slot,
+                    // o którym nikt nie wie.
+                    // Rozstrzyga to, czy PMS potwierdził nam wcześniej stan tej wizyty.
                     if (deleteRes.status === 404) {
-                        prodentisDeleted = true;
-                        console.log('[CANCEL] Appointment already deleted in Prodentis');
+                        if (stanPotwierdzony) {
+                            prodentisDeleted = true;
+                            console.log('[CANCEL] Appointment already deleted in Prodentis');
+                        } else {
+                            console.error(
+                                `[CANCEL] 404 przy NIEPOTWIERDZONYM stanie wizyty ${prodentisAptId}`
+                                + ' — nie wiemy, czy zniknęła, czy mamy nieaktualny identyfikator.'
+                                + ' Zgłaszamy gabinetowi do ręcznego sprawdzenia.',
+                            );
+                        }
                     }
                 }
             } catch (prodErr) {
