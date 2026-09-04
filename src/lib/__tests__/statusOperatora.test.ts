@@ -215,4 +215,58 @@ describe('górna granica okna PMS (window.maxDate)', () => {
         expect(podsumujDzienOperatorow([{ status: 'available' }])?.tresc)
             .not.toContain('gabinet nie przyjmuje');
     });
+
+    // ── `reason: same_day_not_bookable` (PMS v11.11, 04.09.2026) ──────────────────
+    // Gabinet nie przyjmuje rezerwacji online na dzień bieżący. PMS raportuje wtedy
+    // `fully_booked`, ale to NIE jest komplet zapisów — lekarz może mieć wolne okna.
+
+    it('powód „na dziś nie online" BIJE status fully_booked', () => {
+        const k = komunikatStatusu('fully_booked', {
+            imie: 'Marcin', powod: 'same_day_not_bookable', nextAvailable: '2026-09-11',
+        });
+        expect(k.tresc).not.toContain('zajęte');
+        expect(k.tresc).toContain('nie prowadzimy rezerwacji online');
+        expect(k.telefon).toBe(true);
+        expect(k.skokDo).toBe('2026-09-11');
+    });
+
+    it('bez powodu fully_booked mówi dalej to samo co dotąd', () => {
+        const k = komunikatStatusu('fully_booked', { imie: 'Marcin' });
+        expect(k.tresc).toContain('zajęte');
+    });
+
+    it('inny powód nie rusza komunikatu (np. no_pattern przy not_working)', () => {
+        const k = komunikatStatusu('not_working', { imie: 'Elżbieta', powod: 'no_pattern' });
+        expect(k.tresc).toContain('nie przyjmuje tego dnia');
+    });
+
+    it('podsumowanie dnia: jeden operator z powodem przesądza o całym dniu', () => {
+        const k = podsumujDzienOperatorow([
+            { status: 'not_working', reason: 'no_pattern', nextAvailable: '2026-09-07' },
+            { status: 'fully_booked', reason: 'same_day_not_bookable', nextAvailable: '2026-09-11' },
+        ]);
+        expect(k?.tresc).toContain('nie prowadzimy rezerwacji online');
+        expect(k?.telefon).toBe(true);
+        expect(k?.skokDo).toBe('2026-09-07');
+    });
+
+    it('niewiedza nadal bije wszystko — także powód', () => {
+        const k = podsumujDzienOperatorow([
+            { status: 'unknown', reason: 'same_day_not_bookable' },
+            { status: 'fully_booked', reason: 'same_day_not_bookable' },
+        ]);
+        expect(k?.ton).toBe('ostrzegawczy');
+        expect(k?.tresc).toContain('Nie potrafimy');
+    });
+
+    it('DOWÓD COFKI: bez gałęzi powodu dzisiejszy dzień ogłasza komplet zapisów', () => {
+        // Realna koperta z produkcji, 2026-09-04 (zmierzona, nie wymyślona).
+        const dzis = { status: 'fully_booked', reason: 'same_day_not_bookable', nextAvailable: '2026-09-11' };
+        const naiwny = komunikatStatusu(dzis.status, { imie: 'Marcin', nextAvailable: dzis.nextAvailable });
+        expect(naiwny.tresc).toContain('zajęte');            // to szło do pacjenta
+        const teraz = komunikatStatusu(dzis.status, {
+            imie: 'Marcin', nextAvailable: dzis.nextAvailable, powod: dzis.reason,
+        });
+        expect(teraz.tresc).not.toContain('zajęte');
+    });
 });

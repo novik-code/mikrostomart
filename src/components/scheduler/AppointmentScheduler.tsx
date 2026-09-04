@@ -36,7 +36,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, dur
     const [minDaysAhead, setMinDaysAhead] = useState(1); // 1 = tomorrow by default
     // Status operatora per dzień z `meta=1` — dzięki temu pusty dzień przestaje znaczyć
     // sześć różnych rzeczy naraz (patrz `lib/statusOperatora.ts`).
-    const [statusyDni, setStatusyDni] = useState<Record<string, { status?: string; nextAvailable?: string | null }>>({});
+    const [statusyDni, setStatusyDni] = useState<Record<string, { status?: string; reason?: string | null; nextAvailable?: string | null }>>({});
     /**
      * Górna granica okna dat PMS (`window.maxDate` z koperty `meta=1`).
      * 🔑 Dotąd granica przewijania była ZASZYTA na 358 dni. Bierzemy ją teraz z odpowiedzi —
@@ -127,7 +127,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, dur
             }
 
             const dane = await odpowiedz.json();
-            const dni: Array<{ date: string; doctors?: Array<{ doctor: string; doctorName: string; status?: string; nextAvailable?: string | null }>; slots?: Slot[] }> =
+            const dni: Array<{ date: string; doctors?: Array<{ doctor: string; doctorName: string; status?: string; reason?: string | null; nextAvailable?: string | null }>; slots?: Slot[] }> =
                 Array.isArray(dane?.days) ? dane.days : [{ date: dane?.date, doctors: dane?.doctors, slots: dane?.slots }];
 
             const cutoff = new Date();
@@ -144,12 +144,13 @@ export default function AppointmentScheduler({ specialistId, specialistName, dur
             const wszystkieSloty: Slot[] = [];
             const okno: string | undefined = dane?.window?.maxDate;
             if (okno) setMaxDate(okno);
-            const statusy: Record<string, { status?: string; nextAvailable?: string | null }> = {};
+            const statusy: Record<string, { status?: string; reason?: string | null; nextAvailable?: string | null }> = {};
 
             for (const dzien of dni) {
                 if (!dzien?.date) continue;
                 const wpis = (dzien.doctors || []).find(d => pasujeLekarz(d.doctor, d.doctorName));
-                statusy[dzien.date] = { status: wpis?.status, nextAvailable: wpis?.nextAvailable ?? null };
+                // `reason` niesiemy dalej, bo `same_day_not_bookable` unieważnia `status` — patrz `komunikatStatusu`.
+                statusy[dzien.date] = { status: wpis?.status, reason: wpis?.reason ?? null, nextAvailable: wpis?.nextAvailable ?? null };
 
                 for (const slot of dzien.slots || []) {
                     if (!pasujeLekarz(slot.doctor, slot.doctorName)) continue;
@@ -521,6 +522,7 @@ export default function AppointmentScheduler({ specialistId, specialistName, dur
                                         imie: specialistName,
                                         nextAvailable: stanDnia?.nextAvailable,
                                         maxDate,
+                                        powod: stanDnia?.reason,
                                     });
                                     return (
                                         <div style={{

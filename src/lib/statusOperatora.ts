@@ -45,14 +45,36 @@ function dopelniacz(dzien?: string): string {
  */
 export function komunikatStatusu(
     status: string | undefined,
-    opcje: { imie: string; nextAvailable?: string | null; dzienOpisowo?: string; maxDate?: string | null } = {
+    opcje: {
+        imie: string;
+        nextAvailable?: string | null;
+        dzienOpisowo?: string;
+        maxDate?: string | null;
+        /** `reason` z koperty `meta=1` — bywa WAŻNIEJSZY niż sam `status`, patrz niżej. */
+        powod?: string | null;
+    } = {
         imie: 'Specjalista',
     },
 ): KomunikatDnia {
-    const { imie, dzienOpisowo, maxDate } = opcje;
+    const { imie, dzienOpisowo, maxDate, powod } = opcje;
     const nextAvailable =
         opcje.nextAvailable && (!maxDate || opcje.nextAvailable <= maxDate) ? opcje.nextAvailable : null;
     const kiedy = dopelniacz(dzienOpisowo);
+
+    // 🔴 `reason` BIJE `status`. Od v11.11 gabinet nie przyjmuje rezerwacji online na dzień
+    // bieżący (decyzja właściciela: „na dziś" zakłada rejestracja, bo tylko ona wie, co da się
+    // upchnąć). PMS raportuje wtedy `fully_booked`, ale to NIE jest komplet zapisów — lekarz
+    // może mieć wolne okna, po prostu nie tą drogą. Zdanie „wszystkie terminy zajęte" byłoby
+    // tu nieprawdą, a dostawca prosi wprost, żeby pacjent go nie zobaczył.
+    if (powod === 'same_day_not_bookable') {
+        return {
+            tresc: `Na ten dzień${kiedy} nie prowadzimy rezerwacji online.`
+                + ' Zadzwoń do rejestracji — sprawdzimy, co da się jeszcze dopisać.',
+            telefon: true,
+            skokDo: nextAvailable ?? undefined,
+            ton: 'neutralny',
+        };
+    }
 
     switch (status) {
         case 'fully_booked':
@@ -117,6 +139,8 @@ export interface OperatorDnia {
     doctorName?: string;
     status?: string;
     nextAvailable?: string | null;
+    /** `reason` z koperty `meta=1`. `same_day_not_bookable` unieważnia `status` — patrz `komunikatStatusu`. */
+    reason?: string | null;
 }
 
 /**
@@ -147,6 +171,23 @@ export function podsumujDzienOperatorow(operatorzy: OperatorDnia[], maxDate?: st
                 + ' Wybierz inny dzień albo zadzwoń.',
             telefon: true,
             ton: 'ostrzegawczy',
+        };
+    }
+
+    // 🔴 Zaraz po `unknown`, bo „na dziś dzwoń" jest prawdziwe niezależnie od tego, co dalej
+    // raportują poszczególni lekarze — patrz `komunikatStatusu`.
+    if (operatorzy.some(o => o.reason === 'same_day_not_bookable')) {
+        const najblizszyDzis = operatorzy
+            .map(o => o.nextAvailable)
+            .filter((d): d is string => !!d)
+            .filter(d => !maxDate || d <= maxDate)
+            .sort()[0];
+        return {
+            tresc: 'Na dziś nie prowadzimy rezerwacji online.'
+                + ' Zadzwoń do rejestracji — sprawdzimy, co da się jeszcze dopisać.',
+            telefon: true,
+            skokDo: najblizszyDzis,
+            ton: 'neutralny',
         };
     }
 

@@ -90,7 +90,7 @@ export function zbudujKontekstTerminow(
     payload: unknown,
     nazwaDnia: (data: string) => string,
 ): string {
-    const koperta = payload as { days?: Array<{ date: string; doctors?: Array<{ doctorName?: string; status?: string; nextAvailable?: string | null }>; slots?: unknown }> };
+    const koperta = payload as { days?: Array<{ date: string; doctors?: Array<{ doctorName?: string; status?: string; reason?: string | null; nextAvailable?: string | null }>; slots?: unknown }> };
     const dni = Array.isArray(koperta?.days) ? koperta.days : [];
     if (dni.length === 0) return '';
 
@@ -113,7 +113,11 @@ export function zbudujKontekstTerminow(
         }
 
         const najblizszy = operatorzy.map(o => o.nextAvailable).filter((d): d is string => !!d).sort()[0];
-        if (operatorzy.some(o => o.status === 'fully_booked')) {
+        if (operatorzy.some(o => o.reason === 'same_day_not_bookable')) {
+            // 🔴 `reason` bije `status`: PMS raportuje `fully_booked`, ale to NIE komplet zapisów.
+            // Model NIE MOŻE napisać pacjentowi „brak wolnych terminów" — patrz `statusOperatora`.
+            linie.push(`${nazwaDnia(dzien.date)}: na ten dzień gabinet NIE prowadzi rezerwacji online (to NIE znaczy, że nie ma wolnych godzin) — zaproponuj kontakt telefoniczny z rejestracją${najblizszy ? `; najbliższy termin do umówienia online: ${najblizszy}` : ''}.`);
+        } else if (operatorzy.some(o => o.status === 'fully_booked')) {
             linie.push(`${nazwaDnia(dzien.date)}: wszystkie terminy zajęte${najblizszy ? `, najbliższy wolny: ${najblizszy}` : ''}.`);
         } else if (operatorzy.some(o => o.status === 'not_bookable_online')) {
             linie.push(`${nazwaDnia(dzien.date)}: terminów na ten dzień nie umawiamy online — potrzebny telefon do rejestracji.`);
