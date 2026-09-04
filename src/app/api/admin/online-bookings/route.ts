@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { czasWizyty } from '@/lib/bookingDuration';
 import { getDoctorInfo } from '@/lib/doctorMapping';
 import { requireAdmin } from '@/lib/authGuards';
 import { decideBookingNotification } from '@/lib/onlineBookingNotify';
@@ -31,7 +32,13 @@ interface OnlineBookingRow {
     doctor_prodentis_id?: string | null;
     appointment_date?: string | null;
     appointment_time?: string | null;
+    /**
+     * 🪤 Kolumny `duration` w `online_bookings` NIE MA (zmierzone: PostgREST oddaje 42703).
+     * Pole zostaje w typie tylko dlatego, że kiedyś może powstać — czas bierzemy z `employees`
+     * przez `czasWizyty()`. Patrz `lib/bookingDuration.ts`.
+     */
     duration?: number | null;
+    duration_minutes?: number | null;
     description?: string | null;
     schedule_status?: string | null;
     prodentis_appointment_id?: string | null;
@@ -122,6 +129,14 @@ async function scheduleWithIds(doctorId: string, patientId: string | null | unde
         return { success: false, error: 'MISSING_PATIENT_ID' };
     }
 
+    // 🔴 Do 2026-09-04 stało tu `booking.duration || 30`, a `duration` NIE ISTNIEJE w tabeli —
+    // więc do grafiku szło 30 minut ZAWSZE, także na higienizację, która trwa 60.
+    const { minuty: minutyWizyty, zrodlo: zrodloCzasu } = await czasWizyty(supabase, booking);
+    console.log(
+        `[OnlineBookings] Czas wizyty ${minutyWizyty} min (źródło: ${zrodloCzasu}) ` +
+            `dla specjalisty ${booking.doctor_prodentis_id || booking.specialist_id || '?'}`,
+    );
+
     try {
         const res = await prodentisFetch('/api/schedule/appointment', {
             method: 'POST',
@@ -130,7 +145,7 @@ async function scheduleWithIds(doctorId: string, patientId: string | null | unde
                 patientId,
                 date: booking.appointment_date,
                 startTime: booking.appointment_time?.slice(0, 5) || booking.appointment_time,
-                duration: booking.duration || 30,
+                duration: minutyWizyty,
                 description: booking.description ? `Rezerwacja online — ${booking.description}` : 'Rezerwacja online',
                 source: 'online_booking',
                 labels: ['ONLINE'],
