@@ -2480,6 +2480,67 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
+### 2026-09-04 — 🧑‍⚕️ ELŻBIETA UMAWIALNA ONLINE (poniedziałki) + CZAS WIZYTY Z DANYCH ZESPOŁU
+
+> Commit **`ed4cc22`** — ✅ **NA PRODUKCJI** (zrównanie przy 10. odpytaniu).
+> Bramki: `tsc` · `vitest` **613/613** · `next build` OK.
+> Decyzja właściciela: „do Elżbiety ma się dać umówić online, na poniedziałki — tak jak pracuje".
+
+#### 🔑 Pomiar, który oszczędził pisania kodu
+Zanim cokolwiek zmieniłem, sprawdziłem **12 kolejnych dni** przez `slots/free`:
+pojawia się **wyłącznie w poniedziałki** (5.10 → 3 sloty, 12.10 → 15, 19.10 → 5, 26.10 → 8),
+a od wtorku do soboty **zero wystąpień** — mimo że tamte dni mają po 50–80 slotów łącznie.
+**Ograniczenie dni jest już zakodowane w grafiku Prodentisa, więc żadna logika po naszej
+stronie nie była potrzebna.** Własna reguła „tylko poniedziałki" byłaby drugą, niezależną
+prawdą o jej grafiku — czyli dokładnie tym rodzajem duplikatu, który w tej integracji
+kosztował najwięcej.
+⚪ Wrześniowe poniedziałki wyglądają na puste, ale to **komplet zapisów**, nie niewidoczność.
+
+#### Ale samo odblokowanie NIE WYSTARCZAŁO — trzy rzeczy po drodze
+1. **Czas wizyty.** Kalendarz liczył `specialistId === 'malgorzata' ? '60' : '30'`, a na
+   `/rezerwacja` `specialistId` to identyfikator Prodentisa — warunek **nigdy nie był prawdziwy**.
+   Etykieta mówiła „60 min", zapytanie szło o okna 30-minutowe. Teraz `durationMin`
+   z `/api/specialists`. Zmierzone po naprawie: etykieta i zapytanie mówią to samo, `duration=60`.
+2. 🔴 **Martwy identyfikator.** `doctorMapping.ts` trzymał Elżbietę pod **`0100000002`** —
+   duplikatem tożsamości z ZEREM dni pracy (potwierdzone przez dostawcę PMS; u nich na czarnej
+   liście od lutego, ale nikt nie wiedział dlaczego). Żywy to `0100000003`.
+   **Bez tej poprawki pierwsza rezerwacja do niej nie trafiłaby do grafiku wcale:**
+   `getDoctorInfo('0100000003')` → `null` → `doctor_prodentis_id` NULL → zatwierdzenie kończy
+   się `MISSING_DOCTOR_ID`. Błąd milczał, bo nikt jej stąd nie rozwiązywał.
+3. **Strefa Pacjenta miała listę specjalistów ZASZYTĄ W KODZIE** (5 osób, bez polskich znaków),
+   więc Elżbiety nie byłoby tam w ogóle, a ten sam pacjent widział inny skład zespołu zależnie
+   od tego, czy jest zalogowany. Obie powierzchnie czytają teraz `/api/specialists`.
+
+#### ⏱️ 60 minut u OBU higienistek — decyzja gabinetu, nie do „ujednolicenia"
+Potwierdzone dwukrotnie tego samego dnia: przez właściciela (Elżbieta) i pismem dostawcy PMS
+(Małgorzata). 🪤 **Rozróżnienie, na którym łatwo się potknąć:** 60 minut jest prawdziwe
+**jako polityka rezerwacji online**, a NIE jako opis pracy gabinetu — realne wizyty
+u Małgorzaty trwają 15–105 min, najczęściej 30. Dlatego dostawca PMS świadomie **nie zbuduje**
+walidacji „duration musi pasować do lekarza". Uzasadnienie wpisane do `doctorMapping.ts`.
+
+#### 🔬 Dowód wykonaniem (dev i produkcja)
+Wybór Elżbiety → usługi „Higienizacja / Wybielanie" → etykieta 60 min → zapytania `duration=60`
+→ tydzień 12–16.10: **klikalny wyłącznie poniedziałek**, godziny 10:00–13:00 co pół godziny.
+🪤 W trakcie testu **wypaliłem limit 30 zapytań/min** i kalendarz pokazał „Za dużo zapytań,
+odczekaj minutę" z przyciskiem ponowienia — czyli poprawka **3f zadziałała na własnym autorze**,
+zamiast skłamać „brak wolnych terminów". Najlepszy możliwy test tamtej zmiany.
+
+#### ⚪ Przy okazji
+Aleksandra Modelska-Kępa i Wiktoria Leja były w mapie opisane jako **lekarki**, a pracują
+w rejestracji (to one skreślają rezerwacje online w Prodentisie). Etykieta poprawiona.
+
+#### Zmiana danych na produkcji (poza repo)
+`employees` `0100000003` → `show_in_booking=true`, `booking_role='hygienist'`,
+`booking_duration_minutes=60`. Odwracalne jednym ustawieniem.
+
+#### Pliki
+- `src/lib/doctorMapping.ts`, `src/components/scheduler/AppointmentScheduler.tsx`,
+  `src/components/ReservationForm.tsx`, `src/app/[locale]/strefa-pacjenta/dashboard/page.tsx`
+
+> ⚠️ REQUIRES: brak migracji. Zmiana w `employees` wykonana ręcznie na produkcji.
+
+---
+
 ### 2026-09-03 (#3) — 🔕 KALENDARZ: AWARIA PRZESTAJE UDAWAĆ BRAK TERMINÓW (punkt 3f uzgodnień z PMS)
 
 > Commit **`57b72e2`**. ⏳ **NIEWYPCHNIĘTY.** Bramki: `tsc` · `vitest` **613/613** (56 plików, +8) · `next build` OK.

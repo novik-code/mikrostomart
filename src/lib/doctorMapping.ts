@@ -47,6 +47,14 @@ export const DOCTOR_MAPPING: Record<string, DoctorInfo> = {
         role: 'doctor',
         defaultDuration: 30,
     },
+    // 🔑 60 MINUT U OBU HIGIENISTEK TO DECYZJA GABINETU — nie „ujednolicać" do 30.
+    // Potwierdzone dwukrotnie (właściciel 2026-09-04; dostawca PMS pismem tego samego dnia).
+    // 🪤 Uwaga na rozróżnienie, na którym łatwo się potknąć: 60 minut jest prawdziwe
+    // JAKO POLITYKA REZERWACJI ONLINE, a NIE jako opis pracy gabinetu — realne wizyty
+    // u Małgorzaty trwają od 15 do 105 minut, najczęściej 30, bo rejestracja umawia różne
+    // zabiegi. Dostawca PMS świadomie NIE zbuduje walidacji „duration musi pasować do lekarza",
+    // właśnie dlatego, że nasza polityka dotyczy jednego kanału, a ich API obsługuje wszystkie.
+    // Wartością rozporządza kolumna `employees.booking_duration_minutes`; te tutaj są zapasowe.
     malgorzata: {
         prodentisId: '0100000030',
         name: 'hig. stom. Małgorzata Maćków-Huras',
