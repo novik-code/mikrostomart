@@ -2480,6 +2480,59 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
+### 2026-09-04 (#5) — 🔄 ODŚWIEŻANIE STANU WIZYTY PRZED ZAPISEM (punkt 3h)
+
+> Commit **`c89ba84`**. ⏳ **NIEWYPCHNIĘTY.** Bramki: `tsc` · `vitest` **652/652** (60 plików, +11) · `next build` OK.
+
+#### Dlaczego to w ogóle problem
+Zapamiętany `prodentis_id` bywa nieaktualny, a dowiadywaliśmy się o tym **dopiero z błędu
+operacji zapisu**. Dostawca PMS zalecał odświeżanie **dwukrotnie** (13.05 i w rundzie 4) —
+u nas nigdy nie weszło: trzy ścieżki zapisu czytały zapamiętany identyfikator niezależnie.
+
+Mechanika Prodentisa (ustalona przez dostawcę na naszych 50 rezerwacjach):
+- **zmiana lekarza** — robiona **W MIEJSCU**, na tym samym rekordzie → **14 z 50 (28 %)** stoi
+  u innego lekarza, niż wysłaliśmy, a identyfikator się zgadza;
+- **zmiana terminu** — tworzy **NOWY rekord z nowym id** → stąd nasze 404.
+
+🪤 **Przypadek znaleziony na żywo przy tej pracy:** wizyta `0100234418` ma u nas w bazie
+**11.09 14:30**, a w Prodentisie **16:30**. Bez odświeżenia potwierdzenie dla pacjenta
+podałoby złą godzinę.
+
+#### 🔑 Reguła nadrzędna: awaria łączności NIE jest „wizyty nie ma"
+`unavailable` znaczy **„nie wiemy"** i celowo **nie przerywa** operacji — działamy wtedy jak dotąd.
+To ta sama rodzina błędu, którą naprawialiśmy w kalendarzu (punkt 3f): jeden widok na dwie różne
+przyczyny. Osobna asercja pilnuje, żeby nikt tego nie „uprościł".
+
+#### Zachowanie per ścieżka
+| ścieżka | `not_found` | `cancelled` |
+|---|---|---|
+| odwołanie | 409 + prośba o telefon | **idempotentny sukces** — pacjent chce, żeby wizyty nie było, i jej nie ma |
+| przełożenie | 409 z czytelnym komunikatem | 409 „wizyta została już odwołana" |
+| potwierdzenie obecności | **pomijamy ikonę** | pomijamy ikonę |
+
+Dotąd przełożenie na nieaktualnym identyfikatorze kończyło się komunikatem „Nie udało się
+przełożyć wizyty. Spróbuj ponownie." — czyli **ślepą uliczką w pętli**. Ikona „Pacjent
+potwierdzony" na nieaktualnym id trafiłaby w cudzą wizytę albo w pustkę.
+Rozjazd stanu (data / godzina / lekarz) trafia do logu **także wtedy, gdy operacja idzie dalej**.
+
+🔑 **Skreślona wizyta wraca ze statusem 200** — samo `res.ok` nie wystarcza; rozstrzyga
+`status === 'cancelled'` albo niepuste `cancelDate`.
+
+#### 🔬 Dowód wykonaniem na realnych identyfikatorach z produkcji
+```
+0100234418 (aktywna)       → OK, 2026-09-11 16:30, status=scheduled
+0100216357 (skreślona)     → CANCELLED
+0199999999 (nieistniejący) → NOT_FOUND
+brak klucza                → UNAVAILABLE   („nie wiemy", nie „nie ma")
+rozjazd wobec naszej bazy  → „godzina: u nas 14:30, w PMS 16:30"
+```
+
+#### Pliki
+- `src/lib/prodentisAppointment.ts` (nowy) + `src/lib/__tests__/prodentisAppointment.test.ts`
+- `.../appointments/[id]/{cancel,reschedule,confirm-attendance}/route.ts`
+
+---
+
 ### 2026-09-04 (#4) — 🔌 PMS WYDAŁ v11.0 · TRASA POŚREDNICZĄCA PRZEPUSZCZA NOWE PARAMETRY
 
 > Commit **`f3dd896`**. ⏳ **NIEWYPCHNIĘTY.** Bramki: `tsc` · `vitest` **641/641** (59 plików, +10) · `next build` OK.
