@@ -2480,6 +2480,63 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
+### 2026-09-03 (#3) — 🔕 KALENDARZ: AWARIA PRZESTAJE UDAWAĆ BRAK TERMINÓW (punkt 3f uzgodnień z PMS)
+
+> Commit **`57b72e2`**. ⏳ **NIEWYPCHNIĘTY.** Bramki: `tsc` · `vitest` **613/613** (56 plików, +8) · `next build` OK.
+> Pozycja **3f** z uzgodnień z dostawcą PMS (korespondencja „wolne terminy", rundy 1–7).
+
+#### 🔴 Usterka
+Kalendarz pobiera tydzień **pięcioma** równoległymi zapytaniami, a każde kończyło się
+`.catch(() => [])`. `Promise.all` nad promisami, które **same łapią wyjątek, nigdy nie odrzuca** —
+więc zewnętrzny `catch` z komunikatem i numerem telefonu był **kodem martwym; nie pokazał się
+ani razu** od powstania komponentu.
+
+Skutek: **HTTP 429** (nasz limit 30/min, wyczerpywany po ~6 kliknięciach „następny tydzień"),
+**awaria PMS-u**, **zły kształt odpowiedzi** i **realnie zapełniony grafik** dawały jeden i ten
+sam napis — „Brak wolnych terminów w wybranym dniu". Pacjent szukający pomocy dostawał
+informację, że terminów nie ma, także wtedy gdy były.
+
+#### 🔧 Reguła po naprawie (przeniesiona z apki, gdzie działa od sierpnia)
+Jeśli **nic nie dojechało, a przynajmniej jeden dzień padł — to AWARIA, nie pustka.**
+Pustkę wolno ogłosić dopiero, gdy wszystkie dni odpowiedziały i wszystkie były puste.
+Gdy część dni padła, ale inne przywiozły terminy → pokazujemy terminy (pacjent ma co kliknąć).
+🔑 **429 ma własny komunikat**, bo lek jest inny: nie „zadzwoń", tylko „odczekaj minutę".
+Każdy stan błędu ma przycisk **„Spróbuj ponownie"** — ślepy zaułek jest gorszy niż awaria.
+
+Decyzja wydzielona do `lib/slotsFetchOutcome.ts` (8 asercji, **cofka dowiedziona**: reguła
+sprzed naprawy wywala trzy asercje opisujące awarię).
+
+#### 🔬 Dowód wykonaniem (dev, odpowiedzi API podmieniane w przeglądarce)
+| symulacja | co widzi pacjent |
+|---|---|
+| **429** | „Za dużo zapytań… odczekaj minutę… albo zadzwoń" + *Spróbuj ponownie* |
+| **502** | „to awaria po naszej stronie, **nie brak wolnych miejsc**" + *Spróbuj ponownie* |
+| **200 + `[]`** | „Brak wolnych terminów w wybranym dniu." (bez przycisku — nie ma czego ponawiać) |
+| realne dane | 11 godzin do kliknięcia |
+| **COFKA — stary kod, 429** | „Brak wolnych terminów w wybranym dniu.", bez przycisku |
+
+⚪ **Okno „Przełóż wizytę" sprawdzone przy okazji — tam jest POPRAWNIE** (rozróżnia `!res.ok`,
+wyjątek i pustą listę). Nie ruszane. To jedyna z trzech webowych powierzchni, która miała to dobrze.
+
+#### 📮 Kontekst: uzgodnienia z dostawcą PMS
+Siedem rund korespondencji (`~/Downloads/ODPOWIEDZ_*_wolne_terminy.md`). Uzgodnione: `days=1..14`
+w jednym żądaniu zamiast pięciu, `&doctor=`, `doctors[]` z pięcioma statusami (`available`,
+`fully_booked`, `not_bookable_online`, `not_working`, `unknown`), `nextAvailable` (60 dni),
+`duration` obowiązkowe, **gwarancja gołej tablicy bez `meta=1`** (warunek życia apki ze sklepu).
+🪤 Po drodze **każda strona wycofała po dwa własne twierdzenia**; rozmowa wykryła siedem usterek,
+z których żadnej nie znaleziono by, patrząc tylko na swoją stronę integracji.
+⏳ Nasza kolejka: **3f ✅** → 3a (`slotsData.slots` w asystencie AI) → 3b (ujednolicenie trzech
+powierzchni) → 3g (`reason` przy DELETE/reschedule) → 3h (odświeżanie wizyty przed zapisem)
+→ 3d (usługa pacjenta w POST) → 3e (nowe stany UI).
+
+#### Pliki
+- `src/lib/slotsFetchOutcome.ts` (nowy) + `src/lib/__tests__/slotsFetchOutcome.test.ts`
+- `src/components/scheduler/AppointmentScheduler.tsx`
+
+> ⚠️ REQUIRES: brak migracji, brak zmiennych środowiskowych.
+
+---
+
 ### 2026-09-03 (#2) — 🚨 DWIE DZIURY W REZERWACJI ONLINE: FAŁSZYWE „POTWIERDZONA" I SUBMIT STRZAŁKĄ
 
 > Commity **`c6fb2db`** + **`eb99d1c`**. ⏳ **NIEWYPCHNIĘTE.**
