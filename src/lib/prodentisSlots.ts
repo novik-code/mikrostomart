@@ -74,3 +74,52 @@ export function podsumujDzienPoLekarzach(sloty: WolnySlot[], maxNaLekarza = 5): 
         })
         .join('\n');
 }
+
+/**
+ * Kontekst wolnych terminów dla asystenta AI — z odpowiedzi `days=N&meta=1`.
+ *
+ * 🔑 Po co statusy w prompcie: pacjent pisze „kiedy się dostanę?". Bez statusów asystent
+ * widział dla zapełnionego dnia pustkę i po prostu go pomijał — czyli milczał tam, gdzie
+ * uczciwa odpowiedź brzmi „tego dnia komplet, najbliższy wolny termin 11 września".
+ *
+ * 🪤 Reguła nadrzędna, wprost w treści przekazywanej modelowi: gdy statusu NIE ZNAMY,
+ * asystent ma NIE twierdzić, że terminów nie ma. To zdanie trafia do maila wysyłanego
+ * pacjentowi, więc „nie wiem" musi wygrywać z gładkim „niestety brak".
+ */
+export function zbudujKontekstTerminow(
+    payload: unknown,
+    nazwaDnia: (data: string) => string,
+): string {
+    const koperta = payload as { days?: Array<{ date: string; doctors?: Array<{ doctorName?: string; status?: string; nextAvailable?: string | null }>; slots?: unknown }> };
+    const dni = Array.isArray(koperta?.days) ? koperta.days : [];
+    if (dni.length === 0) return '';
+
+    const linie: string[] = [];
+    for (const dzien of dni) {
+        if (!dzien?.date) continue;
+        const sloty = odczytajSloty(dzien.slots);
+        const podsumowanie = podsumujDzienPoLekarzach(sloty);
+        if (podsumowanie) {
+            linie.push(`${nazwaDnia(dzien.date)}:\n${podsumowanie}`);
+            continue;
+        }
+
+        const operatorzy = dzien.doctors || [];
+        const znane = ['available', 'fully_booked', 'not_bookable_online', 'not_working'];
+        const niepewny = operatorzy.length === 0 || operatorzy.some(o => !znane.includes(o.status ?? ''));
+        if (niepewny) {
+            linie.push(`${nazwaDnia(dzien.date)}: BRAK PEWNEJ INFORMACJI — nie twierdź, że nie ma terminów; zaproponuj kontakt telefoniczny.`);
+            continue;
+        }
+
+        const najblizszy = operatorzy.map(o => o.nextAvailable).filter((d): d is string => !!d).sort()[0];
+        if (operatorzy.some(o => o.status === 'fully_booked')) {
+            linie.push(`${nazwaDnia(dzien.date)}: wszystkie terminy zajęte${najblizszy ? `, najbliższy wolny: ${najblizszy}` : ''}.`);
+        } else if (operatorzy.some(o => o.status === 'not_bookable_online')) {
+            linie.push(`${nazwaDnia(dzien.date)}: terminów na ten dzień nie umawiamy online — potrzebny telefon do rejestracji.`);
+        } else {
+            linie.push(`${nazwaDnia(dzien.date)}: gabinet nie przyjmuje${najblizszy ? `, najbliższy wolny termin: ${najblizszy}` : ''}.`);
+        }
+    }
+    return linie.join('\n');
+}

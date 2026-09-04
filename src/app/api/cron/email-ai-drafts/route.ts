@@ -24,7 +24,7 @@
  */
 
 import { isDemoMode } from '@/lib/demoMode';
-import { odczytajSloty, podsumujDzienPoLekarzach } from '@/lib/prodentisSlots';
+import { zbudujKontekstTerminow } from '@/lib/prodentisSlots';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { listEmails, getEmail } from '@/lib/imapService';
@@ -364,33 +364,32 @@ export async function GET(req: NextRequest) {
         let appointmentSlotsContext = '';
         try {
             const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-            const slotsByDay: string[] = [];
-            for (let dayOffset = 1; dayOffset <= 7; dayOffset++) {
-                const d = new Date();
-                d.setDate(d.getDate() + dayOffset);
-                const dateStr = d.toISOString().split('T')[0];
-                try {
-                    const slotsRes = await fetch(`${PRODENTIS_API_URL}/api/slots/free?date=${dateStr}&duration=30`, {
-                        signal: AbortSignal.timeout(3000),
+            // 🔑 3e (2026-09-04): JEDNO żądanie na siedem dni zamiast siedmiu, i z `meta=1` —
+            // czyli asystent dostaje też statusy. Dotąd dzień z kompletem zapisów był dla niego
+            // nieodróżnialny od dnia wolnego: po prostu go pomijał, więc na pytanie „kiedy się
+            // dostanę?" milczał, zamiast napisać „tego dnia komplet, najbliższy wolny 11 września".
+            const dzisiaj = new Date();
+            dzisiaj.setDate(dzisiaj.getDate() + 1);
+            const odKiedy = dzisiaj.toISOString().split('T')[0];
+            let kontekstDni = '';
+            try {
+                const res = await fetch(
+                    `${PRODENTIS_API_URL}/api/slots/free?date=${odKiedy}&days=7&duration=30&meta=1`,
+                    { signal: AbortSignal.timeout(12000) },
+                );
+                if (res.ok) {
+                    kontekstDni = zbudujKontekstTerminow(await res.json(), (data) => {
+                        const d = new Date(`${data}T12:00:00`);
+                        return d.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
                     });
-                    if (slotsRes.ok) {
-                        // 🔴 FIX 2026-09-04: było `slotsData.slots`, a API oddaje GOŁĄ TABLICĘ —
-                        // warunek zawsze fałszywy, więc asystent NIGDY nie podał pacjentowi
-                        // wolnych terminów. Drugi błąd pod spodem: `slot.time || slot.startTime`
-                        // (takich pól nie ma; godzina jest w `start`). Oba w `lib/prodentisSlots.ts`,
-                        // który czyta też kopertę `{ slots }` — czyli przetrwa wdrożenie `meta=1`.
-                        const sloty = odczytajSloty(await slotsRes.json());
-                        const summary = podsumujDzienPoLekarzach(sloty);
-                        if (summary) {
-                            const dayName = d.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
-                            slotsByDay.push(`${dayName}:\n${summary}`);
-                        }
-                    }
-                } catch { /* individual day fetch failed — skip */ }
-            }
-            if (slotsByDay.length > 0) {
-                appointmentSlotsContext = '\n\n## WOLNE TERMINY WIZYT (NAJBLI\u017bSZE 7 DNI)\nPoni\u017cej aktualne wolne terminy. Podawaj je pacjentom gdy pytaj\u0105 o um\u00f3wienie wizyty:\n\n' +
-                    slotsByDay.join('\n');
+                }
+            } catch { /* brak kontekstu terminów jest lepszy niż zły kontekst */ }
+
+            if (kontekstDni) {
+                appointmentSlotsContext = '\n\n## WOLNE TERMINY WIZYT (NAJBLIŻSZE 7 DNI)\n'
+                    + 'Poniżej aktualny stan terminów. Podawaj godziny pacjentom, gdy pytają o umówienie wizyty.\n'
+                    + '🔴 Gdy przy dniu stoi „BRAK PEWNEJ INFORMACJI" — NIE pisz, że terminów nie ma;\n'
+                    + 'zaproponuj kontakt telefoniczny z rejestracją.\n\n' + kontekstDni;
             }
         } catch (slotsErr) {
             console.log('[Email AI Drafts] Could not fetch Prodentis slots:', slotsErr);

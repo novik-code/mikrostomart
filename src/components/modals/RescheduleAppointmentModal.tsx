@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import { podsumujDzienOperatorow } from '@/lib/statusOperatora';
+import { brand } from '@/lib/brandConfig';
 
 interface RescheduleAppointmentModalProps {
     isOpen: boolean;
@@ -56,7 +58,9 @@ export default function RescheduleAppointmentModal({
             setSelectedTime('');
             setError(null);
             try {
-                const res = await fetch(`/api/prodentis/slots?date=${selectedDate}&duration=30`, {
+                // 🔑 3e: `meta=1` dokłada statusy operatorów, żeby pusty dzień przestał znaczyć
+                // „nie ma terminów" także wtedy, gdy wszyscy mają komplet albo gabinet nie pracuje.
+                const res = await fetch(`/api/prodentis/slots?date=${selectedDate}&duration=30&meta=1`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
                 if (res.ok) {
@@ -79,7 +83,14 @@ export default function RescheduleAppointmentModal({
                     parsed.sort((a, b) => a.startTime.localeCompare(b.startTime));
                     setFreeSlots(parsed);
                     if (parsed.length === 0) {
-                        setError('Brak wolnych terminów w wybranym dniu. Spróbuj inny dzień.');
+                        // 🔴 3e: dotąd stał tu jeden napis na wszystkie przypadki. Teraz mówimy,
+                        // czy specjaliści mają komplet, czy gabinet nie pracuje — a przy `unknown`
+                        // NIE twierdzimy, że terminów nie ma.
+                        const k = podsumujDzienOperatorow(Array.isArray(data) ? [] : (data.doctors || []));
+                        setError(k
+                            ? k.tresc + (k.skokDo ? ` Najbliższy wolny termin: ${k.skokDo}.` : '')
+                                      + (k.telefon ? ` Telefon: ${brand.phone1} / ${brand.phone2}.` : '')
+                            : 'Brak wolnych terminów w wybranym dniu. Spróbuj inny dzień.');
                     }
                 } else {
                     setError('Nie udało się pobrać wolnych terminów');

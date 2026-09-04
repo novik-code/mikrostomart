@@ -74,3 +74,44 @@ describe('komunikatStatusu', () => {
             .toContain('(czwartek, 10 września)');
     });
 });
+
+import { podsumujDzienOperatorow } from '../statusOperatora';
+
+/** Okno „Przełóż wizytę" nie pozwala wybrać lekarza — streszczamy cały dzień. */
+describe('podsumujDzienOperatorow', () => {
+    it('ktoś ma komplet → mówimy, że przyjmują, i podajemy najwcześniejszy wolny termin', () => {
+        const k = podsumujDzienOperatorow([
+            { status: 'fully_booked', nextAvailable: '2026-09-18' },
+            { status: 'not_working', nextAvailable: '2026-09-14' },
+        ]);
+        expect(k?.tresc).toContain('przyjmują, ale wszystkie terminy są już zajęte');
+        expect(k?.skokDo).toBe('2026-09-14'); // najwcześniejszy z całego dnia
+    });
+
+    it('wszyscy nie pracują → „gabinet nie przyjmuje"', () => {
+        const k = podsumujDzienOperatorow([{ status: 'not_working' }, { status: 'not_working' }]);
+        expect(k?.tresc).toContain('gabinet nie przyjmuje');
+    });
+
+    it('🔴 jeden unknown BIJE wszystko — nie ogłaszamy braku terminów', () => {
+        const k = podsumujDzienOperatorow([
+            { status: 'not_working' }, { status: 'unknown' }, { status: 'fully_booked' },
+        ]);
+        expect(k?.tresc).toContain('Nie potrafimy');
+        expect(k?.ton).toBe('ostrzegawczy');
+    });
+
+    it('🔴 nieznany status z przyszłej wersji API też bije wszystko', () => {
+        expect(podsumujDzienOperatorow([{ status: 'cos_z_v12' }])?.ton).toBe('ostrzegawczy');
+    });
+
+    it('pusta lista operatorów → „nie wiemy", nie „nie ma"', () => {
+        expect(podsumujDzienOperatorow([])?.tresc).toContain('Nie potrafimy');
+    });
+
+    it('tylko not_bookable_online → kierujemy na telefon', () => {
+        const k = podsumujDzienOperatorow([{ status: 'not_bookable_online' }]);
+        expect(k?.telefon).toBe(true);
+        expect(k?.tresc).toContain('nie przełożymy online');
+    });
+});

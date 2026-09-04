@@ -77,3 +77,45 @@ describe('podsumujDzienPoLekarzach', () => {
         expect(podsumujDzienPoLekarzach([slot('2026-10-12T08:00:00')])).toBe('  - Nieprzypisany: 08:00');
     });
 });
+
+import { zbudujKontekstTerminow } from '../prodentisSlots';
+const nazwa = (d: string) => d;
+
+describe('zbudujKontekstTerminow', () => {
+    it('dzień z terminami → godziny po lekarzach', () => {
+        const out = zbudujKontekstTerminow({ days: [{ date: '2026-09-07', doctors: [{ status: 'available' }],
+            slots: [slot('2026-09-07T09:00:00','Marcin Nowosielski')] }] }, nazwa);
+        expect(out).toContain('2026-09-07:');
+        expect(out).toContain('- Marcin Nowosielski: 09:00');
+    });
+
+    it('🔑 dzień zapełniony → asystent dostaje najbliższy wolny termin, nie pustkę', () => {
+        const out = zbudujKontekstTerminow({ days: [{ date: '2026-09-08',
+            doctors: [{ status: 'fully_booked', nextAvailable: '2026-09-11' }], slots: [] }] }, nazwa);
+        expect(out).toBe('2026-09-08: wszystkie terminy zajęte, najbliższy wolny: 2026-09-11.');
+    });
+
+    it('gabinet nie pracuje', () => {
+        const out = zbudujKontekstTerminow({ days: [{ date: '2026-09-06',
+            doctors: [{ status: 'not_working' }], slots: [] }] }, nazwa);
+        expect(out).toContain('gabinet nie przyjmuje');
+    });
+
+    it('🔴 status nieznany → JAWNA instrukcja, żeby nie twierdzić braku terminów', () => {
+        for (const st of ['unknown', 'cos_z_v12', undefined]) {
+            const out = zbudujKontekstTerminow({ days: [{ date: '2026-09-09',
+                doctors: [{ status: st as string }], slots: [] }] }, nazwa);
+            expect(out).toContain('BRAK PEWNEJ INFORMACJI');
+            expect(out).toContain('nie twierdź, że nie ma terminów');
+        }
+    });
+
+    it('brak listy operatorów też jest niepewnością, nie brakiem', () => {
+        expect(zbudujKontekstTerminow({ days: [{ date: '2026-09-09', slots: [] }] }, nazwa))
+            .toContain('BRAK PEWNEJ INFORMACJI');
+    });
+
+    it('stary kształt (goła tablica) → pusty kontekst, bez wyjątku', () => {
+        expect(zbudujKontekstTerminow([slot('2026-09-07T09:00:00')], nazwa)).toBe('');
+    });
+});

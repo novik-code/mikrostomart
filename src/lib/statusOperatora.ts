@@ -102,3 +102,68 @@ export function komunikatStatusu(
             };
     }
 }
+
+export interface OperatorDnia {
+    doctorName?: string;
+    status?: string;
+    nextAvailable?: string | null;
+}
+
+/**
+ * Streszczenie CAŁEGO dnia, gdy pacjent nie wybiera lekarza (okno „Przełóż wizytę").
+ * Zwraca `null`, gdy są wolne terminy — wołający pokazuje wtedy godziny, nie komunikat.
+ *
+ * 🔑 Kolejność ma znaczenie: „ktoś przyjmuje, ale ma komplet" to inna wiadomość niż
+ * „gabinet tego dnia nie pracuje", a `unknown` bije wszystko — bo skoro czegoś nie wiemy,
+ * nie wolno nam ogłaszać, że terminów nie ma.
+ */
+export function podsumujDzienOperatorow(operatorzy: OperatorDnia[]): KomunikatDnia | null {
+    if (operatorzy.length === 0) {
+        return {
+            tresc: 'Nie potrafimy w tej chwili potwierdzić wolnych terminów na ten dzień.'
+                + ' Zadzwoń — sprawdzimy od ręki.',
+            telefon: true,
+            ton: 'ostrzegawczy',
+        };
+    }
+
+    const znane = ['available', 'fully_booked', 'not_bookable_online', 'not_working'];
+    // Nieznany status z przyszłej wersji API traktujemy jak `unknown` — patrz `komunikatStatusu`.
+    if (operatorzy.some(o => o.status === 'unknown' || !znane.includes(o.status ?? ''))) {
+        return {
+            tresc: 'Nie potrafimy w tej chwili potwierdzić wszystkich wolnych terminów na ten dzień.'
+                + ' Wybierz inny dzień albo zadzwoń.',
+            telefon: true,
+            ton: 'ostrzegawczy',
+        };
+    }
+
+    const najblizszy = operatorzy
+        .map(o => o.nextAvailable)
+        .filter((d): d is string => !!d)
+        .sort()[0];
+
+    if (operatorzy.some(o => o.status === 'fully_booked')) {
+        return {
+            tresc: 'Tego dnia specjaliści przyjmują, ale wszystkie terminy są już zajęte.',
+            telefon: !najblizszy,
+            skokDo: najblizszy,
+            ton: 'neutralny',
+        };
+    }
+
+    if (operatorzy.some(o => o.status === 'not_bookable_online')) {
+        return {
+            tresc: 'Tego dnia terminów nie przełożymy online. Zadzwoń do rejestracji — ustalimy termin od ręki.',
+            telefon: true,
+            ton: 'neutralny',
+        };
+    }
+
+    return {
+        tresc: 'Tego dnia gabinet nie przyjmuje.' + (najblizszy ? '' : ' Wybierz inny dzień.'),
+        telefon: false,
+        skokDo: najblizszy,
+        ton: 'neutralny',
+    };
+}
