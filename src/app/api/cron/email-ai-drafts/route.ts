@@ -24,6 +24,7 @@
  */
 
 import { isDemoMode } from '@/lib/demoMode';
+import { odczytajSloty, podsumujDzienPoLekarzach } from '@/lib/prodentisSlots';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { listEmails, getEmail } from '@/lib/imapService';
@@ -373,18 +374,15 @@ export async function GET(req: NextRequest) {
                         signal: AbortSignal.timeout(3000),
                     });
                     if (slotsRes.ok) {
-                        const slotsData = await slotsRes.json();
-                        if (slotsData.slots && slotsData.slots.length > 0) {
+                        // 🔴 FIX 2026-09-04: było `slotsData.slots`, a API oddaje GOŁĄ TABLICĘ —
+                        // warunek zawsze fałszywy, więc asystent NIGDY nie podał pacjentowi
+                        // wolnych terminów. Drugi błąd pod spodem: `slot.time || slot.startTime`
+                        // (takich pól nie ma; godzina jest w `start`). Oba w `lib/prodentisSlots.ts`,
+                        // który czyta też kopertę `{ slots }` — czyli przetrwa wdrożenie `meta=1`.
+                        const sloty = odczytajSloty(await slotsRes.json());
+                        const summary = podsumujDzienPoLekarzach(sloty);
+                        if (summary) {
                             const dayName = d.toLocaleDateString('pl-PL', { weekday: 'long', day: 'numeric', month: 'long' });
-                            const doctorSlots = slotsData.slots.reduce((acc: Record<string, string[]>, slot: any) => {
-                                const doc = slot.doctorName || 'Nieprzypisany';
-                                if (!acc[doc]) acc[doc] = [];
-                                acc[doc].push(slot.time || slot.startTime);
-                                return acc;
-                            }, {} as Record<string, string[]>);
-                            const summary = Object.entries(doctorSlots).map(([doc, times]) =>
-                                `  - ${doc}: ${(times as string[]).slice(0, 5).join(', ')}${(times as string[]).length > 5 ? ` (+${(times as string[]).length - 5} więcej)` : ''}`
-                            ).join('\n');
                             slotsByDay.push(`${dayName}:\n${summary}`);
                         }
                     }
