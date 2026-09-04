@@ -6,6 +6,7 @@ import { format, addDays, startOfWeek, isSameDay, parseISO, getMinutes } from 'd
 import { pl } from 'date-fns/locale';
 import { brand } from '@/lib/brandConfig';
 import { ocenTydzien, type WynikDnia } from '@/lib/slotsFetchOutcome';
+import { komunikatStatusu } from '@/lib/statusOperatora';
 
 interface Slot {
     doctor: string;
@@ -33,6 +34,9 @@ export default function AppointmentScheduler({ specialistId, specialistName, dur
     const [selectedDateView, setSelectedDateView] = useState<Date | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [minDaysAhead, setMinDaysAhead] = useState(1); // 1 = tomorrow by default
+    // Status operatora per dzień z `meta=1` — dzięki temu pusty dzień przestaje znaczyć
+    // sześć różnych rzeczy naraz (patrz `lib/statusOperatora.ts`).
+    const [statusyDni, setStatusyDni] = useState<Record<string, { status?: string; nextAvailable?: string | null }>>({});
 
     // 🔴 FIX 2026-09-04: czas trwania bierzemy z danych zespołu, nie z porównania ze slugiem.
     // Poprzednia wersja brzmiała `specialistId === 'malgorzata' ? '60' : '30'`, a na /rezerwacja
@@ -51,6 +55,13 @@ export default function AppointmentScheduler({ specialistId, specialistName, dur
             .catch(() => setMinDaysAhead(1)); // safe default on any error
     }, []);
 
+    const komunikatBledu = (powod: 'limit' | 'awaria') =>
+        powod === 'limit'
+            ? 'Za dużo zapytań w krótkim czasie. Odczekaj minutę i spróbuj ponownie — '
+              + `albo zadzwoń, umówimy termin od ręki: ${brand.phone1} / ${brand.phone2}.`
+            : 'Nie udało się pobrać terminów — to awaria po naszej stronie, nie brak wolnych '
+              + `miejsc. Spróbuj ponownie lub zadzwoń: ${brand.phone1} / ${brand.phone2}.`;
+
     const fetchSlotsForWeek = async () => {
         setLoading(true);
         setError(null);
@@ -62,79 +73,101 @@ export default function AppointmentScheduler({ specialistId, specialistName, dur
         }
 
         try {
-            // 🔴 FIX 2026-09-03: każdy dzień zwraca WYNIK (udany/padnięty + status), a nie samo
-            // `[]`. Wcześniej `.catch(() => [])` zamieniał 429, 502 i zerwaną sieć w pustą listę,
-            // a `Promise.all` nad promisami łapiącymi własne wyjątki NIGDY nie odrzuca — więc
-            // `catch` niżej był kodem martwym i pacjent na każdą awarię dostawał komunikat
-            // „Brak wolnych terminów w wybranym dniu". Reguła rozstrzygająca: `lib/slotsFetchOutcome.ts`.
-            const promises: Array<Promise<{ wynik: WynikDnia; sloty: Slot[] }>> = weekDates.map(date => {
-                const dateStr = format(date, 'yyyy-MM-dd');
-                return fetch(`/api/prodentis/slots?date=${dateStr}&duration=${duration}`)
-                    .then(res => {
-                        if (!res.ok) {
-                            const e = new Error('Failed') as Error & { status?: number };
-                            e.status = res.status;
-                            throw e;
-                        }
-                        return res.json();
-                    })
-                    .then((data: Slot[]) => {
-                        // Compute cutoff: midnight of (today + minDaysAhead)
-                        const cutoff = new Date();
-                        cutoff.setHours(0, 0, 0, 0);
-                        cutoff.setDate(cutoff.getDate() + minDaysAhead);
+            // 🔑 2026-09-04 (PMS v11.0): JEDNO żądanie na cały tydzień zamiast pięciu.
+            // Poprzednio pięć równoległych zapytań kosztowało 5 z limitu 30/min, więc sześć
+            // kliknięć „następny tydzień" wyczerpywało budżet pacjenta. Teraz tydzień to jedno
+            // żądanie — ten sam limit starcza na 30 spojrzeń zamiast sześciu.
+            // `meta=1` dokłada status operatora per dzień; `doctor=` zdejmuje z odpowiedzi
+            // dane pozostałych osób, o które pacjent nie pytał.
+            // 🪤 ZŁAPANE PRZY WDROŻENIU: kalendarz otwiera się na PONIEDZIAŁKU bieżącego tygodnia,
+            // a od wtorku ten poniedziałek jest już przeszłością. Przy `meta=1` PMS odrzuca takie
+            // żądanie kodem `DATE_OUT_OF_RANGE` (na starej ścieżce bez koperty przechodziło),
+            // więc cały tydzień wracał jako awaria. Pytamy od dziś, o tyle dni, ile z tygodnia
+            // zostało — dni sprzed dzisiaj i tak odsiewa minimalne wyprzedzenie.
+            const dzisiaj = new Date();
+            dzisiaj.setHours(0, 0, 0, 0);
+            const poczatek = currentWeekStart < dzisiaj ? dzisiaj : currentWeekStart;
+            const pominietych = Math.round((poczatek.getTime() - currentWeekStart.getTime()) / 86400000);
+            const iloscDni = Math.max(1, 5 - pominietych);
 
-                        const przefiltrowane = data.filter(slot => {
-                            const apiName = slot.doctorName.toLowerCase();
-                            const targetName = specialistName.toLowerCase().replace('lek. dent. ', '').replace('hig. stom. ', '');
-
-                            let isDoctorMatch = false;
-                            if (specialistId === 'marcin' && slot.doctor === '0100000001') isDoctorMatch = true;
-                            else if (specialistId === 'ilona' && slot.doctor === '0100000024') isDoctorMatch = true;
-                            else if (specialistId === 'katarzyna' && slot.doctor === '0100000031') isDoctorMatch = true;
-                            else if (specialistId === 'malgorzata' && slot.doctor === '0100000030') isDoctorMatch = true;
-                            else if (specialistId === 'dominika' && apiName.includes('dominika')) isDoctorMatch = true;
-                            else {
-                                const parts = targetName.split(' ');
-                                isDoctorMatch = parts.every(part => apiName.includes(part));
-                            }
-
-                            if (!isDoctorMatch) return false;
-
-                            const slotDate = parseISO(slot.start);
-
-                            // Filter out slots before cutoff (past + today if minDaysAhead >= 1)
-                            if (slotDate < cutoff) return false;
-
-                            const minutes = getMinutes(slotDate);
-                            return minutes === 0 || minutes === 30;
-                        });
-                        return { wynik: { ok: true, liczbaSlotow: przefiltrowane.length } as WynikDnia, sloty: przefiltrowane };
-                    })
-                    .catch((e: Error & { status?: number }) => ({
-                        wynik: { ok: false, status: e?.status } as WynikDnia,
-                        sloty: [] as Slot[],
-                    }));
+            const params = new URLSearchParams({
+                date: format(poczatek, 'yyyy-MM-dd'),
+                days: String(iloscDni),
+                duration,
+                meta: '1',
             });
+            // Identyfikatory Prodentisa mają dziesięć cyfr. Gdy dostaniemy slug (awaryjna lista
+            // w Strefie Pacjenta), filtrujemy po nazwisku jak dotąd — bez `doctor=`.
+            const czyProdentisId = /^\d{10}$/.test(specialistId);
+            if (czyProdentisId) params.set('doctor', specialistId);
 
-            const results = await Promise.all(promises);
-            const flatSlots = results.flatMap(r => r.sloty);
-            setSlots(flatSlots);
-
-            const stan = ocenTydzien(results.map(r => r.wynik), flatSlots.length);
-            if (stan.rodzaj === 'blad') {
-                setError(stan.powod === 'limit'
-                    ? 'Za dużo zapytań w krótkim czasie. Odczekaj minutę i spróbuj ponownie — '
-                      + `albo zadzwoń, umówimy termin od ręki: ${brand.phone1} / ${brand.phone2}.`
-                    : 'Nie udało się pobrać terminów — to awaria po naszej stronie, nie brak wolnych '
-                      + `miejsc. Spróbuj ponownie lub zadzwoń: ${brand.phone1} / ${brand.phone2}.`);
+            let odpowiedz: Response;
+            try {
+                odpowiedz = await fetch(`/api/prodentis/slots?${params.toString()}`);
+            } catch {
+                const stanSieci = ocenTydzien([{ ok: false }], 0);
+                if (stanSieci.rodzaj === 'blad') setError(komunikatBledu(stanSieci.powod));
+                setSelectedDateView(weekDates[0]);
+                return;
             }
+
+            if (!odpowiedz.ok) {
+                // 🪤 Awaria NIE MOŻE udawać braku terminów — reguła z punktu 3f, teraz dla
+                // pojedynczego żądania obejmującego cały tydzień.
+                const stanBledu = ocenTydzien([{ ok: false, status: odpowiedz.status }], 0);
+                if (stanBledu.rodzaj === 'blad') setError(komunikatBledu(stanBledu.powod));
+                setSelectedDateView(weekDates[0]);
+                return;
+            }
+
+            const dane = await odpowiedz.json();
+            const dni: Array<{ date: string; doctors?: Array<{ doctor: string; doctorName: string; status?: string; nextAvailable?: string | null }>; slots?: Slot[] }> =
+                Array.isArray(dane?.days) ? dane.days : [{ date: dane?.date, doctors: dane?.doctors, slots: dane?.slots }];
+
+            const cutoff = new Date();
+            cutoff.setHours(0, 0, 0, 0);
+            cutoff.setDate(cutoff.getDate() + minDaysAhead);
+
+            const pasujeLekarz = (id: string, nazwa: string) => {
+                if (czyProdentisId) return id === specialistId;
+                const apiName = (nazwa || '').toLowerCase();
+                const targetName = specialistName.toLowerCase().replace('lek. dent. ', '').replace('hig. stom. ', '');
+                return targetName.split(' ').every(part => apiName.includes(part));
+            };
+
+            const wszystkieSloty: Slot[] = [];
+            const statusy: Record<string, { status?: string; nextAvailable?: string | null }> = {};
+
+            for (const dzien of dni) {
+                if (!dzien?.date) continue;
+                const wpis = (dzien.doctors || []).find(d => pasujeLekarz(d.doctor, d.doctorName));
+                statusy[dzien.date] = { status: wpis?.status, nextAvailable: wpis?.nextAvailable ?? null };
+
+                for (const slot of dzien.slots || []) {
+                    if (!pasujeLekarz(slot.doctor, slot.doctorName)) continue;
+                    const slotDate = parseISO(slot.start);
+                    if (slotDate < cutoff) continue;              // minimalne wyprzedzenie — NASZA reguła
+                    const minutes = getMinutes(slotDate);
+                    if (minutes !== 0 && minutes !== 30) continue; // siatka :00/:30 — też nasza
+                    wszystkieSloty.push(slot);
+                }
+            }
+
+            setStatusyDni(statusy);
+            setSlots(wszystkieSloty);
+            const flatSlots = wszystkieSloty;
 
             const firstDayWithSlots = weekDates.find(day =>
                 flatSlots.some(s => isSameDay(parseISO(s.start), day))
             );
 
-            setSelectedDateView(firstDayWithSlots || weekDates[0]);
+            // 🪤 Domyślny dzień NIE MOŻE być dniem z przeszłości. Kalendarz otwiera się na
+            // poniedziałku bieżącego tygodnia, więc od wtorku pacjent lądował na dniu, który
+            // już minął — z komunikatem „brak wolnych terminów". Zmierzone na produkcji
+            // 2026-09-03: wejście w czwartek pokazywało poniedziałek 31 sierpnia.
+            // Kolejność: dzień z terminami → pierwszy dzień, o który realnie pytaliśmy → poniedziałek.
+            const pierwszyNiePrzeszly = weekDates.find(day => day >= dzisiaj);
+            setSelectedDateView(firstDayWithSlots || pierwszyNiePrzeszly || weekDates[0]);
 
         } catch (err) {
             // Zapasowa siatka bezpieczeństwa: tu trafi wyłącznie awaria POZA pobieraniem dni
@@ -467,18 +500,61 @@ export default function AppointmentScheduler({ specialistId, specialistName, dur
                                             </button>
                                         );
                                     })}
-                                {slots.filter(s => isSameDay(parseISO(s.start), selectedDateView)).length === 0 && (
-                                    <div style={{
-                                        gridColumn: "1 / -1",
-                                        padding: "2rem",
-                                        textAlign: "center",
-                                        color: "#9ca3af",
-                                        fontStyle: "italic",
-                                        fontSize: "0.875rem"
-                                    }}>
-                                        Brak wolnych terminów w wybranym dniu.
-                                    </div>
-                                )}
+                                {slots.filter(s => isSameDay(parseISO(s.start), selectedDateView)).length === 0 && (() => {
+                                    // 🔑 3e: do 2026-09-04 stał tu JEDEN napis „Brak wolnych terminów
+                                    // w wybranym dniu" — na sześć różnych prawd o świecie. Teraz każdy
+                                    // status z `meta=1` dostaje własne zdanie, a przy `unknown`
+                                    // NIE twierdzimy, że terminów nie ma (patrz `lib/statusOperatora.ts`).
+                                    const klucz = format(selectedDateView, 'yyyy-MM-dd');
+                                    const stanDnia = statusyDni[klucz];
+                                    const k = komunikatStatusu(stanDnia?.status, {
+                                        imie: specialistName,
+                                        nextAvailable: stanDnia?.nextAvailable,
+                                    });
+                                    return (
+                                        <div style={{
+                                            gridColumn: "1 / -1",
+                                            padding: "1.5rem 1rem",
+                                            textAlign: "center",
+                                            color: k.ton === 'ostrzegawczy' ? "#f59e0b" : "#9ca3af",
+                                            fontSize: "0.875rem",
+                                            lineHeight: 1.6,
+                                        }}>
+                                            <div>{k.tresc}</div>
+                                            {k.telefon && (
+                                                <div style={{ marginTop: "0.5rem", color: "var(--color-primary)" }}>
+                                                    {brand.phone1} / {brand.phone2}
+                                                </div>
+                                            )}
+                                            {k.skokDo && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        // Skok do tygodnia z najbliższym wolnym terminem —
+                                                        // zamiast kazać pacjentowi klikać strzałkę w ciemno.
+                                                        const cel = parseISO(k.skokDo!);
+                                                        setCurrentWeekStart(startOfWeek(cel, { weekStartsOn: 1 }));
+                                                        setSelectedDateView(cel);
+                                                    }}
+                                                    style={{
+                                                        marginTop: "0.75rem",
+                                                        padding: "0.5rem 1.25rem",
+                                                        borderRadius: "999px",
+                                                        border: "1px solid var(--color-primary)",
+                                                        background: "transparent",
+                                                        color: "var(--color-primary)",
+                                                        fontSize: "0.8rem",
+                                                        fontWeight: 600,
+                                                        cursor: "pointer",
+                                                    }}
+                                                >
+                                                    Najbliższy wolny termin: {format(parseISO(k.skokDo), 'd MMMM', { locale: pl })}
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </div>
                     )}
