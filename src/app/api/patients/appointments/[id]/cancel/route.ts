@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { odswiezWizyte, rozjazdWizyty } from '@/lib/prodentisAppointment';
 import { powodPortalu } from '@/lib/portalReason';
 import { createClient } from '@supabase/supabase-js';
 import { verifyPatientSession } from '@/lib/jwt';
@@ -96,6 +97,32 @@ export async function POST(
         let prodentisDeleted = false;
         const prodentisAptId = appointmentAction.prodentis_id;
         const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
+
+        // 🔑 3h: odświeżamy stan PRZED zapisem. Zapamiętany identyfikator bywa nieaktualny —
+        // przełożenie wizyty tworzy w Prodentisie NOWY rekord z nowym id, a zmiana lekarza
+        // jest robiona w miejscu (28 % naszych rezerwacji stoi u innego lekarza, niż wysłaliśmy).
+        // 🪤 `unavailable` znaczy „nie wiemy" i celowo NIE przerywa operacji — awaria łączności
+        // nie może udawać, że wizyta zniknęła.
+        const stanWizyty = await odswiezWizyte(prodentisAptId, PRODENTIS_KEY);
+        if (!stanWizyty.ok && stanWizyty.powod === 'not_found') {
+            console.warn(`[CANCEL] prodentis_id ${prodentisAptId} nieaktualny — wizyta przeniesiona lub usunięta`);
+            return NextResponse.json(
+                { error: 'Ta wizyta została w międzyczasie zmieniona w systemie gabinetu. Zadzwoń do rejestracji, potwierdzimy odwołanie.' },
+                { status: 409, headers: NO_STORE }
+            );
+        }
+        if (!stanWizyty.ok && stanWizyty.powod === 'cancelled') {
+            // Pacjent chce, żeby wizyty nie było — i jej nie ma. To sukces, nie błąd.
+            console.log(`[CANCEL] Wizyta ${prodentisAptId} była już skreślona w Prodentisie — idempotentny sukces`);
+            return NextResponse.json({ success: true, alreadyCancelled: true }, { headers: NO_STORE });
+        }
+        if (stanWizyty.ok) {
+            const roznice = rozjazdWizyty(stanWizyty.wizyta, {
+                date: appointmentAction.appointment_date?.slice(0, 10),
+                doctorProdentisId: null,
+            });
+            if (roznice.length) console.warn(`[CANCEL] Rozjazd stanu wizyty ${prodentisAptId}: ${roznice.join(' · ')}`);
+        }
 
         if (prodentisAptId && PRODENTIS_KEY) {
             try {

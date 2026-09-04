@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { odswiezWizyte } from '@/lib/prodentisAppointment';
 import { createClient } from '@supabase/supabase-js';
 import { verifyPatientSession } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
@@ -201,7 +202,14 @@ export async function POST(
             const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
             const prodentisAptId = appointmentAction.prodentis_id;
 
-            if (prodentisAptId && PRODENTIS_KEY) {
+            // 🔑 3h: ikonę „Pacjent potwierdzony" wolno postawić TYLKO na wizycie, która realnie
+            // stoi w grafiku. Na nieaktualnym identyfikatorze trafiłaby w cudzą wizytę albo
+            // w pustkę — a potwierdzenie obecności jest sygnałem dla recepcji, nie ozdobą.
+            // 🪤 `unavailable` (awaria łączności) NIE blokuje — wtedy próbujemy jak dotąd.
+            const stanWizyty = await odswiezWizyte(prodentisAptId, PRODENTIS_KEY);
+            if (!stanWizyty.ok && (stanWizyty.powod === 'not_found' || stanWizyty.powod === 'cancelled')) {
+                console.warn(`[CONFIRM-ATTENDANCE] Pomijam ikonę — wizyta ${prodentisAptId}: ${stanWizyty.powod}`);
+            } else if (prodentisAptId && PRODENTIS_KEY) {
                 const iconRes = await fetch(`${PRODENTIS_API}/api/schedule/appointment/${prodentisAptId}/icon`, {
                     method: 'POST',
                     headers: {

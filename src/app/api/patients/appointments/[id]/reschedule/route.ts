@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { odswiezWizyte, rozjazdWizyty } from '@/lib/prodentisAppointment';
 import { powodPortalu } from '@/lib/portalReason';
 import { createClient } from '@supabase/supabase-js';
 import { verifyPatientSession } from '@/lib/jwt';
@@ -106,6 +107,32 @@ export async function POST(
         let newEndTime = '';
         const prodentisAptId = appointmentAction.prodentis_id;
         const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
+
+        // 🔑 3h — patrz `lib/prodentisAppointment.ts`. Tu jest to najważniejsze z trzech ścieżek:
+        // przełożenie wizyty, której identyfikator jest nieaktualny, kończyło się dotąd surowym
+        // „Nie udało się przełożyć wizyty. Spróbuj ponownie." — czyli ślepą uliczką w pętli.
+        const stanWizyty = await odswiezWizyte(prodentisAptId, PRODENTIS_KEY);
+        if (!stanWizyty.ok && stanWizyty.powod === 'not_found') {
+            console.warn(`[RESCHEDULE] prodentis_id ${prodentisAptId} nieaktualny`);
+            return NextResponse.json(
+                { error: 'Ta wizyta została w międzyczasie zmieniona w systemie gabinetu. Zadzwoń do rejestracji — ustalimy nowy termin od ręki.' },
+                { status: 409, headers: NO_STORE }
+            );
+        }
+        if (!stanWizyty.ok && stanWizyty.powod === 'cancelled') {
+            return NextResponse.json(
+                { error: 'Ta wizyta została już odwołana. Umów nową wizytę albo zadzwoń do rejestracji.' },
+                { status: 409, headers: NO_STORE }
+            );
+        }
+        if (stanWizyty.ok) {
+            const roznice = rozjazdWizyty(stanWizyty.wizyta, {
+                date: appointmentAction.appointment_date?.slice(0, 10),
+            });
+            // 🪤 Realny przypadek: u nas 11.09 14:30, w Prodentisie 16:30. Bez tego logu
+            // rozjazd byłby niewidoczny aż do skargi pacjenta.
+            if (roznice.length) console.warn(`[RESCHEDULE] Rozjazd stanu wizyty ${prodentisAptId}: ${roznice.join(' · ')}`);
+        }
 
         if (prodentisAptId && PRODENTIS_KEY) {
             try {
