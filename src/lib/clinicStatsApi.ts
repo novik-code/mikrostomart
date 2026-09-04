@@ -8,9 +8,10 @@
 // Bezpieczeństwo + RODO:
 // - Dane TYLKO agregowane (counts) — brak PII, brak nazwisk pacjentów
 // - Doctor name field = "Marcin Nowosielski" — public info (wszędzie na stronie)
-// - Endpoint Prodentis: bez API key, "dane marketingowe bez kwot"
-// - Server-side fetch only (PRODENTIS_TUNNEL_URL nie w client bundle)
-// - 8s timeout + automatic fallback Tunnel → direct IP (via prodentisFetch helper)
+// - Endpoint Prodentis: "dane marketingowe bez kwot"; klucz X-API-Key i tak wysyłamy,
+//   bo dostawca zamyka publiczne odczyty (audyt 04.09) — wstrzykuje go `prodentisFetch`
+// - Server-side fetch only (adres z konfiguracji PMS, nie w client bundle)
+// - 8s timeout, wyłącznie przez tunel — ścieżki zapasowej na surowy adres IP NIE MA
 // - Demo mode skip → hardcoded fallback (per existing patterns)
 // - Error handling: try/catch + zwraca hardcoded jeśli Prodentis down
 

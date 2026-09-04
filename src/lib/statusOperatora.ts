@@ -37,11 +37,21 @@ function dopelniacz(dzien?: string): string {
     return dzien ? ` (${dzien})` : '';
 }
 
+/**
+ * 🪤 `maxDate` (z `window.maxDate` koperty `meta=1`): PMS szuka `nextAvailable` w horyzoncie
+ * 60 dni NIEZALEŻNIE od okna dat, więc potrafi zwrócić datę, na którą to samo API odpowie
+ * `DATE_OUT_OF_RANGE`. Przycisk „skocz do najbliższego terminu" prowadziłby wtedy donikąd.
+ * Datę spoza okna POMIJAMY — komunikat zostaje, znika sama obietnica.
+ */
 export function komunikatStatusu(
     status: string | undefined,
-    opcje: { imie: string; nextAvailable?: string | null; dzienOpisowo?: string } = { imie: 'Specjalista' },
+    opcje: { imie: string; nextAvailable?: string | null; dzienOpisowo?: string; maxDate?: string | null } = {
+        imie: 'Specjalista',
+    },
 ): KomunikatDnia {
-    const { imie, nextAvailable, dzienOpisowo } = opcje;
+    const { imie, dzienOpisowo, maxDate } = opcje;
+    const nextAvailable =
+        opcje.nextAvailable && (!maxDate || opcje.nextAvailable <= maxDate) ? opcje.nextAvailable : null;
     const kiedy = dopelniacz(dzienOpisowo);
 
     switch (status) {
@@ -117,7 +127,7 @@ export interface OperatorDnia {
  * „gabinet tego dnia nie pracuje", a `unknown` bije wszystko — bo skoro czegoś nie wiemy,
  * nie wolno nam ogłaszać, że terminów nie ma.
  */
-export function podsumujDzienOperatorow(operatorzy: OperatorDnia[]): KomunikatDnia | null {
+export function podsumujDzienOperatorow(operatorzy: OperatorDnia[], maxDate?: string | null): KomunikatDnia | null {
     if (operatorzy.length === 0) {
         return {
             tresc: 'Nie potrafimy w tej chwili potwierdzić wolnych terminów na ten dzień.'
@@ -141,6 +151,8 @@ export function podsumujDzienOperatorow(operatorzy: OperatorDnia[]): KomunikatDn
     const najblizszy = operatorzy
         .map(o => o.nextAvailable)
         .filter((d): d is string => !!d)
+        // Data poza oknem PMS jest nieosiągalna dla kalendarza — patrz `komunikatStatusu`.
+        .filter(d => !maxDate || d <= maxDate)
         .sort()[0];
 
     if (operatorzy.some(o => o.status === 'fully_booked')) {

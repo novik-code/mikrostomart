@@ -115,3 +115,63 @@ describe('podsumujDzienOperatorow', () => {
         expect(k?.tresc).toContain('nie przełożymy online');
     });
 });
+
+describe('górna granica okna PMS (window.maxDate)', () => {
+    // 🪤 PMS szuka `nextAvailable` w horyzoncie 60 dni NIEZALEŻNIE od okna dat, więc potrafi
+    // zwrócić datę, na którą to samo API odpowie DATE_OUT_OF_RANGE. Przycisk „skocz do
+    // najbliższego terminu" prowadziłby wtedy donikąd.
+
+    it('data POZA oknem nie jest obiecywana', () => {
+        const k = komunikatStatusu('fully_booked', {
+            imie: 'Marcin', nextAvailable: '2027-10-05', maxDate: '2027-09-04',
+        });
+        expect(k.skokDo).toBeUndefined();
+    });
+
+    it('🔑 odcięcie daty NIE zmienia komunikatu — zmienia się tylko obietnica', () => {
+        const k = komunikatStatusu('fully_booked', {
+            imie: 'Marcin', nextAvailable: '2027-10-05', maxDate: '2027-09-04',
+        });
+        expect(k.tresc).toContain('zajęte');
+        // Bez osiągalnej daty wracamy do zachęty telefonicznej — pacjent nie zostaje bez wyjścia.
+        expect(k.telefon).toBe(true);
+    });
+
+    it('data W oknie przechodzi normalnie', () => {
+        const k = komunikatStatusu('fully_booked', {
+            imie: 'Marcin', nextAvailable: '2026-09-11', maxDate: '2027-09-04',
+        });
+        expect(k.skokDo).toBe('2026-09-11');
+        expect(k.telefon).toBe(false);
+    });
+
+    it('granica jest DOMKNIĘTA — dzień równy maxDate jeszcze przechodzi', () => {
+        const k = komunikatStatusu('not_working', {
+            imie: 'Elżbieta', nextAvailable: '2027-09-04', maxDate: '2027-09-04',
+        });
+        expect(k.skokDo).toBe('2027-09-04');
+    });
+
+    it('bez znanej granicy zachowujemy się jak dotąd', () => {
+        const k = komunikatStatusu('fully_booked', { imie: 'Marcin', nextAvailable: '2027-10-05' });
+        expect(k.skokDo).toBe('2027-10-05');
+    });
+
+    it('podsumowanie dnia bierze najwcześniejszą SPOŚRÓD OSIĄGALNYCH', () => {
+        const k = podsumujDzienOperatorow(
+            [{ status: 'fully_booked', nextAvailable: '2027-10-05' },
+             { status: 'fully_booked', nextAvailable: '2026-09-11' }],
+            '2027-09-04',
+        );
+        expect(k?.skokDo).toBe('2026-09-11');
+    });
+
+    it('DOWÓD COFKI: bez filtra okna obiecalibyśmy datę, na którą API odpowie 400', () => {
+        const bezFiltra = ['2027-10-05'].filter(Boolean).sort()[0];
+        const zFiltrem = komunikatStatusu('fully_booked', {
+            imie: 'Marcin', nextAvailable: '2027-10-05', maxDate: '2027-09-04',
+        }).skokDo;
+        expect(bezFiltra).toBe('2027-10-05');
+        expect(zFiltrem).toBeUndefined();
+    });
+});

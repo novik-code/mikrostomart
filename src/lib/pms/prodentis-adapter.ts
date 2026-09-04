@@ -17,69 +17,27 @@ import type {
     PmsDoctor,
     PmsDocument,
 } from './types';
-import { getProdentisKey } from '@/lib/pmsConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export class ProdentisAdapter implements PmsAdapter {
     readonly name = 'prodentis';
 
-    /** Primary: Cloudflare Tunnel (bypasses router port forwarding) */
-    private get primaryUrl(): string {
-        return process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-    }
-
-    /** Fallback: direct IP (requires port forwarding on router) */
-    private get fallbackUrl(): string {
-        return process.env.PRODENTIS_API_URL || 'http://83.230.40.14:3000';
-    }
-
-    private async getApiKey(): Promise<string> {
-        return (await getProdentisKey()) ?? '';
-    }
-
-    private async fetchSingle<T>(baseUrl: string, path: string, options: RequestInit, timeoutMs: number): Promise<T> {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-        const apiKey = await this.getApiKey();
-
-        try {
-            const res = await fetch(`${baseUrl}${path}`, {
-                ...options,
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(apiKey ? { 'X-API-Key': apiKey } : {}),
-                    ...((options.headers as Record<string, string>) || {}),
-                },
-                signal: controller.signal,
-            });
-            clearTimeout(timeoutId);
-
-            if (!res.ok) {
-                throw new Error(`Prodentis API error: ${res.status} ${res.statusText} on ${path}`);
-            }
-            return res.json() as Promise<T>;
-        } catch (err) {
-            clearTimeout(timeoutId);
-            throw err;
-        }
-    }
-
+    /**
+     * Jedno wyjście do PMS: adres, klucz i limit czasu bierze `prodentisFetch`.
+     * Adapter dokłada tylko to, co jego: rzucenie błędu na statusie i parsowanie JSON-a.
+     */
     private async fetch<T>(path: string, options: RequestInit = {}, timeoutMs = 8000): Promise<T> {
-        // Try primary (Cloudflare Tunnel) first
-        try {
-            return await this.fetchSingle<T>(this.primaryUrl, path, options, timeoutMs);
-        } catch (primaryErr: any) {
-            console.warn(`[Prodentis] Tunnel failed (${primaryErr.message}), trying fallback...`);
-        }
+        const { signal, ...reszta } = options;
+        const res = await prodentisFetch(path, {
+            ...reszta,
+            ...(signal ? { signal } : {}),
+            timeoutMs,
+        });
 
-        // Fallback to direct IP
-        try {
-            const result = await this.fetchSingle<T>(this.fallbackUrl, path, options, timeoutMs);
-            console.log(`[Prodentis] Fallback (direct IP) succeeded for ${path}`);
-            return result;
-        } catch (fallbackErr: any) {
-            console.error(`[Prodentis] Both tunnel and fallback failed for ${path}`);
-            throw fallbackErr;
+        if (!res.ok) {
+            throw new Error(`Prodentis API error: ${res.status} ${res.statusText} on ${path}`);
         }
+        return res.json() as Promise<T>;
     }
 
     // ── Patients ──────────────────────────────────────────────────────

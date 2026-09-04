@@ -1,9 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { verifyPatientSession } from '@/lib/jwt';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
-
-const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
  * GET /api/patients/upcoming-appointments
@@ -20,13 +19,10 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const url = `${PRODENTIS_API}/api/patient/${payload.prodentisId}/future-appointments?days=180`;
-        console.log('[UpcomingAppointments] Fetching:', url);
+        const path = `/api/patient/${payload.prodentisId}/future-appointments?days=180`;
+        console.log('[UpcomingAppointments] Fetching:', path);
 
-        const response = await fetch(url, {
-            headers: { 'Content-Type': 'application/json' },
-            cache: 'no-store',
-        });
+        const response = await prodentisFetch(path);
 
         if (!response.ok) {
             console.error('[UpcomingAppointments] Prodentis error:', response.status);

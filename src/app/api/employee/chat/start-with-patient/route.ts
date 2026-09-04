@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { logAudit } from '@/lib/auditLog';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,17 +64,14 @@ export async function POST(req: Request) {
         let patientName = body.patient_name?.trim() || '';
         if (!patientName) {
             try {
-                const prodentisUrl =
-                    process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-                const detRes = await fetch(`${prodentisUrl}/api/patient/${prodentisId}/details`, {
-                    signal: AbortSignal.timeout(5000),
-                });
+                const detRes = await prodentisFetch(`/api/patient/${prodentisId}/details`, { timeoutMs: 5000 });
                 if (detRes.ok) {
                     const det = await detRes.json();
                     patientName = `${det.firstName || ''} ${det.lastName || ''}`.trim();
                 }
-            } catch {
-                /* nazwa nie jest krytyczna */
+            } catch (e) {
+                /* nazwa nie jest krytyczna — ale awaria PMS (np. brak klucza) ma zostawić ślad */
+                console.error('[EmployeeChat] Nie udało się pobrać nazwy pacjenta z PMS:', e);
             }
         }
         if (!patientName) patientName = 'Pacjent';

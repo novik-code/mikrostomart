@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { demoSanitize, brand } from '@/lib/brandConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -12,8 +13,6 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
  * GET /api/cron/daily-report
@@ -57,8 +56,8 @@ export async function GET(req: NextRequest) {
         let doctorSummary: Record<string, number> = {};
 
         try {
-            const res = await fetch(`${PRODENTIS_API}/api/appointments/by-date?date=${todayStr}`, {
-                signal: AbortSignal.timeout(10000),
+            const res = await prodentisFetch(`/api/appointments/by-date?date=${todayStr}`, {
+                timeoutMs: 10000,
             });
             if (res.ok) {
                 const data = await res.json();
@@ -168,9 +167,7 @@ export async function GET(req: NextRequest) {
             for (const p of todayBirthdays.slice(0, 5)) {
                 let name = `ID: ${p.prodentis_id}`;
                 try {
-                    const res = await fetch(`${PRODENTIS_API}/api/patient/${p.prodentis_id}/details`, {
-                        signal: AbortSignal.timeout(3000),
-                    });
+                    const res = await prodentisFetch(`/api/patient/${p.prodentis_id}/details`);
                     if (res.ok) {
                         const det = await res.json();
                         name = `${det.firstName || ''} ${det.lastName || ''}`.trim() || name;

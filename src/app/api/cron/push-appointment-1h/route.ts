@@ -3,11 +3,10 @@ import { NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { pushToPatientAll } from '@/lib/pushService';
 import { getPushTranslation } from '@/lib/pushTranslations';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
-
-const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /** Odpowiedź niesie dane pacjenta — nigdy z cache. */
 const NO_STORE = { 'Cache-Control': 'no-store, no-cache, must-revalidate, private' };
@@ -57,10 +56,7 @@ export async function GET(req: Request) {
         console.log(`⏰ [Push 1h] Checking appointments for ${today} between ${windowStart.toISOString()} and ${windowEnd.toISOString()}`);
 
         // Fetch today's appointments from Prodentis
-        const apiUrl = `${PRODENTIS_API_URL}/api/appointments/by-date?date=${today}`;
-        const apiResponse = await fetch(apiUrl, {
-            headers: { 'Content-Type': 'application/json' }
-        });
+        const apiResponse = await prodentisFetch(`/api/appointments/by-date?date=${today}`);
 
         if (!apiResponse.ok) {
             throw new Error(`Prodentis API error: ${apiResponse.status}`);

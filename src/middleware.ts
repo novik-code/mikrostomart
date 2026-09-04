@@ -84,9 +84,14 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
     // Content Security Policy — restrictive but allows needed sources
     // Report-Only mode: logs violations to browser console without blocking
     // After verifying no issues, change to 'Content-Security-Policy' to enforce
-    const prodentisOrigin = process.env.PRODENTIS_API_URL
-        ? new URL(process.env.PRODENTIS_API_URL).origin
-        : 'http://83.230.40.14:3000';
+    // 🪤 Do 2026-09-04 stał tu surowy adres IP po zwykłym HTTP (`http://83.230.40.14:3000`)
+    // jako domyślny origin w `connect-src`. Ścieżka zapasowa na ten adres została usunięta
+    // z kodu (patrz `lib/prodentisFetch.ts`), a przeglądarka i tak nigdy do PMS nie dzwoni —
+    // cały ruch jest serwer-serwer. Zostaje sam tunel, żeby CSP nie allowlistowało drogi,
+    // której nie używamy i której nie chcemy używać.
+    const prodentisOrigin = process.env.PRODENTIS_TUNNEL_URL
+        ? new URL(process.env.PRODENTIS_TUNNEL_URL).origin
+        : 'https://pms.mikrostomartapi.com';
 
     // Sentry CSP report endpoint — built from DSN so this works on both Mikrostomart
     // and Demo deployments automatically. Null if DSN missing — directive is then omitted.

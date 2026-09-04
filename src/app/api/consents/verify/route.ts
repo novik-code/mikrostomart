@@ -3,13 +3,12 @@ import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { getConsentTypesFromDB } from '@/lib/consentTypes';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /** Klucz limitu z tokenu — sam token nie ląduje w `rate_limit_entries`. */
 const rateKeyFor = (v: string) => crypto.createHash('sha256').update(v).digest('hex').slice(0, 32);
@@ -98,8 +97,8 @@ export async function POST(req: NextRequest) {
         let patientDetails: any = null;
         if (tokenRow.prodentis_patient_id) {
             try {
-                const detailsRes = await fetch(
-                    `${PRODENTIS_API}/api/patient/${tokenRow.prodentis_patient_id}/details`
+                const detailsRes = await prodentisFetch(
+                    `/api/patient/${tokenRow.prodentis_patient_id}/details`
                 );
                 if (detailsRes.ok) {
                     const details = await detailsRes.json();

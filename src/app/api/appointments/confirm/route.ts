@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/pushService';
 import { recordPushPath } from '@/lib/pushHealth';
-import { getProdentisKey } from '@/lib/pmsConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -198,18 +198,11 @@ export async function POST(req: NextRequest) {
         let prodentisIdUsed = action.prodentis_id as string | null;
         let prodentisIdRefreshed = false;
 
-        const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-        const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
-
         async function postIcon(id: string): Promise<{ ok: boolean; status: number }> {
-            const res = await fetch(`${PRODENTIS_API}/api/schedule/appointment/${id}/icon`, {
+            const res = await prodentisFetch(`/api/schedule/appointment/${id}/icon`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-API-Key': PRODENTIS_KEY,
-                },
                 body: JSON.stringify({ iconId: '0000000010' }),
-                signal: AbortSignal.timeout(10000),
+                timeoutMs: 10000,
             });
             return { ok: res.ok, status: res.status };
         }
@@ -222,9 +215,8 @@ export async function POST(req: NextRequest) {
             const targetHhmm = apptIso.slice(11, 16);
             const targetPhoneTail = String(action.patient_phone || '').replace(/\D/g, '').slice(-9);
 
-            const res = await fetch(`${PRODENTIS_API}/api/appointments/by-date?date=${dateYmd}`, {
-                headers: { 'Content-Type': 'application/json' },
-                signal: AbortSignal.timeout(10000),
+            const res = await prodentisFetch(`/api/appointments/by-date?date=${dateYmd}`, {
+                timeoutMs: 10000,
             });
             if (!res.ok) {
                 console.warn(`[CONFIRM-PUBLIC] by-date lookup failed: ${res.status}`);
@@ -248,10 +240,11 @@ export async function POST(req: NextRequest) {
             if (!prodentisIdUsed) {
                 iconErrorReason = 'no_prodentis_id_on_action';
                 console.warn('[CONFIRM-PUBLIC] action has no prodentis_id — cannot sync icon');
-            } else if (!PRODENTIS_KEY) {
-                iconErrorReason = 'no_api_key';
-                console.warn('[CONFIRM-PUBLIC] no Prodentis API key — cannot sync icon');
             } else {
+                // 🔑 Brak klucza NIE jest już cichą rezygnacją: `prodentisFetch` rzuca
+                // `BrakKluczaPMS`, `catch` niżej loguje błąd i zapisuje powód w
+                // `prodentis_icon_error`, a recepcja dostaje alarm na Telegramie.
+
                 // Fast path
                 let res = await postIcon(prodentisIdUsed);
                 console.log(`[CONFIRM-PUBLIC] Prodentis icon attempt 1: ${prodentisIdUsed} -> ${res.status}`);

@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { isDemoMode } from '@/lib/demoMode';
 import { phoneLookupVariants } from '@/lib/phone';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 import { pickExactEmailMatch } from '@/lib/emailMatch';
 
 export const dynamic = 'force-dynamic';
@@ -358,10 +359,7 @@ export async function POST(request: Request) {
                 appointments: [],
             };
         } else {
-            const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-            const detailsUrl = `${prodentisUrl}/api/patient/${patient.prodentis_id}/details`;
-
-            const prodentisResponse = await fetch(detailsUrl);
+            const prodentisResponse = await prodentisFetch(`/api/patient/${patient.prodentis_id}/details`);
             if (!prodentisResponse.ok) {
                 console.error('[Login] Failed to fetch from Prodentis');
                 return NextResponse.json(

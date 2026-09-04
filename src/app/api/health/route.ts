@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,20 +57,13 @@ export async function GET(req: NextRequest) {
     // ── 2. Prodentis API reachability ───────────────────────────────
     const prodentisStart = Date.now();
     try {
-        const prodentisUrl = process.env.PRODENTIS_API_URL;
-        if (!prodentisUrl) {
-            checks.prodentis = { status: 'not_configured' };
-        } else {
-            const resp = await fetch(`${prodentisUrl}/api/doctors`, {
-                signal: AbortSignal.timeout(5000),
-            });
-            checks.prodentis = {
-                status: resp.ok ? 'ok' : 'error',
-                http_status: resp.status,
-                latency_ms: Date.now() - prodentisStart,
-            };
-            if (!resp.ok && overallStatus === 'healthy') overallStatus = 'degraded';
-        }
+        const resp = await prodentisFetch('/api/doctors');
+        checks.prodentis = {
+            status: resp.ok ? 'ok' : 'error',
+            http_status: resp.status,
+            latency_ms: Date.now() - prodentisStart,
+        };
+        if (!resp.ok && overallStatus === 'healthy') overallStatus = 'degraded';
     } catch (err: any) {
         checks.prodentis = {
             status: 'unreachable',

@@ -9,6 +9,7 @@ import type { ConfirmAttendanceRequest, AppointmentActionResponse, AppointmentAc
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 import { getProdentisKey } from '@/lib/pmsConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -198,7 +199,6 @@ export async function POST(
         // Add "Pacjent potwierdzony" icon in Prodentis (icon ID 0000000010)
         let iconAdded = false;
         try {
-            const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
             const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
             const prodentisAptId = appointmentAction.prodentis_id;
 
@@ -209,20 +209,19 @@ export async function POST(
             const stanWizyty = await odswiezWizyte(prodentisAptId, PRODENTIS_KEY);
             if (!stanWizyty.ok && (stanWizyty.powod === 'not_found' || stanWizyty.powod === 'cancelled')) {
                 console.warn(`[CONFIRM-ATTENDANCE] Pomijam ikonę — wizyta ${prodentisAptId}: ${stanWizyty.powod}`);
-            } else if (prodentisAptId && PRODENTIS_KEY) {
-                const iconRes = await fetch(`${PRODENTIS_API}/api/schedule/appointment/${prodentisAptId}/icon`, {
+            } else if (prodentisAptId) {
+                // 🔑 Bramka pyta już TYLKO o identyfikator wizyty. Brak klucza nie może po cichu
+                // pominąć ikony — `prodentisFetch` rzuca wtedy `BrakKluczaPMS`, a `catch` niżej
+                // robi z tego głośny wpis w logu.
+                const iconRes = await prodentisFetch(`/api/schedule/appointment/${prodentisAptId}/icon`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': PRODENTIS_KEY,
-                    },
                     body: JSON.stringify({ iconId: '0000000010' }),
-                    signal: AbortSignal.timeout(10000),
+                    timeoutMs: 10000,
                 });
                 iconAdded = iconRes.ok;
                 console.log(`[CONFIRM-ATTENDANCE] Prodentis icon ${iconAdded ? 'added' : 'failed'}:`, prodentisAptId);
             } else {
-                console.warn('[CONFIRM-ATTENDANCE] No prodentis_id or API key — skipping icon');
+                console.warn('[CONFIRM-ATTENDANCE] No prodentis_id — skipping icon');
             }
         } catch (iconError) {
             console.error('[CONFIRM-ATTENDANCE] Failed to add Prodentis icon:', iconError);

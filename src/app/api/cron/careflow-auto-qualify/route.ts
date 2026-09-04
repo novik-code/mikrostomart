@@ -115,11 +115,11 @@ export async function GET(req: Request) {
         console.log(`📅 Scanning appointments for: ${targetDateStr}`);
 
         // 3. Fetch appointments from Prodentis
-        // prodentisFetch = tunel Cloudflare z fallbackiem na direct-IP; bez X-API-Key
+        // prodentisFetch = tunel Cloudflare; klucz wstrzykuje sam helper
         // Prodentis odrzuca zapytanie (to dlatego cron nie zapisał nikogo od kwietnia).
         const prodentisKey = (await getProdentisKey()) ?? '';
         const apiResponse = await prodentisFetch(`/api/appointments/by-date?date=${targetDateStr}`, {
-            headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
+            headers: { 'Content-Type': 'application/json' },
             signal: AbortSignal.timeout(15000),
         });
 

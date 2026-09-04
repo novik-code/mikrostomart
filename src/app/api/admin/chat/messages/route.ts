@@ -5,6 +5,7 @@ import { sendTranslatedPushToUser } from '@/lib/pushService';
 import { sendChatReplyEmail } from '@/lib/emailService';
 import { logAudit } from '@/lib/auditLog';
 import { loadAttachmentsByMessage } from '@/lib/chatAttachments';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -151,10 +152,7 @@ export async function POST(request: NextRequest) {
 
                     if (!patientRec?.prodentis_id) return;
 
-                    const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-                    const detRes = await fetch(`${PRODENTIS_API}/api/patient/${patientRec.prodentis_id}/details`, {
-                        signal: AbortSignal.timeout(5000),
-                    });
+                    const detRes = await prodentisFetch(`/api/patient/${patientRec.prodentis_id}/details`, { timeoutMs: 5000 });
                     if (detRes.ok) {
                         const det = await detRes.json();
                         const email = det.email;
@@ -163,7 +161,11 @@ export async function POST(request: NextRequest) {
                             await sendChatReplyEmail(email, name, content.trim());
                         }
                     }
-                } catch { /* non-critical */ }
+                } catch (err) {
+                    // Niekrytyczne dla wysyłki wiadomości, ale awaria PMS (w tym brak klucza)
+                    // nie może ginąć bez śladu — reszta tras dostała ten sam log w migracji 04.09.
+                    console.error('[AdminChat] Nie udało się pobrać danych pacjenta z Prodentisa:', err);
+                }
             })();
         }
 

@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/authGuards';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -109,11 +110,10 @@ export async function GET(req: NextRequest) {
 
     // ─── 4. Prodentis Tunnel ─────────────────────────────────
     checks.push(timedCheck('prodentis_tunnel', async () => {
-        const tunnelUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
         const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
-        const res = await fetch(`${tunnelUrl}/api/slots/free?date=${tomorrow}&duration=30`, {
-            signal: AbortSignal.timeout(10000),
+        const res = await prodentisFetch(`/api/slots/free?date=${tomorrow}&duration=30`, {
+            timeoutMs: 10000,
         });
 
         if (!res.ok) return { status: 'error', detail: `HTTP ${res.status}` };

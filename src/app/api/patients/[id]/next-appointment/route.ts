@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyPatientSession } from '@/lib/jwt';
-
-// Prodentis API base URL
-const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export async function GET(
     request: NextRequest,
@@ -23,16 +21,9 @@ export async function GET(
         }
 
         // Call Prodentis API
-        const response = await fetch(
-            `${PRODENTIS_API_URL}/api/patient/${prodentisId}/next-appointment`,
-            {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                // Don't cache the response
-                cache: 'no-store',
-            }
+        const response = await prodentisFetch(
+            `/api/patient/${prodentisId}/next-appointment`,
+            { method: 'GET' }
         );
 
         if (!response.ok) {

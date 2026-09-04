@@ -2,10 +2,9 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
-
-const PRODENTIS_API_URL = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
  * Wyszukiwarka pacjentów (proxy do Prodentisa). Rola: employee albo admin.
@@ -41,12 +40,8 @@ async function szukaj(request: Request, query: string | undefined, limit: string
         }
 
         // Call Prodentis API patient search
-        const prodentisUrl = `${PRODENTIS_API_URL}/api/patients/search?q=${encodeURIComponent(query)}&limit=${limit}`;
-
-        const res = await fetch(prodentisUrl, {
-            headers: { 'Content-Type': 'application/json' },
-            signal: AbortSignal.timeout(5000),
-        });
+        const res = await prodentisFetch(
+            `/api/patients/search?q=${encodeURIComponent(query)}&limit=${limit}`, { timeoutMs: 5000 });
 
         if (!res.ok) {
             console.error(`[Employee Patient Search] Prodentis error ${res.status}`);

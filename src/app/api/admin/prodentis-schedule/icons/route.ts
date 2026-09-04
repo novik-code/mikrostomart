@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/authGuards';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
-
-const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
  * GET /api/admin/prodentis-schedule/icons
@@ -15,8 +14,8 @@ export async function GET() {
         const auth = await requireAdmin();
         if (!auth.ok) return auth.response;
         const user = auth.user;
-        const res = await fetch(`${PRODENTIS_API}/api/schedule/icons`, {
-            signal: AbortSignal.timeout(10000),
+        const res = await prodentisFetch('/api/schedule/icons', {
+            timeoutMs: 10000,
         });
         const data = await res.json();
         return NextResponse.json(data);

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { signRegistrationToken } from '@/lib/registrationToken';
 import { prodentisPhoneQueries } from '@/lib/phone';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
@@ -128,16 +129,13 @@ export async function POST(request: Request) {
             console.warn('[Verify] limit BYŁBY przekroczony (egzekwowanie wyłączone)', maskPhone(normalizedPhone));
         }
 
-        const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-
         // ── Attempt 1: Direct verify with normalized phone ──
         console.log('[Verify] Attempt 1: phone', maskPhone(normalizedPhone));
-        const url = `${prodentisUrl}/api/patient/verify?phone=${encodeURIComponent(normalizedPhone)}&firstName=${encodeURIComponent(firstName)}&pesel=${encodeURIComponent(normalizedPesel)}`;
+        const path = `/api/patient/verify?phone=${encodeURIComponent(normalizedPhone)}&firstName=${encodeURIComponent(firstName)}&pesel=${encodeURIComponent(normalizedPesel)}`;
 
-        const response = await fetch(url, {
+        const response = await prodentisFetch(path, {
             method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-            signal: AbortSignal.timeout(10000),
+            timeoutMs: 10000,
         });
 
         if (response.ok) {
@@ -155,11 +153,9 @@ export async function POST(request: Request) {
         for (const variant of variants) {
             if (variant === normalizedPhone) continue; // Already tried
             try {
-                const variantUrl = `${prodentisUrl}/api/patient/verify?phone=${encodeURIComponent(variant)}&firstName=${encodeURIComponent(firstName)}&pesel=${encodeURIComponent(normalizedPesel)}`;
-                const variantRes = await fetch(variantUrl, {
+                const variantPath = `/api/patient/verify?phone=${encodeURIComponent(variant)}&firstName=${encodeURIComponent(firstName)}&pesel=${encodeURIComponent(normalizedPesel)}`;
+                const variantRes = await prodentisFetch(variantPath, {
                     method: 'GET',
-                    headers: { 'Content-Type': 'application/json' },
-                    signal: AbortSignal.timeout(5000),
                 });
                 if (variantRes.ok) {
                     const variantData = await variantRes.json();
@@ -176,11 +172,10 @@ export async function POST(request: Request) {
         // ── Attempt 3: Fallback — search by phone, then verify PESEL client-side ──
         console.log('[Verify] Attempt 3: search fallback');
         try {
-            const searchUrl = `${prodentisUrl}/api/patients/search?phone=${encodeURIComponent(normalizedPhone)}&limit=10`;
-            const searchRes = await fetch(searchUrl, {
+            const searchPath = `/api/patients/search?phone=${encodeURIComponent(normalizedPhone)}&limit=10`;
+            const searchRes = await prodentisFetch(searchPath, {
                 method: 'GET',
-                headers: { 'Content-Type': 'application/json' },
-                signal: AbortSignal.timeout(10000),
+                timeoutMs: 10000,
             });
 
             if (searchRes.ok) {

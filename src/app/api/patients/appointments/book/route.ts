@@ -4,6 +4,7 @@ import { verifyPatientSession } from '@/lib/jwt';
 import { getDoctorInfo } from '@/lib/doctorMapping';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/pushService';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,10 +46,7 @@ export async function POST(req: NextRequest) {
         let patientFirstName = '';
         let patientLastName = '';
         try {
-            const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-            const detailsRes = await fetch(`${prodentisUrl}/api/patient/${payload.prodentisId}/details`, {
-                signal: AbortSignal.timeout(5000),
-            });
+            const detailsRes = await prodentisFetch(`/api/patient/${payload.prodentisId}/details`, { timeoutMs: 5000 });
             if (detailsRes.ok) {
                 const details = await detailsRes.json();
                 patientFirstName = details.firstName || '';

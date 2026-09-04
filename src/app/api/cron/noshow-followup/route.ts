@@ -6,6 +6,7 @@ import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
 import { demoSanitize, brand } from '@/lib/brandConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -14,8 +15,6 @@ const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
-
-const PRODENTIS_API = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
 
 /**
  * GET /api/cron/noshow-followup
@@ -67,8 +66,8 @@ export async function GET(req: NextRequest) {
         // ── 1. Fetch yesterday's appointments from Prodentis ──
         let appointments: any[] = [];
         try {
-            const res = await fetch(`${PRODENTIS_API}/api/appointments/by-date?date=${yesterdayStr}`, {
-                signal: AbortSignal.timeout(10000),
+            const res = await prodentisFetch(`/api/appointments/by-date?date=${yesterdayStr}`, {
+                timeoutMs: 10000,
             });
             if (res.ok) {
                 const data = await res.json();

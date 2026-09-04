@@ -211,7 +211,7 @@ export async function GET(req: Request) {
 
                         const prodRes = await prodentisFetch(`/api/patients/${enrollment.patient_id}/documents`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
+                            headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 fileBase64: pdfBase64,
                                 fileName: prodFileName,

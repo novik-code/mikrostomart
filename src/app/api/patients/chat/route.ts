@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyPatientSession } from '@/lib/jwt';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/pushService';
 import { loadAttachmentsByMessage } from '@/lib/chatAttachments';
@@ -75,8 +76,7 @@ export async function POST(request: NextRequest) {
         // Get patient name from Prodentis API
         let patientName = 'Pacjent';
         try {
-            const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-            const detailsRes = await fetch(`${prodentisUrl}/api/patient/${payload.prodentisId}/details`);
+            const detailsRes = await prodentisFetch(`/api/patient/${payload.prodentisId}/details`);
             if (detailsRes.ok) {
                 const details = await detailsRes.json();
                 patientName = `${details.firstName || ''} ${details.lastName || ''}`.trim() || 'Pacjent';

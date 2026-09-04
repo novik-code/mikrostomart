@@ -6,7 +6,7 @@ import { getDoctorInfo, normalizePhone, fuzzyNameMatch, extractFirstName, extrac
 import type { PatientCandidate } from '@/lib/doctorMapping';
 import { demoSanitize, brand } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
-import { getProdentisKey } from '@/lib/pmsConfig';
+import { prodentisFetch } from '@/lib/prodentisFetch';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 import { isDemoMode } from '@/lib/demoMode';
 
@@ -88,14 +88,8 @@ export async function POST(req: NextRequest) {
         // Skipped in demo mode (no live Prodentis). If Prodentis is unreachable, log + allow (graceful).
         if (!isDemoMode) {
             try {
-                const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-                const slotCheckRes = await fetch(
-                    `${prodentisUrl}/api/slots/free?date=${date}&duration=30`,
-                    {
-                        headers: { 'Content-Type': 'application/json' },
-                        cache: 'no-store',
-                        signal: AbortSignal.timeout(4000),
-                    }
+                const slotCheckRes = await prodentisFetch(
+                    `/api/slots/free?date=${date}&duration=30`
                 );
                 if (slotCheckRes.ok) {
                     const slotData: Array<{ doctor: string; doctorName: string; start: string }> = await slotCheckRes.json();
@@ -235,8 +229,6 @@ export async function POST(req: NextRequest) {
 
         if (supabase && !isDemoMode) {
             try {
-                const prodentisUrl = process.env.PRODENTIS_TUNNEL_URL || 'https://pms.mikrostomartapi.com';
-                const prodentisKey = (await getProdentisKey()) ?? '';
                 const doctorInfo = getDoctorInfo(specialist);
                 const normalizedPhone = normalizePhone(phone);
                 const patientFirstName = extractFirstName(name);
@@ -248,14 +240,13 @@ export async function POST(req: NextRequest) {
                 let matchCandidates: PatientCandidate[] = [];
 
                 // ── Step 1: Search patient by phone in Prodentis ──
-                if (prodentisKey && normalizedPhone) {
+                // 🔴 Warunek „mamy klucz" zniknął: bez klucza wyszukiwanie było po cichu
+                // pomijane, pacjent lądował jako NOWY i w PMS powstawał duplikat kartoteki.
+                // Dziś brak klucza to `BrakKluczaPMS` — łapie go `catch` tego kroku i loguje.
+                if (normalizedPhone) {
                     try {
-                        const phoneSearchRes = await fetch(
-                            `${prodentisUrl}/api/patients/search?phone=${normalizedPhone}&limit=10`,
-                            {
-                                headers: { 'Content-Type': 'application/json' },
-                                signal: AbortSignal.timeout(5000),
-                            }
+                        const phoneSearchRes = await prodentisFetch(
+                            `/api/patients/search?phone=${normalizedPhone}&limit=10`
                         );
 
                         if (phoneSearchRes.ok) {
@@ -294,12 +285,8 @@ export async function POST(req: NextRequest) {
                         } else {
                             // Phone search not available — fallback to name search
                             console.log('[OnlineBooking] Phone search not available, trying name search');
-                            const nameSearchRes = await fetch(
-                                `${prodentisUrl}/api/patients/search?q=${encodeURIComponent(patientLastName)}&limit=10`,
-                                {
-                                    headers: { 'Content-Type': 'application/json' },
-                                    signal: AbortSignal.timeout(5000),
-                                }
+                            const nameSearchRes = await prodentisFetch(
+                                `/api/patients/search?q=${encodeURIComponent(patientLastName)}&limit=10`
                             );
 
                             if (nameSearchRes.ok) {
@@ -337,23 +324,22 @@ export async function POST(req: NextRequest) {
                 }
 
                 // ── Step 2: Create new patient if not found and not needs_review ──
-                if (!prodentisPatientId && matchMethod !== 'needs_review' && prodentisKey) {
+                if (!prodentisPatientId && matchMethod !== 'needs_review') {
                     isNewPatient = true;
                     // Use the separate firstName/lastName fields directly (no name.split guessing)
                     const pFirst = patientFirstName;
                     const pLast = patientLastName;
 
                     try {
-                        const createRes = await fetch(`${prodentisUrl}/api/patients`, {
+                        const createRes = await prodentisFetch('/api/patients', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'X-API-Key': prodentisKey },
                             body: JSON.stringify({
                                 firstName: pFirst,
                                 lastName: pLast,
                                 phone: phone,
                                 email: email || '',
                             }),
-                            signal: AbortSignal.timeout(10000),
+                            timeoutMs: 10000,
                         });
 
                         const createResult = await createRes.json();
