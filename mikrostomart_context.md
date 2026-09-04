@@ -2480,6 +2480,63 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
+### 2026-09-04 (#2) — 🤖 ASYSTENT AI: TERMINY W MAILACH DO PACJENTA NIGDY NIE DZIAŁAŁY (punkt 3a)
+
+> Commit **`4dc5d93`**. ⏳ **NIEWYPCHNIĘTY.** Bramki: `tsc` · `vitest` **624/624** (57 plików, +11) · `next build` OK.
+> Punkt **3a** z uzgodnień z dostawcą PMS — musiał wejść **przed** przełączeniem na `meta=1`.
+
+#### 🔴 Dwie usterki nałożone na siebie
+Oba miejsca doklejające wolne terminy do promptu (generator odpowiedzi e-mail i cron roboczych
+odpowiedzi — **identyczny, skopiowany blok**) czytały odpowiedź tak:
+
+```js
+if (slotsData.slots && slotsData.slots.length > 0) { … }
+```
+
+a `GET /api/slots/free` oddaje **gołą tablicę**. Warunek zawsze fałszywy → gałąź proponująca
+pacjentowi terminy **nigdy się nie wykonała**. Bez śladu w logach: formalnie nic się nie psuło.
+
+🪤 **Pod spodem czekał drugi błąd, który ujawniłby się dopiero po naprawie pierwszego:**
+`slot.time || slot.startTime` — takich pól nie ma, godzina jest w `start`. Poprawienie samej
+koperty dałoby listę `null` **wstawioną do maila wysyłanego pacjentowi**.
+
+#### 🔬 Dowód wykonaniem na REALNEJ odpowiedzi produkcji (12.10, 51 slotów)
+| wersja | wynik |
+|---|---|
+| stary kod | warunek `undefined` → do promptu trafiało **NIC** |
+| **pół-naprawa** (tylko koperta) | `[null, null, null]` ← druga usterka |
+| nowy kod | 51 slotów, podsumowanie po lekarzach z realnymi godzinami |
+
+🔑 Ten środkowy wiersz jest sednem: **naprawa jednej z dwóch usterek byłaby gorsza niż żadna** —
+zamiast milczenia asystent wysłałby pacjentowi listę `null`.
+
+#### 🔧 Rozwiązanie
+`lib/prodentisSlots.ts`, wspólny dla obu miejsc (blok był skopiowany):
+- `odczytajSloty()` czyta **oba kształty** — gołą tablicę (dziś) i kopertę `{ slots }`
+  (po `meta=1`), więc przełączenie u dostawcy nie wymaga zmiany w tym pliku;
+- `godzinaSlotu()` **tnie string**, nie idzie przez `new Date()` — Prodentis oddaje czas ścienny
+  gabinetu bez przesunięcia, a nasze serwery chodzą w UTC; formatowanie ze strefą przesunęłoby
+  godziny o 1–2 h i **tylko w części roku**;
+- `podsumujDzienPoLekarzach()` — jedno źródło formatu.
+
+Strażniki: **11 asercji**, cofka dowiedziona w obie strony (czytanie wyłącznie `payload.slots`
+wywala przypadek tablicy; sięgnięcie po `slot.time` wywala dwa przypadki godzin).
+
+#### ⚠️ To WŁĄCZA funkcję, która nigdy nie działała
+Człowiek zostaje w pętli: cron ma **harmonogram wyłączony decyzją właściciela** (żywa tylko
+ścieżka `?manual=true`), a generator odpowiedzi wymaga roli **admina** i jest wołany przyciskiem.
+Żadna treść nie idzie do pacjenta bez zatwierdzenia. ⚪ Asystent może teraz proponować godziny
+`:15` i `:45` — dla maila to poprawne (recepcja umawia dowolną godzinę), choć formularz online
+ich nie oferuje. Po wdrożeniu `policy=strict` u dostawcy lista sama się zawęzi.
+
+#### Pliki
+- `src/lib/prodentisSlots.ts` (nowy) + `src/lib/__tests__/prodentisSlots.test.ts`
+- `src/app/api/employee/email-generate-reply/route.ts`, `src/app/api/cron/email-ai-drafts/route.ts`
+
+> ⚠️ REQUIRES: brak migracji, brak zmiennych środowiskowych.
+
+---
+
 ### 2026-09-04 — 🧑‍⚕️ ELŻBIETA UMAWIALNA ONLINE (poniedziałki) + CZAS WIZYTY Z DANYCH ZESPOŁU
 
 > Commit **`ed4cc22`** — ✅ **NA PRODUKCJI** (zrównanie przy 10. odpytaniu).
