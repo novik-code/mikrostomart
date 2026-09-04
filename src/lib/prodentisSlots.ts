@@ -117,6 +117,11 @@ export function zbudujKontekstTerminow(
             linie.push(`${nazwaDnia(dzien.date)}: wszystkie terminy zajęte${najblizszy ? `, najbliższy wolny: ${najblizszy}` : ''}.`);
         } else if (operatorzy.some(o => o.status === 'not_bookable_online')) {
             linie.push(`${nazwaDnia(dzien.date)}: terminów na ten dzień nie umawiamy online — potrzebny telefon do rejestracji.`);
+        } else if (operatorzy.some(o => o.status === 'available')) {
+            // Specjalista przyjmuje, a lista jest pusta po NASZYCH filtrach (:00/:30, minimalne
+            // wyprzedzenie). Model NIE MOŻE z tego zrobić „gabinet nie przyjmuje" — patrz
+            // bliźniacza gałąź w `podsumujDzienOperatorow`.
+            linie.push(`${nazwaDnia(dzien.date)}: specjalista przyjmuje, ale nie mamy godzin do zaproponowania online — zaproponuj kontakt telefoniczny${najblizszy ? `; najbliższy wolny termin: ${najblizszy}` : ''}.`);
         } else {
             linie.push(`${nazwaDnia(dzien.date)}: gabinet nie przyjmuje${najblizszy ? `, najbliższy wolny termin: ${najblizszy}` : ''}.`);
         }

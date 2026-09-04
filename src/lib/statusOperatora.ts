@@ -126,6 +126,8 @@ export interface OperatorDnia {
  * 🔑 Kolejność ma znaczenie: „ktoś przyjmuje, ale ma komplet" to inna wiadomość niż
  * „gabinet tego dnia nie pracuje", a `unknown` bije wszystko — bo skoro czegoś nie wiemy,
  * nie wolno nam ogłaszać, że terminów nie ma.
+ * 🔑 „Gabinet nie przyjmuje" wolno napisać WYŁĄCZNIE wtedy, gdy każdy operator ma `not_working`.
+ * Każdy inny status ma własną gałąź WYŻEJ — fallback nie jest workiem na resztę.
  */
 export function podsumujDzienOperatorow(operatorzy: OperatorDnia[], maxDate?: string | null): KomunikatDnia | null {
     if (operatorzy.length === 0) {
@@ -172,6 +174,21 @@ export function podsumujDzienOperatorow(operatorzy: OperatorDnia[], maxDate?: st
         };
     }
 
+    // 🔴 `available` MUSI mieć własną gałąź. PMS mówi wtedy, że specjalista przyjmuje, a pustka
+    // bierze się z NASZYCH filtrów (pokazujemy wyłącznie :00/:30) albo z minimalnego wyprzedzenia.
+    // Bez tej gałęzi dzień pracujący spadał na fallback i ogłaszał „gabinet nie przyjmuje" —
+    // czyli dokładnie to kłamstwo, które statusy operatora miały wyplenić.
+    if (operatorzy.some(o => o.status === 'available')) {
+        return {
+            tresc: 'Tego dnia nie mamy wolnych godzin do wyboru online.'
+                + ' Zadzwoń do rejestracji — możemy dopasować termin.',
+            telefon: true,
+            skokDo: najblizszy,
+            ton: 'neutralny',
+        };
+    }
+
+    // Tu docierają już wyłącznie dni, w których KAŻDY operator ma `not_working`.
     return {
         tresc: 'Tego dnia gabinet nie przyjmuje.' + (najblizszy ? '' : ' Wybierz inny dzień.'),
         telefon: false,

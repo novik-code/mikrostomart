@@ -174,4 +174,45 @@ describe('górna granica okna PMS (window.maxDate)', () => {
         expect(bezFiltra).toBe('2027-10-05');
         expect(zFiltrem).toBeUndefined();
     });
+
+    // ── `available` w podsumowaniu dnia ────────────────────────────────────────────
+    // Dzień, w którym specjalista PRZYJMUJE, spadał dotąd na fallback i ogłaszał
+    // „gabinet nie przyjmuje". To jest ten sam defekt, przeciw któremu powstały statusy.
+
+    it('dzień z pracującym specjalistą NIE mówi, że gabinet nie przyjmuje', () => {
+        const k = podsumujDzienOperatorow([{ status: 'available' }]);
+        expect(k?.tresc).not.toContain('gabinet nie przyjmuje');
+        expect(k?.tresc).toContain('online');
+        expect(k?.telefon).toBe(true);
+    });
+
+    it('mieszanka available + not_working to nadal dzień pracujący', () => {
+        const k = podsumujDzienOperatorow([
+            { status: 'not_working' },
+            { status: 'available', nextAvailable: '2026-09-11' },
+        ]);
+        expect(k?.tresc).not.toContain('gabinet nie przyjmuje');
+        expect(k?.skokDo).toBe('2026-09-11');
+    });
+
+    it('komplet zapisów WYGRYWA z available — to inna, mocniejsza informacja', () => {
+        const k = podsumujDzienOperatorow([{ status: 'available' }, { status: 'fully_booked' }]);
+        expect(k?.tresc).toContain('zajęte');
+    });
+
+    it('„gabinet nie przyjmuje" zostaje TYLKO dla kompletu not_working', () => {
+        const k = podsumujDzienOperatorow([{ status: 'not_working' }, { status: 'not_working' }]);
+        expect(k?.tresc).toContain('gabinet nie przyjmuje');
+    });
+
+    it('DOWÓD COFKI: bez gałęzi `available` dzień pracujący ogłasza zamknięty gabinet', () => {
+        // Odtworzenie kolejności sprzed poprawki: fully_booked → not_bookable_online → fallback.
+        const naiwny = (ops: Array<{ status: string }>) =>
+            ops.some(o => o.status === 'fully_booked') ? 'zajęte'
+                : ops.some(o => o.status === 'not_bookable_online') ? 'telefon'
+                    : 'Tego dnia gabinet nie przyjmuje.';
+        expect(naiwny([{ status: 'available' }])).toContain('gabinet nie przyjmuje');
+        expect(podsumujDzienOperatorow([{ status: 'available' }])?.tresc)
+            .not.toContain('gabinet nie przyjmuje');
+    });
 });
