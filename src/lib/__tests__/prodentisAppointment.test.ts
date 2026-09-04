@@ -31,31 +31,31 @@ afterEach(() => { vi.restoreAllMocks(); mockFetch.mockReset(); });
 describe('odswiezWizyte', () => {
     it('wizyta istnieje → zwraca ŚWIEŻY stan z PMS', async () => {
         mockFetch.mockResolvedValue(odp(200, WIZYTA));
-        const r = await odswiezWizyte('0100234418', 'klucz');
+        const r = await odswiezWizyte('0100234418');
         expect(r.ok).toBe(true);
         if (r.ok) expect(r.wizyta.startTime).toBe('16:30');
     });
 
     it('404 → identyfikator nieaktualny (wizytę przełożono, powstał nowy rekord)', async () => {
         mockFetch.mockResolvedValue(odp(404, { error: 'Appointment not found' }));
-        expect(await odswiezWizyte('0100234418', 'klucz')).toEqual({ ok: false, powod: 'not_found' });
+        expect(await odswiezWizyte('0100234418')).toEqual({ ok: false, powod: 'not_found' });
     });
 
     it('🔑 wizyta SKREŚLONA wraca ze statusem 200 — samo res.ok nie wystarcza', async () => {
         mockFetch.mockResolvedValue(odp(200, { ...WIZYTA, status: 'cancelled', cancelDate: '2026-05-04' }));
-        const r = await odswiezWizyte('0100216357', 'klucz');
+        const r = await odswiezWizyte('0100216357');
         expect(r.ok).toBe(false);
         if (!r.ok) expect(r.powod).toBe('cancelled');
     });
 
     it('🔴 AWARIA PMS to „nie wiemy", NIE „wizyty nie ma"', async () => {
         mockFetch.mockResolvedValue(odp(502, {}));
-        expect(await odswiezWizyte('0100234418', 'klucz')).toEqual({ ok: false, powod: 'unavailable' });
+        expect(await odswiezWizyte('0100234418')).toEqual({ ok: false, powod: 'unavailable' });
     });
 
     it('🔴 timeout / zerwana sieć też są „nie wiemy"', async () => {
         mockFetch.mockImplementation(async () => { throw new Error('The operation was aborted'); });
-        expect(await odswiezWizyte('0100234418', 'klucz')).toEqual({ ok: false, powod: 'unavailable' });
+        expect(await odswiezWizyte('0100234418')).toEqual({ ok: false, powod: 'unavailable' });
     });
 
     it('brak identyfikatora → „nie wiemy", bez wołania sieci', async () => {
@@ -75,7 +75,7 @@ describe('odswiezWizyte', () => {
 
     it('odpowiedź bez `id` traktujemy jak awarię, nie jak wizytę', async () => {
         mockFetch.mockResolvedValue(odp(200, { cos: 'innego' }));
-        expect(await odswiezWizyte('0100234418', 'klucz')).toEqual({ ok: false, powod: 'unavailable' });
+        expect(await odswiezWizyte('0100234418')).toEqual({ ok: false, powod: 'unavailable' });
     });
 });
 

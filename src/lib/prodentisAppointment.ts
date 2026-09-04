@@ -54,7 +54,6 @@ export type StanWizyty =
  */
 export async function odswiezWizyte(
     prodentisId: string | null | undefined,
-    _apiKey?: string,
 ): Promise<StanWizyty> {
     if (!prodentisId) return { ok: false, powod: 'unavailable' };
 

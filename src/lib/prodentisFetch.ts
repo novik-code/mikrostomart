@@ -91,12 +91,48 @@ export async function prodentisFetch(path: string, options: OpcjePMS = {}): Prom
     // 🔑 Klucz ustawiamy TUTAJ i nigdzie indziej. Wołający nie ma powodu go znać.
     if (apiKey && !bezKlucza) naglowki.set('X-API-Key', apiKey);
 
-    return fetch(`${apiUrl}${path}`, {
+    const odpowiedz = await fetch(`${apiUrl}${path}`, {
         ...reszta,
         headers: naglowki,
         signal: signal ?? AbortSignal.timeout(timeoutMs ?? DOMYSLNY_TIMEOUT_MS),
         cache: 'no-store',
     });
+
+    // 🔴 ODMOWA KLUCZA MA KRZYCZEĆ, BRAK DANYCH MA MILCZEĆ.
+    // Dostawca lada moment wymusi klucz na ODCZYTACH (dziś przechodzą bez niego). Gdyby nasz
+    // klucz okazał się zły albo nieobecny, 85 wywołujących potraktowałoby 401 dokładnie tak samo
+    // jak „PMS nie odpowiada" i — gorzej — jak „nie ma danych": `if (!res.ok) return null`.
+    // Strona kliniki serwowałaby wtedy zaszyte liczby ze statusem 200 i bez jednego błędu w logu.
+    // To ta sama rodzina, która już raz kosztowała nas miesiące ciszy: jeden kod na dwie przyczyny.
+    // Alarm stoi TUTAJ, bo to jedyny punkt wspólny wszystkich wywołań — nie da się go przeoczyć
+    // w nowej trasie, tak jak nie da się przeoczyć wstrzyknięcia klucza.
+    if (odpowiedz.status === 401 || odpowiedz.status === 403) {
+        console.error(
+            `${ZNACZNIK_ODMOWY} PMS odrzucił nasze poświadczenie: ${odpowiedz.status} na ${path}.`
+            + ` Klucz ${apiKey ? `obecny (${apiKey.length} zn.)` : 'NIEOBECNY'};`
+            + ` nagłówek ${bezKlucza ? 'świadomie pominięty' : 'wysłany'}.`
+            + ' To NIE jest brak danych ani awaria sieci — to odmowa uwierzytelnienia.',
+        );
+    }
+
+    return odpowiedz;
+}
+
+/**
+ * Znacznik do grepowania w logach Vercela i do alarmu. Trzymamy go w JEDNYM miejscu,
+ * żeby dało się go szukać bez zgadywania brzmienia komunikatu.
+ */
+export const ZNACZNIK_ODMOWY = '[PMS-ODMOWA-KLUCZA]';
+
+/**
+ * Czy ta odpowiedź to odmowa uwierzytelnienia, a nie brak danych?
+ *
+ * 🔑 Po co osobna funkcja: wołający, który robi `if (!res.ok) return null`, zamienia odmowę
+ * klucza w „nie ma danych". Kto chce się zachować inaczej przy odmowie niż przy pustce,
+ * pyta TĄ funkcją, zamiast rozsiewać po repo magiczne `401`.
+ */
+export function czyOdmowaKlucza(res: Response): boolean {
+    return res.status === 401 || res.status === 403;
 }
 
 /**

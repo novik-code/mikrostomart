@@ -8,7 +8,6 @@ import { recordPushPath } from '@/lib/pushHealth';
 import type { ConfirmAttendanceRequest, AppointmentActionResponse, AppointmentAction } from '@/types/appointmentActions';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
-import { getProdentisKey } from '@/lib/pmsConfig';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 
 const supabase = createClient(
@@ -199,14 +198,13 @@ export async function POST(
         // Add "Pacjent potwierdzony" icon in Prodentis (icon ID 0000000010)
         let iconAdded = false;
         try {
-            const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
             const prodentisAptId = appointmentAction.prodentis_id;
 
             // 🔑 3h: ikonę „Pacjent potwierdzony" wolno postawić TYLKO na wizycie, która realnie
             // stoi w grafiku. Na nieaktualnym identyfikatorze trafiłaby w cudzą wizytę albo
             // w pustkę — a potwierdzenie obecności jest sygnałem dla recepcji, nie ozdobą.
             // 🪤 `unavailable` (awaria łączności) NIE blokuje — wtedy próbujemy jak dotąd.
-            const stanWizyty = await odswiezWizyte(prodentisAptId, PRODENTIS_KEY);
+            const stanWizyty = await odswiezWizyte(prodentisAptId);
             if (!stanWizyty.ok && (stanWizyty.powod === 'not_found' || stanWizyty.powod === 'cancelled')) {
                 console.warn(`[CONFIRM-ATTENDANCE] Pomijam ikonę — wizyta ${prodentisAptId}: ${stanWizyty.powod}`);
             } else if (prodentisAptId) {

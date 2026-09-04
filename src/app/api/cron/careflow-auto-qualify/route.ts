@@ -2,7 +2,6 @@ import { isDemoMode } from '@/lib/demoMode';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { prodentisFetch } from '@/lib/prodentisFetch';
-import { getProdentisKey } from '@/lib/pmsConfig';
 import { warsawIso } from '@/lib/careflowSchedule';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { sendPushToGroups, type PushGroup } from '@/lib/pushService';
@@ -117,7 +116,6 @@ export async function GET(req: Request) {
         // 3. Fetch appointments from Prodentis
         // prodentisFetch = tunel Cloudflare; klucz wstrzykuje sam helper
         // Prodentis odrzuca zapytanie (to dlatego cron nie zapisał nikogo od kwietnia).
-        const prodentisKey = (await getProdentisKey()) ?? '';
         const apiResponse = await prodentisFetch(`/api/appointments/by-date?date=${targetDateStr}`, {
             headers: { 'Content-Type': 'application/json' },
             signal: AbortSignal.timeout(15000),

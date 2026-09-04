@@ -9,7 +9,6 @@ import { sendSMS } from '@/lib/smsService';
 import type { CancelAppointmentRequest, AppointmentActionResponse, AppointmentAction } from '@/types/appointmentActions';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
-import { getProdentisKey } from '@/lib/pmsConfig';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { cancelCareflowForAppointment } from '@/lib/careflowLifecycle';
 
@@ -95,14 +94,13 @@ export async function POST(
         // ── DELETE appointment from Prodentis ──
         let prodentisDeleted = false;
         const prodentisAptId = appointmentAction.prodentis_id;
-        const PRODENTIS_KEY = (await getProdentisKey()) ?? '';
 
         // 🔑 3h: odświeżamy stan PRZED zapisem. Zapamiętany identyfikator bywa nieaktualny —
         // przełożenie wizyty tworzy w Prodentisie NOWY rekord z nowym id, a zmiana lekarza
         // jest robiona w miejscu (28 % naszych rezerwacji stoi u innego lekarza, niż wysłaliśmy).
         // 🪤 `unavailable` znaczy „nie wiemy" i celowo NIE przerywa operacji — awaria łączności
         // nie może udawać, że wizyta zniknęła.
-        const stanWizyty = await odswiezWizyte(prodentisAptId, PRODENTIS_KEY);
+        const stanWizyty = await odswiezWizyte(prodentisAptId);
         if (!stanWizyty.ok && stanWizyty.powod === 'not_found') {
             console.warn(`[CANCEL] prodentis_id ${prodentisAptId} nieaktualny — wizyta przeniesiona lub usunięta`);
             return NextResponse.json(

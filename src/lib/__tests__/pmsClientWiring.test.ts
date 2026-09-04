@@ -70,7 +70,10 @@ describe('okablowanie klienta PMS', () => {
         const winni = bezFundamentu
             .filter(f => !UZASADNIONE_OBEJSCIA.includes(f.wzgl))
             // interesuje nas USTAWIANIE nagłówka, nie wzmianka w komentarzu ani etykieta w UI
-            .filter(f => /['"]X-API-Key['"]\s*[:=]/.test(bezKomentarzy(f.txt)))
+            // 🪤 Wąskie `[:=]` NIE ŁAPAŁO stylu `naglowki.set('X-API-Key', klucz)` — czyli
+            // dokładnie idiomu, którego używa sam helper. Kopiując go do nowej trasy,
+            // regresja przechodziła na zielono. Teraz łapiemy też przecinek i nawias.
+            .filter(f => /['"]X-API-Key['"]\s*[:=,)]/.test(bezKomentarzy(f.txt)))
             .map(f => f.wzgl);
         expect(winni).toEqual([]);
     });
@@ -97,6 +100,39 @@ describe('okablowanie klienta PMS', () => {
         expect(txt).not.toMatch(/apiKey\s*\?\?\s*['"]{2}/);
     });
 
+    it('🔴 nikt nie zaszywa LITERAŁU adresu PMS — to była największa dziura strażnika', () => {
+        // 🪤 Dotąd pilnowaliśmy wyłącznie NAZW zmiennych środowiskowych. Wystarczyło skopiować
+        // z `pmsConfig.ts` sam adres z prawej strony `||` i uprościć — strażnik świecił zielono,
+        // `tsc` też, a żądanie leciało do PMS bez klucza.
+        const winni = bezFundamentu
+            .filter(f => f.wzgl !== CSP_ORIGIN)
+            .filter(f => /pms\.mikrostomartapi\.com/.test(bezKomentarzy(f.txt)))
+            .map(f => f.wzgl);
+        expect(winni).toEqual([]);
+    });
+
+    it('🔴 klucz pobiera się TYLKO tam, gdzie to świadoma decyzja', () => {
+        // Po centralizacji z 04.09 klucz wstrzykuje helper i nikt nie musi go znać. Kilka tras
+        // pobiera go mimo to — ŚWIADOMIE, jako bramkę „nie zaczynaj, jeśli klucza nie ma".
+        // Lista jest zamrożona: nowe wystąpienie ma być decyzją, nie odruchem kopiowania.
+        // 🪤 Ta asercja powstała, bo audyt znalazł SIEDEM tras pobierających klucz, którego
+        // nikt już nie czytał — martwe pozostałości po samej migracji.
+        const SWIADOME_BRAMKI = [
+            'app/api/patients/appointments/[id]/reschedule/route.ts',
+            'app/api/cron/careflow-report/route.ts',
+            'app/api/admin/careflow/report/[id]/route.ts',
+            'app/api/admin/careflow/export-prodentis/[id]/route.ts',
+            'app/api/employee/export-biometric/route.ts',
+            'app/api/consents/sign/route.ts',
+            'app/api/admin/pms-settings/route.ts',
+        ];
+        const winni = bezFundamentu
+            .filter(f => !SWIADOME_BRAMKI.includes(f.wzgl))
+            .filter(f => /getProdentisKey|getPMSConfig|getProdentisUrl/.test(bezKomentarzy(f.txt)))
+            .map(f => f.wzgl);
+        expect(winni).toEqual([]);
+    });
+
     it('DOWÓD COFKI: strażnik ŁAPIE wywołanie omijające helper', () => {
         // Tak wyglądał typowy z tych 59 keyless odczytów przed migracją.
         const regresja = [
@@ -112,5 +148,27 @@ describe('okablowanie klienta PMS', () => {
         // 🔑 Kontrola, że filtr komentarzy NIE oślepia strażnika: adres w zwykłym kodzie
         // musi zostać widoczny, choć zawiera `//`.
         expect(bezKomentarzy("const u = 'https://pms.mikrostomartapi.com';")).toContain('https://');
+    });
+
+    it('DOWÓD COFKI: nowe asercje łapią trzy regresje, które przechodziły na zielono', () => {
+        // Wzorce sprawdzane WYKONANIEM tych samych wyrażeń, których używają asercje wyżej.
+        const naglowek = /['"]X-API-Key['"]\s*[:=,)]/;
+        const host = /pms\.mikrostomartapi\.com/;
+        const klucz = /getProdentisKey|getPMSConfig|getProdentisUrl/;
+
+        // R5 — idiom SAMEGO helpera, skopiowany do obcej trasy. Stary regex go NIE łapał.
+        const r5 = "naglowki.set('X-API-Key', klucz);";
+        expect(/['"]X-API-Key['"]\s*[:=]/.test(r5)).toBe(false);   // tak było
+        expect(naglowek.test(r5)).toBe(true);                       // tak jest
+
+        // R1 — literał adresu bez nazwy zmiennej środowiskowej.
+        const r1 = "const res = await fetch('https://pms.mikrostomartapi.com/api/doctors');";
+        expect(/PRODENTIS_TUNNEL_URL|PRODENTIS_API_URL/.test(r1)).toBe(false);  // tak było
+        expect(host.test(r1)).toBe(true);                                       // tak jest
+
+        // R4 — pobranie konfiguracji i własny fetch na jej podstawie.
+        const r4 = "const { apiUrl } = await getPMSConfig(); await fetch(apiUrl + '/api/doctors');";
+        expect(naglowek.test(r4) || host.test(r4)).toBe(false);  // tak było — nic go nie łapało
+        expect(klucz.test(r4)).toBe(true);                       // tak jest
     });
 });

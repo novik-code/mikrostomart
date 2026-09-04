@@ -55,3 +55,11 @@ jobs:
 
       - name: TypeScript check
         run: npx tsc --noEmit
+
+      # 🔴 Do 2026-09-04 CI NIE URUCHAMIAŁO ANI JEDNEGO TESTU. Repo ma 703 asercje
+      # i kilka strażników okablowania (m.in. `pmsClientWiring` — pilnuje, że klucz do
+      # systemu gabinetowego wstrzykuje się centralnie), ale żaden krok ich nie wołał.
+      # Strażnik, którego nikt nie odpala, nie jest bramką — jest komentarzem, który udaje
+      # ochronę. Każda regresja wjeżdżała na `main` bez czerwonego światła.
+      - name: Testy (bramka wykonania — NIE usuwać)
+        run: npm test

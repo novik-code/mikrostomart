@@ -110,7 +110,7 @@ export async function POST(
         // 🔑 3h — patrz `lib/prodentisAppointment.ts`. Tu jest to najważniejsze z trzech ścieżek:
         // przełożenie wizyty, której identyfikator jest nieaktualny, kończyło się dotąd surowym
         // „Nie udało się przełożyć wizyty. Spróbuj ponownie." — czyli ślepą uliczką w pętli.
-        const stanWizyty = await odswiezWizyte(prodentisAptId, PRODENTIS_KEY);
+        const stanWizyty = await odswiezWizyte(prodentisAptId);
         if (!stanWizyty.ok && stanWizyty.powod === 'not_found') {
             console.warn(`[RESCHEDULE] prodentis_id ${prodentisAptId} nieaktualny`);
             return NextResponse.json(
