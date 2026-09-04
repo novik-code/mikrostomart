@@ -2480,6 +2480,50 @@ NODE_ENV=production
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
 
+### 2026-09-04 (#3) — 🏷️ ZNACZNIK POCHODZENIA PRZY ODWOŁANIU I PRZEŁOŻENIU (punkt 3g)
+
+> Commit **`9b383b6`**. ⏳ **NIEWYPCHNIĘTY.** Bramki: `tsc` · `vitest` **631/631** (58 plików, +7) · `next build` OK.
+
+#### Po co to w ogóle
+Kod skreślenia **`106` okazał się NATYWNYM kodem Prodentisa** — personel użył go ~15 tys. razy —
+więc **nie da się z niego wnioskować, kto odwołał wizytę**. Dostawca PMS wycofał swoją wcześniejszą
+atrybucję („106 = ścieżka pacjenta") po naszych pomiarach: 11 odwołań w całej historii, **zero
+przełożeń**, żadne z badanych sześciu. Jedynym działającym znacznikiem pochodzenia okazało się
+pole `skreslenie_notatka`, do którego trafia `reason` z naszego żądania.
+
+#### Format (uzgodniony) i dlaczego taki
+```
+portal:cancel — pacjent odwołał przez portal
+portal:reschedule — pacjent przełożył przez portal
+```
+🔑 **Prefiks maszynowy + półpauza + opis dla człowieka.** To pole **recepcja widzi
+w Prodentisie** przy skreślonej wizycie: sam prefiks byłby dla pracownika nieczytelny, a sam
+polski opis zmuszałby PMS do dopasowywania po treści — czyli do tego, przed czym obie strony
+ostrzegały się przy kodach błędów. Powód wpisany przez pacjenta dopisujemy po dwukropku
+(spłaszczone białe znaki, przycięte do 160 znaków); prefiks zostaje nietknięty.
+🔑 **Wysyłamy go ZAWSZE**, także gdy pacjent nic nie napisał — inaczej znacznik znikałby
+dokładnie tam, gdzie jest najbardziej potrzebny.
+
+#### ⚪ Czego NIE zaimplementowałem i dlaczego — sprostowanie własnej deklaracji
+Uzgodniona była też trzecia wartość **`portal:gdpr_erasure`**, którą sam zaproponowałem w piśmie
+(PMS uznał ją za dobry pomysł). **Nie ma dla niej producenta.** Usunięcie konta na żądanie RODO
+jest u nas **MIĘKKIE**: anonimizacja PII, `sessions_valid_from`, rewokacja tokenów push,
+skasowanie załączników z czatu — **i nie odwołuje przyszłych wizyt**. Deklaracja była błędna;
+prostuję ją w piśmie do PMS. 🪤 To ta sama klasa pomyłki, którą popełniłem przy cronie
+przypomnień: **opisałem zamiar zamiast sprawdzić kod.**
+⚪ Zachowanie uważam za poprawne — usunięcie konta w portalu to nie rezygnacja z leczenia.
+
+#### Dowód
+7 asercji z **dowiedzioną cofką** (powrót do samego polskiego opisu wywala trzy pierwsze —
+znika prefiks, po którym PMS filtruje). Wywołania `DELETE` na produkcji świadomie **nie robiłem** —
+odwołałoby prawdziwą wizytę; zamiast tego zmierzone są dokładne łańcuchy wychodzące z funkcji.
+
+#### Pliki
+- `src/lib/portalReason.ts` (nowy) + `src/lib/__tests__/portalReason.test.ts`
+- `src/app/api/patients/appointments/[id]/cancel/route.ts`, `.../reschedule/route.ts`
+
+---
+
 ### 2026-09-04 (#2) — 🤖 ASYSTENT AI: TERMINY W MAILACH DO PACJENTA NIGDY NIE DZIAŁAŁY (punkt 3a)
 
 > Commit **`4dc5d93`**. ⏳ **NIEWYPCHNIĘTY.** Bramki: `tsc` · `vitest` **624/624** (57 plików, +11) · `next build` OK.
