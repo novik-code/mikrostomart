@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 import { isDemoMode } from '@/lib/demoMode';
 import { zbudujZapytanieSlotow } from '@/lib/slotsQuery';
-import { prodentisFetch } from '@/lib/prodentisFetch';
+import { prodentisFetch, pmsError } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic'; // Always fetch fresh data
 
@@ -60,8 +60,17 @@ export async function GET(request: Request) {
         });
 
         if (!response.ok) {
-            console.error(`Prodentis API Error: ${response.status} ${response.statusText}`);
-            return NextResponse.json({ error: `Prodentis API Error: ${response.status}` }, { status: response.status });
+            // 🔑 Kod błędu z PMS przepuszczamy W NIEZMIENIONEJ POSTACI. Dostawca uzgodnił z nami
+            // taksonomię (`DATE_OUT_OF_RANGE`, `DOCTOR_NOT_FOUND`, `MISSING_DURATION`,
+            // `DAYS_OUT_OF_RANGE`…) i prosił, żebyśmy rozpoznawali po polu `error`, nie po treści.
+            // Do 2026-09-04 kasowaliśmy tu ciało odpowiedzi i podmienialiśmy je na własny napis —
+            // przez co ta taksonomia NIE MIAŁA JAK do nas dojechać, choć obie strony ją uzgodniły.
+            const zPms = await pmsError(response);
+            console.error(`Prodentis API Error: ${response.status} ${response.statusText} (${zPms.error ?? 'bez kodu'})`);
+            return NextResponse.json(
+                { error: zPms.error ?? `Prodentis API Error: ${response.status}`, message: zPms.message ?? undefined },
+                { status: response.status },
+            );
         }
 
         const data = await response.json();

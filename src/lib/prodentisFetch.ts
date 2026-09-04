@@ -30,9 +30,24 @@
  */
 
 import { getPMSConfig } from './pmsConfig';
+import { isDemoMode } from './demoMode';
 
 /** Domyślny limit czasu. Krótszy niż limit funkcji na Vercelu, żeby zdążyć oddać własny błąd. */
 const DOMYSLNY_TIMEOUT_MS = 8000;
+
+/**
+ * Rzucane w trybie demo. 🔴 Zmierzone 2026-09-04: **42 z 59 plików** wołających Prodentisa
+ * nie miało żadnej bramki demo, więc podglądy Vercela i wdrożenie demonstracyjne uderzały
+ * w PRODUKCYJNY PMS produkcyjnym kluczem — czyli nasze testy dotykały żywego grafiku gabinetu.
+ * 🔑 Bramka stoi TUTAJ, bo po migracji jest to jedyne wyjście do PMS: jedno miejsce zamyka
+ * wszystkie 42 naraz, zamiast 42 osobnych warunków, z których któryś i tak by wypadł.
+ */
+export class TrybDemoBezPMS extends Error {
+    constructor(path: string) {
+        super(`Tryb demo: żądanie do PMS (${path}) zostało zablokowane. Demo nie rozmawia z produkcyjnym Prodentisem.`);
+        this.name = 'TrybDemoBezPMS';
+    }
+}
 
 /** Rzucane, gdy nie mamy czym się uwierzytelnić. Wołający ma to zamienić na 500, nie na pustkę. */
 export class BrakKluczaPMS extends Error {
@@ -64,6 +79,8 @@ export interface OpcjePMS extends Omit<RequestInit, 'signal'> {
  * @param path ścieżka zaczynająca się od `/`, np. `/api/doctors`
  */
 export async function prodentisFetch(path: string, options: OpcjePMS = {}): Promise<Response> {
+    if (isDemoMode) throw new TrybDemoBezPMS(path);
+
     const { timeoutMs, signal, bezKlucza, headers, ...reszta } = options;
     const { apiUrl, apiKey } = await getPMSConfig();
 
