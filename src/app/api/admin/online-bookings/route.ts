@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { czasWizyty } from '@/lib/bookingDuration';
+import { typUslugiDlaPms } from '@/lib/typUslugiPms';
 import { getDoctorInfo } from '@/lib/doctorMapping';
 import { requireAdmin } from '@/lib/authGuards';
 import { decideBookingNotification } from '@/lib/onlineBookingNotify';
@@ -32,6 +33,11 @@ interface OnlineBookingRow {
     doctor_prodentis_id?: string | null;
     appointment_date?: string | null;
     appointment_time?: string | null;
+    /**
+     * Rodzaj usługi wybrany przez pacjenta — ETYKIETA w jego języku, nie identyfikator.
+     * Mapowana na pole `type` PMS przez `lib/typUslugiPms.ts` (punkt 3d).
+     */
+    service_type?: string | null;
     /**
      * 🪤 Kolumny `duration` w `online_bookings` NIE MA (zmierzone: PostgREST oddaje 42703).
      * Pole zostaje w typie tylko dlatego, że kiedyś może powstać — czas bierzemy z `employees`
@@ -132,8 +138,15 @@ async function scheduleWithIds(doctorId: string, patientId: string | null | unde
     // 🔴 Do 2026-09-04 stało tu `booking.duration || 30`, a `duration` NIE ISTNIEJE w tabeli —
     // więc do grafiku szło 30 minut ZAWSZE, także na higienizację, która trwa 60.
     const { minuty: minutyWizyty, zrodlo: zrodloCzasu } = await czasWizyty(supabase, booking);
+
+    // 🔑 Punkt 3d: rodzaj wizyty wybrany przez PACJENTA trafia do grafiku gabinetu.
+    // Dostawca przysłał wartości 05.09; mapę i jej granice opisuje `lib/typUslugiPms.ts`.
+    // 🪤 `undefined` znaczy „nie wiemy" i wtedy pola NIE WYSYŁAMY — wizyta dostaje typ domyślny
+    // gabinetu, czyli dokładnie to, co działo się przed 3d. Zgadywanie byłoby gorsze od pustki.
+    const typWizyty = typUslugiDlaPms(booking.service_type);
     console.log(
-        `[OnlineBookings] Czas wizyty ${minutyWizyty} min (źródło: ${zrodloCzasu}) ` +
+        `[OnlineBookings] Czas wizyty ${minutyWizyty} min (źródło: ${zrodloCzasu}), `
+            + `typ: ${typWizyty ?? 'BRAK (usługa „' + (booking.service_type ?? '—') + '\u201D bez odpowiednika w PMS)'} ` +
             `dla specjalisty ${booking.doctor_prodentis_id || booking.specialist_id || '?'}`,
     );
 
@@ -146,6 +159,8 @@ async function scheduleWithIds(doctorId: string, patientId: string | null | unde
                 date: booking.appointment_date,
                 startTime: booking.appointment_time?.slice(0, 5) || booking.appointment_time,
                 duration: minutyWizyty,
+                // Pole opcjonalne: doklejamy WYŁĄCZNIE gdy mamy pewne odwzorowanie.
+                ...(typWizyty ? { type: typWizyty } : {}),
                 description: booking.description ? `Rezerwacja online — ${booking.description}` : 'Rezerwacja online',
                 source: 'online_booking',
                 labels: ['ONLINE'],

@@ -28,13 +28,16 @@ const FALLBACK_SPECIALISTS: Specialist[] = [
 ];
 
 // Service IDs per role (labels resolved via t())
+// 🔴 DECYZJA GABINETU (2026-09-05): implanty, ortodoncja i licówki NIE SĄ usługami do zapisu
+// online — wymagają rozmowy i wyceny przed ustaleniem terminu. To, że stały w formularzu,
+// było błędem; potwierdzają to liczby: przez pół roku wybrano je łącznie 3 razy
+// (implanty 2, ortodoncja 1, licówki 0) wobec 61 konsultacji.
+// ⚪ Ich etykiety zostają w tłumaczeniach i w mapie `lib/typUslugiPms.ts`, bo historyczne
+//    rezerwacje nadal je niosą — usuwamy wybór, nie pamięć o nim.
 const SERVICE_IDS = {
     doctor: [
         { id: "konsultacja" },
         { id: "bol" },
-        { id: "implanty" },
-        { id: "licowki" },
-        { id: "ortodoncja" },
     ],
     hygienist: [
         { id: "higienizacja" },
