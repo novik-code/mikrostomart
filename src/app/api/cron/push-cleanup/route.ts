@@ -1,6 +1,7 @@
 import { isDemoMode } from '@/lib/demoMode';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,9 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // 🔑 Bez uderzenia serca rejestr zdrowia nie odróżnia „cron zadziałał i nie miał co robić"
+    // od „cron nie ruszył". Ten chodził od marca i przez pół roku raportował się jako MILCZĄCY.
+    const t0 = Date.now();
     const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const { error, count } = await supabase
@@ -35,9 +39,11 @@ export async function GET(req: NextRequest) {
 
     if (error) {
         console.error('[PushCleanup] Error:', error);
+        await logCronHeartbeat('push-cleanup', 'error', error.message?.slice(0, 200), Date.now() - t0);
         return NextResponse.json({ error: 'Cleanup failed', detail: error.message }, { status: 500 });
     }
 
     console.log(`[PushCleanup] Deleted ${count} notifications older than ${cutoff}`);
+    await logCronHeartbeat('push-cleanup', 'ok', `usunięto ${count ?? 0} wpisów starszych niż 7 dni`, Date.now() - t0);
     return NextResponse.json({ deleted: count });
 }

@@ -6,6 +6,7 @@ import { sendTelegramNotification } from '@/lib/telegram';
 import { isSmsTypeEnabled } from '@/lib/smsSettings';
 import { demoSanitize, brand } from '@/lib/brandConfig';
 import { prodentisFetch } from '@/lib/prodentisFetch';
+import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -31,6 +32,9 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ skipped: 'demo mode' });
     }
 
+    // 🔑 Uderzenie serca: bez niego rejestr zdrowia nie odróżnia „cron zadziałał i nie miał
+    // co robić" od „cron nie ruszył". Ta ścieżka nie meldowała się ANI RAZU od marca.
+    const t0 = Date.now();
     try {
         // Verify cron secret (Vercel sends this automatically)
         const authHeader = req.headers.get('authorization');
@@ -195,6 +199,7 @@ export async function GET(req: NextRequest) {
         }
 
         console.log(`[Birthday] Done: ${smsSent} sent, ${smsErrors} errors`);
+        await logCronHeartbeat('birthday-wishes', 'ok', `wysłano ${smsSent}, błędów ${smsErrors}`, Date.now() - t0);
 
         return NextResponse.json({
             success: true,
@@ -206,6 +211,7 @@ export async function GET(req: NextRequest) {
 
     } catch (err: any) {
         console.error('[Birthday] Error:', err);
+        await logCronHeartbeat('birthday-wishes', 'error', err?.message?.slice(0, 200), Date.now() - t0);
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }

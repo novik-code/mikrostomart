@@ -9,6 +9,7 @@ import { isSmsTypeEnabled } from '@/lib/smsSettings';
 import { demoSanitize, brand } from '@/lib/brandConfig';
 import { requireAdmin } from '@/lib/authGuards';
 import { prodentisFetch } from '@/lib/prodentisFetch';
+import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 
 export const maxDuration = 120;
 
@@ -106,6 +107,9 @@ export async function GET(req: Request) {
     let skippedCount = 0;
     const skippedDetails: Array<{ name: string; doctor: string; time: string; reason: string }> = [];
 
+    // 🔑 Uderzenie serca: bez niego rejestr zdrowia nie odróżnia „cron zadziałał i nie miał
+    // co robić" od „cron nie ruszył". Ta ścieżka nie meldowała się ANI RAZU od marca.
+    const t0 = Date.now();
     try {
         const targetDate = overrideDate
             ? new Date(overrideDate)
@@ -316,6 +320,7 @@ export async function GET(req: Request) {
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         console.log(`📊 Done: drafts=${draftsCreated} skipped=${skippedCount} dbErrors=${skippedDetails.filter(s => s.reason.startsWith('BLAD')).length} (${duration}s)`);
 
+        await logCronHeartbeat('week-after-visit-sms', 'ok', `wersji roboczych ${draftsCreated}, pominiętych ${skippedCount}`, Date.now() - t0);
         return NextResponse.json({
             success: true,
             targetDate: targetDateStr,
@@ -328,6 +333,7 @@ export async function GET(req: Request) {
 
     } catch (error: any) {
         console.error('💥 [Week-After-Visit SMS] Fatal error:', error.message);
+        await logCronHeartbeat('week-after-visit-sms', 'error', error?.message?.slice(0, 200), Date.now() - t0);
         return NextResponse.json({ success: false, error: error.message, draftsCreated }, { status: 500 });
     }
 }

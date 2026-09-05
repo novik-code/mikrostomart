@@ -4,6 +4,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { pushToPatientAll } from '@/lib/pushService';
 import { getPushTranslation } from '@/lib/pushTranslations';
 import { prodentisFetch } from '@/lib/prodentisFetch';
+import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -44,6 +45,9 @@ export async function GET(req: Request) {
 
     let sent = 0;
     let skipped = 0;
+    // 🔑 Cisza tej ścieżki znaczyła dotąd „nie wiemy", bo nigdy się nie meldowała —
+    // rejestr zdrowia pokazywał ją jako milczącą od marca, mimo że cron chodził.
+    const t0 = Date.now();
 
     try {
         // Calculate time window: 45 min to 75 min from now
@@ -159,6 +163,7 @@ export async function GET(req: Request) {
         }
 
         console.log(`⏰ [Push 1h] Done: ${sent} sent, ${skipped} skipped`);
+        await logCronHeartbeat('push-appointment-1h', 'ok', `wysłano ${sent}, pominięto ${skipped}`, Date.now() - t0);
 
         return NextResponse.json({
             success: true,
@@ -168,6 +173,7 @@ export async function GET(req: Request) {
 
     } catch (error: any) {
         console.error('⏰ [Push 1h] Error:', error);
+        await logCronHeartbeat('push-appointment-1h', 'error', (error as Error).message?.slice(0, 200), Date.now() - t0);
         return NextResponse.json({
             success: false,
             error: 'Appointment push cron failed',

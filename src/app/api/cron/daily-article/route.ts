@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { getAICompletion } from '@/lib/unifiedAI';
 import { brand } from '@/lib/brandConfig';
+import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 
 // Silnik treści Klasy A (GEO 2026-06-15) — przebudowa „młynka".
 // ZMIANA vs poprzednia wersja (produkowała clickbait):
@@ -119,6 +120,11 @@ export async function GET(req: Request) {
     const { readable, writable } = new TransformStream();
     const writer = writable.getWriter();
 
+    // 🪤 Ten cron oddaje STRUMIEŃ, a robotę wykonuje w oderwanej funkcji — odpowiedź wraca
+    // zanim praca się skończy. Uderzenie serca musi więc siedzieć W ŚRODKU, nie przy `return`,
+    // inaczej rejestr notowałby sukces w chwili otwarcia strumienia, cokolwiek by się potem stało.
+    const t0 = Date.now();
+
     (async () => {
         try {
             await send(writer, "START: Silnik treści — szukam tematu w kolejce...");
@@ -201,8 +207,10 @@ export async function GET(req: Request) {
 
             await send(writer, `SUCCESS: ${JSON.stringify({ title: articleData.title, slug: articleData.slug, status: 'draft', selfCritiqueScore: critique.score })}`);
             await send(writer, "INFO: Draft czeka na zatwierdzenie w panelu admin → Artykuły.");
+            await logCronHeartbeat('daily-article', 'ok', `wersja robocza: ${articleData.slug}`, Date.now() - t0);
         } catch (e: any) {
             console.error('[daily-article]', e);
+            await logCronHeartbeat('daily-article', 'error', e?.message?.slice(0, 200), Date.now() - t0);
             await send(writer, `ERROR: ${e.message}`);
         } finally {
             await writer.close();

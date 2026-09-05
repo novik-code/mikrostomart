@@ -4,6 +4,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { pushToPatientAll } from '@/lib/pushService';
 import { recordPushPath } from '@/lib/pushHealth';
 import { sendSMS, toGSM7 } from '@/lib/smsService';
+import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 
 export const dynamic = 'force-dynamic';
 /**
@@ -219,6 +220,10 @@ export async function GET(req: Request) {
         // Quiet hours guard — patrz PUSH_QUIET_START / PUSH_QUIET_END.
         if (currentHourWarsaw >= PUSH_QUIET_START || currentHourWarsaw < PUSH_QUIET_END) {
             console.log(`🏥 [CareFlow Push] Quiet hours (Warsaw: ${currentHourWarsaw}:00) — skipping all`);
+            // 🪤 Cisza nocna to POPRAWNY przebieg, nie brak przebiegu. Bez meldunku ta gałąź
+            // wygląda w rejestrze identycznie jak cron, który nie ruszył — a chodzi co 5 minut,
+            // więc nocą to ONA jest wynikiem prawie każdego wywołania.
+            await logCronHeartbeat('careflow-push', 'ok', `cisza nocna (${currentHourWarsaw}:00) — nic nie wysyłamy`, Date.now() - startedAt);
             return NextResponse.json({ success: true, skipped: 'quiet_hours' }, { headers: NO_STORE });
         }
 
@@ -465,6 +470,17 @@ export async function GET(req: Request) {
         }
 
         console.log(`🏥 [CareFlow Push] Done: push=${pushSent}, sms=${smsSent}, skipped=${skipped}, muted=${muted}, expired=${expired}, silent-overrides=${silentOverrides}, auto-completed=${autoCompleted}`);
+        // 🔑 „Przebieg się udał" NIE ZNACZY „objął wszystko". Te same sygnały, które trasa
+        // oddaje w ciele, muszą dojechać do rejestru — inaczej urwany przebieg zapisuje się
+        // jako zdrowy, a część wymagalnych dawek nie wyszła. Stąd `warn`, nie `ok`.
+        const niepelny = windowTruncated || budgetExceeded || autoCompleteScanTruncated || autoCompleteEnrollmentsTruncated;
+        await logCronHeartbeat(
+            'careflow-push',
+            niepelny ? 'warn' : 'ok',
+            `push=${pushSent}, sms=${smsSent}, pominięte=${skipped}`
+                + (niepelny ? ' — PRZEBIEG NIEPEŁNY (limit okna/budżetu)' : ''),
+            Date.now() - startedAt,
+        );
         return NextResponse.json(
             {
                 success: true,
@@ -485,6 +501,7 @@ export async function GET(req: Request) {
         );
     } catch (err) {
         console.error('🏥 [CareFlow Push] Error:', err);
+        await logCronHeartbeat('careflow-push', 'error', (err as Error)?.message?.slice(0, 200), Date.now() - startedAt);
         return NextResponse.json(
             { success: false, error: 'CareFlow push cron failed' },
             { status: 500, headers: NO_STORE }

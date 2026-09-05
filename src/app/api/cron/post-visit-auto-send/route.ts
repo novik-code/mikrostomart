@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
 import { requireAdmin } from '@/lib/authGuards';
+import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 
 export const maxDuration = 120;
 
@@ -50,6 +51,9 @@ export async function GET(req: Request) {
     let skippedCount = 0;
     const errors: Array<{ id: string; patient: string; error: string }> = [];
 
+    // 🔑 Uderzenie serca: bez niego rejestr zdrowia nie odróżnia „cron zadziałał i nie miał
+    // co robić" od „cron nie ruszył". Ta ścieżka nie meldowała się ANI RAZU od marca.
+    const t0 = Date.now();
     try {
         // Safety window: only send drafts created in the last 3 hours
         const windowStart = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
@@ -121,6 +125,7 @@ export async function GET(req: Request) {
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         console.log(`📊 Done in ${duration}s — sent:${sentCount} failed:${failedCount} skipped:${skippedCount}`);
+        await logCronHeartbeat('post-visit-auto-send', 'ok', `wysłano ${sentCount}, nieudanych ${failedCount}, pominiętych ${skippedCount}`, Date.now() - t0);
 
         return NextResponse.json({
             success: true,
@@ -133,6 +138,7 @@ export async function GET(req: Request) {
 
     } catch (error: any) {
         console.error('💥 [Post-Visit Auto-Send] Fatal error:', error.message);
+        await logCronHeartbeat('post-visit-auto-send', 'error', error?.message?.slice(0, 200), Date.now() - t0);
         return NextResponse.json({ success: false, error: error.message, sent: sentCount, failed: failedCount }, { status: 500 });
     }
 }

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { demoSanitize } from '@/lib/brandConfig';
+import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,6 +25,9 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // 🔑 Uderzenie serca: bez niego rejestr zdrowia nie odróżnia „cron zadziałał i nie miał
+    // co robić" od „cron nie ruszył". Ta ścieżka nie meldowała się ANI RAZU od marca.
+    const t0 = Date.now();
     try {
         const supabase = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -94,9 +98,11 @@ export async function GET(request: NextRequest) {
                 .in('id', ids);
         }
 
+        await logCronHeartbeat('online-booking-digest', 'ok', `wysłano: ${sent}, rezerwacji: ${bookings.length}`, Date.now() - t0);
         return NextResponse.json({ sent, count: bookings.length });
     } catch (err: any) {
         console.error('[Digest] Error:', err);
+        await logCronHeartbeat('online-booking-digest', 'error', err?.message?.slice(0, 200), Date.now() - t0);
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
