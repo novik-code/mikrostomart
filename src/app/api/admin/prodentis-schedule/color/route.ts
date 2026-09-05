@@ -22,6 +22,7 @@ export async function PUT(request: Request) {
         }
 
         const res = await prodentisFetch(`/api/schedule/appointment/${appointmentId}/color`, {
+            klucz: 'personel',
             method: 'PUT',
             body: JSON.stringify({ colorId }),
             timeoutMs: 10000,

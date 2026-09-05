@@ -42,7 +42,7 @@ export async function POST(request: Request) {
         // Get firstName for email
         let firstName = 'Pacjencie';
         try {
-            const res = await prodentisFetch(`/api/patient/${patient.prodentis_id}/details`);
+            const res = await prodentisFetch(`/api/patient/${patient.prodentis_id}/details`, { klucz: 'personel' });
             if (res.ok) {
                 const details = await res.json();
                 firstName = details.firstName || 'Pacjencie';

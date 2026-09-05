@@ -34,7 +34,7 @@ export async function GET(req: Request) {
 
     try {
         // Fetch patient's full appointment history from Prodentis
-        const response = await prodentisFetch(`/api/patient/${patientId}/appointments?limit=100`);
+        const response = await prodentisFetch(`/api/patient/${patientId}/appointments?limit=100`, { klucz: 'personel' });
 
         if (!response.ok) {
             console.error(`[PatientAppointments] Prodentis API error: ${response.status}`);

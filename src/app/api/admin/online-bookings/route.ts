@@ -110,7 +110,7 @@ async function scheduleInProdentis(booking: OnlineBookingRow): Promise<{ success
  */
 async function findExistingAppointment(patientId: string, booking: OnlineBookingRow): Promise<string | null> {
     try {
-        const res = await prodentisFetch(`/api/patient/${patientId}/future-appointments?days=180`);
+        const res = await prodentisFetch(`/api/patient/${patientId}/future-appointments?days=180`, { klucz: 'personel' });
         if (!res.ok) return null;
         const data = await res.json();
         const wantDate = String(booking.appointment_date).slice(0, 10); // YYYY-MM-DD
@@ -152,6 +152,7 @@ async function scheduleWithIds(doctorId: string, patientId: string | null | unde
 
     try {
         const res = await prodentisFetch('/api/schedule/appointment', {
+            klucz: 'personel',
             method: 'POST',
             body: JSON.stringify({
                 doctorId,

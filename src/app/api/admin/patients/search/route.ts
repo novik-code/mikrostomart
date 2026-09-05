@@ -29,7 +29,8 @@ export async function GET(request: Request) {
 
         console.log(`[Patient Search] Querying Prodentis: ${sciezka}`);
 
-        const res = await prodentisFetch(sciezka, { timeoutMs: 5000 });
+        const res = await prodentisFetch(sciezka, {
+            klucz: 'personel', timeoutMs: 5000 });
 
         if (!res.ok) {
             const errorText = await res.text();

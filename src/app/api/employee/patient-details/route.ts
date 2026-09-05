@@ -28,7 +28,7 @@ export async function GET(request: Request) {
     }
 
     try {
-        const res = await prodentisFetch(`/api/patient/${patientId}/details`);
+        const res = await prodentisFetch(`/api/patient/${patientId}/details`, { klucz: 'personel' });
 
         if (!res.ok) {
             return NextResponse.json(

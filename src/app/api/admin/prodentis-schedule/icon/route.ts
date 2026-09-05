@@ -22,6 +22,7 @@ export async function POST(request: Request) {
         }
 
         const res = await prodentisFetch(`/api/schedule/appointment/${appointmentId}/icon`, {
+            klucz: 'personel',
             method: 'POST',
             body: JSON.stringify({ iconId }),
             timeoutMs: 10000,

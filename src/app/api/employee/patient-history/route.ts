@@ -41,7 +41,7 @@ export async function GET(req: Request) {
         const sciezka = `/api/patient/${patientId}/appointments?limit=${limit}`;
         console.log(`[PatientHistory] Fetching from: ${sciezka}`);
 
-        const response = await prodentisFetch(sciezka);
+        const response = await prodentisFetch(sciezka, { klucz: 'personel' });
 
         if (!response.ok) {
             console.error(`[PatientHistory] Prodentis API error: ${response.status}`);

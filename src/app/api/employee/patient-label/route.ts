@@ -114,6 +114,7 @@ function auditableIds(userId: string, ids: string[]): string[] {
  */
 async function fetchLabel(prodentisId: string): Promise<PatientLabel | null> {
     const res = await prodentisFetch(`/api/patient/${encodeURIComponent(prodentisId)}/details`, {
+            klucz: 'personel',
         headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
     });

@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { prodentisFetch } from '@/lib/prodentisFetch';
+import { getPMSConfig } from '@/lib/pmsConfig';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,9 +59,15 @@ export async function GET(req: NextRequest) {
     const prodentisStart = Date.now();
     try {
         const resp = await prodentisFetch('/api/doctors');
+        // 🔑 Widoczny stan rozdziału kluczy. Bez tego „mamy dwa klucze" jest twierdzeniem,
+        // którego nie da się sprawdzić inaczej niż czytaniem bazy — a to zły miernik.
+        const kfg = await getPMSConfig();
         checks.prodentis = {
             status: resp.ok ? 'ok' : 'error',
             http_status: resp.status,
+            klucze: kfg.apiKeyStaff
+                ? 'rozdzielone (pacjent + personel)'
+                : 'jeden wspólny — drugi klucz jeszcze nie wpisany',
             latency_ms: Date.now() - prodentisStart,
         };
         if (!resp.ok && overallStatus === 'healthy') overallStatus = 'degraded';

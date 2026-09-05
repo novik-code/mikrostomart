@@ -125,10 +125,33 @@ describe('okablowanie klienta PMS', () => {
             'app/api/employee/export-biometric/route.ts',
             'app/api/consents/sign/route.ts',
             'app/api/admin/pms-settings/route.ts',
+            // ⚪ Health NIE UŻYWA klucza — tylko RAPORTUJE, czy drugi jest wpisany.
+            //    Bez tego „mamy dwa klucze" byłoby twierdzeniem sprawdzalnym wyłącznie
+            //    przez czytanie bazy, a to zły miernik.
+            'app/api/health/route.ts',
         ];
         const winni = bezFundamentu
             .filter(f => !SWIADOME_BRAMKI.includes(f.wzgl))
             .filter(f => /getProdentisKey|getPMSConfig|getProdentisUrl/.test(bezKomentarzy(f.txt)))
+            .map(f => f.wzgl);
+        expect(winni).toEqual([]);
+    });
+
+    it('🔴 operacje PERSONELU idą kluczem personelu, nie pacjenckim', () => {
+        // 🔑 Sens dwóch kluczy to NIEZALEŻNE UNIEWAŻNIENIE: wyciek klucza recepcji nie może
+        // kłaść Strefy Pacjenta i odwrotnie. Rozdział jest wart tyle, ile jego kompletność —
+        // jedno przeoczone wywołanie w panelu admina i cały podział staje się pozorny.
+        // 🪤 Dopóki gabinet nie wpisze drugiego klucza, `personel` dostaje pacjencki, czyli
+        // zachowanie sprzed zmiany. Ta asercja pilnuje OKABLOWANIA, nie obecności wartości.
+        const winni = bezFundamentu
+            .filter(f => f.wzgl.startsWith('app/api/admin/') || f.wzgl.startsWith('app/api/employee/'))
+            .filter(f => /prodentisFetch\(/.test(bezKomentarzy(f.txt)))
+            .filter(f => {
+                const kod = bezKomentarzy(f.txt);
+                const wywolan = (kod.match(/prodentisFetch\(/g) || []).length;
+                const oznaczen = (kod.match(/klucz:\s*'personel'/g) || []).length;
+                return oznaczen < wywolan;
+            })
             .map(f => f.wzgl);
         expect(winni).toEqual([]);
     });

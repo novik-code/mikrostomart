@@ -115,7 +115,7 @@ export async function GET(req: Request) {
         const dayName = POLISH_DAYS[date.getDay()];
 
         try {
-            const response = await prodentisFetch(`/api/appointments/by-date?date=${dateStr}`);
+            const response = await prodentisFetch(`/api/appointments/by-date?date=${dateStr}`, { klucz: 'personel' });
 
             if (!response.ok) {
                 console.error(`[Schedule] Failed to fetch ${dateStr}: ${response.status}`);

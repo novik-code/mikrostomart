@@ -33,7 +33,8 @@ export async function GET(request: Request) {
             (patients || []).map(async (patient) => {
                 try {
                     const detailsRes = await prodentisFetch(
-                        `/api/patient/${patient.prodentis_id}/details`, { timeoutMs: 3000 });
+                        `/api/patient/${patient.prodentis_id}/details`, {
+            klucz: 'personel', timeoutMs: 3000 });
 
                     if (detailsRes.ok) {
                         const details = await detailsRes.json();

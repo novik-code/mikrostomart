@@ -27,6 +27,17 @@ export interface PMSConfig {
     provider: string;
     apiUrl: string;
     apiKey: string | null;
+    /**
+     * Drugi klucz — dla operacji PERSONELU (recepcja, panel admina).
+     * 🔑 Po co dwa: przy jednym poświadczeniu dostawca nie odróżnia żądania pacjenta od pracy
+     * recepcji, a ~20 % wizyt jest świadomie wpisywanych poza godzinami i nie wolno tego
+     * zablokować. Dziś oba klucze przechodzą u nich TĘ SAMĄ walidację (sami sprostowali, że
+     * reguły rozróżniające są u nich martwym kodem) — realną wartością jest więc NIEZALEŻNE
+     * UNIEWAŻNIENIE: wyciek klucza personelu nie rusza Strefy Pacjenta i odwrotnie.
+     * 🪤 `null` = drugiego klucza jeszcze nie ma. Wtedy ruch personelu idzie kluczem pacjenckim,
+     * czyli DOKŁADNIE tak jak dotąd — mechanizm wchodzi bez czekania na wartość.
+     */
+    apiKeyStaff: string | null;
     source: PMSSource;
     updatedAt: string | null;
     updatedBy: string | null;
@@ -41,6 +52,7 @@ function envFallback(): PMSConfig {
         provider: process.env.NEXT_PUBLIC_PMS_PROVIDER || "prodentis",
         apiUrl: process.env.PRODENTIS_TUNNEL_URL || "https://pms.mikrostomartapi.com",
         apiKey: envKey,
+        apiKeyStaff: process.env.PRODENTIS_API_KEY_STAFF || null,
         source: envKey ? "env" : "none",
         updatedAt: null,
         updatedBy: null,
@@ -65,12 +77,15 @@ export async function getPMSConfig(): Promise<PMSConfig> {
             .maybeSingle();
 
         if (!error && data?.value) {
-            const saved = data.value as Partial<PMSConfig> & { apiKey?: string };
+            const saved = data.value as Partial<PMSConfig> & { apiKey?: string; apiKeyStaff?: string };
             const dbKey = typeof saved.apiKey === "string" && saved.apiKey.length > 0 ? saved.apiKey : null;
+            const dbKeyStaff =
+                typeof saved.apiKeyStaff === "string" && saved.apiKeyStaff.length > 0 ? saved.apiKeyStaff : null;
             config = {
                 provider: saved.provider || config.provider,
                 apiUrl: saved.apiUrl || config.apiUrl,
                 apiKey: dbKey || config.apiKey,
+                apiKeyStaff: dbKeyStaff || config.apiKeyStaff,
                 source: dbKey ? "db" : config.source,
                 updatedAt: saved.updatedAt || null,
                 updatedBy: saved.updatedBy || null,
@@ -86,6 +101,16 @@ export async function getPMSConfig(): Promise<PMSConfig> {
 
 export async function getProdentisKey(): Promise<string | null> {
     return (await getPMSConfig()).apiKey;
+}
+
+/**
+ * Klucz dla operacji PERSONELU — z jawnym zejściem na klucz pacjencki, gdy drugiego nie ma.
+ * 🪤 Zejście jest CICHE z premedytacją: hałas przy każdym żądaniu recepcji zalałby logi,
+ * a stan „jeden klucz" jest poprawny do czasu wpisania drugiego. Widać go w `/api/health`.
+ */
+export async function getProdentisStaffKey(): Promise<string | null> {
+    const c = await getPMSConfig();
+    return c.apiKeyStaff || c.apiKey;
 }
 
 export async function getProdentisUrl(): Promise<string> {

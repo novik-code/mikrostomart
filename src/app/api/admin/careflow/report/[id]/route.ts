@@ -175,6 +175,7 @@ export async function GET(
                 const prodFileName = `CareFlow_raport_${safeName}_${dateStr}.pdf`;
 
                 const prodRes = await prodentisFetch(`/api/patients/${enrollment.patient_id}/documents`, {
+            klucz: 'personel',
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

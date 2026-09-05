@@ -152,7 +152,8 @@ export async function POST(request: NextRequest) {
 
                     if (!patientRec?.prodentis_id) return;
 
-                    const detRes = await prodentisFetch(`/api/patient/${patientRec.prodentis_id}/details`, { timeoutMs: 5000 });
+                    const detRes = await prodentisFetch(`/api/patient/${patientRec.prodentis_id}/details`, {
+            klucz: 'personel', timeoutMs: 5000 });
                     if (detRes.ok) {
                         const det = await detRes.json();
                         const email = det.email;

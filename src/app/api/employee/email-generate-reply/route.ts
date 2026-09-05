@@ -101,7 +101,8 @@ export async function POST(req: NextRequest) {
             try {
                 const res = await prodentisFetch(
                     `/api/slots/free?date=${odKiedy}&days=7&duration=30&meta=1`,
-                    { timeoutMs: 12000 },
+                    {
+            klucz: 'personel', timeoutMs: 12000 },
                 );
                 if (res.ok) {
                     kontekstDni = zbudujKontekstTerminow(await res.json(), (data) => {

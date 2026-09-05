@@ -64,7 +64,8 @@ export async function POST(req: Request) {
         let patientName = body.patient_name?.trim() || '';
         if (!patientName) {
             try {
-                const detRes = await prodentisFetch(`/api/patient/${prodentisId}/details`, { timeoutMs: 5000 });
+                const detRes = await prodentisFetch(`/api/patient/${prodentisId}/details`, {
+            klucz: 'personel', timeoutMs: 5000 });
                 if (detRes.ok) {
                     const det = await detRes.json();
                     patientName = `${det.firstName || ''} ${det.lastName || ''}`.trim();

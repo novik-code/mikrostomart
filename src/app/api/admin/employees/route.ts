@@ -62,7 +62,8 @@ export async function GET() {
                 (async () => {
                     try {
                         const res = await prodentisFetch(
-                            `/api/appointments/by-date?date=${dateStr}`, { timeoutMs: 5000 });
+                            `/api/appointments/by-date?date=${dateStr}`, {
+            klucz: 'personel', timeoutMs: 5000 });
                         if (res.ok) {
                             const data = await res.json();
                             for (const apt of (data.appointments || [])) {

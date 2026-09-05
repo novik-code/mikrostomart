@@ -15,6 +15,7 @@ export async function GET() {
         if (!auth.ok) return auth.response;
         const user = auth.user;
         const res = await prodentisFetch('/api/schedule/colors', {
+            klucz: 'personel',
             timeoutMs: 10000,
         });
         const data = await res.json();

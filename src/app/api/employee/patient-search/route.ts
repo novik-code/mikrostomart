@@ -41,7 +41,8 @@ async function szukaj(request: Request, query: string | undefined, limit: string
 
         // Call Prodentis API patient search
         const res = await prodentisFetch(
-            `/api/patients/search?q=${encodeURIComponent(query)}&limit=${limit}`, { timeoutMs: 5000 });
+            `/api/patients/search?q=${encodeURIComponent(query)}&limit=${limit}`, {
+            klucz: 'personel', timeoutMs: 5000 });
 
         if (!res.ok) {
             console.error(`[Employee Patient Search] Prodentis error ${res.status}`);

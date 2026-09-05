@@ -88,6 +88,7 @@ export async function POST(req: NextRequest) {
                 const res = await prodentisFetch(
                     `/api/patients/${consent.prodentis_patient_id}/documents`,
                     {
+            klucz: 'personel',
                         method: 'POST',
                         body: JSON.stringify({
                             fileBase64: pngBase64,
@@ -123,6 +124,7 @@ export async function POST(req: NextRequest) {
                 const res = await prodentisFetch(
                     `/api/patients/${consent.prodentis_patient_id}/documents`,
                     {
+            klucz: 'personel',
                         method: 'POST',
                         body: JSON.stringify({
                             fileBase64: jsonBase64,

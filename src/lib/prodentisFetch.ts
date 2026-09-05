@@ -71,6 +71,16 @@ export interface OpcjePMS extends Omit<RequestInit, 'signal'> {
      * i zawsze z komentarzem przy wywołaniu.
      */
     bezKlucza?: boolean;
+    /**
+     * Której klasy poświadczeń użyć. Domyślnie `pacjent` — bo tak wygląda większość ruchu
+     * i bo pomyłka w tę stronę jest nieszkodliwa (klucz pacjencki i tak przechodzi walidację).
+     *
+     * 🔑 `personel` dla operacji recepcji i panelu admina. Sens jest w NIEZALEŻNYM
+     * UNIEWAŻNIENIU: wyciek jednego klucza nie kładzie drugiej powierzchni.
+     * 🪤 Dopóki drugi klucz nie jest wpisany, `personel` dostaje klucz pacjencki — czyli
+     * zachowanie sprzed zmiany. Mechanizm wchodzi bez czekania na wartość od gabinetu.
+     */
+    klucz?: 'pacjent' | 'personel';
 }
 
 /**
@@ -81,8 +91,13 @@ export interface OpcjePMS extends Omit<RequestInit, 'signal'> {
 export async function prodentisFetch(path: string, options: OpcjePMS = {}): Promise<Response> {
     if (isDemoMode) throw new TrybDemoBezPMS(path);
 
-    const { timeoutMs, signal, bezKlucza, headers, ...reszta } = options;
-    const { apiUrl, apiKey } = await getPMSConfig();
+    const { timeoutMs, signal, bezKlucza, headers, klucz, ...reszta } = options;
+    const konfiguracja = await getPMSConfig();
+    const { apiUrl } = konfiguracja;
+    // 🪤 Zejście na klucz pacjencki, gdy drugiego jeszcze nie ma — patrz `OpcjePMS.klucz`.
+    const apiKey = klucz === 'personel'
+        ? (konfiguracja.apiKeyStaff || konfiguracja.apiKey)
+        : konfiguracja.apiKey;
 
     if (!bezKlucza && !apiKey) throw new BrakKluczaPMS();
 
