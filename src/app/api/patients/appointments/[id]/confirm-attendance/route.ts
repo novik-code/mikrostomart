@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { odswiezWizyte } from '@/lib/prodentisAppointment';
+import { odswiezWizyte, czyWolnoRuszycWizyte } from '@/lib/prodentisAppointment';
 import { createClient } from '@supabase/supabase-js';
 import { verifyPatientSession } from '@/lib/jwt';
 import { sendTelegramNotification } from '@/lib/telegram';
@@ -90,6 +90,36 @@ export async function POST(
                 { error: 'Obecność już potwierdzona' },
                 { status: 400 }
             );
+        }
+
+        /**
+         * 🔴 BRAMKA WŁASNOŚCI (P-001) — MUSI STAĆ PRZED ZAPISEM.
+         * Do 05.09 stan wizyty z PMS pobierano dopiero przy wysyłaniu ikony (~120 linii niżej),
+         * czyli PO zapisaniu „obecność potwierdzona" w naszej bazie i PO wysłaniu maila.
+         * Bramka postawiona tam nie chroniłaby więc przed zapisem na cudzej wizycie — dlatego
+         * odświeżenie przenosimy TUTAJ, a niżej korzystamy z już pobranego stanu.
+         * 🪤 `unavailable` NIE przerywa (awaria łączności nie może udawać cudzej wizyty),
+         * a brak pola `patientId` to fail-open — patrz `wizytaNalezyDoPacjenta`.
+         */
+        const stanWizytyPrzedZapisem = await odswiezWizyte(appointmentAction.prodentis_id);
+        if (appointmentAction.prodentis_id) {
+            const werdykt = await czyWolnoRuszycWizyte({
+                stanWizyty: stanWizytyPrzedZapisem,
+                prodentisAptId: appointmentAction.prodentis_id,
+                prodentisId: payload.prodentisId,
+            });
+            if (!werdykt.wolno) {
+                console.error(
+                    `[OBCA-WIZYTA] CONFIRM-ATTENDANCE: pacjent ${payload.prodentisId},`
+                    + ` wizyta ${appointmentAction.prodentis_id}, powód: ${werdykt.powod} — ODMOWA (${werdykt.status})`,
+                );
+                return NextResponse.json(
+                    werdykt.status === 503
+                        ? { error: 'Nie możemy teraz potwierdzić Twoich wizyt. Zadzwoń do rejestracji.' }
+                        : { error: 'Appointment not found' },
+                    { status: werdykt.status },
+                );
+            }
         }
 
         // Update appointment action
@@ -204,7 +234,10 @@ export async function POST(
             // stoi w grafiku. Na nieaktualnym identyfikatorze trafiłaby w cudzą wizytę albo
             // w pustkę — a potwierdzenie obecności jest sygnałem dla recepcji, nie ozdobą.
             // 🪤 `unavailable` (awaria łączności) NIE blokuje — wtedy próbujemy jak dotąd.
-            const stanWizyty = await odswiezWizyte(prodentisAptId);
+            // 🔑 Korzystamy ze stanu pobranego PRZED zapisem (wyżej) — bez drugiego odpytania
+            // PMS o tę samą wizytę. Pierwsza wersja P-001 dokładała tu drugi odczyt, a komentarz
+            // przy bramce twierdził, że jest jeden; sceptyk audytu złapał ten rozjazd.
+            const stanWizyty = stanWizytyPrzedZapisem;
             if (!stanWizyty.ok && (stanWizyty.powod === 'not_found' || stanWizyty.powod === 'cancelled')) {
                 console.warn(`[CONFIRM-ATTENDANCE] Pomijam ikonę — wizyta ${prodentisAptId}: ${stanWizyty.powod}`);
             } else if (prodentisAptId) {

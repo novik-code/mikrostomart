@@ -50,7 +50,12 @@ describe('świeżość identyfikatora wizyty', () => {
         expect(i).toBeGreaterThan(-1);
         const galaz = kod.slice(i, i + 900);
         expect(galaz).toContain('.update(');
-        expect(galaz).toMatch(/prodentis_id:\s*schedule_appointment_id/);
+        // 🔑 Od P-001 (05.09) zapisujemy identyfikator ZWERYFIKOWANY wobec listy wizyt
+        // pacjenta (`pozycjaZPMS?.id ?? schedule_appointment_id`), a nie surowy z ciała
+        // żądania. Intencja tej asercji jest bez zmian — gałąź odświeżenia musi kończyć się
+        // ZAPISEM tej kolumny — więc wzorzec dopuszcza obie formy, ale nadal WYMAGA, żeby
+        // wartość pochodziła od `schedule_appointment_id`, a nie skądinąd.
+        expect(galaz).toMatch(/prodentis_id:\s*(?:pozycjaZPMS\?\.id\s*\?\?\s*)?schedule_appointment_id/);
     });
 
     it('🔴 przy okazji odświeżamy lekarza — dryfuje razem z terminem', () => {

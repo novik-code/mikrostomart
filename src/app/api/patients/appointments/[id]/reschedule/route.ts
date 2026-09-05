@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { odswiezWizyte, rozjazdWizyty } from '@/lib/prodentisAppointment';
+import { odswiezWizyte, rozjazdWizyty, czyWolnoRuszycWizyte } from '@/lib/prodentisAppointment';
 import { powodPortalu } from '@/lib/portalReason';
 import { createClient } from '@supabase/supabase-js';
 import { verifyPatientSession } from '@/lib/jwt';
@@ -124,6 +124,44 @@ export async function POST(
                 { status: 409, headers: NO_STORE }
             );
         }
+
+        /**
+         * 🔴 BRAMKA WŁASNOŚCI (P-001). Do 05.09 sprawdzaliśmy własność WYŁĄCZNIE wobec
+         * naszego wiersza w `appointment_actions` — a ten wiersz powstawał z identyfikatora
+         * przysłanego przez klienta. Kto znał numer cudzej wizyty, mógł ją tu skreślić
+         * KLUCZEM GABINETOWYM. `odswiezWizyte` powyżej i tak już pobrało stan wizyty razem
+         * z `patientId`; brakowało jednego porównania.
+         * 🪤 Brak pola `patientId` = fail-open (patrz `wizytaNalezyDoPacjenta`).
+         */
+        /**
+         * 🔴 BRAMKA WŁASNOŚCI (P-001). Do 05.09 sprawdzaliśmy własność WYŁĄCZNIE wobec
+         * naszego wiersza w `appointment_actions` — a ten wiersz powstawał z identyfikatora
+         * przysłanego przez klienta. Kto znał numer cudzej wizyty, mógł ją tu skreślić
+         * KLUCZEM GABINETOWYM.
+         * 🪤 Rozstrzygnięcie żyje w `czyWolnoRuszycWizyte`, bo pierwsza wersja tej bramki
+         * miała kształt `stanWizyty.ok && !nalezy(...)` i przy awarii CZĄSTKOWEJ PMS-u
+         * (odczyt pada, zapisy żyją) pomijała sprawdzenie własności. Zmierzone wykonaniem.
+         */
+        if (prodentisAptId) {
+            const werdykt = await czyWolnoRuszycWizyte({
+                stanWizyty,
+                prodentisAptId,
+                prodentisId: payload.prodentisId,
+            });
+            if (!werdykt.wolno) {
+                console.error(
+                    `[OBCA-WIZYTA] RESCHEDULE: pacjent ${payload.prodentisId}, wizyta ${prodentisAptId},`
+                    + ` powód: ${werdykt.powod} — ODMOWA (${werdykt.status})`,
+                );
+                return NextResponse.json(
+                    werdykt.status === 503
+                        ? { error: 'Nie możemy teraz potwierdzić Twoich wizyt. Zadzwoń do rejestracji.' }
+                        : { error: 'Appointment not found' },
+                    { status: werdykt.status, headers: NO_STORE },
+                );
+            }
+        }
+
         if (stanWizyty.ok) {
             const roznice = rozjazdWizyty(stanWizyty.wizyta, {
                 date: appointmentAction.appointment_date?.slice(0, 10),

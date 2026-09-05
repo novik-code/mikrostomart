@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyPatientSession } from '@/lib/jwt';
+import { listaWizytPacjenta, znajdzWizyteNaLiscie, type PozycjaListyWizyt } from '@/lib/prodentisAppointment';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,8 +32,67 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Patient not found' }, { status: 404 });
         }
 
+        /**
+         * 🔴 PIĘTRO A BRAMKI WŁASNOŚCI (P-001). Do 05.09 `schedule_appointment_id` jechał
+         * z ciała żądania WPROST do kolumny `prodentis_id`, a ta kolumna idzie potem
+         * dosłownie do adresu `/api/schedule/appointment/<id>` przy odwołaniu, przełożeniu
+         * i potwierdzeniu obecności. Wystarczyło podać cudzy numer wizyty, żeby założyć
+         * sobie wiersz wskazujący na cudzą wizytę — i operować na niej kluczem gabinetowym.
+         *
+         * 🔑 Dlaczego LISTA, a nie porównanie pól: adres `/api/patient/<id>/future-appointments`
+         * jest budowany z `prodentisId` wziętego z PODPISANEGO TOKENU, więc własność wynika
+         * z konstrukcji zapytania, a nie z pola, które PMS może kiedyś przestać oddawać.
+         *
+         * 🪤 Datę i lekarza bierzemy z POZYCJI LISTY, nie z ciała żądania — ale DOSŁOWNIE,
+         * bez odtwarzania. Lista oddaje `2026-09-11T14:30:00.000Z` tam, gdzie widok szczegółu
+         * pokazuje `16:30` czasu ściennego; to ta sama godzina, ale składanie jej z części
+         * przesunęłoby zapis o offset strefy. Klient i tak dostał tę samą wartość z
+         * `upcoming-appointments`, więc format się nie zmienia i nie powstają duplikaty.
+         */
+        let pozycjaZPMS: PozycjaListyWizyt | null = null;
+        if (schedule_appointment_id) {
+            const lista = await listaWizytPacjenta(payload.prodentisId);
+            if (!lista.ok) {
+                // 🪤 „Nie wiemy” NIE może znaczyć „to cudza wizyta”, ale też nie wolno na tej
+                // niewiedzy zakładać nowego wiersza wskazującego na PMS. 503 jest uczciwe:
+                // przy leżącym PMS pacjent i tak nie ma skąd wziąć listy wizyt.
+                console.warn('[Create] PMS niedostępny — nie mogę potwierdzić własności wizyty');
+                return NextResponse.json(
+                    { error: 'Nie możemy teraz potwierdzić Twoich wizyt. Spróbuj za chwilę.' },
+                    { status: 503 },
+                );
+            }
+            pozycjaZPMS = znajdzWizyteNaLiscie(lista.lista, schedule_appointment_id);
+            if (!pozycjaZPMS) {
+                console.error(
+                    `[OBCA-WIZYTA] CREATE: pacjent ${payload.prodentisId} podał wizytę`
+                    + ` ${schedule_appointment_id}, której nie ma na jego liście — ODMOWA`,
+                );
+                return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
+            }
+        }
+
+        // 🔑 Od tej chwili termin i lekarz pochodzą z PMS, nie z ciała żądania.
+        const dataWizyty = pozycjaZPMS ? pozycjaZPMS.date : appointment_date;
+        const dataKonca = pozycjaZPMS
+            ? new Date(new Date(pozycjaZPMS.date).getTime() + (pozycjaZPMS.duration || 30) * 60_000).toISOString()
+            : appointment_end_date;
+        const lekarzId = pozycjaZPMS?.doctor?.id ?? doctor_id;
+        /**
+         * 🪤 Prodentis dokleja do nazwiska znacznik gabinetu „(I)". Dotąd czyścił go KLIENT
+         * (dashboard robił to regexem na „(I)"), ale od P-001 źródłem nazwy jest
+         * SERWER — więc czyszczenie musi stać tutaj, inaczej surowa nazwa idzie dosłownie
+         * w mail do gabinetu, Telegram, push i tabele panelu.
+         * 🔑 `typeof` nie jest ozdobą: `.replace` na nie-stringu z PMS wywala CAŁE `create`
+         * na 500, a pacjent traci przyciski akcji. Lekarstwo groźniejsze od choroby.
+         */
+        const surowaNazwa = pozycjaZPMS?.doctor?.name ?? doctor_name;
+        const lekarzNazwa = typeof surowaNazwa === 'string'
+            ? surowaNazwa.replace(/\s*\(I\)\s*/g, ' ').trim()
+            : surowaNazwa;
+
         // Search for existing record: by schedule_appointment_id (prodentis_id field) OR by date range
-        const searchDate = new Date(appointment_date);
+        const searchDate = new Date(dataWizyty);
         const rangeStart = new Date(searchDate.getTime() - 120000);
         const rangeEnd = new Date(searchDate.getTime() + 120000);
 
@@ -77,11 +137,14 @@ export async function POST(request: NextRequest) {
                         // pacjenta ma ten sam kształt (10 cyfr), więc w najgorszym razie skasowałby
                         // CUDZĄ wizytę o zbieżnym numerze. `null` jest uczciwe — ścieżki zapisu
                         // sprawdzają jego brak i pomijają operację na PMS zamiast zgadywać.
-                        prodentis_id: schedule_appointment_id || prodentis_id || null,
-                        appointment_date,
-                        appointment_end_date,
-                        doctor_id,
-                        doctor_name,
+                        // 🔑 P-001: identyfikator przeszedł już weryfikację wobec listy wizyt
+                        // TEGO pacjenta; `prodentis_id` z ciała (id PACJENTA z dashboardu weba)
+                        // NIE jest już awaryjnym źródłem — wpisywał tu numer niewłaściwej klasy.
+                        prodentis_id: pozycjaZPMS?.id ?? schedule_appointment_id ?? null,
+                        appointment_date: dataWizyty,
+                        appointment_end_date: dataKonca,
+                        doctor_id: lekarzId,
+                        doctor_name: lekarzNazwa,
                         status: 'unpaid_reservation',
                         deposit_paid: false,
                         attendance_confirmed: false,
@@ -113,11 +176,11 @@ export async function POST(request: NextRequest) {
                         // pacjenta ma ten sam kształt (10 cyfr), więc w najgorszym razie skasowałby
                         // CUDZĄ wizytę o zbieżnym numerze. `null` jest uczciwe — ścieżki zapisu
                         // sprawdzają jego brak i pomijają operację na PMS zamiast zgadywać.
-                        prodentis_id: schedule_appointment_id || prodentis_id || null,
-                            appointment_date,
-                            appointment_end_date,
-                            doctor_id,
-                            doctor_name,
+                        prodentis_id: pozycjaZPMS?.id ?? schedule_appointment_id ?? null,
+                            appointment_date: dataWizyty,
+                            appointment_end_date: dataKonca,
+                            doctor_id: lekarzId,
+                            doctor_name: lekarzNazwa,
                             status: 'unpaid_reservation',
                             deposit_paid: false,
                             attendance_confirmed: false,
@@ -155,11 +218,12 @@ export async function POST(request: NextRequest) {
                 const { error: odswiezenieError } = await supabase
                     .from('appointment_actions')
                     .update({
-                        prodentis_id: schedule_appointment_id,
+                        prodentis_id: pozycjaZPMS?.id ?? schedule_appointment_id,
                         // Lekarz dryfuje razem z terminem — stąd obserwacja „14 z 50 rezerwacji
                         // stoi u innego lekarza, niż wysłaliśmy". Odświeżamy oba albo żadnego.
-                        ...(doctor_id ? { doctor_id } : {}),
-                        ...(doctor_name ? { doctor_name } : {}),
+                        // 🔑 P-001: wartości z PMS, nie z ciała żądania.
+                        ...(lekarzId ? { doctor_id: lekarzId } : {}),
+                        ...(lekarzNazwa ? { doctor_name: lekarzNazwa } : {}),
                     })
                     .eq('id', existing.id);
                 if (odswiezenieError) {
@@ -184,11 +248,11 @@ export async function POST(request: NextRequest) {
                         // pacjenta ma ten sam kształt (10 cyfr), więc w najgorszym razie skasowałby
                         // CUDZĄ wizytę o zbieżnym numerze. `null` jest uczciwe — ścieżki zapisu
                         // sprawdzają jego brak i pomijają operację na PMS zamiast zgadywać.
-                        prodentis_id: schedule_appointment_id || prodentis_id || null,
-                appointment_date,
-                appointment_end_date,
-                doctor_id,
-                doctor_name,
+                        prodentis_id: pozycjaZPMS?.id ?? schedule_appointment_id ?? null,
+                appointment_date: dataWizyty,
+                appointment_end_date: dataKonca,
+                doctor_id: lekarzId,
+                doctor_name: lekarzNazwa,
                 status: 'unpaid_reservation',
                 deposit_paid: false,
                 attendance_confirmed: false,
