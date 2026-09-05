@@ -16,9 +16,9 @@
  * Wizyta powstaje wtedy z typem domyślnym gabinetu — to jest zachowanie sprzed 3d, czyli
  * najgorszy możliwy skutek pomyłki w tej mapie to brak poprawy, nie szkoda.
  *
- * ⚪ `bol` i `wybielanie` NIE MAJĄ odpowiednika w słowniku Prodentisa (sprawdzili wszystkie
- *    16 aktywnych typów; „Pacjenci Bólowi" gabinet wycofał). Zostają bez wartości do czasu,
- *    aż gabinet uzupełni słownik — wtedy dochodzą tu dwie linie i nic więcej.
+ * ⚪ `bol` i `wybielanie` dostały pozycje w słowniku 05.09 — wartości `Ból` i `Wybielanie`,
+ *    zweryfikowane przez dostawcę pięcioma zapisami testowymi na dniu bez realnych wizyt
+ *    (potem usuniętymi). Wielkość liter nie ma znaczenia.
  * ⚪ `implanty`, `ortodoncja`, `licowki` zniknęły z formularza (decyzja gabinetu 05.09:
  *    wymagają rozmowy i wyceny przed terminem), więc nie ma czego mapować. Ich historyczne
  *    etykiety zostawiamy w mapie jako JAWNIE nieprzypisane — żeby następny czytelnik wiedział,
@@ -29,9 +29,17 @@
 const TYP_PMS: Record<string, string | null> = {
     konsultacja: 'konsultacja',
     higienizacja: 'higienizacja',
-    // Brak odpowiednika w słowniku Prodentisa — patrz nagłówek.
-    bol: null,
-    wybielanie: null,
+    // 🔑 Dołożone przez gabinet 05.09 jako NOWE pozycje słownika (id 0000000034 i 0000000035),
+    // a nie przez przywrócenie wycofanego typu „Pacjenci Bólowi" — do tamtego odwołuje się
+    // piętnaście historycznych wizyt. Mapujemy po NAZWIE, bo jest odporniejsza na zmiany
+    // identyfikatorów w słowniku, który recepcja edytuje.
+    // 🪤 `Ból` niesie polski znak. Dostawca sprawdził to end-to-end i dopasowanie działa,
+    // ale ICH pierwszy test padł na uszkodzonym kodowaniu w narzędziu testowym
+    // (`Bďż˝l` w dzienniku). Nasze ciało żądania idzie przez `JSON.stringify` + `fetch`,
+    // czyli UTF-8 z definicji. Gdyby `type` kiedyś przestał trafiać PRZY BÓLU, a działał przy
+    // pozostałych — przyczyną będzie kodowanie, nie ta mapa.
+    bol: 'Ból',
+    wybielanie: 'Wybielanie',
     // Zdjęte z formularza decyzją gabinetu; historyczne rezerwacje nadal mają te etykiety.
     implanty: null,
     ortodoncja: null,

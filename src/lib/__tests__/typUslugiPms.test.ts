@@ -28,9 +28,27 @@ describe('rodzaj usługi → pole `type` w PMS', () => {
         expect(typUslugiDlaPms('Higienizacja  (Profilaktyka)')).toBe('higienizacja');
     });
 
-    it('🔴 usługa BEZ odpowiednika w PMS nie wysyła nic — nie zgadujemy', () => {
-        expect(typUslugiDlaPms('Pomoc doraźna (Ból)')).toBeUndefined();
-        expect(typUslugiDlaPms('Wybielanie Zębów')).toBeUndefined();
+    it('ból i wybielanie mają już pozycje w słowniku (dołożone 05.09)', () => {
+        expect(typUslugiDlaPms('Pomoc doraźna (Ból)')).toBe('Ból');
+        expect(typUslugiDlaPms('Wybielanie Zębów')).toBe('Wybielanie');
+    });
+
+    it('🪤 wartość dla bólu niesie polski znak — musi przeżyć w nienaruszonej postaci', () => {
+        // Dostawcy pierwszy test tej wartości padł na uszkodzonym kodowaniu (`Bďż˝l`).
+        // Asercja pilnuje BAJTÓW, nie kształtu: `Ból`, nie `Bol` ani `B?l`.
+        const v = typUslugiDlaPms('Pomoc doraźna (Ból)');
+        expect(v).toBe('B\u00f3l');
+        expect(v).not.toContain('?');
+        expect(v).not.toBe('Bol');
+    });
+
+    it('wszystkie cztery języki trafiają także na nowych pozycjach', () => {
+        for (const e of ['Urgent Care (Pain)', 'Notfallhilfe (Schmerzen)', 'Невідкладна допомога (біль)']) {
+            expect(typUslugiDlaPms(e)).toBe('Ból');
+        }
+        for (const e of ['Teeth Whitening', 'Zahnaufhellung', 'Відбілювання зубів']) {
+            expect(typUslugiDlaPms(e)).toBe('Wybielanie');
+        }
     });
 
     it('🔴 usługi zdjęte z formularza nie mapują się — to decyzja, nie przeoczenie', () => {
