@@ -1,5 +1,7 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
+> **Last Updated:** 2026-09-05 — 🏁 **KLASA B ZAMKNIĘTA: DOSTAWCA PMS WYMUSIŁ KLUCZ NA ODCZYTACH, NASZA INTEGRACJA PRZEŻYŁA.** Dwa dni obustronnej naprawy (16 commitów, wszystko na produkcji, `f146573`). Kolejność była **MY → ONI**: najpierw centralne wstrzykiwanie klucza u nas (`lib/prodentisFetch.ts` — 86 wywołań, z czego **59 szło BEZ klucza**), dopiero potem walidacja u nich; odwrotna kolejność wywróciłaby Strefę Pacjenta natychmiast. Po włączeniu zmierzone: `prodentis: ok`, terminy 200, **cała ścieżka rejestracji konta `success: true`**, zero `401`. 🔴 **Największy realny defekt był u NAS, nie u nich:** do zapisu wizyty leciało zaszyte **30 minut**, bo `online_bookings.duration` nigdy nie istniało — higienizacja (60 min) dostawała w grafiku okno o połowę za krótkie, w 100 % przypadków. 🪤 **`reason` z koperty UNIEWAŻNIA `status`** (v11.11/v11.13): `same_day_not_bookable` i `duration_below_minimum` przychodzą jako `fully_booked`, choć lekarz ma wolne okna — bez obsługi kalendarz mówiłby „wszystkie terminy zajęte" o dniu z wolnymi godzinami. 🔑 **`[PMS-ODMOWA-KLUCZA]`**: do 05.09 `401` było u nas nieodróżnialne od „brak danych" (85 wywołujących robi `if (!res.ok) return null`), więc po wymuszeniu klucza strona serwowałaby **zaszyte statystyki ze statusem 200** i bez błędu w logu. 🔴 **CI NIE ODPALAŁO ANI JEDNEGO TESTU** — `.github/workflows/` miał wyłącznie `lint:ci` i `tsc`, więc 700+ asercji i wszyscy strażnicy okablowania **nie byli bramką**; naprawione, cofka dowiedziona. Dalej: **świeży `prodentis_id` przed zapisem** (to domknęło sprawę „ICON 404" otwartą od maja i obserwację „14 z 50 u innego lekarza") · **rozdział kluczy pacjent/personel** (24 wywołania, `klucze: rozdzielone`) · punkt **3d** z kompletem czterech typów wizyt · **8 cronów przestało być niewidzialnych** dla rejestru zdrowia (w tym `careflow-push` — przypomnienia o lekach — który NIE ISTNIAŁ w rejestrze). 🪤 **Trzy razy w ciągu dwóch dni pomiar skażony własną stroną wyglądał dokładnie jak wynik**: nasz „port 3000 osiągalny z internetu" (NAT hairpin — mierzyliśmy z LAN-u dzielącego IP z serwerem), ich `pierwsza wizyta` (własny typ domyślny wzięty za wybór pacjenta), ich `Bďż˝l` (zepsute kodowanie w narzędziu testowym wzięte za wadę API). Za każdym razem ratowała kontrola miernika. Szczegóły: „📝 Recent Changes" → 2026-09-05.
+>
 > **Last Updated:** 2026-09-03 — 🔢 **LICZNIK NA STRONIE GŁÓWNEJ KŁAMAŁ POD PLAKIETKĄ „LIVE".** Sekcja „10 lat doświadczenia w liczbach" pokazywała hardcoded snapshot z 14.06 (1288/2304/6247), podczas gdy API i stan Reacta miały świeże 1378/2355/6417 — zmierzone na produkcji odczytem fibera obok DOM-u. Przyczyna: w `AnimatedCounter` stan `display` zapisywała **wyłącznie animacja count-up**, a efekt wychodził pierwszą linią przy `startedRef.current === true`; świeże dane przychodzą ~0,9 s (cache HIT) do ~7 s (MISS) po montowaniu, czyli po starcie animacji, więc zmiana wartości nie miała drogi do DOM-u. Naprawa `7d36c6d` + odświeżony fallback `dc6e473` — ✅ **NA PRODUKCJI** (`c04bddb`, zmierzone: DOM `1378/2355/6417` = stan Reacta, rozjazd zero), dowód w obie strony przy fallbacku rozjechanym z produkcją. 🪤 **Pierwsza wersja poprawki była niepełna i wyłapała ją dopiero kontrola negatywna** — gdyby fallback zgadzał się z produkcją, test pokazałby „naprawione". Szczegóły: „📝 Recent Changes" → 2026-09-03.
 >
 > **Last Updated:** 2026-09-03 — 🧾 **ZAMKNIĘTA LUKA W CHANGELOGU 17–24.08.** Przez trzy tygodnie ten plik kończył się na 13.08, a repo miało **dwanaście** commitów bez ani jednego wpisu — wszystkie powstały w sesjach nad APKĄ i ich opis leżał wyłącznie w `~/mikrostomart-app/CONTEXT.md`. Odtworzone z REALNYCH DIFFÓW pięć wpisów: **17.08** (kanał zgłoszeń z apki, mig 199 + trzy trasy), **18.08** (trzy miny w plikach migracji 051/055/096 + Sentry w polityce RODO), **20.08** (wdrożenie audytu SEO: geokod, kanibalizacja, metadane, snippety), **21.08** (`/api/patients/chat/unread` dla pulpitu apki), **24.08** (dławik 2FA na operacjach NISZCZĄCYCH + rejestr pusha pytał o złą rzecz). Każdy wpis przeszedł adwersaryjną weryfikację twierdzenie po twierdzeniu — **13 poprawek, w tym jedna krytyczna** (fałszywa teza, że mig 199 nie istniała jeszcze w drzewie `7d2880f`). 🪤 **To klasa błędu, nie wpadka:** zmiana w webie zrobiona przy pracy nad apką ląduje w kontekście APKI i znika z kontekstu WEBA — wpis ma iść do OBU plików w tej samej sesji. **Stan zmierzony 03.09, nie przepisany:** `main` = `origin/main` = **`fa6f799`** i **produkcja stoi na tym samym SHA** (`/api/health` → `checks.environment.deployment`; 🪤 apex oddaje 308 na `www`, `curl` bez `-L` zwraca gołe „Redirecting…"); `vitest` **597/597** w 54 plikach; migracje wgrane **do 199** (`app_reports` odczytana na produkcji, kontrola negatywna: nieistniejąca tabela → 404), **wolny numer 200**. 🔐 **2FA: termin 1 IX MINĄŁ — 13 z 14 pracowników MA, została jedna osoba** (dwie niezależne drogi pomiaru, rozjazd zero; 🪤 kolumna nazywa się `enabled`, NIE `is_active`). ⚪ `/api/health` oddaje `degraded` z powodu `crons: warning` — 11 z 21 „stale", z czego 7 to „Awaiting first monitored run" od 184 dni; **to rejestr bez wpisu, nie martwe crony** — ta sama klasa co fałszywe alarmy pusha z 24.08.
@@ -2479,6 +2481,83 @@ NODE_ENV=production
 ## 📝 Recent Changes
 
 > ℹ️ **To historyczny changelog (kontekst, NIE backlog).** Adnotacje „**Next:** …” / „**Następna sesja:** …” w poszczególnych wpisach są **ARCHIWALNE** — od 2026-06-08 obowiązuje **carte blanche** (patrz linia 3 / `KOMENDA_STARTOWA §0`). Nie traktuj ich jako aktywnych zadań.
+
+### 2026-09-05 — 🏁 KLASA B ZAMKNIĘTA · ROZDZIAŁ KLUCZY · PUNKT 3d · REJESTR CRONÓW
+
+**Commity:** `cfc5898` `2be589c` `ac6ed1c` `3e46a99` `abc1748` `85d710f` `c6e3ace` `a0fb291` `0d9b942` `d55a022` `f146573` — wszystkie na produkcji.
+**Bramki:** `tsc` czysto · `vitest` **732/732** (66 plików) · `next build` OK.
+
+#### 🔑 Wymuszenie klucza przeżyliśmy — bo kolejność była MY → ONI
+
+Dostawca włączył walidację klucza na odczytach 05.09 ok. 10:00. Ich pomiar przed włączeniem:
+**1504 odczyty bez klucza, zero obcych klientów** (1475 to ich własny monitor w zasobniku).
+Po włączeniu zmierzone u nas: `prodentis: ok`, terminy 200, `clinic-stats` z żywych danych,
+logowanie 400/401, **rejestracja konta na ich pacjencie testowym `success: true`** — to
+najgłębsza ścieżka do PMS w całej Strefie Pacjenta, więc jej przejazd jest mocniejszym dowodem
+niż health-check.
+
+#### 🔴 Odmowa klucza była nieodróżnialna od braku danych
+
+Zero obsługi `401`/`403` w całym repo; 85 wywołujących robi `if (!res.ok) return null`.
+Konkretny skutek, gdyby klucz był zły: `clinicStatsApi` → `buildFallback()` → strona kliniki
+serwuje **zaszyte statystyki ze statusem 200**, bez jednego błędu w logu. Alarm
+`[PMS-ODMOWA-KLUCZA]` stoi w JEDYNYM punkcie wspólnym wszystkich wywołań.
+
+#### 🔴 CI nie było bramką
+
+`.github/workflows/` miał `lint:ci` i `tsc --noEmit` — **zero vitest**. Wszystkie strażniki
+okablowania odpalały się wyłącznie przy ręcznym `npm test`. Dopisany krok; cofka dowiedziona
+(symulowana regresja → 2 padnięte, czysto → 732/732).
+
+#### 🔴 Świeży `prodentis_id` — mechanizm sprawy „ICON 404"
+
+Dostawca potwierdził, że ich `PUT /reschedule` **nie zmienia** identyfikatora, ale ręczne
+przesunięcie wizyty na pulpicie Prodentisa soft-deletuje wiersz i tworzy nowy. Nasza trasa
+`appointments/create` znajdowała wiersz **po dacie**, gdy identyfikator się zmienił, i zwracała
+go `as-is` — wyrzucając świeże id, które klient dopiero co dostał z PMS. Każde późniejsze
+odwołanie, przełożenie i potwierdzenie leciało na adres, którego już nie ma.
+🪤 W tej samej kolumnie był fallback na **identyfikator PACJENTA** (ten sam kształt, 10 cyfr),
+idący wprost do adresu `DELETE` — w najgorszym razie skasowałby cudzą wizytę o zbieżnym numerze.
+Zmierzone: 2 takie wiersze na 1000.
+
+#### Punkt 3d — rodzaj wizyty pacjenta trafia do grafiku
+
+`konsultacja → konsultacja` · `bol → Ból` · `higienizacja → higienizacja` · `wybielanie → Wybielanie`.
+🪤 Mapujemy z **ETYKIETY**, bo `service_type` to kolumna tekstowa z ~100 wierszami historycznymi,
+i mapa musi znać **wszystkie cztery języki** — Niemiec zapisuje „Erstberatung".
+🔴 Gabinet **zdjął z rezerwacji online** implanty, ortodoncję i licówki (wymagają rozmowy i wyceny).
+🪤 Apka wysyłała w polu usługi **nazwisko lekarza** — bez tej naprawy 3d wysłałby do grafiku
+„Ilona Piechaczek" jako typ wizyty.
+
+#### Rozdział kluczy pacjent/personel
+
+`pmsConfig.apiKeyStaff` + opcja `klucz` w `prodentisFetch`; oznaczone **24 wywołania w 22 plikach**
+pod `app/api/{admin,employee}`. 🔑 Mechanizm wdrożony **przed** wartością — dopóki drugiego klucza
+nie było, personel dostawał pacjencki, czyli stan sprzed zmiany. Klucz wpisany 05.09 jako
+`PRODENTIS_API_KEY_STAFF` (Production); `/api/health` → `klucze: rozdzielone (pacjent + personel)`.
+⚪ Świadomie NIE w Preview ani w demo — sprawdzone, że **demo w ogóle nie dzwoni do PMS**
+(oddaje dane syntetyczne w zimowym offsecie, ignorując kopertę `meta=1`).
+
+#### Rejestr zdrowia cronów był dziurawy
+
+`/api/health` pokazywał **11 z 21 cronów jako milczące** — żaden nie był zepsuty, po prostu
+**nie wołały `logCronHeartbeat` ANI RAZU**. 🔴 Strażnik znalazł **9 gorszych: bez wiersza
+w rejestrze, więc health nie pokazuje ich nawet jako milczących**. Wśród nich `careflow-push`
+(przypomnienia o lekach po zabiegu). Uzbrojony z rozróżnieniem: cisza nocna = poprawny przebieg,
+przebieg urwany limitem = `warn`, nie `ok`. Pozostałe 8 to jawny dług w `cronHeartbeatWiring.test.ts`.
+🪤 **Strażnik zapalił się na sobie** — szukał literału `'error'` i oskarżył crona raportującego
+przez wyrażenie warunkowe. Przepisany na liczenie nawiasów.
+
+#### 🪤 Trzy razy: pomiar skażony własną stroną wygląda jak wynik
+
+| czyj | co wyglądało na fakt | co było naprawdę |
+|---|---|---|
+| nasz | „port 3000 osiągalny z internetu" | pomiar z LAN-u dzielącego publiczne IP z serwerem (NAT hairpin) |
+| ich | `pierwsza wizyta` jako typ wybierany przez pacjentów | ich WŁASNY typ domyślny, wpisywany przez ich kod |
+| ich | `Bďż˝l` jako wada API | zepsute kodowanie w ich narzędziu testowym |
+
+⚪ Port 3000 ostatecznie **zmierzony z adresu zewnętrznego i zamknięty** — z kontrolami miernika
+(443 otwarty, port 9 zamknięty) i traceroute przez router operatora. Tunel jest jedynymi drzwiami.
 
 ### 2026-09-04 (#6) — 🚦 KALENDARZ NA `meta=1`: KONIEC JEDNEGO NAPISU NA SZEŚĆ PRAWD (punkt 3e)
 
