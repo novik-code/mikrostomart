@@ -39,6 +39,13 @@ export default function RescheduleAppointmentModal({
     const [selectedDate, setSelectedDate] = useState('');
     const [selectedTime, setSelectedTime] = useState('');
     const [freeSlots, setFreeSlots] = useState<FreeSlot[]>([]);
+    /**
+     * `minBookableDate` z koperty `meta=1` (PMS v11.11): pierwszy dzień, na który gabinet
+     * w ogóle przyjmuje rezerwacje online. Dziś to „jutro", ale to DECYZJA GABINETU,
+     * nie stała — może się zmienić bez naszego wdrożenia. Zaszyte „jutro" w polu daty
+     * rozjechałoby się z nią po cichu.
+     */
+    const [najwczesniejszy, setNajwczesniejszy] = useState<string | null>(null);
     const [slotsLoading, setSlotsLoading] = useState(false);
     const [newDateFormatted, setNewDateFormatted] = useState('');
 
@@ -102,6 +109,8 @@ export default function RescheduleAppointmentModal({
                         horyzont.setDate(horyzont.getDate() + HORYZONT_DNI);
                         const naszaGranica = horyzont.toISOString().split('T')[0];
                         const oknoPms = Array.isArray(data) ? undefined : data?.window?.maxDate;
+                        const najw = Array.isArray(data) ? undefined : data?.minBookableDate;
+                        if (typeof najw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(najw)) setNajwczesniejszy(najw);
                         const granica = oknoPms && oknoPms < naszaGranica ? oknoPms : naszaGranica;
 
                         const k = podsumujDzienOperatorow(
@@ -131,7 +140,11 @@ export default function RescheduleAppointmentModal({
     // Min date = tomorrow
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const minDate = tomorrow.toISOString().split('T')[0];
+    const jutro = tomorrow.toISOString().split('T')[0];
+    // 🔑 Granicę tylko ZACISKAMY. Brak pola (starsza wersja API, rollback) albo wartość
+    // luźniejsza od naszej = zostaje dokładnie dzisiejsze zachowanie. Ten sam wzorzec
+    // fail-open, co przy `window.maxDate`.
+    const minDate = najwczesniejszy && najwczesniejszy > jutro ? najwczesniejszy : jutro;
 
     // Max date = 60 days from now
     const maxDateObj = new Date();

@@ -72,7 +72,12 @@ export async function POST(request: NextRequest) {
                     .from('appointment_actions')
                     .insert({
                         patient_id: patient.id,
-                        prodentis_id: schedule_appointment_id || prodentis_id || patient.prodentis_id,
+                        // 🪤 NIE schodzimy na `patient.prodentis_id`: ta kolumna trzyma identyfikator WIZYTY
+                        // i idzie WPROST do adresu `/api/schedule/appointment/<id>`. Identyfikator
+                        // pacjenta ma ten sam kształt (10 cyfr), więc w najgorszym razie skasowałby
+                        // CUDZĄ wizytę o zbieżnym numerze. `null` jest uczciwe — ścieżki zapisu
+                        // sprawdzają jego brak i pomijają operację na PMS zamiast zgadywać.
+                        prodentis_id: schedule_appointment_id || prodentis_id || null,
                         appointment_date,
                         appointment_end_date,
                         doctor_id,
@@ -103,7 +108,12 @@ export async function POST(request: NextRequest) {
                         .from('appointment_actions')
                         .insert({
                             patient_id: patient.id,
-                            prodentis_id: schedule_appointment_id || prodentis_id || patient.prodentis_id,
+                            // 🪤 NIE schodzimy na `patient.prodentis_id`: ta kolumna trzyma identyfikator WIZYTY
+                        // i idzie WPROST do adresu `/api/schedule/appointment/<id>`. Identyfikator
+                        // pacjenta ma ten sam kształt (10 cyfr), więc w najgorszym razie skasowałby
+                        // CUDZĄ wizytę o zbieżnym numerze. `null` jest uczciwe — ścieżki zapisu
+                        // sprawdzają jego brak i pomijają operację na PMS zamiast zgadywać.
+                        prodentis_id: schedule_appointment_id || prodentis_id || null,
                             appointment_date,
                             appointment_end_date,
                             doctor_id,
@@ -129,7 +139,38 @@ export async function POST(request: NextRequest) {
                 return NextResponse.json({ id: fresh.id, status: fresh.status, wasReset: true });
             }
 
-            // Non-terminal status — return existing as-is
+            // 🔴 NIE „as-is" — najpierw ODŚWIEŻ IDENTYFIKATOR WIZYTY.
+            // Recepcja przesuwająca wizytę RĘCZNIE na pulpicie Prodentisa soft-deletuje wiersz
+            // i tworzy nowy, z NOWYM `id_schedule` (potwierdzone przez dostawcę PMS 04.09 —
+            // ich własne `PUT /reschedule` identyfikatora NIE zmienia, więc to jedyne źródło
+            // rozjazdu). Klient przysyła tu świeże id prosto z PMS-u, ale Strategia 2 znajduje
+            // nasz wiersz po DACIE i dotąd zwracała go razem ze starym identyfikatorem —
+            // przez co każde późniejsze odwołanie, przełożenie i potwierdzenie leciało na
+            // adres, którego już nie ma. To jest mechanizm otwartej od maja sprawy „ICON 404".
+            if (schedule_appointment_id && existing.prodentis_id !== schedule_appointment_id) {
+                console.warn(
+                    `[Create] Nieaktualny prodentis_id dla wizyty ${existing.id}:`
+                    + ` ${existing.prodentis_id} → ${schedule_appointment_id} (wizyta przesunięta w Prodentisie)`,
+                );
+                const { error: odswiezenieError } = await supabase
+                    .from('appointment_actions')
+                    .update({
+                        prodentis_id: schedule_appointment_id,
+                        // Lekarz dryfuje razem z terminem — stąd obserwacja „14 z 50 rezerwacji
+                        // stoi u innego lekarza, niż wysłaliśmy". Odświeżamy oba albo żadnego.
+                        ...(doctor_id ? { doctor_id } : {}),
+                        ...(doctor_name ? { doctor_name } : {}),
+                    })
+                    .eq('id', existing.id);
+                if (odswiezenieError) {
+                    // 🪤 Nie przerywamy: pacjent ma zobaczyć swoją wizytę. Ale NIE wolno milczeć —
+                    // od tego identyfikatora zależą wszystkie operacje zapisu.
+                    console.error('[Create] Odświeżenie prodentis_id NIEUDANE:', odswiezenieError.message);
+                } else {
+                    existing.prodentis_id = schedule_appointment_id;
+                }
+            }
+
             return NextResponse.json({ id: existing.id, status: existing.status });
         }
 
@@ -138,7 +179,12 @@ export async function POST(request: NextRequest) {
             .from('appointment_actions')
             .insert({
                 patient_id: patient.id,
-                prodentis_id: schedule_appointment_id || prodentis_id || patient.prodentis_id,
+                // 🪤 NIE schodzimy na `patient.prodentis_id`: ta kolumna trzyma identyfikator WIZYTY
+                        // i idzie WPROST do adresu `/api/schedule/appointment/<id>`. Identyfikator
+                        // pacjenta ma ten sam kształt (10 cyfr), więc w najgorszym razie skasowałby
+                        // CUDZĄ wizytę o zbieżnym numerze. `null` jest uczciwe — ścieżki zapisu
+                        // sprawdzają jego brak i pomijają operację na PMS zamiast zgadywać.
+                        prodentis_id: schedule_appointment_id || prodentis_id || null,
                 appointment_date,
                 appointment_end_date,
                 doctor_id,
