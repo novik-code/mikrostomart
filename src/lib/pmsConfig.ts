@@ -103,15 +103,6 @@ export async function getProdentisKey(): Promise<string | null> {
     return (await getPMSConfig()).apiKey;
 }
 
-/**
- * Klucz dla operacji PERSONELU — z jawnym zejściem na klucz pacjencki, gdy drugiego nie ma.
- * 🪤 Zejście jest CICHE z premedytacją: hałas przy każdym żądaniu recepcji zalałby logi,
- * a stan „jeden klucz" jest poprawny do czasu wpisania drugiego. Widać go w `/api/health`.
- */
-export async function getProdentisStaffKey(): Promise<string | null> {
-    const c = await getPMSConfig();
-    return c.apiKeyStaff || c.apiKey;
-}
 
 export async function getProdentisUrl(): Promise<string> {
     return (await getPMSConfig()).apiUrl;

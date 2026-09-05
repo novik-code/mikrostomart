@@ -95,6 +95,9 @@ export async function prodentisFetch(path: string, options: OpcjePMS = {}): Prom
     const konfiguracja = await getPMSConfig();
     const { apiUrl } = konfiguracja;
     // 🪤 Zejście na klucz pacjencki, gdy drugiego jeszcze nie ma — patrz `OpcjePMS.klucz`.
+    // 🔑 Reguła wyboru stoi TUTAJ i nigdzie indziej. Osobny helper w `pmsConfig` istniał
+    //    przez chwilę i nie miał ani jednego wywołującego — dwa miejsca z tą samą regułą
+    //    to zaproszenie do rozjazdu, a strażnik i tak zabrania rozwiązywać klucz poza fundamentem.
     const apiKey = klucz === 'personel'
         ? (konfiguracja.apiKeyStaff || konfiguracja.apiKey)
         : konfiguracja.apiKey;
