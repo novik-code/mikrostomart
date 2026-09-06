@@ -797,9 +797,26 @@ export default function ConsentSigningPage() {
             // ── STEP 3: Doctor signature at ALL mapped positions ──
             if (fields) {
                 const activeSig = staffSignatures[doctorPerConsent[currentConsent.type] ?? 0];
-                if (activeSig?.signature_data) {
+                /**
+                 * 🔒 Obraz podpisu dociągamy DOPIERO TERAZ, dla wybranego lekarza.
+                 * Do 06.09 lista z `/api/staff-signatures` niosła wzory podpisów CAŁEGO
+                 * zespołu (6 osób, 172 KB) do przeglądarki pacjenta przy samym otwarciu
+                 * formularza — a potrzebny jest dokładnie jeden, i to dopiero w chwili
+                 * wypalania PDF-u. Ryzyko nazywa komentarz tamtej trasy: podrobienie
+                 * dokumentu podpisem lekarza.
+                 */
+                let podpisLekarza: string | null = activeSig?.signature_data ?? null;
+                if (!podpisLekarza && activeSig?.id && token) {
                     try {
-                        const docSigBytes = await fetch(activeSig.signature_data).then(r => r.arrayBuffer());
+                        const r = await fetch(
+                            `/api/staff-signatures?consentToken=${encodeURIComponent(token)}&signatureId=${encodeURIComponent(activeSig.id)}`
+                        );
+                        if (r.ok) podpisLekarza = (await r.json())?.signature_data ?? null;
+                    } catch { /* brak podpisu → PDF powstaje bez niego, jak dotąd */ }
+                }
+                if (podpisLekarza) {
+                    try {
+                        const docSigBytes = await fetch(podpisLekarza).then(r => r.arrayBuffer());
                         const docSigImage = await pdfDoc.embedPng(docSigBytes);
                         const docSigWidth = 120;
                         const docSigHeight = (docSigImage.height / docSigImage.width) * docSigWidth;
