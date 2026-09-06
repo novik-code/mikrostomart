@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
-import { sendPushByConfig, pushToUsers } from '@/lib/pushService';
+import { sendPushByConfig, pushToUsers, PRIVATE_TASK_TAG_PREFIX } from '@/lib/pushService';
 import { deleteEvent } from '@/lib/googleCalendar';
 import { assigneeUserIds } from '@/lib/taskAssignees';
 import { normalizedTaskImageFields, withSignedTaskImages } from '@/lib/taskImages';
@@ -333,7 +333,17 @@ export async function PATCH(
                         // i w apce po tapnięciu (`url` niesie `taskId`).
                         neutral: { body: 'Otwórz, aby zobaczyć szczegóły.' },
                         url: `/pracownik?tab=zadania&taskId=${id}`,
-                        tag: `task-assigned-${id}`,
+                        /**
+                         * 🔇 TAG DECYDUJE O HISTORII. Feed „Alerty" jest CELOWO wspólny dla całego
+                         * gabinetu, więc push imienny o zadaniu PRYWATNYM zapisywał tam pełny tytuł
+                         * z nazwiskiem pacjenta — treść, której P-040 zabroniło ogłaszać grupowo,
+                         * wracała tylną furtką na 30 dni. `skipHistory` wycina wpisy z prefiksem
+                         * `task-private-`; mechanizm istniał, używał go tylko asystent AI.
+                         * 🔑 Push DOCHODZI normalnie — nie zapisuje się tylko w historii.
+                         */
+                        tag: zadanieDostep?.is_private
+                            ? `${PRIVATE_TASK_TAG_PREFIX}${id}`
+                            : `task-assigned-${id}`,
                     });
                 }
             }

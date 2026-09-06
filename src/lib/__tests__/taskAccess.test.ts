@@ -80,7 +80,7 @@ describe('P-040 · reguła dostępu', () => {
 
 let ktoWola = B;
 let pushZespolowy: { config: string; body: string }[] = [];
-let pushImienny: { uids: string[] }[] = [];
+let pushImienny: { uids: string[]; tag?: string; body?: string }[] = [];
 let zapisy: { tabela: string; op: string }[] = [];
 /** Czy odczyt wiersza pod bramkę ma paść (timeout / 5xx z PostgREST). */
 let odczytPada = false;
@@ -95,10 +95,11 @@ vi.mock('@/lib/pushService', () => ({
         pushZespolowy.push({ config, body: payload?.body || '' });
         return { sent: 1 };
     },
-    pushToUsers: async (uids: string[]) => {
-        pushImienny.push({ uids });
+    pushToUsers: async (uids: string[], payload: { tag?: string; body?: string }) => {
+        pushImienny.push({ uids, tag: payload?.tag, body: payload?.body });
         return { sent: uids.length };
     },
+    PRIVATE_TASK_TAG_PREFIX: 'task-private-',
 }));
 vi.mock('@/lib/googleCalendar', () => ({ deleteEvent: async () => ({ success: true }) }));
 vi.mock('@/lib/taskImages', () => ({
@@ -419,5 +420,38 @@ describe('P-040 · awaria odczytu to NIE jest „nie ma takiego zadania"', () =>
         const res = await DELETE(req(), par(ZESPOLOWE));
         expect(res.status).toBe(503);
         expect(zapisy.filter(z => z.op === 'delete')).toHaveLength(0);
+    });
+});
+
+describe('P-040 · push imienny o zadaniu prywatnym nie osiada we WSPÓLNYM feedzie', () => {
+    beforeEach(() => { ktoWola = A; });
+
+    /**
+     * 🔴 Feed „Alerty" (`GET /api/employee/push/history`) jest CELOWO wspólny: filtruje
+     * po `user_type IN ('employee','admin')`, bez warunku na `user_id`. Push imienny
+     * o przypisaniu do zadania PRYWATNEGO zapisywał tam PEŁNY tytuł razem z nazwiskiem
+     * pacjenta — czyli treść, której P-040 właśnie zabroniło ogłaszać grupowo, wracała
+     * tylną furtką i była czytelna dla całego zespołu przez 30 dni.
+     *
+     * 🔑 Mechanizm wykluczenia ISTNIAŁ od dawna: `skipHistory` w `pushService.ts` wycina
+     * wpisy z tagiem `task-private-`. Używał go wyłącznie asystent AI — trasy REST nie.
+     * Naprawa to jedna linia w każdej z nich: prywatne zadanie dostaje ten tag.
+     */
+    it('🔴 przypisanie na PRYWATNYM: push dochodzi, ale z tagiem wykluczonym z historii', async () => {
+        const { PATCH } = await import('@/app/api/employee/tasks/[id]/route');
+        await PATCH(req({ assigned_to: [{ id: B }] }), par(PRYWATNE));
+
+        expect(pushImienny).toHaveLength(1);
+        expect(pushImienny[0].uids).toContain(B);
+        // Kontrola pozytywna: treść nadal niesie tytuł — chodzi o HISTORIĘ, nie o baner.
+        expect(pushImienny[0].body).toContain('Fryzjer');
+        expect(pushImienny[0].tag).toMatch(/^task-private-/);
+    });
+
+    it('kontrola: na zadaniu ZESPOŁOWYM tag zostaje zwykły (wpis w historii ma powstać)', async () => {
+        const { PATCH } = await import('@/app/api/employee/tasks/[id]/route');
+        await PATCH(req({ assigned_to: [{ id: B }] }), par(ZESPOLOWE));
+
+        expect(pushImienny[0].tag).toMatch(/^task-assigned-/);
     });
 });
