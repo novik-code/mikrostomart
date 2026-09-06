@@ -103,8 +103,20 @@ export type WynikDostepu =
  * przez co brak zadania szedł dotąd jako 500 „Failed to update task". Tu brak wiersza
  * ma być stanem `brak`, a realna awaria — stanem `awaria`.
  */
+/**
+ * Klient Supabase, jakiego potrzebuje bramka.
+ *
+ * 🪤 `any` JEST TU ŚWIADOME I ZMIERZONE. Próba zawężenia do minimalnego kształtu
+ * (`from().select().eq().maybeSingle()`) wywala kompilację na `TS2589: Type instantiation
+ * is excessively deep` — generyki `SupabaseClient` rozwijają się rekurencyjnie przy
+ * dopasowaniu do własnego interfejsu. Konwencja repo dla tej klasy przypadków to jawne
+ * wyłączenie reguły z powodem (19 plików w `src/`), nie ciche `any`.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type KlientZadan = { from: (tabela: string) => any };
+
 export async function loadTaskForAccess(
-    supabase: { from: (t: string) => any },
+    supabase: KlientZadan,
     id: string,
 ): Promise<WynikDostepu> {
     const { data, error } = await supabase
@@ -126,7 +138,7 @@ export async function loadTaskForAccess(
  * żeby klient odróżnił „tego zadania nie ma" od „nie udało się sprawdzić".
  */
 export async function bramkaZadania(
-    supabase: { from: (t: string) => any },
+    supabase: KlientZadan,
     id: string,
     userId: string,
 ): Promise<{ odmowa: NextResponse | null; task: TaskAccessRow | null }> {

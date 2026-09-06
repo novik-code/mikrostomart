@@ -1,3 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any --
+ * Atrapy łańcucha PostgREST i handlerów tras Next są z natury dynamiczne: builder zwraca
+ * sam siebie z dowolnej metody, a `params` bywa `Promise`. Zawężenie tych kształtów do
+ * typów SDK wywala kompilację na `TS2589` (rekurencyjne generyki `SupabaseClient`).
+ * Konwencja repo dla tej klasy przypadków to jawne wyłączenie z powodem, nie ciche `any`.
+ */
 /**
  * STRAŻNIK DOSTĘPU DO ZADAŃ PERSONELU (P-040).
  *

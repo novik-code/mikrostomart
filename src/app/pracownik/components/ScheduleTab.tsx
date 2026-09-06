@@ -1340,7 +1340,10 @@ export default function ScheduleTab({
                                     if (selectedAppointment.patientId) {
                                         try {
                                             const [consentsRes, intakeRes] = await Promise.all([
-                                                fetch(`/api/employee/patient-consents?prodentisId=${selectedAppointment.patientId}`),
+                                                // `includeSignature=1` — popover niżej renderuje `<img src={c.signature_data}>`,
+                                                // a od 06.09 (P-071/P-095) obraz podpisu wychodzi z API wyłącznie na żądanie.
+                                                // Apka personelu tego parametru nie dokłada, bo podpisu nie pokazuje.
+                                                fetch(`/api/employee/patient-consents?prodentisId=${selectedAppointment.patientId}&includeSignature=1`),
                                                 fetch(`/api/employee/patient-intake?prodentisId=${selectedAppointment.patientId}`),
                                             ]);
                                             if (consentsRes.ok) {

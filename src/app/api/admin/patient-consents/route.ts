@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/authGuards';
 import { readPatientConsentPii } from '@/lib/encryptedPiiFields';
+import { streszczenieBiometrii } from '@/lib/biometriaPodpisu';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -58,15 +59,10 @@ export async function GET(req: NextRequest) {
             const bio: any = pii.biometric_data;
             return {
                 ...c,
-                biometric_data: bio ? {
-                    hasData: true,
-                    pointCount: bio.pointCount || 0,
-                    avgPressure: bio.avgPressure || 0,
-                    maxPressure: bio.maxPressure || 0,
-                    totalDuration: bio.totalDuration || 0,
-                    pointerType: bio.deviceInfo?.pointerType || 'unknown',
-                    strokeCount: bio.strokes?.length || 0,
-                } : null,
+                // Kształt przeniesiony do `lib/biometriaPodpisu.ts` (P-071/P-095) —
+                // ta sama definicja obsługuje teraz także trasę personelu, więc panel
+                // pracownika i widok admina nie mogą się rozjechać.
+                biometric_data: streszczenieBiometrii(bio),
                 biometric_data_encrypted: undefined,
             };
         });

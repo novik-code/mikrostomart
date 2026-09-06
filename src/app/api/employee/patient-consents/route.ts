@@ -5,6 +5,12 @@ import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
 import { readPatientConsentPii } from '@/lib/encryptedPiiFields';
 import { PATIENT_DOC_BUCKET, displayUrlFor } from '@/lib/privateStorage';
+import { streszczenieBiometrii } from '@/lib/biometriaPodpisu';
+
+const NO_STORE = {
+    'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+    'Referrer-Policy': 'no-referrer',
+} as const;
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,6 +31,12 @@ export async function GET(req: NextRequest) {
 
     const prodentisId = req.nextUrl.searchParams.get('prodentisId');
     const patientName = req.nextUrl.searchParams.get('patientName');
+    /**
+     * 🔒 Obraz podpisu wychodzi WYŁĄCZNIE na żądanie (P-071/P-095). Renderuje go jedno
+     * miejsce w całym projekcie — popover w panelu pracownika — i to ono dokłada ten
+     * parametr. Apka personelu go nie prosi, bo w ogóle go nie czyta.
+     */
+    const zObrazemPodpisu = req.nextUrl.searchParams.get('includeSignature') === '1';
 
     if (!prodentisId && !patientName) {
         return NextResponse.json({ error: 'prodentisId or patientName required' }, { status: 400 });
@@ -80,15 +92,28 @@ export async function GET(req: NextRequest) {
             return {
                 ...row,
                 file_url: podpisy[idx] ?? row.file_url,
-                signature_data: pii.signature_data,
-                biometric_data: pii.biometric_data,
+                /**
+                 * 🔒 MINIMALIZACJA (P-071 + P-095). Do 06.09 szła stąd PEŁNA trajektoria
+                 * podpisu — każdy punkt z naciskiem i czasem — oraz obraz podpisu,
+                 * w każdym wierszu listy i do każdego klienta. Dane szczególnej kategorii
+                 * (art. 9 RODO) wędrowały do apki, która ich nie czyta.
+                 * Dziś: liczby, które renderuje panel, i obraz tylko na żądanie.
+                 */
+                signature_data: zObrazemPodpisu ? pii.signature_data : undefined,
+                biometric_data: streszczenieBiometrii(pii.biometric_data),
                 // strip encrypted columns from response (caller doesn't need them)
                 signature_data_encrypted: undefined,
                 biometric_data_encrypted: undefined,
             };
         });
 
-        return NextResponse.json({ consents: decryptedConsents });
+        /**
+         * 🔒 Ta trasa niesie dane pacjenta, a w wariancie `includeSignature=1` obraz
+         * podpisu. Nagłówki jak przy pozostałych trasach z PII (`consents/verify`,
+         * `patients/export-data`) — żeby podgląd podpisu nie osiadł w cache pośrednika
+         * ani nie wyciekł adresem odsyłacza.
+         */
+        return NextResponse.json({ consents: decryptedConsents }, { headers: NO_STORE });
     } catch (err: any) {
         console.error('[PatientConsents] Error:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });
