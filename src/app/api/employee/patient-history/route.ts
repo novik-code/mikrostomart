@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
+import { czyPoprawnyIdPms, parsePmsLimit } from '@/lib/prodentisId';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
@@ -38,7 +39,12 @@ export async function GET(req: Request) {
         }
 
         // Fetch visit history from Prodentis
-        const sciezka = `/api/patient/${patientId}/appointments?limit=${limit}`;
+        // 🔴 P-035: DWA wejścia do tej samej ścieżki — identyfikator ORAZ `limit`,
+        // który do 06.09 szedł do PMS jako surowy string i bez żadnego pułapu.
+        if (!czyPoprawnyIdPms(patientId)) {
+            return NextResponse.json({ error: 'Nieprawidłowy identyfikator pacjenta' }, { status: 400 });
+        }
+        const sciezka = `/api/patient/${encodeURIComponent(patientId)}/appointments?limit=${parsePmsLimit(limit, 50, 200)}`;
         console.log(`[PatientHistory] Fetching from: ${sciezka}`);
 
         const response = await prodentisFetch(sciezka, { klucz: 'personel' });

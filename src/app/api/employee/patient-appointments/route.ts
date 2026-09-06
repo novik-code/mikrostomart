@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
+import { czyPoprawnyIdPms } from '@/lib/prodentisId';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +35,11 @@ export async function GET(req: Request) {
 
     try {
         // Fetch patient's full appointment history from Prodentis
-        const response = await prodentisFetch(`/api/patient/${patientId}/appointments?limit=100`, { klucz: 'personel' });
+        // 🔴 P-035: identyfikator w ŚCIEŻCE adresu PMS — biała lista + kodowanie.
+        if (!czyPoprawnyIdPms(patientId)) {
+            return NextResponse.json({ error: 'Nieprawidłowy identyfikator pacjenta' }, { status: 400 });
+        }
+        const response = await prodentisFetch(`/api/patient/${encodeURIComponent(patientId)}/appointments?limit=100`, { klucz: 'personel' });
 
         if (!response.ok) {
             console.error(`[PatientAppointments] Prodentis API error: ${response.status}`);

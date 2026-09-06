@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/authGuards';
+import { czyPoprawnyIdPms } from '@/lib/prodentisId';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +22,12 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'appointmentId and iconId required' }, { status: 400 });
         }
 
-        const res = await prodentisFetch(`/api/schedule/appointment/${appointmentId}/icon`, {
+        // 🔴 P-035: to jest ZAPIS (PUT) z identyfikatorem w ścieżce adresu PMS.
+        // Bez białej listy `..` i `#` pozwalały skierować go w dowolne miejsce API.
+        if (!czyPoprawnyIdPms(appointmentId)) {
+            return NextResponse.json({ error: 'Nieprawidłowy identyfikator wizyty' }, { status: 400 });
+        }
+        const res = await prodentisFetch(`/api/schedule/appointment/${encodeURIComponent(appointmentId)}/icon`, {
             klucz: 'personel',
             method: 'POST',
             body: JSON.stringify({ iconId }),

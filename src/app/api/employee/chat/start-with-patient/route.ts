@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { logAudit } from '@/lib/auditLog';
+import { czyPoprawnyIdPms } from '@/lib/prodentisId';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
@@ -38,6 +39,13 @@ export async function POST(req: Request) {
     if (!prodentisId) {
         return NextResponse.json({ error: 'Provide prodentis_id' }, { status: 400 });
     }
+    // 🔴 P-035, spójność: tu wstrzyknięcie wymaga wiersza `patients` o takim id (lookup
+    // niżej daje 404 wcześniej), więc jest praktycznie nieosiągalne — ale identyfikator
+    // trafia potem w ŚCIEŻKĘ adresu PMS, a wyjątek od reguły trzyma się dokładnie do
+    // pierwszej zmiany kolejności sprawdzeń.
+    if (!czyPoprawnyIdPms(prodentisId)) {
+        return NextResponse.json({ error: 'Nieprawidłowy identyfikator pacjenta' }, { status: 400 });
+    }
 
     try {
         // Konto portalu pacjenta (patients.id = klucz konwersacji). Czat wymaga konta.
@@ -64,7 +72,7 @@ export async function POST(req: Request) {
         let patientName = body.patient_name?.trim() || '';
         if (!patientName) {
             try {
-                const detRes = await prodentisFetch(`/api/patient/${prodentisId}/details`, {
+                const detRes = await prodentisFetch(`/api/patient/${encodeURIComponent(prodentisId)}/details`, {
             klucz: 'personel', timeoutMs: 5000 });
                 if (detRes.ok) {
                     const det = await detRes.json();

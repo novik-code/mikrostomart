@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { logAudit } from '@/lib/auditLog';
 import { checkRateLimit } from '@/lib/rateLimit';
+import { PRODENTIS_ID_RE } from '@/lib/prodentisId';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
@@ -14,7 +15,8 @@ const NO_STORE = { 'Cache-Control': 'no-store, no-cache, must-revalidate, privat
  * Jeśli kiedykolwiek się rozjadą, chip zapisany w bazie przestanie być rozwiązywalny —
  * zmiana w jednym miejscu wymaga zmiany w drugim. Cyfry, nigdy UUID.
  */
-const PRODENTIS_ID_RE = /^[0-9]{6,12}$/;
+// 🔑 P-035: wzorzec żyje teraz w JEDNYM miejscu — `src/lib/prodentisId.ts`.
+// Dwie kopie rozjechałyby się przy pierwszej zmianie formatu u dostawcy PMS.
 
 const MAX_BATCH = 50;
 /** Ile równoległych zapytań do Prodentisa na jedno żądanie wsadowe. */

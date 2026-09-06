@@ -92,6 +92,29 @@ export async function prodentisFetch(path: string, options: OpcjePMS = {}): Prom
     if (isDemoMode) throw new TrybDemoBezPMS(path);
 
     const { timeoutMs, signal, bezKlucza, headers, klucz, ...reszta } = options;
+    /**
+     * 🔴 OBRONA W GŁĄB (P-035). Główną bramką jest biała lista identyfikatorów u wołającego
+     * (`lib/prodentisId.ts`), ale to jest JEDYNY punkt wspólny wszystkich 86 wywołań PMS —
+     * i jedyne miejsce, którego następny autor nie przeoczy.
+     *
+     * Powód: WHATWG `URL` normalizuje `..` i ucina wszystko po `#`, więc identyfikator
+     * wklejony do ścieżki mógł przekierować żądanie w dowolne miejsce API Prodentisa,
+     * z naszym kluczem w nagłówku. Zmierzone: `../patients/search?q=kow&limit=500#`
+     * w miejscu id dawało `GET /api/patients/search?q=kow&limit=500`.
+     *
+     * 🪤 Sprawdzamy SEGMENTY ścieżki, a NIE cały string. Zakaz `'..'` w całym adresie
+     * wywróciłby wyszukiwarkę pacjentów, w której `kow..` jest legalną frazą w query —
+     * czyli lekarstwo groźniejsze od choroby. Query świadomie zostaje nietknięte.
+     */
+    const [samaSciezka] = path.split('?');
+    const segmenty = samaSciezka.split('/');
+    if (segmenty.some((s) => s === '..' || s === '.') || samaSciezka.includes('#')) {
+        throw new Error(
+            `Podejrzana ścieżka PMS (${path}) — segment nawigacyjny albo fragment w adresie. `
+            + 'Identyfikatory wstawiaj przez `encodeURIComponent` i sprawdzaj `czyPoprawnyIdPms`.',
+        );
+    }
+
     const konfiguracja = await getPMSConfig();
     const { apiUrl } = konfiguracja;
     // 🪤 Zejście na klucz pacjencki, gdy drugiego jeszcze nie ma — patrz `OpcjePMS.klucz`.

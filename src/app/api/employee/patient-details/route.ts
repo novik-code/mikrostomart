@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
+import { czyPoprawnyIdPms } from '@/lib/prodentisId';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 
 export const dynamic = 'force-dynamic';
@@ -28,7 +29,12 @@ export async function GET(request: Request) {
     }
 
     try {
-        const res = await prodentisFetch(`/api/patient/${patientId}/details`, { klucz: 'personel' });
+        // 🔴 P-035: bez tej bramki `patientId` szedł prosto w ŚCIEŻKĘ adresu PMS,
+        // a `..` i `#` pozwalały pracownikowi wykonać dowolne GET kluczem personelu.
+        if (!czyPoprawnyIdPms(patientId)) {
+            return NextResponse.json({ error: 'Nieprawidłowy identyfikator pacjenta' }, { status: 400 });
+        }
+        const res = await prodentisFetch(`/api/patient/${encodeURIComponent(patientId)}/details`, { klucz: 'personel' });
 
         if (!res.ok) {
             return NextResponse.json(
