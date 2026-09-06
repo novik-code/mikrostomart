@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { odswiezWizyte, czyWolnoRuszycWizyte } from '@/lib/prodentisAppointment';
 import { createClient } from '@supabase/supabase-js';
 import { verifyPatientSession } from '@/lib/jwt';
+import { guardAppointmentAction } from '@/lib/appointmentActionThrottle';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/pushService';
 import { recordPushPath } from '@/lib/pushHealth';
@@ -34,6 +35,14 @@ export async function POST(
                 { status: 401 }
             );
         }
+
+        /**
+         * 🔒 DŁAWIK (P-087) — po uwierzytelnieniu, przed bazą i przed PMS-em.
+         * Wspólny kubełek dla odwołania, przełożenia i potwierdzenia obecności:
+         * każda z nich budzi recepcję e-mailem, Telegramem i dwoma pushami.
+         */
+        const zaDuzoAkcji = await guardAppointmentAction(payload.prodentisId);
+        if (zaDuzoAkcji) return zaDuzoAkcji;
 
         // Get patient record
         const { data: patient, error: patientError } = await supabase

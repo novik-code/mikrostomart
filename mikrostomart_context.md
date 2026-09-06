@@ -1670,7 +1670,6 @@ Features:
 | `/patients/appointments/by-date` | GET | **ENHANCED** — Find by date with ±1min range query |
 | `/patients/appointments/book` | POST | Online booking from patient dashboard |
 | `/patients/appointments/bookings` | GET | Fetch patient's online bookings |
-| `/patients/appointments/[id]/reset-status` | POST | Dev/debug: reset appointment status |
 | `/patients/chat` | GET, POST | Patient ↔ reception chat messages |
 | `/patients/documents` | GET | **NEW** — Signed consents + e-karta PDFs for authenticated patient (JWT) |
 | `/patients/logout` | POST | Server-side logout (clears httpOnly JWT cookie) |
