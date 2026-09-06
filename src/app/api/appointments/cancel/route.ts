@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { guardPublicAppointment } from '@/lib/appointmentActionThrottle';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/pushService';
 import { cancelCareflowForAppointment } from '@/lib/careflowLifecycle';
@@ -20,32 +21,51 @@ const NO_STORE: Record<string, string> = {
  * POST /api/appointments/cancel
  * 
  * Public endpoint for appointment cancellation from landing pages (SMS links)
- * No JWT required - validates via appointmentId + patientId matching
+ * No JWT required — legitymacją jest LOSOWY TOKEN z linku w SMS-ie.
+ * 🪤 Poprzedni opis („validates via appointmentId + patientId matching") był
+ * NIEPRAWDZIWY w obie strony: identyfikator wizyty nie jest sekretem, a `patientId`
+ * nie był porównywany z niczym — szedł wyłącznie do logu (P-088).
  */
 export async function POST(req: NextRequest) {
     try {
-        const { appointmentId, token, patientId, prodentisId } = await req.json();
+        const { token } = await req.json();
 
-        // S4-4: accept token (new) or appointmentId (legacy, 14-day grace).
-        if (!token && !appointmentId) {
+        /**
+         * 🔴 P-088: GAŁĄŹ `appointmentId` ZNIKNĘŁA. Do 06.09 ta trasa przyjmowała surowy
+         * UUID wiersza `appointment_actions` jako „legacy, 14-day grace" — karencja
+         * skończyła się ponad trzy miesiące wcześniej, a gałąź żyła. UUID nie jest
+         * sekretem: wraca w odpowiedziach tras pacjenta, w paczce RODO i w logach, więc
+         * kto go znał, odwoływał albo potwierdzał CUDZĄ wizytę.
+         * ⚪ Zmierzone przed usunięciem: 92 żywe short-linki, WSZYSTKIE z `token=`,
+         * ZERO z `appointmentId=`; kolumna `confirmation_token` na produkcji istnieje,
+         * więc fallback w cronie był martwy. Żaden działający SMS nie ucierpiał.
+         */
+        if (!token) {
             return NextResponse.json(
-                { error: 'Missing token or appointmentId' },
+                { error: 'Missing token' },
                 { status: 400, headers: NO_STORE }
             );
         }
 
-        console.log('[CANCEL-PUBLIC] Attempting cancellation:', {
-            lookup: token ? 'token' : 'appointmentId (legacy)',
-            patientId,
-            prodentisId,
-        });
+        /**
+         * 🔒 DŁAWIK (P-088) — kubełek per TOKEN, nie per adres. Ten sam link klikany
+         * w pętli pali alert do recepcji, push do personelu i zapis w PMS przy KAŻDYM
+         * kliknięciu. Klucz po adresie byłby pozorny w obie strony: `x-forwarded-for`
+         * podaje klient, a gabinet i abonenci CGNAT dzielą jeden adres.
+         */
+        const zaDuzo = await guardPublicAppointment(token);
+        if (zaDuzo) return zaDuzo;
+
+        // 🪤 Log BEZ pól z ciała anonima: `patientId` i `prodentisId` nie były nigdy
+        // walidowane ani używane — wstrzykiwały się wprost do logów produkcyjnych (P-088).
+        console.log('[CANCEL-PUBLIC] Attempting cancellation by token');
 
         const query = supabase
             .from('appointment_actions')
             .select('*');
-        const { data: action, error: actionError } = await (token
-            ? query.eq('confirmation_token', token).single()
-            : query.eq('id', appointmentId).single());
+        const { data: action, error: actionError } = await query
+            .eq('confirmation_token', token)
+            .single();
 
         if (actionError || !action) {
             console.error('[CANCEL-PUBLIC] Appointment not found:', actionError);

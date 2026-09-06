@@ -501,8 +501,19 @@ export async function GET(req: Request) {
                     let actionDataFinal = actionData;
                     let actionErrorFinal = actionError;
                     let tokenInUrl: string | null = confirmationToken;
-                    if (actionError && /confirmation_token/i.test(actionError.message || '')) {
-                        console.warn(`   ⚠️  confirmation_token column not present yet — retrying without (legacy fallback)`);
+                    /**
+                     * 🪤 WARUNEK PO KODZIE BŁĘDU, NIE PO JEGO TREŚCI. Dawne
+                     * `/confirmation_token/i.test(message)` łapało także naruszenie
+                     * UNIKALNEGO indeksu na tej kolumnie i każdy przejściowy błąd
+                     * PostgREST, w którego treści padła jej nazwa — i wtedy log
+                     * twierdził „kolumny nie ma", choć przyczyna była zupełnie inna.
+                     * `42703` to `undefined_column`, `PGRST204` to nieznana kolumna
+                     * w cache schematu PostgREST.
+                     */
+                    const brakKolumny = actionError
+                        && (actionError.code === '42703' || actionError.code === 'PGRST204');
+                    if (brakKolumny) {
+                        console.warn(`   ⚠️  confirmation_token column not present yet — retrying without it`);
                         const legacy = await supabase
                             .from('appointment_actions')
                             .upsert({
@@ -533,16 +544,35 @@ export async function GET(req: Request) {
                         console.error(`   ⚠️  Failed to upsert appointment_action:`, actionErrorFinal);
                     } else {
                         const finalActionId = actionDataFinal?.id || appointmentActionId;
-                        console.log(`   ✅ Appointment action upserted (ID: ${finalActionId}, token: ${tokenInUrl ? 'yes' : 'legacy'})`);
+                        // 🪤 Etykieta „legacy" kłamała po P-088 — linku legacy już nie ma,
+                        // jest link z tokenem albo NIE MA GO WCALE.
+                        console.log(`   ✅ Appointment action upserted (ID: ${finalActionId}, token: ${tokenInUrl ? 'yes' : 'BRAK — SMS bez linku'})`);
 
                         // 10. Generate short link for landing page.
-                        // New format (with token): /wizyta/[type]?token=<16chars>&date=...&time=...&doctor=...
-                        // Legacy fallback (if column not deployed): /wizyta/[type]?appointmentId=<UUID>&...
+                        // Format adresu: /wizyta/[type]?token=<16 znaków>&date=…&time=…&doctor=…
                         const appointmentSlug = mapAppointmentTypeToSlug(appointmentType);
-                        const idParam = tokenInUrl
-                            ? `token=${tokenInUrl}`
-                            : `appointmentId=${finalActionId}`;
-                        const fullUrl = `${brand.appUrl}/wizyta/${appointmentSlug}?${idParam}&date=${targetDateStr}&time=${appointmentTime}&doctor=${encodeURIComponent(doctorName)}`;
+                        /**
+                         * 🔴 P-088 (06.09): zniknął stąd fallback budujący adres z surowym
+                         * identyfikatorem wiersza zamiast tokenu.
+                         * 🪤 Ten komentarz CELOWO nie cytuje tamtego literału — strażnik
+                         * `publicAppointmentToken.test.ts` czyta ten plik, a wzmianka w komentarzu
+                         * przepuszczała regresję. Złapane wykonaniem, drugi raz tego dnia.
+                         * Był martwy — powstawał WYŁĄCZNIE wtedy, gdy upsert padał na braku
+                         * kolumny `confirmation_token`, a ta na produkcji istnieje (zmierzone).
+                         * Link z surowym UUID pozwalał ruszyć cudzą wizytę, więc gdy tokenu
+                         * nie ma, NIE wysyłamy linku wcale — zamiast dawać gorszy.
+                         */
+                        if (!tokenInUrl) {
+                            /**
+                             * 🔴 Bez tokenu NIE MA linku — i to ma być widać w logu, a nie
+                             * skończyć się błędem wstawienia (`destination_url` jest NOT NULL).
+                             * Pacjent dostanie SMS z samą treścią przypomnienia; recepcja
+                             * potwierdzi wizytę ręcznie. To gorszy scenariusz niż link,
+                             * ale nieporównanie lepszy niż link, którym da się ruszyć cudzą wizytę.
+                             */
+                            console.error(`   🔴 Brak confirmation_token dla akcji ${finalActionId} — SMS BEZ linku do potwierdzenia`);
+                        } else {
+                        const fullUrl = `${brand.appUrl}/wizyta/${appointmentSlug}?token=${tokenInUrl}&date=${targetDateStr}&time=${appointmentTime}&doctor=${encodeURIComponent(doctorName)}`;
 
                         const shortCode = nanoid(6);
 
@@ -579,6 +609,7 @@ export async function GET(req: Request) {
                                 .eq('id', draftId);
 
                             console.log(`   📝 Updated SMS with short link`);
+                        }
                         }
                     }
                 } catch (actionErr) {

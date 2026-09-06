@@ -59,3 +59,43 @@ export async function guardAppointmentAction(prodentisId: string): Promise<NextR
         },
     );
 }
+
+export const PUBLIC_APPT_MAX = 10;
+export const PUBLIC_APPT_WINDOW_MS = 10 * 60_000;
+
+/**
+ * Dławik dla PUBLICZNYCH tras wizyty (`/api/appointments/confirm` i `/cancel`),
+ * wołanych z linku w SMS-ie.
+ *
+ * 🪤 KLUCZ PO TOKENIE, NIE PO IP — i to jest korekta mojej własnej pierwszej wersji.
+ * Kluczowanie po adresie wyglądało naturalnie (trasa jest publiczna, nie ma sesji), ale
+ * przegląd adwersaryjny pokazał, że jest bezwartościowe w OBIE strony: `getClientIP`
+ * czyta NAJBARDZIEJ LEWY wpis `x-forwarded-for`, czyli wartość, którą wstawia klient —
+ * napastnik rotuje nagłówek i limitu nie ma — a jednocześnie cały gabinet i abonenci
+ * za CGNAT-em dzielą jeden kubełek (lekcja `dc1e132`, opisana w nagłówku tego pliku).
+ * Limit po adresie ograniczałby więc wyłącznie uczciwych.
+ *
+ * 🔑 CO TEN DŁAWIK REALNIE CHRONI. Po zdjęciu gałęzi `appointmentId` (P-088) zgadywanie
+ * jest i tak niewykonalne — token ma 96 bitów. Zostaje inny scenariusz, całkiem realny:
+ * ten sam link klikany w pętli (nerwowy pacjent, podgląd linku przez klienta pocztowego,
+ * skrypt monitorujący), a każde kliknięcie to alert do recepcji, push do personelu
+ * i zapis w PMS. Kubełek per token ucina dokładnie to i nikogo obcego nie ucisza.
+ */
+export async function guardPublicAppointment(token: string): Promise<NextResponse | null> {
+    if (!egzekwujemy()) return null;
+
+    const { allowed } = await checkRateLimit(
+        `apptpublic:${token}`,
+        PUBLIC_APPT_MAX,
+        PUBLIC_APPT_WINDOW_MS,
+    );
+    if (allowed) return null;
+
+    return NextResponse.json(
+        { error: 'Zbyt wiele żądań dla tego linku. Spróbuj ponownie za kilka minut.' },
+        {
+            status: 429,
+            headers: { 'Retry-After': String(Math.ceil(PUBLIC_APPT_WINDOW_MS / 1000)), 'Cache-Control': 'no-store' },
+        },
+    );
+}
