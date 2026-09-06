@@ -11,6 +11,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import { zbiorWykluczonych } from '@/lib/pushRecipients';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 describe('zbiorWykluczonych', () => {
     it('brak argumentu → nie pomijamy NIKOGO', () => {
@@ -48,8 +50,8 @@ describe('zbiorWykluczonych', () => {
  * („jedna naprawa nie wystarczy — policz wszystkich wywołujących").
  */
 describe('Strażnik: ogłoszenie grupowe pomija przypisanych', () => {
-    const fs = require('fs') as typeof import('fs');
-    const path = require('path') as typeof import('path');
+    // `import` zamiast `require` — reguła repo (`no-require-imports`); statyczny import
+    // stoi na górze pliku, żeby nie zmieniać momentu wczytania w trakcie testu.
     const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), 'utf8');
 
     it('obie trasy zadań przekazują listę wykluczonych do wysyłki grupowej', () => {

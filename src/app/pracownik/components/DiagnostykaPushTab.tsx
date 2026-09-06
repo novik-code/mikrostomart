@@ -204,7 +204,15 @@ export default function DiagnostykaPushTab({ isAdmin = false }: { isAdmin?: bool
         }
     }, []);
 
+    /**
+     * Pobranie danych przy montowaniu. Reguła React Compiler ostrzega przed
+     * synchronicznym `setState` w efekcie (kaskada renderów) — tutaj to jednak
+     * kanoniczny wzorzec: dane przychodzą z sieci, a stan ładowania musi się ustawić
+     * zanim odpowiedź wróci. Wyłączamy świadomie i z powodem, zgodnie z konwencją repo.
+     */
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => { void load(); }, [load]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => { void loadPatients(); }, [loadPatients]);
 
     const problems = data?.paths.filter(p => p.status === 'silent' || p.status === 'never') ?? [];
@@ -397,7 +405,7 @@ export default function DiagnostykaPushTab({ isAdmin = false }: { isAdmin?: bool
                         <h3 style={{ margin: '0 0 0.2rem', color: '#fff', fontSize: '0.95rem' }}>Ostatnie niedostarczone</h3>
                         <p style={{ margin: '0 0 0.7rem', color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem' }}>
                             <b>DeviceNotRegistered</b> = użytkownik odinstalował aplikację albo zmienił urządzenie; taki token
-                            cron usuwa sam. Potwierdzenie „ok" znaczy tylko, że Expo przekazało wiadomość do Apple/Google.
+                            cron usuwa sam. Potwierdzenie „ok” znaczy tylko, że Expo przekazało wiadomość do Apple/Google.
                         </p>
                         {data.receipts.recentFailures.length === 0 ? (
                             <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.85rem' }}>
@@ -504,7 +512,7 @@ export default function DiagnostykaPushTab({ isAdmin = false }: { isAdmin?: bool
                             </div>
                             <p style={{ margin: '0.4rem 0 0.8rem', color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem' }}>
                                 Zawiera dane kontaktowe pacjentów, więc każde otwarcie tej sekcji trafia do dziennika audytu.
-                                <b> „Push działa"</b> znaczy, że ostatnie potwierdzenie z urządzenia nie zgłosiło wyrejestrowania —
+                                <b> „Push działa”</b> znaczy, że ostatnie potwierdzenie z urządzenia nie zgłosiło wyrejestrowania —
                                 to co innego niż <b>preferencje</b>, które pacjent ustawia sam w profilu.
                             </p>
 

@@ -74,14 +74,14 @@ describe('Dławik: przy przekroczeniu progu odmawia PRZED odczytem sekretu', () 
      * stać w pliku i nic nie robić — a strażnik świeciłby na zielono.
      */
     it.each([
-        ['disableAll', (m: Record<string, Function>) => m.disableAll(USER, '123456')],
-        ['removeDevice', (m: Record<string, Function>) => m.removeDevice(USER, 'dev-1', '123456')],
-        ['regenerateBackupCodes', (m: Record<string, Function>) => m.regenerateBackupCodes(USER, '123456')],
+        ['disableAll', (m: Record<string, (...a: string[]) => Promise<unknown>>) => m.disableAll(USER, '123456')],
+        ['removeDevice', (m: Record<string, (...a: string[]) => Promise<unknown>>) => m.removeDevice(USER, 'dev-1', '123456')],
+        ['regenerateBackupCodes', (m: Record<string, (...a: string[]) => Promise<unknown>>) => m.regenerateBackupCodes(USER, '123456')],
     ])('%s — odmawia PRZED odczytem, kubełek WSPÓLNY z logowaniem', async (_nazwa, wywolaj) => {
         checkRateLimitMock.mockResolvedValue({ allowed: false, remaining: 0 });
         const mod = await import('@/lib/twoFactorService');
 
-        const res = await wywolaj(mod as unknown as Record<string, Function>);
+        const res = await wywolaj(mod as unknown as Record<string, (...a: string[]) => Promise<unknown>>);
 
         expect(res).toEqual({ ok: false, error: mod.MFA_RATE_LIMITED });
         /**

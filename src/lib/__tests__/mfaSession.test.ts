@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createMfaSessionToken, verifyMfaSessionToken } from '../mfaSession';
+import * as crypto from 'node:crypto';
 
 beforeAll(() => {
     process.env.MFA_SESSION_SECRET = 'a'.repeat(64); // test secret
@@ -56,11 +57,10 @@ describe('mfaSession', () => {
 
         it('rejects an expired token', () => {
             // Create a token manually with past expiry
-            const crypto = require('crypto');
             const payload = JSON.stringify({ userId: 'user-1', expiresAt: Date.now() - 1000 });
             const encoded = Buffer.from(payload).toString('base64url');
             const sig = crypto
-                .createHmac('sha256', process.env.MFA_SESSION_SECRET)
+                .createHmac('sha256', process.env.MFA_SESSION_SECRET ?? 'test-secret')
                 .update(encoded)
                 .digest('base64url');
             const expired = `${encoded}.${sig}`;
@@ -98,11 +98,10 @@ describe('mfaSession', () => {
 
         it('token SPRZED migracji (bez pola epoch) liczy się jako epoka 0', () => {
             // Wgranie migracji nie może wylogować całego zespołu naraz.
-            const crypto = require('crypto');
             const payload = JSON.stringify({ userId: 'user-1', expiresAt: Date.now() + 3_600_000 });
             const encoded = Buffer.from(payload).toString('base64url');
             const sig = crypto
-                .createHmac('sha256', process.env.MFA_SESSION_SECRET)
+                .createHmac('sha256', process.env.MFA_SESSION_SECRET ?? 'test-secret')
                 .update(encoded)
                 .digest('base64url');
             const legacy = `${encoded}.${sig}`;

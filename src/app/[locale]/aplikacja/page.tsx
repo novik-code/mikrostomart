@@ -103,7 +103,15 @@ export default function AplikacjaPage() {
         return () => document.getElementById('hide-global-nav')?.remove();
     }, []);
 
-    // Wykryj system i przekieruj telefon prosto do właściwego sklepu.
+    /**
+     * Wykryj system i przekieruj telefon prosto do właściwego sklepu.
+     *
+     * Reguła React Compiler ostrzega przed synchronicznym `setState` w efekcie.
+     * Tutaj to wzorzec wymuszony przez SSR: `detectOs()` czyta `navigator`, którego
+     * na serwerze nie ma, więc wyniku nie da się policzyć w inicjalizatorze stanu.
+     * Wyłączamy świadomie i z powodem, zgodnie z konwencją repo.
+     */
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         const detected = detectOs();
         setOs(detected);
@@ -115,6 +123,7 @@ export default function AplikacjaPage() {
             return () => clearTimeout(t);
         }
     }, []);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     // Ekran przekierowania (telefon).
     if (redirecting && (os === 'ios' || os === 'android')) {
