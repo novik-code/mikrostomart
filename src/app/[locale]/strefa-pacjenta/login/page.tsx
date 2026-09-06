@@ -44,11 +44,17 @@ export default function PatientLogin() {
 
             if (response.ok && data.success) {
                 // S4-5: token is now ONLY in the httpOnly cookie set by the
-                // server response — no JS-readable copy, no localStorage of
-                // the JWT. patient_data localStorage stays (display-only
-                // profile info, not credentials; same-origin XSS can read
-                // it but can't impersonate the user without the cookie).
-                localStorage.setItem('patient_data', JSON.stringify(data.patient));
+                // server response — no JS-readable copy, no localStorage of the JWT.
+                //
+                // 🔴 P-023 (06.09): zniknął stąd `localStorage.setItem('patient_data', …)`.
+                // Zapisywał CAŁY rekord z odpowiedzi logowania — do 06.09 razem z PESEL-em,
+                // datą urodzenia i uwagami personelu — i zostawiał go na dysku przeglądarki
+                // (także na komputerze współdzielonym) aż do wylogowania. Komentarz mówił
+                // „display-only", ale ANI JEDEN plik tej wartości nie czytał: w całym repo
+                // były wyłącznie trzy `removeItem` (layout.tsx, profil/page.tsx,
+                // usePatientAuth.ts). Profil pobiera `usePatientAuth` z `GET /api/patients/me`.
+                // Trzy `removeItem` zostają celowo — sprzątają dane u pacjentów,
+                // którzy zalogowali się przed tą zmianą.
 
                 router.push('/strefa-pacjenta/dashboard');
             } else {

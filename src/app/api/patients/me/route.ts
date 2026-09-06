@@ -3,6 +3,7 @@ import { verifyPatientSession } from '@/lib/jwt';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { createClient } from '@supabase/supabase-js';
 import { isDemoMode } from '@/lib/demoMode';
+import { widokProfiluPacjenta } from '@/lib/patientProfileView';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,8 +24,13 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Kartoteka z Prodentisa/Supabase — kod czyta z niej tylko email i telefon,
-        // reszta pól idzie do klienta bez zmian.
+        /**
+         * Kartoteka z Prodentisa/Supabase. 🔴 Do 06.09 CAŁA szła do klienta przez spread,
+         * razem z `pesel`, `birthDate`, `gender`, `middleName`, `maidenName`, `notes`
+         * i `warnings[]` — czyli z danymi szczególnymi i wewnętrznymi uwagami personelu
+         * (zmierzone na produkcji: 17 kluczy w odpowiedzi, `pesel` niepusty). Dziś do
+         * klienta idzie wyłącznie allow-lista z `@/lib/patientProfileView` (P-023).
+         */
         let patientData: Record<string, unknown> & { email?: string | null; phone?: string | null };
 
         if (isDemoMode) {
@@ -99,9 +105,12 @@ export async function GET(request: NextRequest) {
             // Continue without email if Supabase fails (graceful degradation)
         }
 
-        // Merge Supabase data (email, phone, account_status) with Prodentis data
+        // Merge Supabase data (email, phone, account_status) with Prodentis data.
+        // 🔑 Spread idzie z WIDOKU kartoteki, nie z kartoteki — patrz komentarz wyżej.
+        // Fallbacki niżej czytają surowy rekord celowo: dają tę samą wartość, a widok
+        // nie ma być jedynym źródłem e-maila, gdy Supabase go nie zna.
         const mergedData = {
-            ...patientData,
+            ...widokProfiluPacjenta(patientData),
             supabaseId: payload.userId,
             email: supabasePatient?.email || patientData.email || null,
             phone: supabasePatient?.phone || patientData.phone || null,

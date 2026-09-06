@@ -6,6 +6,7 @@ import { isDemoMode } from '@/lib/demoMode';
 import { phoneLookupVariants } from '@/lib/phone';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { pickExactEmailMatch } from '@/lib/emailMatch';
+import { widokProfiluPacjenta } from '@/lib/patientProfileView';
 
 export const dynamic = 'force-dynamic';
 
@@ -415,7 +416,14 @@ export async function POST(request: Request) {
             // więc dostaje token w JSON. To ten sam JWT co w cookie (poniżej).
             ...(isNativeClient ? { token } : {}),
             patient: {
-                ...patientDetails,
+                /**
+                 * 🔴 Do 06.09 stał tu spread CAŁEJ kartoteki z Prodentisa — pacjent
+                 * dostawał przy każdym logowaniu `pesel`, `birthDate`, `gender`,
+                 * `middleName`, `maidenName`, `notes` i `warnings[]`, czyli wewnętrzne
+                 * uwagi personelu o sobie samym (zmierzone: 15 kluczy w `patient`).
+                 * Dziś wychodzi wyłącznie allow-lista pól, które web i apka czytają.
+                 */
+                ...widokProfiluPacjenta(patientDetails),
                 // Override with Supabase data if exists
                 email: patient.email || patientDetails.email,
                 // Include Supabase UUID for push subscriptions (matches chat_conversations.patient_id)
