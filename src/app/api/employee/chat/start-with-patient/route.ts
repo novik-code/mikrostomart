@@ -67,22 +67,41 @@ export async function POST(req: Request) {
             );
         }
 
-        // Nazwa do wyświetlenia w liście konwersacji: preferuj przekazaną z apki
-        // (hub ma ją z wizyty), w ostateczności pobierz z Prodentisa.
-        let patientName = body.patient_name?.trim() || '';
-        if (!patientName) {
-            try {
-                const detRes = await prodentisFetch(`/api/patient/${encodeURIComponent(prodentisId)}/details`, {
-            klucz: 'personel', timeoutMs: 5000 });
-                if (detRes.ok) {
-                    const det = await detRes.json();
-                    patientName = `${det.firstName || ''} ${det.lastName || ''}`.trim();
-                }
-            } catch (e) {
-                /* nazwa nie jest krytyczna — ale awaria PMS (np. brak klucza) ma zostawić ślad */
-                console.error('[EmployeeChat] Nie udało się pobrać nazwy pacjenta z PMS:', e);
+        /**
+         * Nazwa do wyświetlenia w liście konwersacji.
+         *
+         * 🔴 P-041: KOLEJNOŚĆ ODWRÓCONA (06.09). Do dziś pierwszeństwo miała wartość
+         * z CIAŁA ŻĄDANIA — a to znaczy, że uwierzytelniony pracownik wołający tę trasę
+         * spoza apki mógł nadać realnemu pacjentowi dowolną etykietę, która potem wędruje
+         * do `chat_conversations` i do `employee_audit_log`. Kartoteka jest źródłem prawdy
+         * o tym, jak pacjent się nazywa; ciało żądania nim nie jest.
+         * ⚪ Koszt: jedno dodatkowe wywołanie PMS przy ZAKŁADANIU rozmowy (nie przy każdej
+         * wiadomości). Wartość z apki zostaje jako zapasowa, żeby awaria PMS nie zamieniła
+         * listy rozmów w kolumnę „Pacjent".
+         *
+         * 🪤 LIMIT DŁUGOŚCI NIE JEST KOSMETYKĄ. `logAudit` nie sprawdza `{error}`, a indeks
+         * btree `idx_audit_log_patient` nie przyjmuje wartości powyżej ~2704 B — nazwa
+         * dłuższa niż limit strony indeksu sprawiała, że wpis audytu RODO ginął PO CICHU,
+         * a każdy późniejszy odczyt wątku kopiował tę samą nazwę i też ginął.
+         * ⚪ Zmierzone na produkcji 06.09: najdłuższa istniejąca nazwa ma 18 znaków,
+         * zero powyżej 200 — próg 120 nie obcina niczego, co dziś żyje w bazie.
+         */
+        const NAZWA_MAX = 120;
+        const przytnij = (v: unknown) => (typeof v === 'string' ? v.trim().slice(0, NAZWA_MAX) : '');
+
+        let patientName = '';
+        try {
+            const detRes = await prodentisFetch(`/api/patient/${encodeURIComponent(prodentisId)}/details`, {
+                klucz: 'personel', timeoutMs: 5000 });
+            if (detRes.ok) {
+                const det = await detRes.json();
+                patientName = przytnij(`${det.firstName || ''} ${det.lastName || ''}`.trim());
             }
+        } catch (e) {
+            /* nazwa nie jest krytyczna — ale awaria PMS (np. brak klucza) ma zostawić ślad */
+            console.error('[EmployeeChat] Nie udało się pobrać nazwy pacjenta z PMS:', e);
         }
+        if (!patientName) patientName = przytnij(body.patient_name);
         if (!patientName) patientName = 'Pacjent';
 
         // Get-or-create OTWARTEJ konwersacji (wzorzec z patients/chat POST).

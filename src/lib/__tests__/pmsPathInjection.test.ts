@@ -60,11 +60,18 @@ vi.mock('@/lib/roles', () => ({ hasRole: async () => true }));
 vi.mock('@/lib/auditLog', () => ({ logAudit: async () => {} }));
 vi.mock('@supabase/supabase-js', () => ({
     createClient: () => ({
-        from: () => {
+        // 🪤 Atrapa świadoma tabeli: bez wiersza w `patients` trasa `start-with-patient`
+        // wychodzi na 404 `no_patient_account` i nigdy nie dochodzi do logiki nazwy —
+        // asercja o pierwszeństwie PMS byłaby wtedy PUSTA.
+        from: (tabela: string) => {
             const q: Record<string, unknown> = {};
             for (const m of ['select', 'eq', 'order', 'limit', 'in', 'update', 'insert', 'delete']) q[m] = () => q;
-            q.single = async () => ({ data: null, error: { message: 'brak' } });
-            q.maybeSingle = async () => ({ data: null, error: null });
+            const pacjent = { id: 'uuid-pacjenta', prodentis_id: '0100001110' };
+            q.single = async () => ({
+                data: tabela === 'patients' ? pacjent : { id: 'uuid-rozmowy' },
+                error: null,
+            });
+            q.maybeSingle = async () => ({ data: tabela === 'patients' ? pacjent : null, error: null });
             q.then = (r: (v: unknown) => unknown) => Promise.resolve({ data: [], error: null }).then(r);
             return q;
         },
@@ -196,16 +203,18 @@ describe('P-035 okablowanie · trasy odrzucają ładunek PRZED dotknięciem PMS'
 
 describe('P-035 obrona w głąb · `prodentisFetch` odrzuca segment nawigacyjny', () => {
     it('🔴 SEDNO: `..` w SEGMENCIE ścieżki rzuca, zanim poleci żądanie', async () => {
-        vi.resetModules();
-        vi.doUnmock('@/lib/prodentisFetch');
+        // 🪤 BEZ `vi.doUnmock` — zdejmowało atrapę GLOBALNIE, więc kolejne testy w tym
+        // pliku dostawały prawdziwy `prodentisFetch` i ich asercje mierzyły co innego,
+        // niż deklarowały. `importActual` i tak omija mock.
         const { prodentisFetch } = await vi.importActual<typeof import('../prodentisFetch')>('../prodentisFetch');
         await expect(prodentisFetch('/api/patient/../patients/search')).rejects.toThrow(/Podejrzana ścieżka PMS/);
         await expect(prodentisFetch('/api/patient/0100001110/details#x')).rejects.toThrow(/Podejrzana ścieżka PMS/);
     });
 
     it('🪤 KONTROLA POZYTYWNA: `..` w QUERY jest LEGALNE (fraza wyszukiwania `kow..`)', async () => {
-        vi.resetModules();
-        vi.doUnmock('@/lib/prodentisFetch');
+        // 🪤 BEZ `vi.doUnmock` — zdejmowało atrapę GLOBALNIE, więc kolejne testy w tym
+        // pliku dostawały prawdziwy `prodentisFetch` i ich asercje mierzyły co innego,
+        // niż deklarowały. `importActual` i tak omija mock.
         const { prodentisFetch } = await vi.importActual<typeof import('../prodentisFetch')>('../prodentisFetch');
         // Zakaz `'..'` w CAŁYM adresie wywróciłby wyszukiwarkę pacjentów — lekarstwo
         // groźniejsze od choroby. Ta ścieżka ma dojść dalej (padnie na braku klucza/sieci,
@@ -213,5 +222,36 @@ describe('P-035 obrona w głąb · `prodentisFetch` odrzuca segment nawigacyjny'
         await expect(prodentisFetch('/api/patients/search?q=kow..')).rejects.not.toThrow(
             /Podejrzana ścieżka PMS/,
         );
+    });
+});
+
+// ── P-041 (część bez migracji): nazwa pacjenta ─────────────────────────────
+
+describe('P-041 · nazwa pacjenta pochodzi z KARTOTEKI, nie z ciała żądania', () => {
+    const wolaj = async (body: unknown) => {
+        const { POST } = await import('@/app/api/employee/chat/start-with-patient/route');
+        return POST(
+            new Request('https://x.test/api', {
+                method: 'POST',
+                headers: { 'content-type': 'application/json', authorization: 'Bearer t' },
+                body: JSON.stringify(body),
+            }),
+        );
+    };
+
+    it('🔴 SEDNO: ładunek w `prodentis_id` → 400 i ZERO żądań do PMS', async () => {
+        for (const l of LADUNKI) {
+            const res = await wolaj({ prodentis_id: l, patient_name: 'X' });
+            expect(res.status, l).toBe(400);
+        }
+        expect(sciezkiDoPms).toEqual([]);
+    });
+
+    it('🔴 SEDNO: nazwa jest pobierana z PMS, zanim spojrzymy na ciało żądania', async () => {
+        // Atrapa `prodentisFetch` oddaje pusty obiekt, więc nazwa z PMS wyjdzie pusta —
+        // ale samo WYWOŁANIE musi paść, bo to ono decyduje o pierwszeństwie.
+        await wolaj({ prodentis_id: '0100001110', patient_name: 'PODSTAWIONA' }).catch(() => undefined);
+        expect(sciezkiDoPms.some((p) => p.includes('/details'))).toBe(true);
+        expect(sciezkiDoPms.every((p) => p.startsWith('/api/patient/0100001110/'))).toBe(true);
     });
 });
