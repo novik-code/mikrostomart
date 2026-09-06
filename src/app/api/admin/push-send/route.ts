@@ -87,12 +87,20 @@ export async function POST(req: Request) {
             const uniqueVariants = [...new Set(variants)];
             console.log(`  🔍 Looking up patient by phone variants:`, uniqueVariants);
 
-            // Search with OR across all variants
-            const orFilter = uniqueVariants.map(v => `phone.eq.${v}`).join(',');
+            /**
+             * 🔴 P-014: było `.or(variants.map(v => `phone.eq.${v}`).join(','))`.
+             * `.or()` przyjmuje SUROWĄ składnię PostgREST, w której przecinek rozdziela
+             * warunki — a gałąź „unknown format" wyżej wkłada do wariantów
+             * `phone.replace(/\s+/g,'')`, czyli ciąg z zachowanymi przecinkami i kropkami.
+             * Wystarczyło podać numer `x,id.not.is.null`, żeby `.limit(1)` zwróciło
+             * PIERWSZEGO LEPSZEGO pacjenta i push poleciał do niewłaściwej osoby.
+             * 🔑 `.in()` wysyła wartości jako osobne parametry — przecinek przestaje być
+             * składnią, więc nie ma czego escapować ani jak się pomylić.
+             */
             const { data: patients, error: phoneErr } = await supabase
                 .from('patients')
                 .select('id, prodentis_id, phone')
-                .or(orFilter)
+                .in('phone', uniqueVariants)
                 .limit(1);
 
             console.log(`  🔍 Phone lookup result:`, { 

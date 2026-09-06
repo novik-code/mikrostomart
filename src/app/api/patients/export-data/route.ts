@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { pobierzOdwolaneWizyty, type KlientOdwolanych } from '@/lib/patientExportCancelled';
 import { verifyPatientSession } from '@/lib/jwt';
 import { demoSanitize } from '@/lib/brandConfig';
 import { getUserAIConversations } from '@/lib/aiConversationLog';
@@ -224,17 +225,16 @@ export async function GET(request: NextRequest) {
         // ── 9. Cancelled appointments (S8-6, by prodentis_id lub phone) ──
         let cancelledAppointments: unknown[] = [];
         try {
-            const cancelFilters = [];
-            if (patient.prodentis_id) cancelFilters.push(`patient_prodentis_id.eq.${patient.prodentis_id}`);
-            if (patient.phone) cancelFilters.push(`patient_phone.eq.${patient.phone}`);
-            if (cancelFilters.length > 0) {
-                const { data: cancelled } = await supabase
-                    .from('cancelled_appointments')
-                    .select('*')
-                    .or(cancelFilters.join(','))
-                    .order('cancelled_at', { ascending: false });
-                cancelledAppointments = cancelled || [];
-            }
+            // 🔴 P-005: filtr NIE jest już sklejany stringiem. `patients.phone` ustawia sobie
+            // sam pacjent, a `.or()` przyjmuje surową składnię PostgREST, w której przecinek
+            // rozdziela warunki — numer `x,reason.gte.` dokładał warunek prawdziwy dla
+            // wszystkich wierszy i pacjent dostawał w SWOJEJ paczce RODO odwołane wizyty
+            // wszystkich pacjentów (zapytanie idzie `service_role`, więc omija RLS).
+            // Rzutowanie — patrz komentarz przy `KlientOdwolanych` (głębokie typy postgrest-js).
+            cancelledAppointments = await pobierzOdwolaneWizyty(supabase as unknown as KlientOdwolanych, {
+                prodentisId: patient.prodentis_id,
+                phone: patient.phone,
+            });
         } catch (err) {
             console.warn('[ExportData] cancelled_appointments fetch failed:', err);
         }

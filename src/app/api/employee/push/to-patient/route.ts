@@ -78,8 +78,13 @@ export async function POST(req: Request) {
         } else {
             variants.push(digits, `+${digits}`, phone.replace(/\s+/g, ''));
         }
-        const orFilter = [...new Set(variants)].map((v) => `phone.eq.${v}`).join(',');
-        const { data } = await supabase.from('patients').select('id').or(orFilter).limit(1);
+        // 🔴 P-014: `.in()` zamiast sklejanego `.or()` — patrz uzasadnienie w
+        // `api/admin/push-send/route.ts`. Ta sama klasa błędu, drugi egzemplarz.
+        const { data } = await supabase
+            .from('patients')
+            .select('id')
+            .in('phone', [...new Set(variants)])
+            .limit(1);
         if (data && data.length > 0) patientUserId = data[0].id;
     }
 

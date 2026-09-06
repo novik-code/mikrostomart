@@ -152,7 +152,24 @@ export async function PATCH(request: NextRequest) {
         }
 
         if (phone !== undefined) {
-            updates.phone = phone.replace(/[\s-]/g, ''); // Normalize phone
+            const znormalizowany = phone.replace(/[\s-]/g, ''); // Normalize phone
+            /**
+             * 🔴 P-005: do 05.09 to pole szło do bazy BEZ ŻADNEJ walidacji, a stamtąd
+             * prosto do sklejanego stringiem filtra PostgREST w paczce RODO. Numer
+             * `x,reason.gte.` zamieniał eksport własnych danych w eksport cudzych.
+             * 🔑 Odrzucamy śmieci, ale NIE zmieniamy formatu zapisu: normalizacja do E.164
+             * przepisałaby zapamiętane numery i rozjechała `.eq('patient_phone')`
+             * w `appointment_actions` oraz `sms_reminders` dla tego pacjenta.
+             * ⚪ Zmierzone na produkcji 05.09: 149 ze 149 kont pasuje do tego wzorca,
+             * więc nikt legalny nie zostaje odrzucony.
+             */
+            if (!/^\+?\d{6,15}$/.test(znormalizowany)) {
+                return NextResponse.json(
+                    { error: 'Nieprawidłowy numer telefonu' },
+                    { status: 400 }
+                );
+            }
+            updates.phone = znormalizowany;
         }
 
         if (locale !== undefined) {
