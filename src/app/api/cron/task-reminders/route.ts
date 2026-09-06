@@ -6,6 +6,7 @@ import { sendPushToGroups, sendPushToSpecificUsers, type PushGroup } from '@/lib
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { requireAdmin } from '@/lib/authGuards';
 
+import { teamMayHear } from '@/lib/taskAccess';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
@@ -45,7 +46,7 @@ export async function GET(req: Request) {
         // ── Part 1 & 2: Group task reminders (no-date / deposit) ──────────
         const { data: allTasks, error } = await supabase
             .from('employee_tasks')
-            .select('id, title, task_type, patient_name, assigned_to_doctor_name, created_by_email, created_at, checklist_items, due_date')
+            .select('id, title, task_type, patient_name, assigned_to_doctor_name, created_by_email, created_at, checklist_items, due_date, is_private')
             .neq('status', 'done')
             .neq('status', 'archived')
             .order('created_at', { ascending: true });
@@ -55,14 +56,25 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: 'DB error' }, { status: 500 });
         }
 
+        /**
+         * 🔇 ZADANIA PRYWATNE NIE IDĄ NA WSPÓLNY KANAŁ (P-040). Części 1 i 2 tego crona
+         * wysyłają `title` i `patient_name` na Telegram CAŁEJ kliniki. To jest główny tor
+         * wycieku zadań dyktowanych: `tasks/ai-parse` zakłada wyłącznie zadania
+         * `is_private: true`, typowo z `due_date: null`, czyli każda osobista notatka
+         * głosowa wpadała prosto w `noDateTasks` i była ogłaszana zespołowi codziennie.
+         * 🔑 Część 3 (przypomnienia imienne z `task_reminders`) zostaje BEZ ZMIAN — tam
+         * push idzie do właściciela, nie do grupy.
+         */
+        const zadaniaNaWspolnyKanal = (allTasks || []).filter(teamMayHear);
+
         const maxAgeMs = 30 * 86400000; // 30 days
-        const noDateTasks = (allTasks || []).filter(t =>
+        const noDateTasks = zadaniaNaWspolnyKanal.filter(t =>
             t.due_date === null &&
             (Date.now() - new Date(t.created_at).getTime()) < maxAgeMs
         );
 
         const depositKeywords = ['zadatek', 'wpłac', 'wpłacony', 'wpłata', 'wplata', 'zaliczka', 'przedpłata'];
-        const pendingDepositTasks = (allTasks || []).filter(t => {
+        const pendingDepositTasks = zadaniaNaWspolnyKanal.filter(t => {
             if (!t.checklist_items || !Array.isArray(t.checklist_items)) return false;
             return t.checklist_items.some((item: any) => {
                 if (item.done) return false;

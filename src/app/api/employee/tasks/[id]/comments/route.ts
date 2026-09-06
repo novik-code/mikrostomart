@@ -3,6 +3,7 @@ import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
 import { sendPushByConfig } from '@/lib/pushService';
+import { teamMayHear, bramkaZadania } from '@/lib/taskAccess';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +28,13 @@ export async function GET(
     if (!isEmployee && !isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { id } = await params;
+
+    /**
+     * 🔒 BRAMKA WŁASNOŚCI (P-040). Komentarze cudzego zadania prywatnego to ta sama
+     * treść co samo zadanie — tyle że opisana cudzymi słowami.
+     */
+    const { odmowa } = await bramkaZadania(supabase, id, user.id);
+    if (odmowa) return odmowa;
 
     const { data, error } = await supabase
         .from('task_comments')
@@ -58,6 +66,14 @@ export async function POST(
     if (!isEmployee && !isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { id } = await params;
+
+    /**
+     * 🔒 BRAMKA WŁASNOŚCI (P-040) przed zapisem — inaczej obcy dopisywał komentarz do
+     * cudzego zadania prywatnego, a push o tym komentarzu szedł do CAŁEJ grupy razem
+     * z tytułem zadania.
+     */
+    const { odmowa, task: zadanie } = await bramkaZadania(supabase, id, user.id);
+    if (odmowa) return odmowa;
 
     try {
         const body = await req.json();
@@ -93,7 +109,9 @@ export async function POST(
                 .eq('id', id)
                 .single();
 
-            if (task) {
+            // 🔇 O zadaniu prywatnym grupa się nie dowiaduje — ani z tytułu, ani z UUID
+            // w adresie powiadomienia (P-040).
+            if (task && teamMayHear(zadanie)) {
                 const commentPreview = body.content.trim().substring(0, 60);
                 await sendPushByConfig(
                     'task-comment',

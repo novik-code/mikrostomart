@@ -7,6 +7,7 @@ import { sendPushByConfig, pushToUsers } from '@/lib/pushService';
 import { assigneeUserIds } from '@/lib/taskAssignees';
 import { normalizedTaskImageFields, withSignedTaskImages } from '@/lib/taskImages';
 
+import { canAccessTask } from '@/lib/taskAccess';
 export const dynamic = 'force-dynamic';
 
 const supabase = createClient(
@@ -53,11 +54,20 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'Failed to list tasks' }, { status: 500 });
     }
 
-    // Filter: private tasks visible only to their owner
+    /**
+     * Filter: private tasks visible only to their owner.
+     *
+     * 🔑 TA SAMA REGUŁA CO W TRASACH PER-ID (P-040). Do 06.09 lista pytała wyłącznie
+     * o `owner_user_id`, a `canAccessTask` uznaje także `created_by` — przy takim
+     * rozjeździe wiersz prywatny z samym `created_by` byłby edytowalny przez szczegół
+     * i NIEWIDOCZNY na liście. Zmiana tylko POSZERZA widok (nikomu nic nie ubywa):
+     * `POST` ustawia dziś `owner_user_id` przy każdym zadaniu prywatnym, a pomiar
+     * z 06.09 nie znalazł ani jednego wiersza z samym `created_by`.
+     */
     const tasks = (data || []).filter(t => {
         if (!t.is_private) return true; // public task — visible to all
         if (!includePrivate) return false; // caller opted out of private tasks
-        return t.owner_user_id === user.id; // private: only owner sees it
+        return canAccessTask(t, user.id);
     });
 
     /**

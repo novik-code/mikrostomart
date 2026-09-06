@@ -5,6 +5,7 @@ import { sendTelegramNotification } from '@/lib/telegram';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { demoSanitize, brand } from '@/lib/brandConfig';
 import { prodentisFetch } from '@/lib/prodentisFetch';
+import { teamMayHear } from '@/lib/taskAccess';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -114,13 +115,31 @@ export async function GET(req: NextRequest) {
         // ═══════════════════════════════════════════════════
         // 3. OVERDUE & TODAY'S TASKS
         // ═══════════════════════════════════════════════════
-        const { data: overdueTasks } = await supabase
+        const { data: wszystkieZadania } = await supabase
             .from('employee_tasks')
-            .select('id, title, due_date, priority')
+            .select('id, title, due_date, priority, is_private')
             .in('status', ['todo', 'in_progress'])
             .not('due_date', 'is', null)
             .lte('due_date', todayStr)
             .order('due_date', { ascending: true });
+
+        /**
+         * 🔇 ZADANIA PRYWATNE NIE IDĄ DO RAPORTU ZESPOŁOWEGO (P-040). Ten blok wypisuje
+         * TYTUŁY zaległych zadań na wspólny kanał Telegrama — a tytuł prywatnego bywa
+         * dosłownie „lekarz 12:00" albo nazwiskiem. Ta sama reguła co przy pushach.
+         *
+         * 🪤 Filtrujemy W JS, a nie warunkiem `.or('is_private.is.null,is_private.eq.false')`
+         * w PostgREST: literówka w tamtej składni nie wywala zapytania, tylko oddaje
+         * pustą listę, więc blok „Zadania" w raporcie po cichu znikałby w całości.
+         */
+        const overdueTasks = (wszystkieZadania || []).filter(teamMayHear);
+        /**
+         * 🪤 „BRAK ZALEGŁYCH" MUSI ZNACZYĆ BRAK ZALEGŁYCH. Gdyby licznik zerowy liczył się
+         * PO odfiltrowaniu prywatnych, raport aktywnie TWIERDZIŁBY „✅ Brak zaległych zadań"
+         * w dniu, w którym zaległe istnieją — a to gorsze niż milczenie. Pominięte liczymy
+         * osobno i meldujemy sam FAKT, bez tytułu i bez nazwiska.
+         */
+        const pominietePrywatne = (wszystkieZadania || []).length - overdueTasks.length;
 
         const overdueCount = overdueTasks?.length || 0;
         const todayTasks = overdueTasks?.filter(t => t.due_date === todayStr) || [];
@@ -142,8 +161,11 @@ export async function GET(req: NextRequest) {
             }
             if (todayTasks.length > 3) msg += `      ... i ${todayTasks.length - 3} więcej\n`;
         }
-        if (overdueCount === 0) {
+        if (overdueCount === 0 && pominietePrywatne === 0) {
             msg += `   ✅ Brak zaległych zadań\n`;
+        }
+        if (pominietePrywatne > 0) {
+            msg += `   🔒 Prywatne (pominięte): <b>${pominietePrywatne}</b>\n`;
         }
         msg += `\n`;
 

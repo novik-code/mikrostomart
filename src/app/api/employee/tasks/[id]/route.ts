@@ -6,6 +6,7 @@ import { sendPushByConfig, pushToUsers } from '@/lib/pushService';
 import { deleteEvent } from '@/lib/googleCalendar';
 import { assigneeUserIds } from '@/lib/taskAssignees';
 import { normalizedTaskImageFields, withSignedTaskImages } from '@/lib/taskImages';
+import { canAccessTask, teamMayHear, bramkaZadania, taskNotFound } from '@/lib/taskAccess';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +49,15 @@ export async function GET(
 
     const { id } = await params;
 
+    /**
+     * 🔒 BRAMKA WŁASNOŚCI (P-040). Rola `employee` mówi tylko, że ktoś jest z zespołu —
+     * nie że wolno mu czytać CUDZE zadanie prywatne. Historia niesie pełne wartości
+     * przed i po każdej zmianie, więc bez tego wystarczyło znać UUID (a ten rozgłaszały
+     * pushe zespołowe) i cała treść zadania stała otworem.
+     */
+    const { odmowa } = await bramkaZadania(supabase, id, user.id);
+    if (odmowa) return odmowa;
+
     const { data, error } = await supabase
         .from('task_history')
         .select('*')
@@ -84,6 +94,17 @@ export async function PATCH(
     }
 
     const { id } = await params;
+
+    /**
+     * 🔒 BRAMKA WŁASNOŚCI (P-040) — NAJWCZEŚNIEJ, jak się da. Przed normalizacją zdjęć
+     * (sięga do storage) i przed jakimkolwiek zapisem. Wcześniej `PATCH` na cudzym
+     * zadaniu prywatnym nie tylko je ZMIENIAŁ, ale przy pustym ciele oddawał cały wiersz
+     * razem z podpisanymi adresami zdjęć — czyli był też drogą ODCZYTU.
+     * 🪤 Brak wiersza daje teraz 404 zamiast dawnego 500 (PGRST116 z `.single()`).
+     */
+    const { odmowa, task: zadanieDostep } = await bramkaZadania(supabase, id, user.id);
+    if (odmowa) return odmowa;
+    const grupaMozeUslyszec = teamMayHear(zadanieDostep);
 
     try {
         const body = await req.json();
@@ -236,7 +257,13 @@ export async function PATCH(
                 archived: 'Zarchiwizowane',
             };
 
-            if ('status' in body && oldTask && body.status !== oldTask.status) {
+            /**
+             * 🔇 CISZA DLA PRYWATNYCH (P-040). Każdy z trzech pushy niżej ogłaszał TYTUŁ
+             * zadania całej grupie i dokładał `taskId` do adresu — również dla zadań
+             * prywatnych. Pominięcie choćby jednego warunku zostawia połowę wycieku,
+             * dlatego strażnik sprawdza wszystkie trzy osobno.
+             */
+            if (grupaMozeUslyszec && 'status' in body && oldTask && body.status !== oldTask.status) {
                 await sendPushByConfig(
                     'task-status',
                     {
@@ -247,7 +274,7 @@ export async function PATCH(
                     }
                     // NOTE: no excludeUserId — all configured recipients get the push
                 );
-            } else if ('assigned_to' in body) {
+            } else if (grupaMozeUslyszec && 'assigned_to' in body) {
                 // Ta sama zasada co w POST: nowo przypisani dostają niżej powiadomienie
                 // IMIENNE, więc ogłoszenie zespołowe ich pomija. Inaczej jedna zmiana
                 // przypisania daje im dwa banery.
@@ -263,7 +290,7 @@ export async function PATCH(
                     },
                     nowoPrzypisani,
                 );
-            } else if ('checklist_items' in body && Object.keys(body).length === 1) {
+            } else if (grupaMozeUslyszec && 'checklist_items' in body && Object.keys(body).length === 1) {
                 // Find which item changed
                 const oldItems = oldTask?.checklist_items || [];
                 const newItems = body.checklist_items || [];
@@ -346,12 +373,22 @@ export async function DELETE(
     const { id } = await params;
 
     try {
+        /**
+         * 🔒 BRAMKA WŁASNOŚCI (P-040). Bez niej `DELETE` z cudzym UUID kasował zadanie
+         * prywatne razem z wydarzeniem w Kalendarzu Google jego właściciela — trwale,
+         * bez śladu w historii i bez komunikatu dla poszkodowanego.
+         * 🪤 Bramka zwraca 503 przy AWARII odczytu, a nie 404 — kasowanie na podstawie
+         * „nie udało się sprawdzić" byłoby dokładnie tym, przed czym ma chronić.
+         */
+        const { odmowa } = await bramkaZadania(supabase, id, user.id);
+        if (odmowa) return odmowa;
+
         // Read task before deleting — need google_event_id to clean up Google Calendar
         const { data: taskRow } = await supabase
             .from('employee_tasks')
             .select('google_event_id, owner_user_id, created_by')
             .eq('id', id)
-            .single();
+            .maybeSingle();
 
         // If a Google Calendar event is linked, delete it (fire-and-forget)
         if (taskRow?.google_event_id) {

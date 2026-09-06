@@ -1036,6 +1036,20 @@ export default function TasksTab({
                                                             try {
                                                                 const res = await fetch(`/api/employee/tasks/${task.id}/push`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
                                                                 const data = await res.json();
+                                                                /**
+                                                                 * 🪤 ODMOWA TO NIE JEST „ZERO SUBSKRYPCJI". Bez tego warunku
+                                                                 * odpowiedź 403/404 (P-040: zadania prywatnego nie rozgłaszamy)
+                                                                 * wpadała w gałąź sukcesu — `data.sent` jest wtedy `undefined`,
+                                                                 * a `undefined > 0` to `false` — i przycisk meldował
+                                                                 * „○ 0 (brak sub.)", czyli wysyłał szukać usterki w pushach.
+                                                                 */
+                                                                if (!res.ok) {
+                                                                    btn.textContent = res.status === 403 ? '🔒 prywatne' : '✗ błąd';
+                                                                    btn.style.color = '#f59e0b';
+                                                                    btn.style.borderColor = 'rgba(245,158,11,0.3)';
+                                                                    btn.title = String(data?.error || `HTTP ${res.status}`);
+                                                                    return;
+                                                                }
                                                                 btn.textContent = data.sent > 0 ? `✓ ${data.sent} push` : '○ 0 (brak sub.)';
                                                                 btn.style.color = data.sent > 0 ? '#22c55e' : '#9ca3af';
                                                                 btn.style.borderColor = data.sent > 0 ? 'rgba(34,197,94,0.3)' : 'rgba(107,114,128,0.3)';
@@ -1048,6 +1062,9 @@ export default function TasksTab({
                                                                     btn.textContent = '🔔 Push';
                                                                     btn.style.color = '#fb923c';
                                                                     btn.style.borderColor = 'rgba(251,146,60,0.3)';
+                                                                    // Wraz z wyglądem wraca podpowiedź — inaczej treść błędu
+                                                                    // zostawałaby w `title` na stałe po resecie przycisku.
+                                                                    btn.title = 'Wyślij powiadomienie push o tym zadaniu';
                                                                 }, 3000);
                                                             }
                                                         }}
