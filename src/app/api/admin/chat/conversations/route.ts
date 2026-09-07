@@ -16,6 +16,17 @@ export async function GET(request: NextRequest) {
     try {
         const statusFilter = request.nextUrl.searchParams.get('status') || 'open';
 
+        /**
+         * 🔴 P-113: nieznany status dawał CICHĄ PUSTĄ LISTĘ (odsiewał go dopiero CHECK
+         * w bazie), więc literówka w kliencie wyglądała jak „nie ma rozmów". Lepiej 400.
+         */
+        if (statusFilter !== 'open' && statusFilter !== 'closed') {
+            return NextResponse.json(
+                { error: 'Nieprawidłowy status. Dozwolone: open, closed.' },
+                { status: 400 },
+            );
+        }
+
         const { data: conversations, error } = await supabase
             .from('chat_conversations')
             .select(`
@@ -30,7 +41,18 @@ export async function GET(request: NextRequest) {
                 guest_phone
             `)
             .eq('status', statusFilter)
-            .order('last_message_at', { ascending: false });
+            .order('last_message_at', { ascending: false })
+            /**
+             * 🔴 GÓRNA GRANICA (P-113). Apka odpytuje tę trasę co 5 s z listy i co 4 s
+             * z ekranu wątku, a wątki `closed` nie podlegają retencji — koszt tiku rósłby
+             * liniowo z historią.
+             * ⚪ Uczciwie: zmierzone 07.09 — SZEŚĆ rozmów. Zmiana prewencyjna.
+             * 🪤 Świadomie NIE przebudowuję tu N+1 na zapytanie zbiorcze: przy sześciu
+             * wątkach to 13 zapytań na tik, czyli problem, którego nie ma. Optymalizacja
+             * bez problemu do rozwiązania to kod, który trzeba potem utrzymywać —
+             * wraca do kolejki z progiem, gdy rozmów przekroczy setkę.
+             */
+            .limit(200);
 
         if (error) throw error;
 

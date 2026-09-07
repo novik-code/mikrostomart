@@ -38,7 +38,19 @@ export async function GET(request: NextRequest) {
     if (!auth.ok) return auth.response;
 
     const status = new URL(request.url).searchParams.get('status');
-    let q = supabase().from('incidents').select('*').order('created_at', { ascending: false });
+    /**
+     * 🔴 P-114: GÓRNA GRANICA. Do 07.09 trasa oddawała `select('*')` bez limitu, a apka
+     * pobiera całość i filtruje po stronie klienta — opisy sięgają 4000 znaków, więc
+     * ładunek rósł z każdą rozwiązaną awarią. Po 1000 wierszy PostgREST utnie po cichu,
+     * a przez sortowanie malejące akurat archiwum.
+     * ⚪ Uczciwie: zmierzone 07.09 — JEDNA awaria w bazie. To zmiana prewencyjna,
+     * zamykająca horyzont lat, nie naprawa dzisiejszego problemu.
+     */
+    let q = supabase()
+        .from('incidents')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200);
     if (status && STATUSES.includes(status as IncidentStatus)) q = q.eq('status', status);
 
     const { data, error } = await q;
