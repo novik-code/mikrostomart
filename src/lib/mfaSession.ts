@@ -151,6 +151,26 @@ export function verifyMfaSessionToken(
         return null;
     }
 
+    // 🔒 P-008 — ROZDZIAŁ DOMEN. Ten sam sekret (`MFA_SESSION_SECRET`) i ten sam
+    // format `base64url(JSON).HMAC` podpisuje też ciasteczko `passkey_challenge`
+    // (passkeyChallenge.ts) i token rejestracji pacjenta (registrationToken.ts).
+    // Bez tego sprawdzenia KAŻDY blob z tej rodziny, który ma `userId` i ważne
+    // `expiresAt`, był ważną sesją MFA — a `passkey_challenge` wystawiają dwie
+    // trasy stojące poza bramką 2FA (`passkeys/register|authenticate/begin`),
+    // dostępne z samą sesją po haśle. Kto znał hasło pracownika, przedstawiał
+    // to ciasteczko jako `mfa_session` i dopinał sobie własne urządzenie TOTP.
+    //
+    // 🪤 BIAŁA lista kluczy, nie czarna lista nazw. Odrzucanie pól `challenge`
+    // i `type` kosztowałoby tyle samo, a nie chroniłoby przed NASTĘPNĄ domeną,
+    // która zacznie podpisywać tym sekretem. Pilnuje tego przypadek
+    // „nieznane pole" w `mfaTokenDomainSeparation.test.ts`.
+    //
+    // Legalny ładunek ma dokładnie: {userId, expiresAt} (sprzed migracji 191)
+    // albo {userId, expiresAt, epoch}. Jedyny minter to `createMfaSessionToken`.
+    const DOZWOLONE_KLUCZE = ['userId', 'expiresAt', 'epoch'];
+    if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) return null;
+    if (Object.keys(payload).some(k => !DOZWOLONE_KLUCZE.includes(k))) return null;
+
     if (!payload.userId || typeof payload.userId !== 'string') return null;
     if (!payload.expiresAt || typeof payload.expiresAt !== 'number') return null;
     if (payload.expiresAt < Date.now()) return null;
