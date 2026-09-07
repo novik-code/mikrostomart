@@ -30,6 +30,7 @@
  * białą listę kluczy i pada, jeśli ktoś wróci do czarnej.
  */
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
+import crypto from 'node:crypto';
 
 // Jedyna atrapa: magazyn ciasteczek Next. Oba moduły kryptograficzne są PRAWDZIWE.
 const jar = new Map<string, string>();
@@ -96,9 +97,8 @@ describe('P-008: ciasteczko passkey_challenge NIE jest dowodem sesji MFA', () =>
 describe('P-008: biała lista kluczy, nie czarna lista dwóch nazw', () => {
     /** Podpisuje dowolny payload tym samym sekretem, co produkcyjny minter. */
     function podpisz(payload: object): string {
-        const crypto = require('node:crypto');
         const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
-        const sig = crypto.createHmac('sha256', process.env.MFA_SESSION_SECRET)
+        const sig = crypto.createHmac('sha256', process.env.MFA_SESSION_SECRET as string)
             .update(encoded).digest('base64url');
         return `${encoded}.${sig}`;
     }

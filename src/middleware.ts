@@ -7,6 +7,9 @@ import { verifyMfaSessionToken, MFA_COOKIE_NAME } from "./lib/mfaSession";
 import { extractBearerToken, getUserFromBearerToken, evaluateStaffMfa } from "./lib/bearerAuth";
 import { isMfaMandatoryForAll } from "./lib/mfaPolicy";
 import { readMfaGate } from "./lib/mfaEpoch";
+// 🔑 JEDNO ZRODLO PRAWDY dla decyzji sciezkowych. Trzymanie drugiej kopii tutaj
+// znaczyloby, ze straznik sprawdza jedna liste, a middleware uzywa drugiej.
+import { shouldBypassIntl, botMozeOminacAutoryzacje } from "./lib/middlewareSurface";
 
 /**
  * Known search engine bot user-agent patterns.
@@ -27,27 +30,6 @@ function isBot(request: NextRequest): boolean {
  * Faza 2 SEO Recovery (2026-05-09): public pages live in src/app/[locale]/
  * while these paths stay in src/app/ root and don't get locale prefix routing.
  */
-const NON_LOCALE_PATHS = [
-    '/api/',
-    '/admin',
-    '/pracownik',
-    '/ekarta/',
-    '/qr-display',
-    '/zgody/',
-    '/auth/',
-    '/opieka/',
-    '/s/',
-    // Batch SEO-2 (2026-05-21): usunięto '/zespol' z NON_LOCALE_PATHS — teraz
-    // /zespol/marcin-nowosielski i /zespol/elzbieta-nowosielska to dedykowane
-    // multi-locale strony pod src/app/[locale]/zespol/*. Stary redirect
-    // /zespol → /o-nas (plus /zespol/<numeric-slug>) nadal działa via next.config
-    // redirects (apply BEFORE middleware), więc legacy Joomla URLs są obsłużone.
-];
-
-function shouldBypassIntl(pathname: string): boolean {
-    return NON_LOCALE_PATHS.some(p => pathname === p || pathname.startsWith(p));
-}
-
 // next-intl middleware handles URL → locale extraction and redirect for /en, /de, /ua prefixes
 const intlMiddleware = createIntlMiddleware(routing);
 
@@ -150,14 +132,28 @@ export async function middleware(request: NextRequest) {
     // Dla NON_LOCALE_PATHS (admin/pracownik/api/...) bot przechodzi przez
     // normalną auth — i tak nie powinien tam wchodzić, a jeśli wchodzi, to
     // dostaje redirect do login.
+    // 🔴 SPROSTOWANIE 2026-09-07. Warunek brzmiał `!shouldBypassIntl(pathname)`,
+    // czyli obejmował WYŁĄCZNIE ścieżki spoza prefiksu języka. Strefa pacjenta
+    // i edytor mapy bólu przeniosły się pod `[locale]`, więc dla nich warunek
+    // był fałszywy i żądanie z nagłówkiem bota kończyło się TUTAJ — przed bramką
+    // `patient_token` niżej. `S10-3` zamknęło to dla /admin i /pracownik i na tym
+    // poprzestało; siódmy raz w tym projekcie naprawiono jedną trasę z pary.
+    //
+    // Zmierzone na produkcji przed naprawą, z kontrolą negatywną:
+    //   curl                   /strefa-pacjenta/dashboard → 307 na login
+    //   curl -A Googlebot/2.1  /strefa-pacjenta/dashboard → 200   ← obejście
+    //   curl -A Googlebot/2.1  /pracownik                 → 307   ← S10-3 działa
+    //
+    // Decyzja mieszka dziś w `lib/middlewareSurface.ts`, żeby dało się ją
+    // WYKONAĆ w teście — poprzedni strażnik tej powierzchni czytał ten plik
+    // jako tekst i był na taką zmianę ślepy.
     if (isBot(request)) {
-        // Bots na public locale paths — skip Supabase auth dla speed, apply intl
-        if (!shouldBypassIntl(pathname)) {
+        if (botMozeOminacAutoryzacje(pathname)) {
             const intlResponse = intlMiddleware(request);
             return addSecurityHeaders(intlResponse);
         }
-        // Bots na NON_LOCALE_PATHS (admin/pracownik/api/...) — full auth flow
-        // continues below jak dla każdego innego usera.
+        // Strefy chronione (także te pod prefiksem języka) — pełna ścieżka
+        // autoryzacji, jak dla każdego innego klienta.
     }
 
     // ─── Block /mapa-bolu/editor in production (debug tool) ───────────────
