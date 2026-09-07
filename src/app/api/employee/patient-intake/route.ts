@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
     if (!isEmployee && !isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const prodentisId = req.nextUrl.searchParams.get('prodentisId');
+    /** Obraz podpisu dokłada wyłącznie ten, kto go realnie renderuje (P-095). */
+    const zObrazemPodpisu = req.nextUrl.searchParams.get('includeSignature') === '1';
 
     if (!prodentisId) {
         return NextResponse.json({ error: 'prodentisId required' }, { status: 400 });
@@ -81,7 +83,15 @@ export async function GET(req: NextRequest) {
                 firstName: intake.first_name,
                 lastName: intake.last_name,
                 hasSignature: !!piiDecrypted?.signature_data,
-                signatureData: piiDecrypted?.signature_data ?? null,
+                /**
+                 * 🔒 OBRAZ PODPISU WYŁĄCZNIE NA ŻĄDANIE (domknięcie P-095). Panel woła tę
+                 * trasę przy KAŻDYM otwarciu szczegółu wizyty, w tym samym `Promise.all`
+                 * co zgody, a sekcję z podpisem renderuje warunkowo — obraz jechał więc
+                 * zawsze, także gdy nikt na niego nie patrzył. `hasSignature` obok
+                 * istniało od początku, tylko nie było wykorzystane do minimalizacji.
+                 * ⚪ Apka personelu tej trasy nie woła, więc binarki 1.3.x są nietknięte.
+                 */
+                signatureData: zObrazemPodpisu ? (piiDecrypted?.signature_data ?? null) : null,
                 pdfUrl: intake.pdf_url || null,
                 createdAt: intake.submitted_at,
             } : null,

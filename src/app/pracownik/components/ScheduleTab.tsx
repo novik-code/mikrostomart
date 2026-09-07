@@ -1344,7 +1344,9 @@ export default function ScheduleTab({
                                                 // a od 06.09 (P-071/P-095) obraz podpisu wychodzi z API wyłącznie na żądanie.
                                                 // Apka personelu tego parametru nie dokłada, bo podpisu nie pokazuje.
                                                 fetch(`/api/employee/patient-consents?prodentisId=${selectedAppointment.patientId}&includeSignature=1`),
-                                                fetch(`/api/employee/patient-intake?prodentisId=${selectedAppointment.patientId}`),
+                                                // `includeSignature=1` — sekcja e-Karty renderuje `<img src={patientSignature}>`,
+                                                // a od 07.09 (P-095) obraz podpisu wychodzi z API wyłącznie na żądanie.
+                                                fetch(`/api/employee/patient-intake?prodentisId=${selectedAppointment.patientId}&includeSignature=1`),
                                             ]);
                                             if (consentsRes.ok) {
                                                 const d = await consentsRes.json();
