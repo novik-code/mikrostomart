@@ -4,6 +4,7 @@ import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
 import { PATIENT_DOC_BUCKET, TASK_IMAGE_BUCKET, CONSENT_TEMPLATE_BUCKET, displayUrlFor } from '@/lib/privateStorage';
+import { canAccessTask, TASK_ACCESS_COLUMNS } from '@/lib/taskAccess';
 
 /**
  * GET /api/employee/documents/file?type=consent|ekarta|task-image&id=…  (dla `task-image`: &path=…)
@@ -67,15 +68,27 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'Nieprawidłowa ścieżka' }, { status: 400 });
         }
 
-        // Ścieżka MUSI należeć do jakiegoś zadania. Sprawdzamy w bazie, nie po wyglądzie.
+        /**
+         * Ścieżka MUSI należeć do jakiegoś zadania. Sprawdzamy w bazie, nie po wyglądzie.
+         *
+         * 🔴 …I DO ZADANIA, KTÓRE WOŁAJĄCEMU WOLNO OTWORZYĆ. Do 07.09 ten select brał samo
+         * `id`: identyfikator znalezionego zadania szedł tylko do audytu, nigdy do decyzji,
+         * więc każdy pracownik znający klucz obiektu dostawał podpisany link do zdjęcia
+         * z CUDZEGO zadania prywatnego — a w trybie `redirect=1` nawet bez śladu w rejestrze.
+         * Reguła jest TA SAMA co w trasach zadań (P-040): jedna definicja, `canAccessTask`.
+         * ⚪ Zmierzone przed zmianą: 94 zadania z załącznikiem, ZERO prywatnych — bramka
+         * jest więc prewencyjna, nie ratunkowa.
+         */
         const poj = await supabase
-            .from('employee_tasks').select('id').eq('image_path', path).limit(1);
+            .from('employee_tasks').select(TASK_ACCESS_COLUMNS).eq('image_path', path).limit(1);
         const tab = poj.data?.length
             ? poj
-            : await supabase.from('employee_tasks').select('id').contains('image_paths', [path]).limit(1);
+            : await supabase.from('employee_tasks').select(TASK_ACCESS_COLUMNS).contains('image_paths', [path]).limit(1);
         const zadania = tab.data;
 
-        if (!zadania || zadania.length === 0) {
+        // 404 dla „nie ma takiego zdjęcia" i dla „jest, ale nie twoje" — nierozróżnialnie,
+        // żeby odpowiedź nie potwierdzała istnienia cudzego załącznika.
+        if (!zadania || zadania.length === 0 || !canAccessTask(zadania[0], user.id)) {
             return NextResponse.json({ error: 'Nie znaleziono zdjęcia' }, { status: 404 });
         }
 
