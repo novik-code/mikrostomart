@@ -5,6 +5,7 @@ import { verifyAdmin } from '@/lib/auth';
 import { getAICompletion } from '@/lib/unifiedAI';
 import { brand } from '@/lib/brandConfig';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
+import { requireAdmin } from '@/lib/authGuards';
 
 // Silnik treści Klasy A (GEO 2026-06-15) — przebudowa „młynka".
 // ZMIANA vs poprzednia wersja (produkowała clickbait):
@@ -112,9 +113,24 @@ export async function GET(req: Request) {
     }
     const authHeader = req.headers.get('authorization');
     const isCronAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`;
-    const adminUser = await verifyAdmin();
-    if (!isCronAuth && !adminUser && process.env.NODE_ENV === 'production') {
-        return new NextResponse('Unauthorized', { status: 401 });
+    /**
+     * 🔴 P-021: RĘCZNA GAŁĄŹ WYMAGA ROLI ADMIN, NIE SAMEJ SESJI.
+     *
+     * 🪤 Stało tu `verifyAdmin()`, które — wbrew nazwie — sprawdza WYŁĄCZNIE istnienie
+     * sesji Supabase. Rolę sprawdza `requireAdmin` z `lib/authGuards`. Mylące imię
+     * wystarczyło, żeby ten sam błąd powtórzył się w trzech trasach: każdy zalogowany
+     * PRACOWNIK mógł odpalić generację artykułu przez OpenAI i sync YouTube.
+     *
+     * 🔴 Drugi defekt w tej samej linijce: warunek kończył się `&& NODE_ENV ===
+     * 'production'`, więc poza produkcją bramki NIE BYŁO WCALE — w preview odpalał to
+     * anonim. Dziś bramka działa w każdym środowisku.
+     *
+     * 🔑 Tor CRONA nietknięty: `Bearer CRON_SECRET` przechodzi jak dotąd, bo to nim
+     * Vercel odpala harmonogram.
+     */
+    if (!isCronAuth) {
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
     }
 
     const { readable, writable } = new TransformStream();

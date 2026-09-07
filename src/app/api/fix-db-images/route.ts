@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { verifyAdmin } from '@/lib/auth';
+import { requireAdmin } from '@/lib/authGuards';
 
 export const runtime = 'nodejs';
 
@@ -10,8 +10,13 @@ export const runtime = 'nodejs';
  */
 export async function GET() {
     try {
-        const user = await verifyAdmin();
-        if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        /**
+         * 🔴 P-021: ROLA ADMIN, nie sama sesja. `verifyAdmin` — wbrew nazwie — sprawdza
+         * wyłącznie istnienie sesji Supabase, więc trasę odpalał każdy zalogowany
+         * pracownik. Ta jest debugowa i zapisuje obrazy produktów.
+         */
+        const auth = await requireAdmin();
+        if (!auth.ok) return auth.response;
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
