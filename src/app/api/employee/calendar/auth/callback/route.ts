@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { exchangeCode } from '@/lib/googleCalendar';
+import { odczytajStateOauth } from '@/lib/oauthState';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
     const url = new URL(req.url);
     const code = url.searchParams.get('code');
-    const state = url.searchParams.get('state'); // userId passed as state
+    const state = url.searchParams.get('state'); // podpisany token tożsamości (P-038)
     const error = url.searchParams.get('error');
 
     if (error) {
@@ -34,6 +35,26 @@ export async function GET(req: Request) {
     const isAdmin = await hasRole(user.id, 'admin');
     if (!isEmployee && !isAdmin) {
         return NextResponse.redirect(new URL('/pracownik?calendar=forbidden', req.url));
+    }
+
+    /**
+     * 🔴 P-038: `state` MUSI BYĆ NASZ I MUSI PASOWAĆ DO SESJI.
+     *
+     * Do 07.09 `state` był GOŁYM `user.id` sprawdzanym wyłącznie na niepustość, a tokeny
+     * zapisywały się pod tożsamością z cookie — czyli `state` nie był z niczym wiązany.
+     * Callback bez sesji nie zużywa kodu, a cookie Supabase ma `SameSite=Lax`, więc
+     * napastnik mógł wygenerować własny `code` i podsunąć zalogowanemu pracownikowi
+     * link: JEGO konto Google podpinało się do konta OFIARY (login-CSRF). Asystent
+     * tworzył potem w cudzym kalendarzu wydarzenia z nazwiskiem pacjenta.
+     *
+     * 🔑 Sprawdzamy DWIE rzeczy: podpis (czy `state` wyszedł od nas i nie wygasł)
+     * ORAZ zgodność tożsamości z sesją. Sam podpis nie wystarczy — napastnik ma własny,
+     * ważny `state` ze swojego logowania.
+     */
+    const idZeState = odczytajStateOauth(state);
+    if (!idZeState || idZeState !== user.id) {
+        console.error('[Calendar Callback] state nie pasuje do sesji — odmowa');
+        return NextResponse.redirect(new URL('/pracownik?calendar=state', req.url));
     }
 
     // Exchange the code for tokens

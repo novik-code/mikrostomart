@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { getAuthUrl, exchangeCode, disconnectCalendar, isCalendarConnected } from '@/lib/googleCalendar';
+import { utworzStateOauth } from '@/lib/oauthState';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,8 @@ export async function GET() {
     }
 
     const status = await isCalendarConnected(user.id);
-    const authUrl = getAuthUrl(user.id);
+    // 🔑 `state` PODPISANY (P-038) — callback odrzuca wszystko, co nie wyszło stąd.
+    const authUrl = getAuthUrl(utworzStateOauth(user.id));
 
     return NextResponse.json({ ...status, authUrl });
 }
