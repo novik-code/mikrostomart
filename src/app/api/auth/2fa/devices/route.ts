@@ -1,56 +1,17 @@
-import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
-import { MFA_COOKIE_NAME, verifyMfaSessionToken } from '@/lib/mfaSession';
-import { getMfaEpoch } from '@/lib/mfaEpoch';
-import {
-    listDevices,
-    addDevice,
-    getTwoFactorStatus,
-    verifyChallenge,
-    verifyBackupChallenge,
-} from '@/lib/twoFactorService';
+import { requireFactorProofIfEnabled } from '@/lib/mfaProof';
+import { listDevices, addDevice } from '@/lib/twoFactorService';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Dowód posiadania AKTUALNEGO drugiego czynnika.
- *
- * 🔒 Powód istnienia: `/api/auth/2fa/` jest w `SKIP_2FA_PATHS` (middleware), więc middleware
- * NIE egzekwuje tu 2FA. Bez tej kontroli sesja zdobyta SAMYM HASŁEM mogła dodać nowe
- * urządzenie TOTP, odczytać z odpowiedzi `secret`, policzyć z niego kod i przejść challenge —
- * czyli obejść drugi czynnik w całości.
- *
- * Akceptujemy trzy dowody, w tej kolejności:
- *   1. ważną sesję MFA — nagłówek `X-MFA-Session` (apka) albo cookie (web),
- *   2. kod TOTP z któregokolwiek AKTYWNEGO urządzenia,
- *   3. kod zapasowy (jednorazowy — zużywa się).
- *
- * Web nie wymaga zmian: pracownik, który przeszedł 2FA przy logowaniu, ma cookie.
+ * 🪤 Dowód posiadania czynnika mieszkał TUTAJ, lokalnie — i dlatego objął tylko
+ * urządzenia TOTP. Rejestracja passkeya, czyli zapis równorzędnego czynnika,
+ * została poza nim przez cztery miesiące (P-002). Funkcja wyprowadziła się do
+ * `@/lib/mfaProof`, żeby obie trasy trzymały JEDNĄ regułę, a następna trasa
+ * dotykająca czynników nie musiała jej wymyślać od nowa.
  */
-async function hasCurrentFactorProof(
-    request: NextRequest,
-    userId: string,
-    code?: string
-): Promise<boolean> {
-    // Epoka unieważnień (migracja 191) — sesja MFA sprzed resetu 2FA NIE jest
-    // dowodem posiadania czynnika. Bez tego argumentu złodziej ze starym
-    // tokenem dodałby sobie nowe urządzenie i odzyskał konto po resecie.
-    const epoch = await getMfaEpoch(userId);
-
-    const header = request.headers.get('x-mfa-session') ?? undefined;
-    if (verifyMfaSessionToken(header, epoch)?.userId === userId) return true;
-
-    const cookie = (await cookies()).get(MFA_COOKIE_NAME)?.value;
-    if (verifyMfaSessionToken(cookie, epoch)?.userId === userId) return true;
-
-    const trimmed = typeof code === 'string' ? code.trim() : '';
-    if (!trimmed) return false;
-
-    if ((await verifyChallenge(userId, trimmed)).ok) return true;
-    // Dopiero na końcu — kod zapasowy jest jednorazowy i zużywa się przy weryfikacji.
-    return (await verifyBackupChallenge(userId, trimmed)).ok;
-}
 
 /**
  * GET /api/auth/2fa/devices
@@ -98,17 +59,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Konto, które MA już aktywne 2FA, nie może dorzucić kolejnego urządzenia
-    // na podstawie samego hasła — patrz `hasCurrentFactorProof`.
-    // FAIL-CLOSED: `getTwoFactorStatus` zwraca null zarowno gdy pracownika nie ma, jak i gdy
-    // zapytanie do bazy padnie (supabase-js nie rzuca wyjatku). `status?.enabled` byloby wtedy
-    // undefined i kontrola zostalaby POMINIETA — czyli blad bazy otwieralby dziure z powrotem.
-    // Nie potrafimy ustalic stanu => wymagamy dowodu.
-    const status = await getTwoFactorStatus(auth.user.id);
-    if (status === null || status.enabled) {
-        if (!(await hasCurrentFactorProof(request, auth.user.id, body.code))) {
-            return NextResponse.json({ error: 'proof_required' }, { status: 403 });
-        }
-    }
+    // na podstawie samego hasła. Reguła (wraz z fail-closed przy nieustalonym
+    // stanie i z mapowaniem zadławienia na 429) mieszka w `@/lib/mfaProof`.
+    const odmowa = await requireFactorProofIfEnabled(request, auth.user.id, body.code);
+    if (odmowa) return odmowa;
 
     const result = await addDevice(auth.user.id, email, body.deviceName);
     if (!result.ok) {

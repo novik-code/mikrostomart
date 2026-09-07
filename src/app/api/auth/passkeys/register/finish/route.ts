@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { deriveRpConfig, verifyRegistration } from '@/lib/passkeyService';
 import { getChallengeCookie, clearChallengeCookie } from '@/lib/passkeyChallenge';
+import { logAudit } from '@/lib/auditLog';
 import type { RegistrationResponseJSON } from '@simplewebauthn/server';
 
 export const dynamic = 'force-dynamic';
@@ -75,6 +76,18 @@ export async function POST(request: NextRequest) {
             : 500;
         return NextResponse.json({ error: result.error }, { status });
     }
+
+    // Zapis NOWEGO drugiego składnika musi zostawiać ślad — bez tego nie da się
+    // odpowiedzieć na pytanie „kto dopisał ten klucz", a to pierwsze pytanie
+    // przy podejrzeniu przejęcia konta.
+    await logAudit({
+        userId: auth.user.id,
+        userEmail: auth.user.email ?? '',
+        action: 'passkey_registered',
+        resourceType: 'passkey',
+        metadata: { deviceName: body.deviceName },
+        request,
+    });
 
     return NextResponse.json({ ok: true });
 }

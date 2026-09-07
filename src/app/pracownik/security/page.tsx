@@ -395,9 +395,18 @@ function SecurityPage() {
             });
             if (!beginRes.ok) {
                 const data = await beginRes.json();
+                // Dodanie klucza to zapis DRUGIEGO SKŁADNIKA, więc od 2026-09-07 wymaga
+                // dowodu posiadania aktualnego czynnika (P-002). `/pracownik/security`
+                // jest w `SKIP_2FA_PATHS`, więc można tu wejść zaraz po samym haśle —
+                // wtedy odsyłamy na challenge i wracamy tutaj z ważną sesją MFA.
+                if (beginRes.status === 403 && data.error === "proof_required") {
+                    router.replace("/auth/2fa-challenge?redirect=/pracownik/security");
+                    return;
+                }
                 setAddPasskeyError(
                     data.error === "device_name_taken" ? "Klucz o tej nazwie już istnieje."
                     : data.error === "max_passkeys_reached" ? "Osiągnąłeś limit 10 kluczy."
+                    : data.error === "too_many_attempts" ? "Za dużo prób. Odczekaj kwadrans i spróbuj ponownie."
                     : `Błąd: ${data.error}`
                 );
                 return;

@@ -5,6 +5,7 @@ import {
     generateAuthenticationOptions,
     verifyAuthenticationResponse,
 } from '@simplewebauthn/server';
+import { bumpMfaEpoch } from '@/lib/mfaEpoch';
 import type {
     RegistrationResponseJSON,
     AuthenticationResponseJSON,
@@ -402,6 +403,15 @@ export async function removePasskey(
         console.error('[Passkey] removePasskey error:', delErr);
         return { ok: false, error: 'database_error' };
     }
+
+    // 🔒 Odebrano czynnik ⇒ wszystkie sesje MFA padają (migracja 191).
+    // Passkey jest równorzędny z urządzeniem TOTP: `passkeys/authenticate/finish`
+    // wystawia z niego `mfa_session` na 8 h, a przy „zaufaj urządzeniu" na 30 dni.
+    // Reguła jest spisana przy `removeDevice` (twoFactorService.ts) i mówi wprost,
+    // że wyrzucenie zgubionego urządzenia ma ZRYWAĆ jego żywe sesje — passkeye
+    // z niej wypadły, więc „usunąłem klucz po kradzieży telefonu" było kosmetyką:
+    // złodziej pracował dalej na wystawionej wcześniej sesji.
+    await bumpMfaEpoch(userId, 'removePasskey');
 
     return { ok: true };
 }

@@ -1,21 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { removePasskey, renamePasskey } from '@/lib/passkeyService';
+import { logAudit } from '@/lib/auditLog';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * DELETE /api/auth/passkeys/[id]
  *
- * Usuń passkey. Inaczej niż TOTP devices — passkey może być usunięty bez proof
- * code, bo:
- *  1. User jest authenticated przez Supabase session (logged in jako sam siebie)
- *  2. Passkey samo w sobie wymaga biometric verification przy każdym użyciu
- *  3. Nie ma "stolen passkey" attack — credential żyje w Secure Enclave, nie
- *     da się go skopiować
- *  4. Jeśli user chce się pozbyć passkey to znaczy że już nie chce go używać —
- *     żadnej ścieżki nadużycia (max user się sam zablokuje, ale wtedy zaloguje
- *     się TOTP-em)
+ * Usuń passkey.
+ *
+ * 🪤 SPROSTOWANIE 2026-09-07. Stał tu wywód, że usuwanie nie potrzebuje ani
+ * dowodu, ani śladu, bo „credential żyje w Secure Enclave i nie da się go
+ * skopiować". Argument odpowiadał na niewłaściwe pytanie: zagrożeniem nie jest
+ * SKOPIOWANIE klucza, tylko to, co robi z kontem ktoś, kto zna samo HASŁO.
+ * Dwie rzeczy z tego wywodu były nieprawdziwe w skutkach:
+ *
+ *  1. Usunięcie NIE unieważniało sesji MFA wystawionych przez ten klucz —
+ *     żyły dalej do 8 h, a przy „zaufaj urządzeniu" do 30 dni. Reguła spisana
+ *     przy `removeDevice` mówi wprost, że odebranie czynnika ma zrywać jego
+ *     sesje; passkeye z niej wypadły. Dziś epokę podbija `removePasskey`.
+ *  2. Nie było ŻADNEGO wpisu w audycie — a „kto i kiedy ruszył moje klucze"
+ *     to pierwsze pytanie przy podejrzeniu przejęcia konta.
+ *
+ * ⚠️ Świadomie NIEZMIENIONE: usuwanie nadal nie wymaga dowodu drugiego
+ * składnika (inaczej niż rejestracja). Zmiana wymagałaby przebudowy modala
+ * usuwania i jest osobną decyzją właściciela; skutek jest ograniczony, bo
+ * napastnik nie może już DODAĆ czynnika (P-002), a usunięcie zrywa mu sesje.
  */
 export async function DELETE(
     request: NextRequest,
@@ -31,6 +42,15 @@ export async function DELETE(
         const status = result.error === 'employee_not_found' ? 404 : 500;
         return NextResponse.json({ error: result.error }, { status });
     }
+
+    await logAudit({
+        userId: auth.user.id,
+        userEmail: auth.user.email ?? '',
+        action: 'passkey_removed',
+        resourceType: 'passkey',
+        resourceId: passkeyId,
+        request,
+    });
 
     return NextResponse.json({ ok: true });
 }

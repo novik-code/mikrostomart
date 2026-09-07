@@ -280,7 +280,7 @@ export async function addDevice(
  * całemu gabinetowi przy pierwszym zadławieniu bazy, a atakujący i tak musi znać hasło.
  * Dławik jest tu warstwą obrony w głąb, nie samą bramką.
  */
-const MFA_ATTEMPT_WINDOW_MS = 15 * 60_000;
+export const MFA_ATTEMPT_WINDOW_MS = 15 * 60_000;
 /** Kod TOTP — wpisywany rutynowo, więc próg wyższy. */
 const MFA_TOTP_MAX_ATTEMPTS = 10;
 /** Kod zapasowy — używany wyjątkowo i wart więcej dla atakującego, więc ostrzej. */

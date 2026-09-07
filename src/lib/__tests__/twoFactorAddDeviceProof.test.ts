@@ -95,13 +95,21 @@ describe("POST /api/auth/2fa/devices — dowód posiadania", () => {
         expect(addDeviceMock).toHaveBeenCalled();
     });
 
-    it("PRZEPUSZCZA przy kodzie zapasowym, ale dopiero po nieudanym TOTP (kod jest jednorazowy)", async () => {
+    it("PRZEPUSZCZA przy kodzie zapasowym — BEZ dotykania kubełka TOTP (P-076)", async () => {
+        // 🪤 Ten przypadek asertował wcześniej `expect(verifyChallengeMock).toHaveBeenCalled()`,
+        // czyli utrwalał WADĘ: kod niebędący TOTP-em i tak szedł najpierw do
+        // weryfikatora TOTP, więc JEDNA pomyłka paliła DWA kubełki naraz.
+        // Kubełek `mfa:backup` (5/15 min) jest WSPÓLNY z logowaniem kodem
+        // zapasowym, więc pięć pomyłek przy dodawaniu urządzenia zabierało
+        // drogę ratunku przy logowaniu. Dziś kod trafia do JEDNEGO weryfikatora,
+        // wybranego po kształcie (6 cyfr = TOTP, reszta = kod zapasowy).
+        // NIE przywracać starej asercji.
         getTwoFactorStatusMock.mockResolvedValue({ enabled: true });
         verifyBackupChallengeMock.mockResolvedValue({ ok: true, remaining: 7 });
-        const res = await post({ code: "backup-code" });
+        const res = await post({ code: "A1B2C-D3E4F" });
         expect(res.status).toBe(200);
-        expect(verifyChallengeMock).toHaveBeenCalled();
         expect(verifyBackupChallengeMock).toHaveBeenCalled();
+        expect(verifyChallengeMock).not.toHaveBeenCalled();
     });
 
     it("PRZEPUSZCZA przy ważnej sesji MFA z nagłówka X-MFA-Session (tor apki)", async () => {

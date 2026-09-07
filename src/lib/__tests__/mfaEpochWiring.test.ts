@@ -23,11 +23,20 @@ import path from 'path';
 
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), 'utf8');
 
-/** Wszyscy, którzy WERYFIKUJĄ dowód drugiego składnika. */
+/**
+ * Wszyscy, którzy WERYFIKUJĄ dowód drugiego składnika.
+ *
+ * 🪤 Do 2026-09-07 stał tu `src/app/api/auth/2fa/devices/route.ts`. Dowód
+ * przeniósł się stamtąd do `src/lib/mfaProof.ts`, bo mieszkając lokalnie
+ * w trasie urządzeń TOTP objął tylko ją — rejestracja passkeya, czyli zapis
+ * równorzędnego czynnika, została bez dowodu (P-002). Gdyby przy przenosinach
+ * ktoś tylko USUNĄŁ stary wpis zamiast go podmienić, ten strażnik przeszedłby
+ * „na pusto" (0 === 0) i przestał czegokolwiek pilnować.
+ */
 const WERYFIKATORZY = [
     'src/middleware.ts',
     'src/lib/bearerAuth.ts',
-    'src/app/api/auth/2fa/devices/route.ts',
+    'src/lib/mfaProof.ts',
 ];
 
 /** Wszyscy, którzy WYSTAWIAJĄ sesję MFA (cookie albo token dla apki). */
@@ -38,8 +47,21 @@ const WYSTAWCY = [
     'src/app/api/auth/passkeys/authenticate/finish/route.ts',
 ];
 
-/** Wszystkie przejścia, w których pracownik TRACI czynnik → epoka rośnie. */
-const ODBIERAJACY = ['disableAll', 'adminReset', 'removeDevice'];
+/**
+ * Wszystkie przejścia, w których pracownik TRACI czynnik → epoka rośnie.
+ *
+ * 🪤 `removePasskey` dopisane 2026-09-07. Reguła „odebrano czynnik ⇒ sesje
+ * padają" była spisana i pilnowana WYŁĄCZNIE dla urządzeń TOTP, więc usunięcie
+ * passkeya nie unieważniało sesji MFA, które ten passkey wystawił (8 h, a przy
+ * „zaufaj urządzeniu" 30 dni). Passkey jest równorzędnym czynnikiem —
+ * `passkeys/authenticate/finish` mintuje z niego pełną sesję.
+ */
+const ODBIERAJACY: Array<{ plik: string; fn: string }> = [
+    { plik: 'src/lib/twoFactorService.ts', fn: 'disableAll' },
+    { plik: 'src/lib/twoFactorService.ts', fn: 'adminReset' },
+    { plik: 'src/lib/twoFactorService.ts', fn: 'removeDevice' },
+    { plik: 'src/lib/passkeyService.ts', fn: 'removePasskey' },
+];
 
 describe('Strażnik: okablowanie mfa_epoch', () => {
     it('wszystkie trzy tory weryfikacji podają oczekiwaną epokę', () => {
@@ -65,7 +87,8 @@ describe('Strażnik: okablowanie mfa_epoch', () => {
         expect(znalezione, 'strażnik przestał znajdować weryfikatory — wzorzec zmurszał').toEqual(
             WERYFIKATORZY,
         );
-        expect(read('src/app/api/auth/2fa/devices/route.ts').match(/verifyMfaSessionToken\(/g))
+        // Dwa tory dowodu w jednym module: nagłówek (apka) i cookie (web).
+        expect(read('src/lib/mfaProof.ts').match(/verifyMfaSessionToken\(/g))
             .toHaveLength(2);
     });
 
@@ -111,18 +134,22 @@ describe('Strażnik: okablowanie mfa_epoch', () => {
     });
 
     it('każde odebranie czynnika inkrementuje epokę', () => {
-        const src = read('src/lib/twoFactorService.ts');
-        const bumpy = src.match(/bumpMfaEpoch\(/g)?.length ?? 0;
-        expect(
-            bumpy,
-            `bumpMfaEpoch wywołane ${bumpy} razy, oczekiwane ${ODBIERAJACY.length} `
-            + `(${ODBIERAJACY.join(', ')}). Brakujące wywołanie = stary token przeżywa reset.`,
-        ).toBe(ODBIERAJACY.length);
+        // Licznik per plik — sam sumaryczny licznik nie dowodzi rozmieszczenia.
+        for (const plik of [...new Set(ODBIERAJACY.map(o => o.plik))]) {
+            const oczekiwane = ODBIERAJACY.filter(o => o.plik === plik).length;
+            const bumpy = read(plik).match(/bumpMfaEpoch\(/g)?.length ?? 0;
+            expect(
+                bumpy,
+                `${plik}: bumpMfaEpoch wywołane ${bumpy} razy, oczekiwane ${oczekiwane}. `
+                + 'Brakujące wywołanie = stary token przeżywa odebranie czynnika.',
+            ).toBe(oczekiwane);
+        }
 
-        // Każde wywołanie w SWOJEJ funkcji — sam licznik nie dowodzi rozmieszczenia.
-        for (const fn of ODBIERAJACY) {
+        // Każde wywołanie w SWOJEJ funkcji.
+        for (const { plik, fn } of ODBIERAJACY) {
+            const src = read(plik);
             const start = src.indexOf(`export async function ${fn}(`);
-            expect(start, `nie ma funkcji ${fn} — strażnik zmurszał`).toBeGreaterThan(-1);
+            expect(start, `nie ma funkcji ${fn} w ${plik} — strażnik zmurszał`).toBeGreaterThan(-1);
             const koniec = src.indexOf('\nexport ', start + 1);
             const cialo = src.slice(start, koniec === -1 ? undefined : koniec);
             expect(cialo, `${fn} nie unieważnia sesji MFA`).toContain('bumpMfaEpoch(');
