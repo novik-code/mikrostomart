@@ -11,6 +11,7 @@ import {
     PAST_DUE_NOTE,
     type DoseSnapMode,
 } from '@/lib/careflowSchedule';
+import { validateMedicationIndexes, poprawnePoleTekstowe, MAX_DL_POLA_TEKSTOWEGO } from '@/lib/careflowMedications';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -135,6 +136,57 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
         const body = await req.json();
         const updates: Record<string, any> = {};
+
+        /**
+         * 🔴 P-097: TA SAMA BRAMKA KLINICZNA CO W `enroll` I `accept`. PUT zapisywał
+         * `customMedications` bez sprawdzenia typu i bez walidacji indeksów — a kroki
+         * protokołu wskazują lek po POZYCJI na liście. Skrócona lista podmienia lek pod
+         * krokiem („Weź antybiotyk" → ibuprofen), a ta lista idzie do PACJENTA, do PDF-u
+         * planu opieki i pozycyjnie do `careflowLifecycle` przy przełożeniu wizyty.
+         * Nie-tablica dodatkowo wywracała ekran szczegółów w strefie personelu apki.
+         */
+        if (body.customMedications !== undefined) {
+            const { data: template } = await supabase
+                .from('care_templates')
+                .select('default_medications')
+                .eq('id', current.template_id)
+                .maybeSingle();
+
+            const { data: steps } = await supabase
+                .from('care_steps')
+                .select('medication_index')
+                .eq('template_id', current.template_id);
+
+            const medicationError = validateMedicationIndexes({
+                steps: (steps ?? []) as { medication_index?: number | null }[],
+                templateMedications: template?.default_medications,
+                overrideMedications: body.customMedications,
+            });
+            if (medicationError) {
+                // `medication_list_mismatch` — kod, który apka pokazuje dosłownie.
+                return NextResponse.json(
+                    { error: medicationError, code: 'medication_list_mismatch' },
+                    { status: 400, headers: NO_STORE },
+                );
+            }
+        }
+
+        // Kształt pozostałych pól: lista musi być listą, tekst tekstem o rozsądnej długości.
+        if (body.followUpAppointments !== undefined && body.followUpAppointments !== null
+            && !Array.isArray(body.followUpAppointments)) {
+            return NextResponse.json(
+                { error: 'Wizyty kontrolne muszą być listą.' },
+                { status: 400, headers: NO_STORE },
+            );
+        }
+        for (const [nazwa, wartosc] of [['patientName', body.patientName], ['patientPhone', body.patientPhone], ['doctorName', body.doctorName]] as const) {
+            if (wartosc !== undefined && !poprawnePoleTekstowe(wartosc)) {
+                return NextResponse.json(
+                    { error: `Pole ${nazwa} musi być tekstem do ${MAX_DL_POLA_TEKSTOWEGO} znaków.` },
+                    { status: 400, headers: NO_STORE },
+                );
+            }
+        }
 
         // Allow updating specific fields
         if (body.prescriptionCode !== undefined) updates.prescription_code = body.prescriptionCode;
