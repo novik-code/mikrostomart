@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
+import { detectImageMime } from '@/lib/chatAttachments';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,30 +38,43 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'No file provided' }, { status: 400 });
         }
 
-        // Validate file type
-        if (!file.type.startsWith('image/')) {
-            return NextResponse.json({ error: 'Only image files are allowed' }, { status: 400 });
-        }
-
         // Max 10MB
         if (file.size > 10 * 1024 * 1024) {
             return NextResponse.json({ error: 'File too large (max 10MB)' }, { status: 400 });
         }
 
-        // Generate unique filename
-        const ext = file.name.split('.').pop() || 'jpg';
-        const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-        const path = `tasks/${filename}`;
-
         // Convert File to Buffer
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
+
+        /**
+         * 🔴 P-103: O TYPIE DECYDUJĄ BAJTY, NIE ETYKIETA. Do 07.09 wystarczyło
+         * `file.type.startsWith('image/')` — czyli deklaracja klienta. Bucket
+         * `task-images` nie ma `allowed_mime_types`, więc dowolny plik ≤10 MB z etykietą
+         * `image/*` (w tym SVG ze skryptem) lądował w buckecie, a przy jawnym otwarciu
+         * odpalał się na origin `*.supabase.co` — wektor phishingu wewnętrznego.
+         * 🪤 Cztery sąsiednie trasy uploadu sniffują magic bytes od dawna; ta jedna nie.
+         * Używamy TEGO SAMEGO `detectImageMime`, nie nowej kopii.
+         */
+        const wykrytyTyp = detectImageMime(new Uint8Array(buffer));
+        if (!wykrytyTyp) {
+            return NextResponse.json({ error: 'Only image files are allowed' }, { status: 400 });
+        }
+
+        /**
+         * 🔑 ROZSZERZENIE Z WYKRYTEGO TYPU, nie z `file.name`. Nazwa z ukośnikiem dawała
+         * zagnieżdżony klucz, który podpisy akceptują, a proxy `documents/file` odrzuca —
+         * czyli uszkodzoną miniaturę w panelu webowym.
+         */
+        const ext = wykrytyTyp.split('/')[1];
+        const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+        const path = `tasks/${filename}`;
 
         // Upload to Supabase Storage
         const { data, error } = await supabase.storage
             .from('task-images')
             .upload(path, buffer, {
-                contentType: file.type,
+                contentType: wykrytyTyp,
                 cacheControl: '3600',
             });
 
