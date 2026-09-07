@@ -19,7 +19,15 @@ export async function POST(request: Request) {
             );
         }
 
-        console.log('[Verify Email] Verifying token:', token);
+        /**
+         * 🔴 TOKEN NIE MA PRAWA WEJŚĆ DO LOGU. Do 07.09 stało tu
+         * `console.log('… Verifying token:', token)` — a ten token potwierdza adres
+         * e-mail przy zakładaniu konta pacjenta. Logi Vercela czyta każdy z dostępem
+         * do projektu i każdy dren logów, poza `employee_audit_log`, poza retencją
+         * i poza eksportem RODO. Ta sama zasada działa już w `patients/verify`,
+         * gdzie numer telefonu jest maskowany do trzech ostatnich cyfr.
+         */
+        console.log('[Verify Email] Weryfikacja tokenu — start');
 
         // Find verification token
         const { data: tokenData, error: tokenError } = await supabase
