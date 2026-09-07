@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 import { requireAdmin } from '@/lib/authGuards';
+import { checkRateLimit } from '@/lib/rateLimit';
 import { logAudit } from '@/lib/auditLog';
 import { brand } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
@@ -40,6 +41,24 @@ export async function POST(request: Request) {
         dryRun = body?.dryRun === true;
     } catch {
         // brak ciała = normalna wysyłka
+    }
+
+    // 🔒 Limit realnej wysyłki (P-073). Trasa rozsyła mail z adresu gabinetu do
+    // wszystkich aktywnych pracowników bez 2FA — bez limitu dało się nią zalać
+    // skrzynki całego zespołu, a taki mail powtarzany podkopuje wiarygodność
+    // następnych. Kluczujemy po ADMINIE, nie po IP: `getClientIP` czyta nagłówek
+    // podawany przez klienta, więc limit po IP byłby kosztem bez ochrony.
+    //
+    // `dryRun` (podgląd listy odbiorców) limitu NIE zużywa — nic nie wysyła,
+    // a jest jedyną drogą sprawdzenia treści przed wysyłką.
+    if (!dryRun) {
+        const limit = await checkRateLimit(`2fa-reminder:${auth.user.id}`, 3, 60 * 60_000);
+        if (!limit.allowed) {
+            return NextResponse.json(
+                { error: 'too_many_attempts' },
+                { status: 429, headers: { 'Retry-After': '3600' } },
+            );
+        }
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

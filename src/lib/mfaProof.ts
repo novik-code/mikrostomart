@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { MFA_COOKIE_NAME, verifyMfaSessionToken } from '@/lib/mfaSession';
-import { getMfaEpoch } from '@/lib/mfaEpoch';
+import { readMfaEpochForVerification } from '@/lib/mfaEpoch';
 import {
     getTwoFactorStatus,
     verifyChallenge,
@@ -34,7 +34,8 @@ import {
 export type FactorProof =
     | { ok: true }
     | { ok: false; reason: 'proof_required' }
-    | { ok: false; reason: 'rate_limited'; retryAfterSeconds: number };
+    | { ok: false; reason: 'rate_limited'; retryAfterSeconds: number }
+    | { ok: false; reason: 'unavailable' };
 
 /** Kod TOTP to dokładnie sześć cyfr; kod zapasowy ma kształt `XXXXX-XXXXX`. */
 const WZOR_TOTP = /^\d{6}$/;
@@ -47,7 +48,14 @@ export async function hasCurrentFactorProof(
     // Epoka unieważnień (migracja 191) — sesja MFA sprzed resetu 2FA NIE jest
     // dowodem posiadania czynnika. Bez tego argumentu złodziej ze starym
     // tokenem dodałby sobie nowy czynnik i odzyskał konto po resecie.
-    const epoch = await getMfaEpoch(userId);
+    //
+    // 🔴 FAIL-CLOSED przy padniętym odczycie (decyzja właściciela 2026-09-07).
+    // Wcześniej epoka wracała jako 0, a porównanie brzmi `tokenEpoch < expectedEpoch`
+    // — więc epoka 0 przyjmowała token o KAŻDEJ epoce. Awaria bazy OŻYWIAŁA
+    // token unieważniony resetem 2FA, i to akurat na trasach, które dopisują
+    // albo zdejmują drugi składnik.
+    const { epoch, readFailed } = await readMfaEpochForVerification(userId);
+    if (readFailed) return { ok: false, reason: 'unavailable' };
 
     const header = request.headers.get('x-mfa-session') ?? undefined;
     if (verifyMfaSessionToken(header, epoch)?.userId === userId) return { ok: true };
@@ -107,6 +115,12 @@ export async function requireFactorProofIfEnabled(
     const proof = await hasCurrentFactorProof(request, userId, code);
     if (proof.ok) return null;
 
+    if (proof.reason === 'unavailable') {
+        return NextResponse.json(
+            { error: 'mfa_check_unavailable' },
+            { status: 503, headers: { 'Retry-After': '30' } },
+        );
+    }
     if (proof.reason === 'rate_limited') {
         return NextResponse.json(
             { error: MFA_RATE_LIMITED },

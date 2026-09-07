@@ -46,6 +46,17 @@ export type MfaGate = {
     epoch: number;
     /** `false` = odczyt padł (błąd bazy) albo nie ma takiego pracownika. */
     ok: boolean;
+    /**
+     * `true` WYŁĄCZNIE gdy zapytanie do bazy PADŁO.
+     *
+     * 🪤 `ok` sklejał dwie różne sytuacje: „nie ma takiego pracownika" (stan
+     * normalny, np. konto pacjenta) i „nie wiem, bo baza nie odpowiedziała"
+     * (awaria). Bramka nie może traktować ich tak samo: na braku wiersza wolno
+     * przepuścić do dalszych kontroli roli, a na awarii trzeba ODMÓWIĆ — inaczej
+     * padnięty odczyt udaje „konto bez 2FA", a od 1 IX 2026 (obowiązek dla całego
+     * zespołu) daje na dodatek fałszywe `mfa_setup_required`.
+     */
+    readFailed: boolean;
 };
 
 /**
@@ -68,6 +79,7 @@ export async function readMfaGate(client: SupabaseClient, userId: string): Promi
             totpEnabled: Boolean(row?.totp_enabled),
             epoch: typeof row?.mfa_epoch === 'number' ? row.mfa_epoch : 0,
             ok: Boolean(row),
+            readFailed: false,
         };
     }
 
@@ -79,14 +91,14 @@ export async function readMfaGate(client: SupabaseClient, userId: string): Promi
             .eq('user_id', userId)
             .maybeSingle();
         if (!legacy.error) {
-            return { totpEnabled: Boolean(legacy.data?.totp_enabled), epoch: 0, ok: Boolean(legacy.data) };
+            return { totpEnabled: Boolean(legacy.data?.totp_enabled), epoch: 0, ok: Boolean(legacy.data), readFailed: false };
         }
         console.error('[mfaEpoch] readMfaGate legacy read failed:', legacy.error.code, legacy.error.message);
-        return { totpEnabled: false, epoch: 0, ok: false };
+        return { totpEnabled: false, epoch: 0, ok: false, readFailed: true };
     }
 
     console.error('[mfaEpoch] readMfaGate failed:', withEpoch.error.code, withEpoch.error.message);
-    return { totpEnabled: false, epoch: 0, ok: false };
+    return { totpEnabled: false, epoch: 0, ok: false, readFailed: true };
 }
 
 /**
@@ -101,6 +113,29 @@ export async function getMfaEpoch(userId: string): Promise<number> {
     if (!client) return 0;
     const gate = await readMfaGate(client, userId);
     return gate.epoch;
+}
+
+/**
+ * Epoka do WERYFIKACJI dowodu — z jawną informacją, czy odczyt się udał.
+ *
+ * 🔴 KIERUNEK RYZYKA JEST TU ODWROTNY NIŻ W `getMfaEpoch`. Przy WYSTAWIANIU
+ * tokenu zaniżona epoka jest bezpieczna (token zostanie odrzucony i człowiek
+ * przejdzie challenge raz jeszcze). Przy WERYFIKACJI zaniżona epoka jest
+ * groźna: porównanie brzmi `tokenEpoch < expectedEpoch`, więc epoka 0 przyjmuje
+ * token o KAŻDEJ epoce — czyli awaria bazy OŻYWIA token unieważniony resetem 2FA.
+ * Komentarz przy `getMfaEpoch` opisuje stronę bezpieczną trafnie, ale wyłącznie
+ * dla wystawiania; weryfikacja potrzebuje osobnego wejścia.
+ */
+export async function readMfaEpochForVerification(
+    userId: string,
+): Promise<{ epoch: number; readFailed: boolean }> {
+    const client = serviceClient();
+    if (!client) {
+        console.error('[mfaEpoch] brak klienta serwisowego przy weryfikacji dowodu');
+        return { epoch: 0, readFailed: true };
+    }
+    const gate = await readMfaGate(client, userId);
+    return { epoch: gate.epoch, readFailed: gate.readFailed };
 }
 
 /**

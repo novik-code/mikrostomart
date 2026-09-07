@@ -10,6 +10,7 @@ import { readMfaGate } from "./lib/mfaEpoch";
 // 🔑 JEDNO ZRODLO PRAWDY dla decyzji sciezkowych. Trzymanie drugiej kopii tutaj
 // znaczyloby, ze straznik sprawdza jedna liste, a middleware uzywa drugiej.
 import { shouldBypassIntl, botMozeOminacAutoryzacje } from "./lib/middlewareSurface";
+import { sendTelegramNotification } from "./lib/telegram";
 
 /**
  * Known search engine bot user-agent patterns.
@@ -383,7 +384,20 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
     const SKIP_2FA_PATHS = [
         '/auth/2fa-challenge',
         '/api/auth/2fa/',
-        '/api/admin/2fa/',
+        // 🪤 P-073 — USUNIĘTO '/api/admin/2fa/' (2026-09-07).
+        // Wyjątek obejmował GET /status (lista CAŁEGO zespołu: nazwisko, e-mail,
+        // stan 2FA, liczba kodów zapasowych, flaga admina), POST /enrollment-reminder
+        // (masowa wysyłka z adresu gabinetu, bez limitu) i POST /reset (kasowanie
+        // czynników innej osoby). Wszystkie trzy mają tylko `requireAdmin()`, czyli
+        // sesję + rolę, BEZ drugiego składnika — kto znał hasło admina, czytał
+        // z tego listę „kto nie ma jeszcze 2FA", czyli gotową listę celów.
+        //
+        // 🔑 ZAKLESZCZENIA NIE MA — zmierzone, nie założone: jedynym klientem tych
+        // trzech tras jest `src/app/admin/components/SecurityTab.tsx`, który żyje
+        // pod `/admin`, a `/admin` JEST w `PROTECTED_PREFIXES`. Kto tam doszedł,
+        // ma już ważną sesję MFA, więc te wywołania też ją mają. Kreator 2FA
+        // (`/pracownik/security`) woła wyłącznie `/api/auth/2fa/*` i nie dotyka
+        // `/api/admin/2fa/*`. Apka mobilna nie woła ich wcale (zero trafień w repo apki).
         '/admin/login',
         '/admin/update-password',
         '/pracownik/login',
@@ -451,6 +465,38 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
             readMfaGate(admin, userId),
             admin.from('user_roles').select('role').eq('user_id', userId),
         ]);
+
+        // 🔴 FAIL-CLOSED PRZY AWARII ODCZYTU BRAMKI (decyzja właściciela 2026-09-07).
+        //
+        // Pole `readFailed` było wcześniej ignorowane, a padnięty odczyt PostgREST
+        // (to nie wyjątek — supabase-js nie rzuca) dawał `totpEnabled = false`.
+        // Od 1 IX 2026 obowiązek 2FA obejmuje CAŁY zespół, więc każde żądanie
+        // personelu w takim oknie kończyło się FAŁSZYWYM `mfa_setup_required`:
+        // apka odsyłała człowieka do Bezpieczeństwa, a web na kreatora — zamiast
+        // powiedzieć, że weryfikacja jest chwilowo niedostępna.
+        //
+        // 🪤 `readFailed`, NIE `ok`. `ok` skleja awarię z sytuacją „nie ma takiego
+        // pracownika", która jest normalna (np. konto pacjenta). Zmierzone na
+        // produkcji 07.09: dokładnie JEDNO konto ma rolę bez wiersza w `employees`
+        // i jest to rola `patient` — żaden pracownik nie wpada w tę gałąź.
+        if (gate.readFailed) {
+            console.error('[middleware 2FA] odczyt bramki PADŁ — odmawiam (fail-closed)');
+            void sendTelegramNotification(
+                '🔴 Bramka 2FA: odczyt stanu z bazy PADŁ. Strefa personelu jest '
+                + 'ZAMKNIĘTA do czasu powrotu bazy (fail-closed). Sprawdź Supabase.',
+            ).catch(() => { /* alarm nie może przewrócić bramki */ });
+
+            if (viaBearer) {
+                return NextResponse.json(
+                    { error: 'mfa_check_unavailable' },
+                    { status: 503, headers: { 'Retry-After': '30' } },
+                );
+            }
+            return new NextResponse(
+                'Weryfikacja drugiego składnika jest chwilowo niedostępna. Spróbuj za chwilę.',
+                { status: 503, headers: { 'Retry-After': '30', 'Content-Type': 'text/plain; charset=utf-8' } },
+            );
+        }
 
         const isAdmin = (roles || []).some(r => r.role === 'admin');
         const totpEnabled = gate.totpEnabled;

@@ -63,6 +63,14 @@ vi.mock('@/lib/passkeyChallenge', () => ({
     getChallengeCookie: vi.fn(),
     clearChallengeCookie: vi.fn(),
 }));
+// Odczyt epoki ma się UDAWAĆ — te testy mierzą logikę dowodu, nie odczyt bramki.
+// Awaria odczytu ma własny przypadek niżej (fail-closed → 503).
+const readFailedMock = { value: false };
+vi.mock('@/lib/mfaEpoch', () => ({
+    readMfaEpochForVerification: async () => ({ epoch: 0, readFailed: readFailedMock.value }),
+    getMfaEpoch: async () => 0,
+    bumpMfaEpoch: async () => true,
+}));
 vi.mock('@/lib/auditLog', () => ({ logAudit: (...a: unknown[]) => logAuditMock(...a) }));
 
 const USER_ID = '11111111-1111-4111-8111-111111111111';
@@ -120,6 +128,21 @@ describe('P-002: rejestracja passkeya wymaga dowodu drugiego składnika', () => 
         getTwoFactorStatusMock.mockResolvedValue(null);
         const res = await beginRegister();
         expect(res.status).toBe(403);
+    });
+
+    it('FAIL-CLOSED: padnięty ODCZYT EPOKI kończy się 503, nie wpuszczeniem', async () => {
+        // 🔴 Wcześniej epoka wracała jako 0, a porównanie brzmi
+        // `tokenEpoch < expectedEpoch` — więc epoka 0 przyjmowała token o KAŻDEJ
+        // epoce. Awaria bazy OŻYWIAŁA token unieważniony resetem 2FA, i to akurat
+        // na trasie, która dopisuje drugi składnik.
+        readFailedMock.value = true;
+        try {
+            const res = await beginRegister();
+            expect(res.status).toBe(503);
+            expect((await res.json()).error).toBe('mfa_check_unavailable');
+        } finally {
+            readFailedMock.value = false;
+        }
     });
 
     it('KONTROLA NEGATYWNA: konto BEZ 2FA rejestruje pierwszy klucz normalnie', async () => {

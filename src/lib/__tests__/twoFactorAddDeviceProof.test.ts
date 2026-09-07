@@ -21,6 +21,14 @@ vi.mock("next/headers", () => ({ cookies: () => cookiesMock() }));
 vi.mock("@/lib/authGuards", () => ({
     requireEmployeeOrAdmin: () => requireEmployeeOrAdminMock(),
 }));
+// Odczyt epoki ma się UDAWAĆ — te testy mierzą logikę dowodu, nie odczyt bramki.
+// Awaria odczytu ma własny przypadek niżej (fail-closed → 503).
+const readFailedMock = { value: false };
+vi.mock('@/lib/mfaEpoch', () => ({
+    readMfaEpochForVerification: async () => ({ epoch: 0, readFailed: readFailedMock.value }),
+    getMfaEpoch: async () => 0,
+    bumpMfaEpoch: async () => true,
+}));
 vi.mock("@/lib/twoFactorService", () => ({
     listDevices: vi.fn(),
     addDevice: (...a: unknown[]) => addDeviceMock(...a),

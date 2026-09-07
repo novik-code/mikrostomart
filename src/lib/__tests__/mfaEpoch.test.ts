@@ -52,7 +52,7 @@ describe('readMfaGate', () => {
             fakeClient({ [OK_Z_EPOKA]: { data: { totp_enabled: true, mfa_epoch: 3 }, error: null } }, calls),
             'u1',
         );
-        expect(gate).toEqual({ totpEnabled: true, epoch: 3, ok: true });
+        expect(gate).toEqual({ totpEnabled: true, epoch: 3, ok: true, readFailed: false });
         expect(calls).toEqual([OK_Z_EPOKA]); // jedno zapytanie, nie dwa
     });
 
@@ -80,7 +80,7 @@ describe('readMfaGate', () => {
             fakeClient({ [OK_Z_EPOKA]: { data: null, error: null } }, calls),
             'u1',
         );
-        expect(gate).toEqual({ totpEnabled: false, epoch: 0, ok: false });
+        expect(gate).toEqual({ totpEnabled: false, epoch: 0, ok: false, readFailed: false });
     });
 
     it('awaria bazy jest ODRÓŻNIALNA (ok:false), a nie udaje konta bez 2FA', async () => {
