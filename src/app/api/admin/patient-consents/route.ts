@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/lib/authGuards';
 import { readPatientConsentPii } from '@/lib/encryptedPiiFields';
 import { streszczenieBiometrii } from '@/lib/biometriaPodpisu';
+import { logAudit } from '@/lib/auditLog';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,6 +36,22 @@ export async function GET(req: NextRequest) {
 
             // S8-7: decrypt PII (signature_data, biometric_data) before returning to admin viewer.
             const pii = readPatientConsentPii(data);
+
+            /**
+             * 🔴 ŚLAD JEST OBOWIĄZKOWY WŁAŚNIE TUTAJ. Po P-071 (trasa personelu oddaje już
+             * tylko streszczenie) to jest JEDYNE miejsce w systemie zwracające PEŁNĄ
+             * trajektorię podpisu — pozycję, nacisk i czas każdego punktu, czyli dane
+             * szczególnej kategorii z art. 9 RODO. Do 07.09 nie zostawiało żadnego wpisu,
+             * więc na pytanie „kto oglądał czyją biometrię" system nie umiał odpowiedzieć.
+             * Siostrzana trasa personelu loguje `view_consents` od dawna.
+             */
+            void logAudit({
+                userId: user.id, userEmail: user.email || '',
+                action: 'view_biometric', resourceType: 'biometric',
+                resourceId: id, patientName: data?.patient_name || undefined,
+                request: req,
+            });
+
             return NextResponse.json({
                 ...data,
                 signature_data: pii.signature_data,
@@ -52,6 +69,17 @@ export async function GET(req: NextRequest) {
             .range(offset, offset + limit - 1);
 
         if (error) throw error;
+
+        /**
+         * Lista niesie nazwiska pacjentów i identyfikatory kartotek — też zostawia ślad,
+         * ale z licznikiem zamiast pojedynczego zasobu (wzorzec z trasy personelu).
+         */
+        void logAudit({
+            userId: user.id, userEmail: user.email || '',
+            action: 'view_consents', resourceType: 'consent',
+            metadata: { count: data?.length || 0, offset, limit },
+            request: req,
+        });
 
         // For list view, decrypt biometric to compute summary, then drop full payload.
         const simplified = (data || []).map((c: any) => {

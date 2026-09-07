@@ -22,6 +22,7 @@ const ACTION_LABELS: Record<string, string> = {
     view_patient_appointments: "📅 Podgląd przyszłych wizyt",
     view_intake: "📝 Podgląd e-karty",
     view_consents: "✍️ Podgląd zgód",
+    view_biometric: "🖊️ Podgląd podpisu biometrycznego",
     search_patients: "🔍 Wyszukiwanie pacjentów",
     admin_search_patients: "🔍 Admin: szukanie pacjenta",
     admin_delete_patient: "🗑️ Admin: usunięcie konta pacjenta",
