@@ -5,6 +5,8 @@ import { getConsentTypesFromDB } from '@/lib/consentTypes';
 import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { demoSanitize } from '@/lib/brandConfig';
+import { poprawnaListaTekstow, poprawnyIdPms, poprawnyTekst } from '@/lib/walidacjaWejscia';
+import { logAudit } from '@/lib/auditLog';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,8 +29,20 @@ export async function POST(req: NextRequest) {
 
         const { patientName, prodentisPatientId, consentTypes } = await req.json();
 
-        if (!patientName || !consentTypes?.length) {
-            return NextResponse.json({ error: 'patientName and consentTypes required' }, { status: 400 });
+        /**
+         * 🔴 P-105: KSZTAŁT WEJŚCIA. `consentTypes` jako NAPIS przechodziło bramkę
+         * `?.length` (napis też ma długość) i wywalało `TypeError` przy `.filter` →
+         * 500 zamiast 400. `prodentisPatientId` był przyjmowany bez wzorca, a wędruje
+         * stąd do ścieżki storage `consents` i do adresu żądania do Prodentisa.
+         */
+        if (!poprawnyTekst(patientName, 200) || !patientName) {
+            return NextResponse.json({ error: 'patientName jest wymagane (tekst do 200 znaków).' }, { status: 400 });
+        }
+        if (!poprawnaListaTekstow(consentTypes, 30, 100)) {
+            return NextResponse.json({ error: 'consentTypes musi być niepustą listą nazw zgód.' }, { status: 400 });
+        }
+        if (prodentisPatientId !== undefined && prodentisPatientId !== null && !poprawnyIdPms(prodentisPatientId)) {
+            return NextResponse.json({ error: 'Nieprawidłowy identyfikator kartoteki.' }, { status: 400 });
         }
 
         // Validate consent types from DB
@@ -48,12 +62,32 @@ export async function POST(req: NextRequest) {
                 patient_name: patientName,
                 prodentis_patient_id: prodentisPatientId || null,
                 consent_types: consentTypes,
+                // 🔑 Kolumna istnieje od migracji 058 i była ZAWSZE pusta — przez to
+                // `patient_consents.created_by` też, więc nie dało się odpowiedzieć,
+                // kto wystawił link na którego pacjenta (RODO art. 30).
+                created_by: user.email || null,
                 expires_at: expiresAt.toISOString(),
             })
             .select('id, token')
             .single();
 
         if (error) throw error;
+
+        /**
+         * 🔴 ŚLAD W AUDYCIE (P-105, RODO art. 30). Wystawienie linku do zgód nie było
+         * nigdzie odnotowywane — w odróżnieniu od bliźniaczej `intake/generate-token`,
+         * która loguje od początku. Bez tego wpisu i bez kolumny `created_by` system nie
+         * umiał odpowiedzieć, kto wystawił link na którego pacjenta.
+         * 🪤 Nie logujemy samego TOKENU — to poświadczenie na okaziciela; wystarczy
+         * identyfikator wiersza i nazwisko.
+         */
+        void logAudit({
+            userId: user.id, userEmail: user.email || '',
+            action: 'create_consent_token', resourceType: 'consent_token',
+            resourceId: data?.id, patientName,
+            metadata: { consentTypes, prodentisPatientId: prodentisPatientId || null },
+            request: req,
+        });
 
         const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || demoSanitize('https://www.mikrostomart.pl');
         const url = `${baseUrl}/zgody/${token}`;

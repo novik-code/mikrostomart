@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { demoSanitize } from '@/lib/brandConfig';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { logAudit } from '@/lib/auditLog';
+import { poprawnaLiczba, poprawnyIdPms, poprawnyTekst } from '@/lib/walidacjaWejscia';
 
 /**
  * POST /api/intake/generate-token
@@ -55,6 +56,28 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'createdByEmployee is required' }, { status: 400 });
     }
 
+    /**
+     * 🔴 P-104: KSZTAŁT WEJŚCIA. `expiresInHours` szło stąd wprost do arytmetyki daty —
+     * 87600 dawało link do e-Karty ważny dziesięć lat, a napis kończył się nieobsłużonym
+     * błędem i 500. `prodentisPatientId` był przyjmowany jako dowolny tekst i trafiał
+     * potem bez kodowania do ścieżki żądania do PMS.
+     * Górna granica to 168 godzin (tydzień) — link do e-Karty ma być doraźny.
+     */
+    if (!poprawnaLiczba(expiresInHours, 1, 168)) {
+        return NextResponse.json(
+            { error: 'expiresInHours musi być liczbą całkowitą z zakresu 1–168.' },
+            { status: 400 },
+        );
+    }
+    if (prodentisPatientId !== undefined && prodentisPatientId !== null && !poprawnyIdPms(prodentisPatientId)) {
+        return NextResponse.json({ error: 'Nieprawidłowy identyfikator kartoteki.' }, { status: 400 });
+    }
+    for (const [nazwa, wartosc] of [['prefillFirstName', prefillFirstName], ['prefillLastName', prefillLastName], ['appointmentType', appointmentType]] as const) {
+        if (wartosc !== undefined && !poprawnyTekst(wartosc, 200)) {
+            return NextResponse.json({ error: `Pole ${nazwa} musi być tekstem do 200 znaków.` }, { status: 400 });
+        }
+    }
+
     const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000).toISOString();
 
     const { data, error } = await supabase
@@ -66,7 +89,12 @@ export async function POST(req: Request) {
             appointment_id: appointmentId || null,
             appointment_date: appointmentDate || null,
             appointment_type: appointmentType || null,
-            created_by_employee: createdByEmployee,
+            /**
+             * 🔑 AUTOR Z SESJI, NIE Z CIAŁA. Pole z żądania było przyjmowane na wiarę,
+             * choć realny autor jest już poprawnie w `audit_logs`. Nikt tej kolumny nie
+             * czyta, ale kolumna, która KŁAMIE, jest gorsza niż pusta.
+             */
+            created_by_employee: auth.user?.email || createdByEmployee,
             expires_at: expiresAt,
         })
         .select('token, expires_at')

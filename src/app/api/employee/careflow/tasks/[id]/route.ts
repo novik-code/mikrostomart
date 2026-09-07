@@ -4,6 +4,7 @@ import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
 import { PAST_DUE_NOTE, warsawIso } from '@/lib/careflowSchedule';
+import { poprawnyTekst, poprawnaLiczba, poprawnaDataIso } from '@/lib/walidacjaWejscia';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -65,6 +66,48 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             }
             updates.scheduled_at = newScheduled.toISOString();
         }
+        /**
+         * 🔴 P-106: KSZTAŁT WEJŚCIA. Wszystkie pola niżej szły do bazy bez sprawdzenia
+         * typu, formatu daty ani długości — walidowane było wyłącznie `scheduledAt`.
+         * Zły typ kończył się 500 z Postgresa zamiast czytelnym 400, a dowolne
+         * `completedAt` wchodziło do raportu PDF i statystyk JAKO WYKONANIE ZADANIA;
+         * ujemny `pushSentCount` wydłużał serię przypomnień. Interfejs wysyła tylko
+         * `scheduledAt`, więc reszta była osiągalna ręcznym żądaniem — to defensywa
+         * przed pomyłką i insiderem, nie dziura dla obcego.
+         */
+        for (const [nazwa, wartosc, maxDl] of [
+            ['title', body.title, 200],
+            ['description', body.description, 2000],
+            ['pushMessage', body.pushMessage, 500],
+        ] as const) {
+            if (wartosc !== undefined && !poprawnyTekst(wartosc, maxDl)) {
+                return NextResponse.json(
+                    { error: `Pole ${nazwa} musi być tekstem do ${maxDl} znaków.` },
+                    { status: 400, headers: NO_STORE },
+                );
+            }
+        }
+        for (const [nazwa, wartosc] of [['completedAt', body.completedAt], ['skippedAt', body.skippedAt], ['pushLastSentAt', body.pushLastSentAt]] as const) {
+            if (wartosc !== undefined && !poprawnaDataIso(wartosc)) {
+                return NextResponse.json(
+                    { error: `Pole ${nazwa} musi być znacznikiem czasu ISO albo null.` },
+                    { status: 400, headers: NO_STORE },
+                );
+            }
+        }
+        if (body.pushSentCount !== undefined && !poprawnaLiczba(body.pushSentCount, 0, 1000)) {
+            return NextResponse.json(
+                { error: 'Pole pushSentCount musi być liczbą całkowitą ≥ 0.' },
+                { status: 400, headers: NO_STORE },
+            );
+        }
+        if (body.smsSent !== undefined && typeof body.smsSent !== 'boolean') {
+            return NextResponse.json(
+                { error: 'Pole smsSent musi być wartością logiczną.' },
+                { status: 400, headers: NO_STORE },
+            );
+        }
+
         if (body.title !== undefined) updates.title = body.title;
         if (body.description !== undefined) updates.description = body.description;
         if (body.pushMessage !== undefined) updates.push_message = body.pushMessage;
