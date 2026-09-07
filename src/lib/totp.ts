@@ -48,16 +48,49 @@ export async function generateQrDataUrl(email: string, secret: string): Promise<
  * Verify a 6-digit TOTP code against a secret.
  * Accepts codes from current and ±1 30s window (clock drift tolerance).
  */
-export function verifyCode(code: string, secret: string): boolean {
-    if (!code || !secret) return false;
+export const TOTP_STEP_SECONDS = 30;
+
+/**
+ * Numer KROKU TOTP, w którym kod jest ważny, albo `null` gdy nieważny.
+ *
+ * 🔒 Po co numer, skoro `verifyCode` wystarczał do powiedzenia „ważny/nieważny":
+ * otplib chodzi z `window: 1`, więc ten sam sześciocyfrowy kod jest ważny przez
+ * trzy kroki (delta −1/0/+1), czyli do ~90 s. Bez numeru kroku nie da się
+ * odróżnić „ten kod widzę pierwszy raz" od „ten kod już był" — a to jest cała
+ * ochrona przed ponownym użyciem (RFC 6238 §5.2).
+ *
+ * 🪤 `epoch` PRZYPIĘTE do jednej chwili. Gdyby `checkDelta` i arytmetyka kroku
+ * czytały zegar osobno, mogłyby trafić po dwóch stronach granicy 30 s i zapisać
+ * krok o jeden za duży — czyli odciąć użytkownikowi NASTĘPNY, poprawny kod.
+ *
+ * 🪤 `allOptions()` trzeba rozwinąć. Sam obiekt z `epoch` wywala
+ * „Expecting options.keyDecoder to be a function". Instancja z `create()`
+ * nie rusza opcji globalnych — sprawdzone wykonaniem na otplib 12.
+ */
+export function verifyCodeStep(code: string, secret: string): number | null {
+    if (!code || !secret) return null;
     // Strip spaces — users may copy codes with formatting
     const clean = code.replace(/\s+/g, '');
-    if (!/^\d{6}$/.test(clean)) return false;
+    if (!/^\d{6}$/.test(clean)) return null;
     try {
-        return getAuth().verify({ token: clean, secret });
+        const auth = getAuth();
+        const nowMs = Date.now();
+        const scoped = auth.create({ ...auth.allOptions(), epoch: nowMs });
+        const delta = scoped.checkDelta(clean, secret);
+        if (delta === null || delta === undefined) return null;
+        return Math.floor(nowMs / 1000 / TOTP_STEP_SECONDS) + delta;
     } catch {
-        return false;
+        return null;
     }
+}
+
+/**
+ * 🔑 JEDNO ŹRÓDŁO PRAWDY. `verifyCode` liczy przez `verifyCodeStep`, żeby nie
+ * powstały dwie ścieżki weryfikacji, które mogą się z czasem rozjechać —
+ * a wtedy kod byłby „ważny" dla jednej i „nieważny" dla drugiej.
+ */
+export function verifyCode(code: string, secret: string): boolean {
+    return verifyCodeStep(code, secret) !== null;
 }
 
 /**

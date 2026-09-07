@@ -6,6 +6,7 @@ import {
     generateQrDataUrl,
     buildOtpauthUrl,
     verifyCode,
+    verifyCodeStep,
     generateBackupCodes,
     verifyBackupCode,
     consumeBackupCode,
@@ -302,6 +303,71 @@ async function guardMfaAttempts(
     };
 }
 
+/**
+ * ZAJMUJE krok TOTP na urządzeniu — czyli mówi, czy ten kod jest używany
+ * PIERWSZY raz (RFC 6238 §5.2).
+ *
+ * 🔒 Warunek siedzi w `WHERE` (`.lt`), nie w JavaScripcie. Odczyt-porównanie-zapis
+ * po stronie kodu przepuściłby dwa równoległe żądania z tym samym kodem: oba
+ * przeczytałyby starą wartość, oba uznałyby kod za świeży. Baza rozstrzyga to
+ * jednym zapisem i tylko jeden dostaje wiersz.
+ *
+ * 🪤 `db_error` NIGDY nie może wrócić do wołającego jako `invalid_code`.
+ * Jeden kod błędu na dwie przyczyny ukrywał w tym projekcie awarię przez
+ * miesiące — awaria ma krzyczeć, a brak ma milczeć.
+ */
+type ClaimResult = 'claimed' | 'replay' | 'db_error';
+
+/** Kody PostgREST dla „kolumna nie istnieje" — stan sprzed wgrania migracji 203. */
+const BRAK_KOLUMNY = new Set(['42703', 'PGRST204']);
+
+async function claimTotpStep(deviceId: string, step: number, nowIso: string): Promise<ClaimResult> {
+    const { data, error } = await supabase
+        .from('employee_2fa_devices')
+        .update({ last_totp_step: step, last_used_at: nowIso })
+        .eq('id', deviceId)
+        .lt('last_totp_step', step)
+        .select('id');
+
+    if (error) {
+        // 🪤 KOLEJNOŚĆ DEPLOY vs MIGRACJA. Push do `main` wdraża kod natychmiast,
+        // a migracje wgrywa się osobno. Gdyby brak kolumny `last_totp_step` był
+        // twardym błędem, kod wdrożony PRZED migracją 203 odrzucałby KAŻDĄ
+        // weryfikację drugiego składnika — czyli zamykał panel całemu zespołowi.
+        // Ta sama pułapka i to samo lekarstwo co w `mfaEpoch.readMfaGate`
+        // przy migracji 191.
+        //
+        // Dopóki kolumny nie ma, zachowujemy się jak przed naprawą: zapisujemy
+        // sam `last_used_at` i przepuszczamy. Ochrona włącza się SAMA w chwili
+        // wgrania migracji — bez ponownego wdrożenia kodu.
+        if (BRAK_KOLUMNY.has(String(error.code))) {
+            console.error(
+                '[2FA] BRAK KOLUMNY last_totp_step — migracja 203 nie jest wgrana. '
+                + 'Ochrona przed ponownym użyciem kodu TOTP jest WYŁĄCZONA.', error.code);
+            await supabase
+                .from('employee_2fa_devices')
+                .update({ last_used_at: nowIso })
+                .eq('id', deviceId);
+            return 'claimed';
+        }
+        console.error('[2FA] claimTotpStep error:', error.code, error.message);
+        return 'db_error';
+    }
+    return (data && data.length === 1) ? 'claimed' : 'replay';
+}
+
+/** Pierwsze urządzenie, którego sekret pasuje do kodu — wraz z numerem kroku. */
+function dopasujUrzadzenie<T extends { totp_secret: string }>(
+    devices: T[] | null,
+    code: string,
+): { device: T; step: number } | null {
+    for (const d of devices || []) {
+        const step = verifyCodeStep(code, d.totp_secret);
+        if (step !== null) return { device: d, step };
+    }
+    return null;
+}
+
 export async function verifyAndEnableDevice(
     userId: string,
     deviceId: string,
@@ -329,18 +395,28 @@ export async function verifyAndEnableDevice(
     if (devErr || !device) return { ok: false, error: 'device_not_found' };
     if (device.enabled) return { ok: false, error: 'already_enabled' };
 
-    if (!verifyCode(code, device.totp_secret)) {
+    const step = verifyCodeStep(code, device.totp_secret);
+    if (step === null) {
         return { ok: false, error: 'invalid_code' };
     }
 
     const now = new Date().toISOString();
 
     // Enable the device
+    //
+    // 🪤 Krok ZAPISUJEMY, ale NIE bramkujemy go tutaj `.lt()`. Ta funkcja pracuje
+    // wylacznie na urzadzeniu NIEAKTYWNYM (galaz `already_enabled` wyzej), a takie
+    // ma zawsze `last_totp_step = 0` — warunek przechodzilby zawsze i nie chronil
+    // przed niczym, a dolozylby nowy powod odmowy na JEDYNEJ sciezce konfiguracji
+    // drugiego skladnika. Zapis jest natomiast konieczny: bez niego ten sam kod,
+    // ktorym wlasnie aktywowano urzadzenie, przeszedlby zaraz potem w
+    // `verifyChallenge` — jedyne przejscie „nieaktywne -> aktywne" w oknie 90 s.
     const { error: devUpdateErr } = await supabase
         .from('employee_2fa_devices')
         .update({
             enabled: true,
             last_used_at: now,
+            last_totp_step: step,
         })
         .eq('id', device.id);
 
@@ -435,7 +511,9 @@ export async function removeDevice(
 
     // Enabled device — wymagaj proof of possession.
     const verified = await verifyAnyCode(employee.id, proofCode, employee.totp_backup_codes || []);
-    if (!verified.ok) return { ok: false, error: 'invalid_code' };
+    // Awaria bazy NIE moze udawac zlego kodu — inaczej czlowiek klepie poprawny kod
+    // w kolko, a w logach nie ma nic. Blad przekazujemy taki, jaki jest.
+    if (!verified.ok) return { ok: false, error: verified.error };
 
     // Delete device
     const { error: delErr } = await supabase
@@ -577,16 +655,18 @@ export async function verifyChallenge(
     }
 
     // Find first device whose secret matches the code
-    const matched = devices.find(d => verifyCode(code, d.totp_secret));
-    if (!matched) return { ok: false, error: 'invalid_code' };
+    const trafienie = dopasujUrzadzenie(devices, code);
+    if (!trafienie) return { ok: false, error: 'invalid_code' };
 
     const now = new Date().toISOString();
 
-    // Update matched device + employee aggregate
-    await supabase
-        .from('employee_2fa_devices')
-        .update({ last_used_at: now })
-        .eq('id', matched.id);
+    // 🔒 Kod wolno przyjac TYLKO raz. Zajecie kroku ZASTEPUJE dotychczasowy
+    // zapis `last_used_at` — znacznik czasu nie odroznial kodu od kodu.
+    const claim = await claimTotpStep(trafienie.device.id, trafienie.step, now);
+    if (claim === 'db_error') return { ok: false, error: 'database_error' };
+    if (claim === 'replay') return { ok: false, error: 'invalid_code' };
+
+    const matched = trafienie.device;
 
     await supabase
         .from('employees')
@@ -674,7 +754,9 @@ export async function disableAll(
     if (!employee.totp_enabled) return { ok: false, error: 'not_enabled' };
 
     const verified = await verifyAnyCode(employee.id, proofCode, employee.totp_backup_codes || []);
-    if (!verified.ok) return { ok: false, error: 'invalid_code' };
+    // Awaria bazy NIE moze udawac zlego kodu — inaczej czlowiek klepie poprawny kod
+    // w kolko, a w logach nie ma nic. Blad przekazujemy taki, jaki jest.
+    if (!verified.ok) return { ok: false, error: verified.error };
 
     // Delete all devices (trigger will set totp_enabled = false on employees)
     const { error: delErr } = await supabase
@@ -779,12 +861,18 @@ export async function regenerateBackupCodes(
     // Verify TOTP from any enabled device (no backup code allowed here — would be circular)
     const { data: devices } = await supabase
         .from('employee_2fa_devices')
-        .select('totp_secret')
+        // `id` jest potrzebne, zeby zajac krok — bez niego nie ma czym zaadresowac wiersza.
+        .select('id, totp_secret')
         .eq('employee_id', employee.id)
         .eq('enabled', true);
 
-    const matched = (devices || []).find(d => verifyCode(currentCode, d.totp_secret));
-    if (!matched) return { ok: false, error: 'invalid_code' };
+    const trafienie = dopasujUrzadzenie(devices, currentCode);
+    if (!trafienie) return { ok: false, error: 'invalid_code' };
+
+    const claimRegen = await claimTotpStep(
+        trafienie.device.id, trafienie.step, new Date().toISOString());
+    if (claimRegen === 'db_error') return { ok: false, error: 'database_error' };
+    if (claimRegen === 'replay') return { ok: false, error: 'invalid_code' };
 
     const { plain, hashed } = await generateBackupCodes();
     const { error: updateError } = await supabase
@@ -890,16 +978,33 @@ async function verifyAnyCode(
     employeeId: string,
     code: string,
     backupHashedCodes: string[]
-): Promise<{ ok: true; consumedBackupCodes?: string[] } | { ok: false }> {
+): Promise<
+    | { ok: true; consumedBackupCodes?: string[] }
+    // 🔒 Pole bledu ISTNIEJE, zeby awaria bazy nie udawala zlego kodu. Wczesniej
+    // zwrot brzmial `{ ok: false }`, a obaj wolajacy (removeDevice, disableAll)
+    // zaszywali `invalid_code` na sztywno — czyli na dwoch najciezszych operacjach
+    // na koncie awaria wygladalaby jak pomylka w kodzie.
+    | { ok: false; error: 'invalid_code' | 'database_error' }
+> {
     // Try TOTP first (any enabled device)
     const { data: devices } = await supabase
         .from('employee_2fa_devices')
-        .select('totp_secret')
+        .select('id, totp_secret')
         .eq('employee_id', employeeId)
         .eq('enabled', true);
 
-    const totpMatch = (devices || []).some(d => verifyCode(code, d.totp_secret));
-    if (totpMatch) return { ok: true };
+    const trafienie = dopasujUrzadzenie(devices, code);
+    if (trafienie) {
+        const claim = await claimTotpStep(
+            trafienie.device.id, trafienie.step, new Date().toISOString());
+        if (claim === 'db_error') return { ok: false, error: 'database_error' };
+        // 🪤 Wyjscie NATYCHMIASTOWE. Puszczenie powtorzonego kodu dalej, do galezi
+        // kodow zapasowych, kosztowaloby przemial osmiu hashy bcrypt przy KAZDYM
+        // powtorzeniu — tania amplifikacja przeciw kontu, ktorego haslo napastnik
+        // juz zna. Kod pasowal do urzadzenia, wiec kodem zapasowym nie jest.
+        if (claim === 'replay') return { ok: false, error: 'invalid_code' };
+        return { ok: true };
+    }
 
     // Fall back to backup code
     if (backupHashedCodes.length > 0) {
@@ -910,7 +1015,7 @@ async function verifyAnyCode(
         }
     }
 
-    return { ok: false };
+    return { ok: false, error: 'invalid_code' };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

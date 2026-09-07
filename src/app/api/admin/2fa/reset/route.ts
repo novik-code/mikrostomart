@@ -61,8 +61,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify own TOTP code (proof admin actually has their phone)
+    //
+    // 🪤 Awaria bazy NIE może wracać jako `invalid_own_code`. To jest najcięższa
+    // trasa w repo — kasuje WSZYSTKIE urządzenia i kody zapasowe innej osoby —
+    // a jednocześnie siedzi w `SKIP_2FA_PATHS`, więc ten kod jest tu JEDYNYM
+    // dowodem drugiego składnika. Sklejenie awarii z pomyłką znaczyłoby, że admin
+    // klepie poprawny kod w kółko, a w logach nie ma nic. Jeden kod błędu na dwie
+    // przyczyny ukrywał już w tym projekcie awarię przez miesiące.
     const ownCheck = await verifyChallenge(auth.user.id, body.ownCode);
     if (!ownCheck.ok) {
+        if (ownCheck.error === 'database_error') {
+            return NextResponse.json({ error: 'database_error' }, { status: 500 });
+        }
         return NextResponse.json({ error: 'invalid_own_code' }, { status: 400 });
     }
 
