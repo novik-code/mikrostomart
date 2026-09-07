@@ -10,6 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
+import { isStaffProtectedPath } from '../middlewareSurface';
 
 const API = path.join(process.cwd(), 'src/app/api');
 const read = (p: string) => fs.readFileSync(path.join(API, p), 'utf8');
@@ -43,11 +44,16 @@ describe('Strażnik: e-Karta nie jest publiczna', () => {
         expect(submit).not.toContain("fetch('/api/intake/generate-pdf'");
     });
 
-    it('trasa jest objęta bramką 2FA w middleware', () => {
-        const mw = fs.readFileSync(path.join(process.cwd(), 'src/middleware.ts'), 'utf8');
-        expect(mw).toContain("'/api/intake/generate-pdf'");
+    it('trasa jest objęta bramką 2FA', () => {
+        // 🪤 PRZEPISANE 2026-09-07. Stało tu `expect(mw).toContain("'/api/intake/generate-pdf'")`,
+        // czyli szukanie NAPISU w `middleware.ts`. Gdy lista prefiksów przeniosła się
+        // do `lib/middlewareSurface.ts`, asercja pękła przy CAŁKOWICIE nietkniętym
+        // zachowaniu — i odwrotnie: przechodziłaby, gdyby ciąg został w komentarzu,
+        // a lista przestała być używana. Dziś WYKONUJEMY predykat bramki.
+        expect(isStaffProtectedPath('/api/intake/generate-pdf')).toBe(true);
         // ...ale wypełniane przez pacjenta submit/verify MUSZĄ zostać publiczne
-        expect(mw).not.toContain("'/api/intake/submit'");
+        expect(isStaffProtectedPath('/api/intake/submit')).toBe(false);
+        expect(isStaffProtectedPath('/api/intake/verify/abc')).toBe(false);
     });
 });
 

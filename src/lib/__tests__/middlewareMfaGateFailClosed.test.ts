@@ -41,12 +41,16 @@ vi.mock('@/lib/mfaEpoch', () => ({
     bumpMfaEpoch: async () => true,
 }));
 // Tożsamość podajemy Bearerem — to najkrótsza droga do wykonania samej bramki.
+// `bearerRozpoznany = false` udaje CRONA z Vercela: `Bearer CRON_SECRET` nie jest
+// tokenem Supabase, więc GoTrue go odrzuca i `getUserFromBearerToken` daje null.
+const bearerRozpoznany = { value: true };
 vi.mock('@/lib/bearerAuth', async (orig) => {
     const rzeczywiste = await orig<typeof import('@/lib/bearerAuth')>();
     return {
         ...rzeczywiste,
         extractBearerToken: () => 'token-testowy',
-        getUserFromBearerToken: async () => ({ id: 'user-1', email: 'p@example.com' }),
+        getUserFromBearerToken: async () =>
+            (bearerRozpoznany.value ? { id: 'user-1', email: 'p@example.com' } : null),
     };
 });
 vi.mock('@/lib/telegram', () => ({
@@ -67,6 +71,7 @@ beforeEach(() => {
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'k'.repeat(40);
     process.env.MFA_SESSION_SECRET = 'a'.repeat(64);
     Object.assign(gateMock, { totpEnabled: false, epoch: 0, ok: false, readFailed: false });
+    bearerRozpoznany.value = true;
 });
 
 describe('P-074: padnięty odczyt bramki 2FA', () => {
@@ -127,6 +132,42 @@ describe('P-073: trasy /api/admin/2fa/* są ZA bramką 2FA', () => {
         const cel = res.headers.get('location') ?? '';
         expect(cel, 'kreator nie może być odbijany na challenge ani na samego siebie')
             .not.toContain('2fa-challenge');
+    });
+});
+
+describe('P-004: nowe prefiksy bramki', () => {
+    it.each([
+        '/api/social/publish',
+        '/api/short-links',
+        '/api/health/ai',
+        '/api/fix-db-images',
+        '/api/cron/post-visit-sms',
+    ])('%s wymaga drugiego składnika przy wejściu z panelu', async (sciezka) => {
+        gateMock.readFailed = false;
+        gateMock.totpEnabled = false;
+        const res = await zadanie(sciezka);
+        expect(res.status).toBe(403);
+    });
+
+    it('🔴 KONTROLA NEGATYWNA: CRON Z VERCELA nie jest ruszany', async () => {
+        // Najważniejszy przypadek tej pozycji. Cron leci z `Bearer CRON_SECRET`,
+        // którego GoTrue nie rozpoznaje → `getUserFromBearerToken` daje null →
+        // `mfaUser` puste → bramka NIE wchodzi. Gdyby ta ścieżka zaczęła dostawać
+        // 403, przypomnienia, SMS-y do pacjentów i retencja przestałyby chodzić
+        // PO CICHU — a cisza w tym projekcie kosztowała już najwięcej.
+        bearerRozpoznany.value = false;
+        gateMock.readFailed = false;
+        const res = await zadanie('/api/cron/post-visit-sms');
+        expect(res.status).not.toBe(403);
+        expect(res.status).not.toBe(503);
+        expect(res.status).not.toBe(401);
+    });
+
+    it('KONTROLA NEGATYWNA: awaria odczytu też nie rusza crona z Vercela', async () => {
+        bearerRozpoznany.value = false;
+        gateMock.readFailed = true;
+        const res = await zadanie('/api/cron/appointment-reminders');
+        expect(res.status).not.toBe(503);
     });
 });
 

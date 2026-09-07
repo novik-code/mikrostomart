@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getProducts, saveProduct, deleteProductAsync, Product } from "@/lib/productService";
 import { requireAdmin } from "@/lib/authGuards";
+import { requireFactorProofIfEnabled } from "@/lib/mfaProof";
 import OpenAI from "openai";
 
 export const runtime = 'nodejs';
@@ -68,9 +69,20 @@ export async function GET() {
     }
 }
 
+/**
+ * 🔒 P-004 — ZAPIS wymaga drugiego składnika, ODCZYT zostaje publiczny.
+ *
+ * `/api/products` NIE MOŻE trafić do `STAFF_PROTECTED_PREFIXES`, bo GET jest
+ * publiczny (sklep pacjenta i apka; zmierzone na produkcji: anonim dostaje 200).
+ * Prefiks odbijałby pracownika z wygasłą sesją MFA na stronę challenge zamiast
+ * oddać JSON, a pacjentowi zabrałby sklep. Dowód idzie więc per METODA.
+ */
 export async function POST(req: NextRequest) {
     const auth = await requireAdmin();
     if (!auth.ok) return auth.response;
+
+    const odmowa = await requireFactorProofIfEnabled(req, auth.user.id);
+    if (odmowa) return odmowa;
 
     try {
         const body = await req.json();
@@ -102,9 +114,13 @@ export async function POST(req: NextRequest) {
     }
 }
 
+/** Jak POST — usunięcie produktu to zapis, więc wymaga drugiego składnika. */
 export async function DELETE(req: NextRequest) {
     const auth = await requireAdmin();
     if (!auth.ok) return auth.response;
+
+    const odmowa = await requireFactorProofIfEnabled(req, auth.user.id);
+    if (odmowa) return odmowa;
 
     try {
         const { searchParams } = new URL(req.url);

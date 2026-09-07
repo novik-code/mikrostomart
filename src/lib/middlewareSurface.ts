@@ -68,3 +68,57 @@ export function botMozeOminacAutoryzacje(pathname: string): boolean {
     const bez = bezPrefiksuJezyka(pathname);
     return !CHRONIONE_POD_JEZYKIEM.some(p => bez === p || bez.startsWith(`${p}/`));
 }
+
+/**
+ * Powierzchnia bramki 2FA — ścieżki, na których egzekwujemy drugi składnik.
+ *
+ * 🔴 P-004. Do 2026-09-07 lista miała SIEDEM wpisów, a strażnicy `requireAdmin`
+ * i `requireEmployeeOrAdmin` sprawdzają WYŁĄCZNIE rolę. Własny inwentarz z kodu
+ * (każdy `route.ts` w `src/app/api` wołający jednego z czterech strażników
+ * personelu) dał **56 tras poza bramką** — karta audytu mówiła o ~24.
+ * Kto znał samo hasło admina, robił `signInWithPassword` i sięgał po nie
+ * Bearerem bez `X-MFA-Session`.
+ *
+ * Co dopisane i dlaczego:
+ *   '/api/social'        — 19 tras: publikacja w mediach marki, OAuth, generowanie
+ *   '/api/short-links'   — tworzenie linków pod domeną kliniki
+ *   '/api/health/ai'     — diagnostyka
+ *   '/api/fix-db-images' — narzędzie masowo przepisujące adresy zdjęć
+ *   '/api/cron'          — 16 tras z ręczną gałęzią (SMS do pacjentów, retencja,
+ *                          kasowanie dziennika audytu, zamykanie dnia w ewidencji)
+ *
+ * 🔴 CZEGO CELOWO NIE MA NA LIŚCIE — i to nie jest przeoczenie:
+ *   '/api/products'         — GET jest PUBLICZNY (sklep pacjenta; zmierzone na
+ *                             produkcji: anonim dostaje 200). Prefiks odbiłby
+ *                             pracownika z wygasłą sesją MFA na challenge zamiast
+ *                             oddać JSON. Zapis (POST/DELETE) ma własny dowód.
+ *   '/api/staff-signatures' — gałąź z tokenem zgody obsługuje TABLET pacjenta.
+ *   '/api/push'             — trasa WSPÓLNA pacjent+personel; prefiks złamałby pacjentów.
+ *   '/api/auth/2fa', '/api/auth/passkeys' — bootstrap drugiego składnika.
+ *                             Objęcie ich bramką = ZAKLESZCZENIE: bez drugiego
+ *                             składnika nie dałoby się go skonfigurować.
+ *                             Te trasy mają własny dowód (`lib/mfaProof.ts`).
+ *
+ * 🔑 Cron z Vercela idzie z `Bearer CRON_SECRET`. `getUserFromBearerToken` zwraca
+ * dla niego `null`, więc `mfaUser` jest puste i bramka w ogóle nie wchodzi —
+ * gałąź cronowa zostaje nietknięta. Bramka łapie wyłącznie wejście z panelu
+ * (`?manual=true`), które niesie ciasteczko sesji.
+ */
+export const STAFF_PROTECTED_PREFIXES = [
+    '/admin',
+    '/pracownik',
+    '/api/admin',
+    '/api/employee',
+    '/api/time',
+    '/api/intake/generate-token',
+    '/api/intake/generate-pdf',
+    '/api/social',
+    '/api/short-links',
+    '/api/health/ai',
+    '/api/fix-db-images',
+    '/api/cron',
+];
+
+export function isStaffProtectedPath(pathname: string): boolean {
+    return STAFF_PROTECTED_PREFIXES.some(p => pathname.startsWith(p));
+}

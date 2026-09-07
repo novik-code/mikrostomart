@@ -15,25 +15,88 @@
  */
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
+import { isStaffProtectedPath } from '../middlewareSurface';
 import path from 'path';
 
 const read = (p: string) => fs.readFileSync(path.join(process.cwd(), p), 'utf8');
 
 describe('bramka 2FA obejmuje wszystkie trasy personelu', () => {
-    const src = read('src/middleware.ts');
-    const prefixes = /const PROTECTED_PREFIXES = \[([\s\S]*?)\]/.exec(src)?.[1] ?? '';
+    /**
+     * 🪤 PRZEPISANE 2026-09-07 (P-004). Stały tu asercje w rodzaju
+     * `expect(prefixes).toContain("'/api/time'")` — czyli sprawdzanie, czy NAPIS
+     * stoi w źródle middleware. Taka asercja jest ślepa: przechodzi, gdy ciąg
+     * leży w komentarzu obok, i nie widzi, czy lista jest w ogóle używana.
+     * W tej samej sesji grep po zdjętym wpisie `'/api/admin/2fa/'` znalazł go
+     * w MOIM komentarzu — czwarty raz ta sama pomyłka w tym projekcie.
+     *
+     * Dziś test buduje INWENTARZ Z KODU (każdy `route.ts` wołający jednego
+     * z czterech strażników personelu) i dla każdej trasy WYKONUJE
+     * `isStaffProtectedPath`. Nowa trasa personelu bez prefiksu zapala się sama.
+     */
+    const STRAZNICY = /requireAdmin\(|requireEmployeeOrAdmin\(|verifyAdmin\(|requireSupabaseUser\(/;
 
-    it('pilnuje tras czasu pracy', () => {
-        expect(prefixes).toContain("'/api/time'");
+    /** Trasy świadomie POZA bramką — każda z powodem, nie „bo tak wyszło". */
+    const UZASADNIONE_WYJATKI: Array<{ wzor: RegExp; powod: string }> = [
+        { wzor: /^\/api\/auth\/2fa/, powod: 'bootstrap 2FA — objęcie = zakleszczenie; własny dowód w lib/mfaProof' },
+        { wzor: /^\/api\/auth\/passkeys/, powod: 'bootstrap drugiego składnika; rejestracja ma własny dowód (P-002)' },
+        { wzor: /^\/api\/products$/, powod: 'GET publiczny (sklep pacjenta); zapis ma dowód per metoda' },
+        { wzor: /^\/api\/staff-signatures$/, powod: 'gałąź z tokenem zgody obsługuje tablet pacjenta' },
+        { wzor: /^\/api\/push\/test$/, powod: 'trasa wspólna pacjent+personel; ma własne uwierzytelnienie' },
+    ];
+
+    function trasyPersonelu(): string[] {
+        const wynik: string[] = [];
+        const chodz = (kat: string) => {
+            for (const wpis of fs.readdirSync(kat, { withFileTypes: true })) {
+                const pelna = path.join(kat, wpis.name);
+                if (wpis.isDirectory()) chodz(pelna);
+                else if (wpis.name === 'route.ts' && STRAZNICY.test(fs.readFileSync(pelna, 'utf8'))) {
+                    wynik.push(pelna
+                        .replace(path.join(process.cwd(), 'src/app'), '')
+                        .replace(/\/route\.ts$/, ''));
+                }
+            }
+        };
+        chodz(path.join(process.cwd(), 'src/app/api'));
+        return wynik.sort();
+    }
+
+    const trasy = trasyPersonelu();
+
+    it('inwentarz w ogóle coś znajduje (wzorzec nie zmurszał)', () => {
+        // Strażnik, który po refaktorze przestaje cokolwiek znajdować, świeci
+        // na zielono i jest GORSZY niż jego brak.
+        expect(trasy.length).toBeGreaterThan(150);
     });
 
-    it('pilnuje wystawiania tokenu e-Karty', () => {
-        expect(prefixes).toContain("'/api/intake/generate-token'");
+    it('każda trasa personelu jest ZA bramką albo ma spisany powód', () => {
+        const bezOchrony = trasy.filter(t =>
+            !isStaffProtectedPath(t) && !UZASADNIONE_WYJATKI.some(w => w.wzor.test(t)));
+        expect(
+            bezOchrony,
+            'trasy personelu poza bramką 2FA i bez uzasadnienia:\n  ' + bezOchrony.join('\n  '),
+        ).toEqual([]);
     });
 
-    it('NIE obejmuje całego /api/intake — submit i verify są publiczne dla pacjenta', () => {
-        // Objęcie całego prefiksu zepsułoby wypełnianie e-Karty z linku.
-        expect(prefixes).not.toMatch(/'\/api\/intake'/);
+    it('WYKONANIE: prefiksy naprawdę łapią trasy, których dotyczy P-004', () => {
+        // Asercja na zachowanie funkcji, nie na obecność napisu w pliku.
+        for (const t of ['/api/social/publish', '/api/short-links', '/api/health/ai',
+                         '/api/fix-db-images', '/api/cron/post-visit-sms', '/api/time/entries',
+                         '/api/intake/generate-token']) {
+            expect(isStaffProtectedPath(t), `${t} miała wejść pod bramkę`).toBe(true);
+        }
+    });
+
+    it('WYKONANIE: bramka NIE łapie tego, co złamałaby', () => {
+        for (const t of ['/api/products', '/api/staff-signatures', '/api/push/test',
+                         '/api/auth/2fa/challenge', '/api/auth/passkeys/authenticate/begin',
+                         '/api/patients/me', '/api/intake/submit']) {
+            expect(isStaffProtectedPath(t), `${t} NIE może wejść pod bramkę`).toBe(false);
+        }
+    });
+
+    it('każdy wyjątek ma niepusty powód', () => {
+        for (const w of UZASADNIONE_WYJATKI) expect(w.powod.length).toBeGreaterThan(20);
     });
 });
 

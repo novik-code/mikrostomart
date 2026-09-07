@@ -9,7 +9,7 @@ import { isMfaMandatoryForAll } from "./lib/mfaPolicy";
 import { readMfaGate } from "./lib/mfaEpoch";
 // 🔑 JEDNO ZRODLO PRAWDY dla decyzji sciezkowych. Trzymanie drugiej kopii tutaj
 // znaczyloby, ze straznik sprawdza jedna liste, a middleware uzywa drugiej.
-import { shouldBypassIntl, botMozeOminacAutoryzacje } from "./lib/middlewareSurface";
+import { shouldBypassIntl, botMozeOminacAutoryzacje, isStaffProtectedPath } from "./lib/middlewareSurface";
 import { sendTelegramNotification } from "./lib/telegram";
 
 /**
@@ -430,16 +430,11 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
     // `intake/submit` importuje `generateEKartaPdf` bezpośrednio, bez HTTP. Jedynym
     // klientem HTTP jest panel pracownika (ScheduleTab). Trasa ma teraz własny guard
     // `requireEmployeeOrAdmin` i wchodzi tutaj jako DRUGA warstwa.
-    const PROTECTED_PREFIXES = [
-        '/admin',
-        '/pracownik',
-        '/api/admin',
-        '/api/employee',
-        '/api/time',
-        '/api/intake/generate-token',
-        '/api/intake/generate-pdf',
-    ];
-    if (!PROTECTED_PREFIXES.some(p => pathname.startsWith(p))) {
+    // 🔑 Lista mieszka w `lib/middlewareSurface.ts` — JEDNO źródło prawdy, które
+    // strażnik potrafi WYKONAĆ. Poprzedni strażnik tej powierzchni czytał ten plik
+    // jako tekst i asertował obecność napisu, więc był ślepy na to, czy lista
+    // w ogóle jest używana.
+    if (!isStaffProtectedPath(pathname)) {
         return null;
     }
 
@@ -551,7 +546,11 @@ async function enforce2FA(request: NextRequest, userId: string, pathname: string
             const session = verifyMfaSessionToken(cookie, mfaEpoch);
             if (!session || session.userId !== userId) {
                 const url = new URL('/auth/2fa-challenge', request.url);
-                url.searchParams.set('redirect', pathname);
+                // 🪤 Z QUERY. Trzy callbacki OAuth (`/api/social/oauth/{facebook,
+                // tiktok,youtube}`) to JEDEN handler GET obsługujący i start,
+                // i powrót z `?code&state`. Przekierowanie bez query wracało
+                // na trasę z pustymi parametrami i zaczynało OAuth od nowa.
+                url.searchParams.set('redirect', pathname + request.nextUrl.search);
                 return NextResponse.redirect(url);
             }
         }
