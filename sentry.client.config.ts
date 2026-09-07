@@ -5,6 +5,7 @@
  */
 
 import * as Sentry from "@sentry/nextjs";
+import { wyczyscAdresZSekretow } from '@/lib/sentryScrubUrl';
 
 Sentry.init({
     dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
@@ -57,6 +58,33 @@ Sentry.init({
             (event.request?.headers?.['user-agent'] as string) || '';
         const botPatterns = ['Google-Read-Aloud', 'Googlebot', 'AdsBot', 'Bingbot', 'facebookexternalhit'];
         if (botPatterns.some(b => ua.includes(b))) return null;
+
+        /**
+         * 🔴 ŻYWE POŚWIADCZENIA NIE JADĄ DO SENTRY (07.09). Sześć stron trzyma sekret
+         * wprost w ŚCIEŻCE (`/zgody/<token>`, `/ekarta/<token>`, `/opieka/<token>`,
+         * `/s/<code>`, `/reset-password/<token>`, `/verify-email/<token>`), a landing
+         * wizyty w query. Każdy nieobsłużony błąd JS wysyłał je do zewnętrznej usługi —
+         * przy resecie hasła i weryfikacji e-maila to poświadczenie PRZEJMUJĄCE KONTO.
+         * Maskujemy WARTOŚĆ, nie adres: domena i trasa zostają, bo zgłoszenie bez adresu
+         * jest bezużyteczne — a wtedy ktoś wyłączy całe czyszczenie.
+         */
+        if (event.request?.url) {
+            event.request.url = wyczyscAdresZSekretow(event.request.url);
+        }
+        if (event.breadcrumbs) {
+            for (const okruch of event.breadcrumbs) {
+                if (typeof okruch.data?.url === 'string') {
+                    okruch.data.url = wyczyscAdresZSekretow(okruch.data.url);
+                }
+                // Nawigacje niosą adres w `from`/`to`, nie w `url`.
+                for (const pole of ['from', 'to'] as const) {
+                    if (typeof okruch.data?.[pole] === 'string') {
+                        okruch.data[pole] = wyczyscAdresZSekretow(okruch.data[pole] as string);
+                    }
+                }
+            }
+        }
+
         return event;
     },
 
