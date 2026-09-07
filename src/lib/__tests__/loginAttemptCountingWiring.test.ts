@@ -47,24 +47,29 @@ describe('licznik nieudanych logowań nie zlicza odrzuceń statusowych', () => {
     });
 
     it('jako porażka zliczane są dokładnie dwie sytuacje', () => {
-        const failures = src.match(/recordLoginAttempt\(loginIdentifier, ip, false\)/g) ?? [];
+        // 🪤 Kotwica celowo NIE zawiera nazwy zmiennej. Do 2026-09-07 stało tu
+        // `recordLoginAttempt\(loginIdentifier, …\)`, więc przemianowanie klucza na
+        // postać kanoniczną (P-080) wywróciło sześć asercji naraz, choć chronione
+        // zachowanie było nietknięte. Strażnik ma pilnować OKABLOWANIA — ile ścieżek
+        // zapisuje porażkę — a nie tego, jak wołający nazwał swój argument.
+        const failures = src.match(/recordLoginAttempt\(\w+, ip, false\)/g) ?? [];
         expect(failures).toHaveLength(2);
     });
 
     it('zliczany jest brak konta (ochrona przed wyliczaniem kont)', () => {
         expect(src).toMatch(
-            /\[Login\] Patient not found:[\s\S]{0,160}?recordLoginAttempt\(loginIdentifier, ip, false\)/
+            /\[Login\] Patient not found:[\s\S]{0,160}?recordLoginAttempt\(\w+, ip, false\)/
         );
     });
 
     it('zliczane jest złe hasło (właściwy cel limitera)', () => {
         expect(src).toMatch(
-            /\[Login\] Invalid password for:[\s\S]{0,160}?recordLoginAttempt\(loginIdentifier, ip, false\)/
+            /\[Login\] Invalid password for:[\s\S]{0,160}?recordLoginAttempt\(\w+, ip, false\)/
         );
     });
 
     it('udane logowanie nadal trafia do rejestru', () => {
-        expect(src).toMatch(/recordLoginAttempt\(loginIdentifier, ip, true\)/);
+        expect(src).toMatch(/recordLoginAttempt\(\w+, ip, true\)/);
     });
 });
 
@@ -77,7 +82,9 @@ describe('limit liczy wylacznie porazki', () => {
     });
 
     it('po udanym logowaniu porazki sa kasowane', () => {
-        expect(src).toMatch(/recordLoginAttempt\(loginIdentifier, ip, true\)[\s\S]{0,200}?clearFailedAttempts\(loginIdentifier\)/);
+        // Ten sam klucz w obie strony: zapis i kasowanie muszą trafiać w JEDEN kubełek,
+        // inaczej po udanym logowaniu porażki zostają i pacjent blokuje się mimo hasła.
+        expect(src).toMatch(/recordLoginAttempt\((\w+), ip, true\)[\s\S]{0,200}?clearFailedAttempts\(\1\)/);
     });
 });
 

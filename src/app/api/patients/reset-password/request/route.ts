@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { phoneLookupVariants } from '@/lib/phone';
+import { phoneLookupVariants, phoneMatchKey } from '@/lib/phone';
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 
@@ -26,15 +26,34 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const normalizedPhone = phone.replace(/\s/g, '');
+        // 🔑 KLUCZ KUBEŁKA W POSTACI KANONICZNEJ (P-080).
+        // Stało tu `phone.replace(/\s/g,'')`, które nie usuwa nawet MYŚLNIKA, podczas
+        // gdy pacjenta szukamy przez `phoneLookupVariants` (zna `+48…`, `0048…`, `48…`
+        // i gołe 9 cyfr). Ten sam człowiek miał więc tyle kubełków, ile zapisów numeru,
+        // a limit 3/kwadrans mnożył się przez ich liczbę. Nagrodą za obejście jest
+        // zalewanie skrzynki pacjenta mailami resetującymi — dlatego jest to gorsze
+        // niż ta sama dziura na logowaniu.
+        const rateKey = `reset:${phoneMatchKey(phone)}`;
 
         // Rate limiting — max 3 reset requests per 15 min per phone
         const windowStart = new Date(Date.now() - WINDOW_MINUTES * 60 * 1000).toISOString();
-        const { count } = await supabase
+        const { count, error: limitErr } = await supabase
             .from('login_attempts')
             .select('*', { count: 'exact', head: true })
-            .eq('identifier', `reset:${normalizedPhone}`)
+            .eq('identifier', rateKey)
             .gte('attempted_at', windowStart);
+
+        // 🔒 FAIL-CLOSED (decyzja właściciela 2026-09-07). Nieudane zapytanie liczyło się
+        // jak „zero prób", więc awaria tabeli po cichu znosiła limit na wysyłkę maili.
+        // Tutaj odmowa jest tania: pacjent spróbuje za chwilę, a nikt nie traci dostępu.
+        if (limitErr) {
+            console.error('[Password Reset] odczyt limitu PADŁ — odmawiam (fail-closed):',
+                limitErr.code, limitErr.message);
+            return NextResponse.json(
+                { success: false, error: 'Chwilowo nie możemy przetworzyć prośby. Spróbuj za chwilę.' },
+                { status: 503, headers: { 'Retry-After': '30' } }
+            );
+        }
 
         if ((count || 0) >= MAX_RESET_ATTEMPTS) {
             return NextResponse.json(
@@ -45,7 +64,7 @@ export async function POST(request: NextRequest) {
 
         // Log this attempt
         await supabase.from('login_attempts').insert({
-            identifier: `reset:${normalizedPhone}`,
+            identifier: rateKey,
             // Ten sam rozbiór co w trasie logowania (pierwszy element listy proxy).
             // Wcześniej szedł tu SUROWY nagłówek, więc ten sam adres zapisywał się w dwóch
             // różnych postaciach i nie dawał się zestawić z wpisami logowania.

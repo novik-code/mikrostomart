@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
 import jwt, { SignOptions } from 'jsonwebtoken';
 import { isDemoMode } from '@/lib/demoMode';
-import { phoneLookupVariants } from '@/lib/phone';
+import { phoneLookupVariants, phoneMatchKey } from '@/lib/phone';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { pickExactEmailMatch } from '@/lib/emailMatch';
 import { widokProfiluPacjenta } from '@/lib/patientProfileView';
@@ -41,7 +41,7 @@ const MAX_ATTEMPTS_PER_IP = 50;
  * logowanie — pacjent, który zalogował się kilka razy w kwadransie (przelogowanie,
  * druga sesja, reinstalacja apki), sam się blokował. Limiter ma łapać ZGADYWANIE HASŁA.
  */
-async function checkRateLimit(identifier: string, ip: string | null): Promise<{ allowed: boolean; retryAfterSeconds?: number }> {
+async function checkRateLimit(identifier: string, ip: string | null): Promise<{ allowed: boolean; retryAfterSeconds?: number; unavailable?: boolean }> {
     const windowMs = RATE_LIMIT_WINDOW_MINUTES * 60 * 1000;
     const windowStart = new Date(Date.now() - windowMs).toISOString();
 
@@ -54,7 +54,7 @@ async function checkRateLimit(identifier: string, ip: string | null): Promise<{ 
 
     // Po identyfikatorze (telefon/e-mail). Pobieramy znaczniki, a nie sam licznik —
     // najstarszy z nich mówi, kiedy blokada naprawdę puści.
-    const { data: identifierRows } = await supabase
+    const { data: identifierRows, error: identifierErr } = await supabase
         .from('login_attempts')
         .select('attempted_at')
         .eq('identifier', identifier)
@@ -63,13 +63,28 @@ async function checkRateLimit(identifier: string, ip: string | null): Promise<{ 
         .order('attempted_at', { ascending: true })
         .limit(MAX_ATTEMPTS_PER_IDENTIFIER);
 
+    // 🔒 FAIL-CLOSED (decyzja właściciela 2026-09-07). Wcześniej `error` był
+    // ignorowany, a nieudane zapytanie liczyło się jak „zero prób" — przy
+    // częściowej awarii dostępu do `login_attempts` (cofnięty GRANT, rename
+    // kolumny, błąd cache'u schematu, punktowy błąd sieci) ochrona przed
+    // zgadywaniem haseł znikała BEZ ŻADNEGO SYGNAŁU. Nie potrafimy policzyć
+    // prób ⇒ nie wpuszczamy.
+    //
+    // 503, nie 429: to awaria po naszej stronie i jest przejściowa. 429 mówiłby
+    // pacjentowi „za dużo prób", czyli nieprawdę, i kazałby czekać kwadrans.
+    if (identifierErr) {
+        console.error('[RateLimit] odczyt po identyfikatorze PADŁ — odmawiam (fail-closed):',
+            identifierErr.code, identifierErr.message);
+        return { allowed: false, unavailable: true };
+    }
+
     if ((identifierRows?.length ?? 0) >= MAX_ATTEMPTS_PER_IDENTIFIER) {
         return { allowed: false, retryAfterSeconds: retryAfterFrom(identifierRows?.[0]?.attempted_at) };
     }
 
     // Po adresie IP (jeśli znany).
     if (ip) {
-        const { data: ipRows } = await supabase
+        const { data: ipRows, error: ipErr } = await supabase
             .from('login_attempts')
             .select('attempted_at')
             .eq('ip_address', ip)
@@ -77,6 +92,12 @@ async function checkRateLimit(identifier: string, ip: string | null): Promise<{ 
             .gte('attempted_at', windowStart)
             .order('attempted_at', { ascending: true })
             .limit(MAX_ATTEMPTS_PER_IP);
+
+        if (ipErr) {
+            console.error('[RateLimit] odczyt po IP PADŁ — odmawiam (fail-closed):',
+                ipErr.code, ipErr.message);
+            return { allowed: false, unavailable: true };
+        }
 
         if ((ipRows?.length ?? 0) >= MAX_ATTEMPTS_PER_IP) {
             return { allowed: false, retryAfterSeconds: retryAfterFrom(ipRows?.[0]?.attempted_at) };
@@ -202,13 +223,34 @@ export async function POST(request: Request) {
         const isEmail = phone.includes('@');
         const loginIdentifier = isEmail ? phone.trim().toLowerCase() : phone.replace(/[\s-]/g, '');
 
+        // 🔑 KLUCZ KUBEŁKA LIMITU — POSTAĆ KANONICZNA, nie surowe wejście.
+        //
+        // `loginIdentifier` usuwa tylko spacje i myślniki, a pacjenta szukamy przez
+        // `phoneLookupVariants`, która zna `+48…`, `0048…`, `48…` i gołe 9 cyfr.
+        // Ten sam człowiek miał więc TYLE kubełków, ile zapisów swojego numeru —
+        // limit 5/kwadrans wystarczyło obejść, wpisując numer inaczej. Zmierzone
+        // wykonaniem: pięć zapisów tego samego numeru dawało TRZY różne kubełki.
+        //
+        // 🪤 Kanoniczny jest WYŁĄCZNIE kubełek. Klucz WYSZUKANIA pacjenta zostaje
+        // surowy, bo `phoneLookupVariants` zawsze zawiera wejście dosłownie i przez
+        // to tylko poszerza dopasowanie; podanie mu postaci kanonicznej mogłoby
+        // odciąć konto z numerem, którego nie da się znormalizować (np. holenderskie
+        // „06 12 …”, patrz pułapka w nagłówku `lib/phone.ts`).
+        const rateKey = isEmail ? loginIdentifier : phoneMatchKey(loginIdentifier);
+
         // Extract IP address from request headers
         const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
             || request.headers.get('x-real-ip')
             || null;
 
         // Rate limiting (DB-backed)
-        const rateLimit = await checkRateLimit(loginIdentifier, ip);
+        const rateLimit = await checkRateLimit(rateKey, ip);
+        if (rateLimit.unavailable) {
+            return NextResponse.json(
+                { error: 'Chwilowo nie możemy zweryfikować logowania. Spróbuj za chwilę.' },
+                { status: 503, headers: { 'Retry-After': '30' } }
+            );
+        }
         if (!rateLimit.allowed) {
             const retryAfter = rateLimit.retryAfterSeconds ?? RATE_LIMIT_WINDOW_MINUTES * 60;
             return NextResponse.json(
@@ -276,7 +318,7 @@ export async function POST(request: Request) {
 
         if (error || !patient) {
             console.log('[Login] Patient not found:', loginIdentifier);
-            await recordLoginAttempt(loginIdentifier, ip, false);
+            await recordLoginAttempt(rateKey, ip, false);
             return NextResponse.json(
                 { error: statusError('invalid_credentials', locale) },
                 { status: 401 }
@@ -288,7 +330,7 @@ export async function POST(request: Request) {
 
         if (!valid) {
             console.log('[Login] Invalid password for:', loginIdentifier);
-            await recordLoginAttempt(loginIdentifier, ip, false);
+            await recordLoginAttempt(rateKey, ip, false);
             return NextResponse.json(
                 { error: statusError('invalid_credentials', locale) },
                 { status: 401 }
@@ -398,9 +440,9 @@ export async function POST(request: Request) {
             .eq('id', patient.id);
 
         console.log('[Login] Success:', patient.prodentis_id);
-        await recordLoginAttempt(loginIdentifier, ip, true);
+        await recordLoginAttempt(rateKey, ip, true);
         // Czyste konto na start następnej sesji — patrz komentarz przy funkcji.
-        await clearFailedAttempts(loginIdentifier);
+        await clearFailedAttempts(rateKey);
 
         const response = NextResponse.json({
             success: true,

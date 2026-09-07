@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { signRegistrationToken } from '@/lib/registrationToken';
-import { prodentisPhoneQueries } from '@/lib/phone';
+import { prodentisPhoneQueries, phoneMatchKey } from '@/lib/phone';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
 
@@ -114,7 +114,12 @@ export async function POST(request: Request) {
          * w porównaniu z kosztem odcięcia pacjentów.
          */
         const ip = getClientIP(request);
-        const phoneKey = rateKeyFor(normalizedPhone);
+        // 🔑 Klucz kubełka z postaci KANONICZNEJ (P-080). `normalizedPhone` usuwa tylko
+        // spacje i myślniki, więc `570810800` i `+48570810800` — ten sam pacjent —
+        // hashowały się do dwóch RÓŻNYCH kubełków i mnożyły limit przez liczbę zapisów.
+        // ⚠️ `failClosed` zostaje domyślne (false) — świadoma, wcześniejsza decyzja
+        // opisana wyżej: odcięcie zakładania kont kosztuje tu więcej niż obejście limitu.
+        const phoneKey = rateKeyFor(phoneMatchKey(normalizedPhone));
         const [okShort, okLong] = await Promise.all([
             checkRateLimit(`pverify:15m:${phoneKey}`, 5, 15 * 60_000),
             checkRateLimit(`pverify:24h:${phoneKey}`, 20, 24 * 60 * 60_000),
