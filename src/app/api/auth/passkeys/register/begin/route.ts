@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
-import { deriveRpConfig, generateRegistration } from '@/lib/passkeyService';
+import { deriveRpConfig, dozwolonyOriginWebAuthn, generateRegistration } from '@/lib/passkeyService';
 import { setChallengeCookie } from '@/lib/passkeyChallenge';
 import { requireFactorProofIfEnabled } from '@/lib/mfaProof';
 
 export const dynamic = 'force-dynamic';
 
-function getOriginFromRequest(request: NextRequest): string {
-    const host = request.headers.get('host') || 'localhost';
-    const proto = request.headers.get('x-forwarded-proto') ||
-        (host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https');
-    return `${proto}://${host}`;
-}
 
 /**
  * POST /api/auth/passkeys/register/begin
@@ -65,7 +59,12 @@ export async function POST(request: NextRequest) {
     const odmowa = await requireFactorProofIfEnabled(request, auth.user.id, body.code);
     if (odmowa) return odmowa;
 
-    const rpConfig = deriveRpConfig(getOriginFromRequest(request));
+    // 🔒 Origin ceremonii z ALLOW-LISTY, nie z nagłówka `Host` od klienta.
+    const origin = dozwolonyOriginWebAuthn(request.headers.get('host'));
+    if (!origin) {
+        return NextResponse.json({ error: 'unsupported_origin' }, { status: 400 });
+    }
+    const rpConfig = deriveRpConfig(origin);
     const result = await generateRegistration(auth.user.id, email, body.deviceName, rpConfig);
 
     if (!result.ok) {

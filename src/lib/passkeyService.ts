@@ -52,6 +52,40 @@ export type RpConfig = {
  * będzie działać tylko na tej konkretnej preview, ale to OK bo preview to nie
  * production use case.
  */
+/**
+ * Origin dla ceremonii WebAuthn — z ALLOW-LISTY, nie z nagłówka `Host`.
+ *
+ * 🪤 Cztery trasy passkeys miały własną kopię `getOriginFromRequest`, która
+ * sklejała origin z nagłówka `Host` przysłanego PRZEZ KLIENTA. Dla hosta spoza
+ * dwóch zaszytych domen `deriveRpConfig` promowała tę wartość na `rpID`
+ * i `expectedOrigin`, czyli na parametr bezpieczeństwa ceremonii. To ta sama
+ * klasa co `getClientIP` czytający `x-forwarded-for` od klienta — wartość
+ * sterowana przez tego, przed kim ma chronić.
+ *
+ * Zwraca `null`, gdy host jest nieznany. Wołający ma wtedy ODMÓWIĆ, a nie
+ * promować nieznaną domenę na RP.
+ *
+ * ⚠️ Świadomy koszt: passkeye przestają działać na podglądach `*.vercel.app`,
+ * dopóki domena nie trafi do `PASSKEY_EXTRA_ORIGINS`. To wygoda testowa, a nie
+ * funkcja produkcyjna — i lepsza niż bramka warunkowana `NODE_ENV`, bo taka
+ * znaczy „poza produkcją ochrony nie ma", a podglądy bywają publiczne.
+ */
+export function dozwolonyOriginWebAuthn(hostHeader: string | null): string | null {
+    if (!hostHeader) return null;
+    const host = hostHeader.split(':')[0].trim().toLowerCase();
+
+    if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) {
+        return `http://${hostHeader}`;
+    }
+    const ZNANE = new Set(['mikrostomart.pl', 'www.mikrostomart.pl', 'demo.densflow.ai']);
+    const dodatkowe = (process.env.PASSKEY_EXTRA_ORIGINS || '')
+        .split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+    if (ZNANE.has(host) || dodatkowe.includes(host)) return `https://${host}`;
+
+    console.error('[Passkey] odrzucony Host spoza allow-listy:', host);
+    return null;
+}
+
 export function deriveRpConfig(originUrl: string): RpConfig {
     const url = new URL(originUrl);
     const hostname = url.hostname;

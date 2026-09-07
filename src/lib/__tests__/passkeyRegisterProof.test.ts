@@ -53,6 +53,8 @@ vi.mock('@/lib/twoFactorService', () => ({
 }));
 vi.mock('@/lib/passkeyService', () => ({
     deriveRpConfig: () => ({ rpID: 'mikrostomart.pl', origin: 'https://mikrostomart.pl' }),
+    dozwolonyOriginWebAuthn: (h: string | null) =>
+        (h && h.includes('mikrostomart.pl') ? 'https://www.mikrostomart.pl' : null),
     generateRegistration: (...a: unknown[]) => generateRegistrationMock(...a),
     verifyRegistration: vi.fn(),
     removePasskey: vi.fn().mockResolvedValue({ ok: true }),
@@ -95,9 +97,11 @@ beforeEach(() => {
 async function beginRegister(body: Record<string, unknown> = { deviceName: 'Klucz' },
                              headers: Record<string, string> = {}) {
     const { POST } = await import('@/app/api/auth/passkeys/register/begin/route');
-    const req = new Request('https://x/api/auth/passkeys/register/begin', {
+    const req = new Request('https://www.mikrostomart.pl/api/auth/passkeys/register/begin', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', ...headers },
+        // 🪤 `Request` w undici NIE ustawia nagłówka `host` z adresu — trasa czyta
+        // go wprost (allow-lista origin WebAuthn), więc podajemy go jawnie.
+        headers: { 'content-type': 'application/json', host: 'www.mikrostomart.pl', ...headers },
         body: JSON.stringify(body),
     });
     return POST(req as never);
@@ -200,7 +204,8 @@ describe('P-076: zadławienie jest odróżnialne od złego kodu', () => {
 describe('Usunięcie passkeya unieważnia jego sesje i zostawia ślad', () => {
     it('DELETE zostawia wpis w audycie', async () => {
         const { DELETE } = await import('@/app/api/auth/passkeys/[id]/route');
-        const req = new Request('https://x/api/auth/passkeys/pk-1', { method: 'DELETE' });
+        const req = new Request('https://www.mikrostomart.pl/api/auth/passkeys/pk-1',
+            { method: 'DELETE', headers: { host: 'www.mikrostomart.pl' } });
         await DELETE(req as never, { params: Promise.resolve({ id: 'pk-1' }) });
         expect(logAuditMock).toHaveBeenCalled();
         expect(logAuditMock.mock.calls[0][0].action).toBe('passkey_removed');

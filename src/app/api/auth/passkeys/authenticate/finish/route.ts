@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireEmployeeOrAdmin } from '@/lib/authGuards';
-import { deriveRpConfig, verifyAuthentication } from '@/lib/passkeyService';
+import { deriveRpConfig, dozwolonyOriginWebAuthn, verifyAuthentication } from '@/lib/passkeyService';
 import { getChallengeCookie, clearChallengeCookie } from '@/lib/passkeyChallenge';
 import { setMfaSessionCookie } from '@/lib/mfaSession';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/server';
 
 export const dynamic = 'force-dynamic';
 
-function getOriginFromRequest(request: NextRequest): string {
-    const host = request.headers.get('host') || 'localhost';
-    const proto = request.headers.get('x-forwarded-proto') ||
-        (host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https');
-    return `${proto}://${host}`;
-}
 
 /**
  * POST /api/auth/passkeys/authenticate/finish
@@ -49,7 +43,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'challenge_user_mismatch' }, { status: 400 });
     }
 
-    const rpConfig = deriveRpConfig(getOriginFromRequest(request));
+    // 🔒 Origin ceremonii z ALLOW-LISTY, nie z nagłówka `Host` od klienta.
+    const origin = dozwolonyOriginWebAuthn(request.headers.get('host'));
+    if (!origin) {
+        return NextResponse.json({ error: 'unsupported_origin' }, { status: 400 });
+    }
+    const rpConfig = deriveRpConfig(origin);
     const result = await verifyAuthentication(
         auth.user.id,
         body.response,
