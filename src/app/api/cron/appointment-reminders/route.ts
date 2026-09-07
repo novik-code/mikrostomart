@@ -9,6 +9,7 @@ import { nanoid } from 'nanoid';
 import { demoSanitize, brand } from '@/lib/brandConfig';
 import { requireAdmin } from '@/lib/authGuards';
 import { prodentisFetch } from '@/lib/prodentisFetch';
+import { DLUGOSC_KODU_SKROTU } from '@/lib/shortLinkCodes';
 
 export const maxDuration = 120; // Vercel function timeout (increased: many appointments + multiple DB queries per appointment)
 
@@ -574,7 +575,7 @@ export async function GET(req: Request) {
                         } else {
                         const fullUrl = `${brand.appUrl}/wizyta/${appointmentSlug}?token=${tokenInUrl}&date=${targetDateStr}&time=${appointmentTime}&doctor=${encodeURIComponent(doctorName)}`;
 
-                        const shortCode = nanoid(6);
+                        const shortCode = nanoid(DLUGOSC_KODU_SKROTU);
 
                         // Calculate expiration (3 days after appointment)
                         const expiresAt = new Date(appointment.date);

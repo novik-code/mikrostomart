@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkRateLimit, getClientIP } from '@/lib/rateLimit';
+import { KLUCZ_PUDEL_SKROTU, MAX_PUDEL, OKNO_PUDEL_MS } from '@/lib/shortLinkCodes';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,6 +34,26 @@ export async function GET(
 ) {
     const fallbackUrl = new URL('/', req.url).toString();
 
+    /**
+     * 🔒 DŁAWIK ZGADYWANIA (07.09) — liczy WYŁĄCZNIE PUDŁA.
+     *
+     * Kod skracający miał 6 znaków (~36 bitów), a przekierowanie oddaje w nagłówku
+     * `Location` token potwierdzenia wizyty, którego P-088 broni jako 96-bitowego.
+     * Bez limitu efektywna obrona wynosiła 36 bitów.
+     *
+     * 🔑 Uczciwy człowiek klika link, który ISTNIEJE — jego żądanie nie zużywa budżetu
+     * ani razu. Zgadujący generuje same pudła i wyczerpuje go po kilkunastu próbach.
+     * Dlatego próg może być niski bez ryzyka, że uciszy pacjenta.
+     *
+     * 🔑 ODPOWIEDŹ SIĘ NIE ZMIENIA: zawsze 302 na stronę główną. Osobny kod (429, 404)
+     * zamieniłby dławik w wyrocznię „ten kod istnieje, tylko cię zdławiliśmy".
+     */
+    const adres = getClientIP(req) || 'nieznany';
+    const zapiszPudlo = async () => {
+        const { allowed } = await checkRateLimit(KLUCZ_PUDEL_SKROTU(adres), MAX_PUDEL, OKNO_PUDEL_MS);
+        return allowed;
+    };
+
     try {
         const { code } = await params;
         if (!code) return NextResponse.redirect(fallbackUrl, { status: 302 });
@@ -44,14 +66,26 @@ export async function GET(
 
         if (error || !link) {
             console.warn('[SHORT-LINK] Not found:', code);
+            if (!(await zapiszPudlo())) console.warn('[SHORT-LINK] Budżet zgadywania wyczerpany dla adresu');
             return NextResponse.redirect(fallbackUrl, { status: 302 });
         }
 
         if (link.expires_at && new Date(link.expires_at) < new Date()) {
             console.warn('[SHORT-LINK] Expired:', code);
+            await zapiszPudlo();
             return NextResponse.redirect(fallbackUrl, { status: 302 });
         }
 
+        /**
+         * 🪤 TRAFIENIA CELOWO NIE SPRAWDZAMY WOBEC BUDŻETU. Kusiło, żeby odciąć też
+         * zgadującego, który akurat trafi — ale `checkRateLimit` w tym repo ZAWSZE
+         * inkrementuje (atomowe RPC), więc każde takie sprawdzenie zużywałoby budżet
+         * uczciwemu pacjentowi i psuło całą zaletę liczenia samych pudeł.
+         *
+         * Rachunek i tak wychodzi: 15 pudeł na 10 minut to ~90 prób na godzinę, a kod
+         * ma ~60 bitów. Ryzyko trafienia w ciągu jednego okna jest o rzędy wielkości
+         * mniejsze niż ryzyko, że uciszymy człowieka z linkiem z SMS-a.
+         */
         // Fire-and-forget click tracking — don't block the redirect on this.
         supabase
             .from('short_links')

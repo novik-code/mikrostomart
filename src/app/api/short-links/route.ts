@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { nanoid } from 'nanoid';
 import { demoSanitize } from '@/lib/brandConfig';
 import { requireAdmin } from '@/lib/authGuards';
+import { DLUGOSC_KODU_SKROTU } from '@/lib/shortLinkCodes';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -81,7 +82,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Generate short code (6 characters, URL-safe)
-        const shortCode = nanoid(6);
+        const shortCode = nanoid(DLUGOSC_KODU_SKROTU);
 
         // Calculate expiration date
         let expiresAt = null;
