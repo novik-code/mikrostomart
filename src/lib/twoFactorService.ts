@@ -5,7 +5,6 @@ import {
     generateSecret,
     generateQrDataUrl,
     buildOtpauthUrl,
-    verifyCode,
     verifyCodeStep,
     generateBackupCodes,
     verifyBackupCode,
@@ -321,6 +320,23 @@ type ClaimResult = 'claimed' | 'replay' | 'db_error';
 /** Kody PostgREST dla „kolumna nie istnieje" — stan sprzed wgrania migracji 203. */
 const BRAK_KOLUMNY = new Set(['42703', 'PGRST204']);
 
+export const MFA_DATABASE_ERROR = 'database_error';
+
+/**
+ * Czy błąd znaczy „nie ma kolumny `last_totp_step`", czyli stan sprzed migracji 203.
+ *
+ * 🪤 KAŻDE miejsce zapisujące tę kolumnę MUSI przez to przejść. Pierwsza wersja tej
+ * naprawy dała tolerancję tylko `claimTotpStep`, a `verifyAndEnableDevice` — DRUGIE
+ * z dwóch miejsc — zostało bez niej. Skutek byłby dokładnie odwrotny do zamierzonego:
+ * kod wdrożony przed migracją odrzucałby AKTYWACJĘ 2FA (jedyną drogę włączenia
+ * drugiego składnika), więc pracownik bez 2FA zostawałby zamknięty poza panelem,
+ * odbijany na kreator, który nie potrafi się dokończyć. Złapane przeglądem
+ * adwersaryjnym; „gdzie jest DRUGIE takie miejsce" po raz ósmy w tym projekcie.
+ */
+export function toBrakKolumnyKroku(error: { code?: string | null } | null): boolean {
+    return Boolean(error && BRAK_KOLUMNY.has(String(error.code)));
+}
+
 async function claimTotpStep(deviceId: string, step: number, nowIso: string): Promise<ClaimResult> {
     const { data, error } = await supabase
         .from('employee_2fa_devices')
@@ -340,7 +356,7 @@ async function claimTotpStep(deviceId: string, step: number, nowIso: string): Pr
         // Dopóki kolumny nie ma, zachowujemy się jak przed naprawą: zapisujemy
         // sam `last_used_at` i przepuszczamy. Ochrona włącza się SAMA w chwili
         // wgrania migracji — bez ponownego wdrożenia kodu.
-        if (BRAK_KOLUMNY.has(String(error.code))) {
+        if (toBrakKolumnyKroku(error)) {
             console.error(
                 '[2FA] BRAK KOLUMNY last_totp_step — migracja 203 nie jest wgrana. '
                 + 'Ochrona przed ponownym użyciem kodu TOTP jest WYŁĄCZONA.', error.code);
@@ -421,8 +437,27 @@ export async function verifyAndEnableDevice(
         .eq('id', device.id);
 
     if (devUpdateErr) {
-        console.error('[2FA] verifyAndEnableDevice update error:', devUpdateErr);
-        return { ok: false, error: 'database_error' };
+        // 🪤 KOLEJNOŚĆ WDROŻENIA — druga z dwóch ścieżek zapisu `last_totp_step`.
+        // Bez tej gałęzi kod wdrożony PRZED migracją 203 odrzucałby AKTYWACJĘ 2FA,
+        // czyli jedyną drogę włączenia drugiego składnika: pracownik bez 2FA byłby
+        // odbijany na kreator, a kreator nie potrafiłby się dokończyć. Zamknięcie
+        // poza panelem bez wyjścia — dokładnie odwrotnie, niż ta naprawa zamierza.
+        // Dopóki kolumny nie ma, włączamy urządzenie BEZ zapisu kroku; ochrona
+        // przed powtórzeniem i tak jest wtedy wyłączona w `claimTotpStep`.
+        if (toBrakKolumnyKroku(devUpdateErr)) {
+            console.error('[2FA] BRAK KOLUMNY last_totp_step przy aktywacji — migracja 203 niewgrana');
+            const { error: bezKroku } = await supabase
+                .from('employee_2fa_devices')
+                .update({ enabled: true, last_used_at: now })
+                .eq('id', device.id);
+            if (bezKroku) {
+                console.error('[2FA] verifyAndEnableDevice update error:', bezKroku);
+                return { ok: false, error: MFA_DATABASE_ERROR };
+            }
+        } else {
+            console.error('[2FA] verifyAndEnableDevice update error:', devUpdateErr);
+            return { ok: false, error: MFA_DATABASE_ERROR };
+        }
     }
 
     // Update employees aggregate fields (totp_enabled handled by trigger)

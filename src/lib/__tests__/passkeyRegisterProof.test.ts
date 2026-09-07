@@ -49,6 +49,9 @@ vi.mock('@/lib/twoFactorService', () => ({
     verifyChallenge: (...a: unknown[]) => verifyChallengeMock(...a),
     verifyBackupChallenge: (...a: unknown[]) => verifyBackupChallengeMock(...a),
     MFA_RATE_LIMITED: 'too_many_attempts',
+    // 🪤 Atrapa MUSI eksportowac te sama liste stalych co modul. Brak jednej z nich
+    // daje `undefined` po stronie importu i cicho wywraca porownania w mfaProof.
+    MFA_DATABASE_ERROR: 'database_error',
     MFA_ATTEMPT_WINDOW_MS: 15 * 60_000,
 }));
 vi.mock('@/lib/passkeyService', () => ({
@@ -192,6 +195,30 @@ describe('P-076: zadławienie jest odróżnialne od złego kodu', () => {
         await beginRegister({ deviceName: 'Klucz', code: '123456' });
         expect(verifyChallengeMock).toHaveBeenCalled();
         expect(verifyBackupChallengeMock).not.toHaveBeenCalled();
+    });
+
+    it('🪤 kod TOTP ZE SPACJĄ idzie do weryfikatora TOTP, nie zapasowego', async () => {
+        // Router kształtu był STRICTSZY niż weryfikator: `verifyCodeStep` usuwa
+        // WSZYSTKIE białe znaki, a router robił tylko `.trim()`. Kod „123 456" —
+        // a tak wyświetla go część aplikacji authenticator i tak wklejają go ludzie —
+        // nie przechodził przez wzorzec i trafiał do weryfikatora kodów ZAPASOWYCH,
+        // paląc kubełek `mfa:backup` (5/15 min) WSPÓLNY z logowaniem kodem zapasowym.
+        // Pięć takich pomyłek zabierało człowiekowi drogę ratunku przy logowaniu.
+        verifyChallengeMock.mockResolvedValue({ ok: true, deviceId: 'd1' });
+        const res = await beginRegister({ deviceName: 'Klucz', code: '123 456' });
+        expect(res.status).toBe(200);
+        expect(verifyChallengeMock).toHaveBeenCalled();
+        expect(verifyBackupChallengeMock).not.toHaveBeenCalled();
+    });
+
+    it('AWARIA BAZY przy weryfikacji kodu daje 503, nie 403 „brak dowodu"', async () => {
+        // Awaria CZĄSTKOWA (odczyty żyją, zapis pada) przechodzi przez bramkę odczytu
+        // epoki i dociera aż tutaj. Bez rozróżnienia człowiek widzi „popraw dowód"
+        // i wpisuje kolejne POPRAWNE kody aż do zadławienia.
+        verifyChallengeMock.mockResolvedValue({ ok: false, error: 'database_error' });
+        const res = await beginRegister({ deviceName: 'Klucz', code: '123456' });
+        expect(res.status).toBe(503);
+        expect((await res.json()).error).toBe('mfa_check_unavailable');
     });
 
     it('kod w kształcie zapasowego (XXXXX-XXXXX) pali WYŁĄCZNIE kubełek zapasowy', async () => {

@@ -14,8 +14,9 @@
  *     (trwały własny drugi składnik na cudzym koncie),
  *   · `removeDevice` / `disableAll` ZDEJMUJĄ drugi składnik ofierze,
  *   · `POST /api/admin/2fa/reset` — najcięższa trasa w repo — kasuje wszystkie
- *     urządzenia i kody zapasowe INNEJ osoby, a ten kod jest tam JEDYNYM dowodem
- *     drugiego składnika (trasa siedzi w `SKIP_2FA_PATHS`).
+ *     urządzenia i kody zapasowe INNEJ osoby. ⚠️ Sprostowanie: trasa NIE siedzi już
+ *     w `SKIP_2FA_PATHS` (zdjęte w P-073), więc ten kod jest tam DRUGĄ warstwą,
+ *     nie jedyną — ale nadal jedynym dowodem „mam telefon przy sobie TERAZ".
  *
  * ══ DLACZEGO TEN STRAŻNIK NIE JEST ŚLEPY ════════════════════════════════════
  * 1. Atrapa tabeli REALNIE wykonuje warunkowy zapis `WHERE last_totp_step < :step`.
@@ -222,6 +223,22 @@ describe('P-077: kontrole negatywne — nie zepsuliśmy normalnego logowania', (
         const { verifyChallenge } = await import('@/lib/twoFactorService');
         expect((await verifyChallenge('user-1', kodA())).ok,
             'logowanie 2FA musi działać także przed wgraniem migracji').toBe(true);
+    });
+
+    it('🔴 KOLEJNOŚĆ WDROŻENIA: AKTYWACJA 2FA działa przed migracją 203', async () => {
+        // 🪤 Przypadek dopisany po przeglądzie adwersaryjnym. Poprzednia wersja
+        // sprawdzała kolejność wdrożenia WYŁĄCZNIE na `verifyChallenge` — a to jest
+        // ścieżka LOGOWANIA, która i tak działa tylko ludziom MAJĄCYM już 2FA.
+        // Ścieżka AKTYWACJI (`verifyAndEnableDevice`, jedyna droga włączenia
+        // drugiego składnika) była drugim miejscem zapisu kolumny i tolerancji
+        // NIE MIAŁA. Strażnik nazywał się „KOLEJNOŚĆ WDROŻENIA" i certyfikował
+        // odporność, której nie wykonywał — świecił zielono przy realnej dziurze.
+        brakKolumny = true;
+        devices = [{ id: 'dev-n', employee_id: 'emp-1', totp_secret: SEKRET_B, enabled: false, last_totp_step: 0, last_used_at: null }];
+        const { verifyAndEnableDevice } = await import('@/lib/twoFactorService');
+        const r = await verifyAndEnableDevice('user-1', 'dev-n', authenticator.generate(SEKRET_B));
+        expect(r.ok, 'aktywacja 2FA musi dzialac takze przed wgraniem migracji').toBe(true);
+        expect(devices[0].enabled, 'urzadzenie ma zostac WLACZONE').toBe(true);
     });
 
     it('awaria przy `disableAll` też nie udaje złego kodu', async () => {

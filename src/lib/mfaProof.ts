@@ -8,6 +8,7 @@ import {
     verifyBackupChallenge,
     MFA_RATE_LIMITED,
     MFA_ATTEMPT_WINDOW_MS,
+    MFA_DATABASE_ERROR,
 } from '@/lib/twoFactorService';
 
 /**
@@ -63,7 +64,13 @@ export async function hasCurrentFactorProof(
     const cookie = (await cookies()).get(MFA_COOKIE_NAME)?.value;
     if (verifyMfaSessionToken(cookie, epoch)?.userId === userId) return { ok: true };
 
-    const trimmed = typeof code === 'string' ? code.trim() : '';
+    // 🪤 NORMALIZUJEMY TAK SAMO, JAK ROBI TO WERYFIKATOR. Wcześniej stało tu `.trim()`,
+    // czyli router kształtu był STRICTSZY niż `verifyCodeStep`, który usuwa WSZYSTKIE
+    // białe znaki. Kod „123 456" — a tak wyświetla go część aplikacji authenticator
+    // i tak wklejają go ludzie — nie przechodził przez `/^\d{6}$/`, więc trafiał do
+    // weryfikatora kodów ZAPASOWYCH i palił kubełek `mfa:backup` (5/15 min), WSPÓLNY
+    // z logowaniem kodem zapasowym. Pięć takich pomyłek zabierało drogę ratunku.
+    const trimmed = typeof code === 'string' ? code.replace(/\s+/g, '') : '';
     if (!trimmed) return { ok: false, reason: 'proof_required' };
 
     // 🪤 P-076 — KIERUJEMY KOD DO JEDNEGO WERYFIKATORA, NIE DO OBU.
@@ -78,6 +85,15 @@ export async function hasCurrentFactorProof(
         : await verifyBackupChallenge(userId, trimmed);
 
     if (wynik.ok) return { ok: true };
+
+    // 🔒 Awaria bazy NIE może wracać jako „nie podałeś dowodu". Odczyt epoki wyżej
+    // łapie awarię CAŁKOWITĄ, ale awaria CZĄSTKOWA (odczyty żyją, zapis pada — baza
+    // w trybie read-only, statement timeout, wyczerpana pula) przechodzi tamtędy
+    // i dociera dopiero tutaj. Bez tej gałęzi człowiek widziałby „popraw dowód"
+    // i wpisywał kolejne POPRAWNE kody aż do zadławienia.
+    if (wynik.error === MFA_DATABASE_ERROR) {
+        return { ok: false, reason: 'unavailable' };
+    }
 
     // Zadławienie MUSI być odróżnialne od złego kodu — inaczej człowiek wpisuje
     // kolejne poprawne kody, dostaje „brak dowodu" i nie wie, że ma poczekać.

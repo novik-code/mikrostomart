@@ -25,7 +25,7 @@ const bumpMfaEpochMock = vi.fn().mockResolvedValue(true);
 const deleteEqMock = vi.fn();
 
 /** Minimalna atrapa łańcucha PostgREST używanego przez `removePasskey`. */
-function makeSupabase(opts: { employee: { id: string } | null; delError: unknown }) {
+function makeSupabase(opts: { employee: { id: string } | null; delError: unknown; usunieteWiersze?: Array<{ id: string }> }) {
     return {
         from: (tabela: string) => {
             if (tabela === 'employees') {
@@ -35,13 +35,18 @@ function makeSupabase(opts: { employee: { id: string } | null; delError: unknown
                     }),
                 };
             }
-            // employee_passkeys — delete().eq().eq()
+            // employee_passkeys — delete().eq().eq().select()
             return {
                 delete: () => ({
                     eq: () => ({
-                        eq: async (...a: unknown[]) => {
+                        eq: (...a: unknown[]) => {
                             deleteEqMock(...a);
-                            return { error: opts.delError };
+                            return {
+                                select: async () => ({
+                                    data: opts.delError ? null : opts.usunieteWiersze,
+                                    error: opts.delError,
+                                }),
+                            };
                         },
                     }),
                 }),
@@ -50,7 +55,7 @@ function makeSupabase(opts: { employee: { id: string } | null; delError: unknown
     };
 }
 
-let supabaseStub = makeSupabase({ employee: { id: 'emp-1' }, delError: null });
+let supabaseStub = makeSupabase({ employee: { id: 'emp-1' }, delError: null, usunieteWiersze: [{ id: 'pk-1' }] });
 
 // 🪤 `passkeyService` tworzy klienta RAZ, przy ładowaniu modułu. Gdyby atrapa
 // zwracała `supabaseStub` wprost, moduł zapamiętałby obiekt z PIERWSZEGO testu
@@ -70,7 +75,7 @@ const USER_ID = '11111111-1111-4111-8111-111111111111';
 beforeEach(() => {
     vi.clearAllMocks();
     bumpMfaEpochMock.mockResolvedValue(true);
-    supabaseStub = makeSupabase({ employee: { id: 'emp-1' }, delError: null });
+    supabaseStub = makeSupabase({ employee: { id: 'emp-1' }, delError: null, usunieteWiersze: [{ id: 'pk-1' }] });
 });
 
 describe('removePasskey unieważnia sesje MFA', () => {
@@ -85,7 +90,7 @@ describe('removePasskey unieważnia sesje MFA', () => {
     it('KONTROLA NEGATYWNA: gdy usunięcie PADŁO, epoki NIE ruszamy', async () => {
         // Podbicie epoki przy nieudanym DELETE wylogowałoby człowieka z sesji MFA,
         // choć jego klucz dalej istnieje — kara bez powodu.
-        supabaseStub = makeSupabase({ employee: { id: 'emp-1' }, delError: { message: 'boom' } });
+        supabaseStub = makeSupabase({ employee: { id: 'emp-1' }, delError: { message: 'boom' }, usunieteWiersze: [] });
         const { removePasskey } = await import('@/lib/passkeyService');
         const res = await removePasskey(USER_ID, 'pk-1');
         expect(res.ok).toBe(false);
@@ -93,10 +98,25 @@ describe('removePasskey unieważnia sesje MFA', () => {
     });
 
     it('KONTROLA NEGATYWNA: gdy nie ma pracownika, epoki NIE ruszamy', async () => {
-        supabaseStub = makeSupabase({ employee: null, delError: null });
+        supabaseStub = makeSupabase({ employee: null, delError: null, usunieteWiersze: [] });
         const { removePasskey } = await import('@/lib/passkeyService');
         const res = await removePasskey(USER_ID, 'pk-1');
         expect(res.ok).toBe(false);
+        expect(bumpMfaEpochMock).not.toHaveBeenCalled();
+    });
+
+    it('🔴 DELETE, ktory NIE TRAFIL w zaden wiersz, NIE podbija epoki', async () => {
+        // Bez tego sprawdzenia napastnik ze znanym haslem wolal DELETE z losowym,
+        // poprawnie zbudowanym UUID-em i za kazdym razem KASOWAL wszystkie zywe sesje
+        // MFA ofiary — nielimitowany przycisk „wyrzuc z panelu", bez dlawika.
+        // Druga szkoda: dziennik audytu zapelnial sie wpisami o kluczach, ktore
+        // nigdy nie istnialy — a dodano go wlasnie po to, by odpowiedziec na pytanie
+        // „kto ruszyl moje klucze".
+        supabaseStub = makeSupabase({ employee: { id: 'emp-1' }, delError: null, usunieteWiersze: [] });
+        const { removePasskey } = await import('@/lib/passkeyService');
+        const res = await removePasskey(USER_ID, 'pk-nieistniejacy');
+        expect(res.ok).toBe(false);
+        expect((res as { error: string }).error).toBe('passkey_not_found');
         expect(bumpMfaEpochMock).not.toHaveBeenCalled();
     });
 });

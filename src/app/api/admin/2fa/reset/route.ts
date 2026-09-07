@@ -62,10 +62,14 @@ export async function POST(request: NextRequest) {
 
     // Verify own TOTP code (proof admin actually has their phone)
     //
-    // 🪤 Awaria bazy NIE może wracać jako `invalid_own_code`. To jest najcięższa
-    // trasa w repo — kasuje WSZYSTKIE urządzenia i kody zapasowe innej osoby —
-    // a jednocześnie siedzi w `SKIP_2FA_PATHS`, więc ten kod jest tu JEDYNYM
-    // dowodem drugiego składnika. Sklejenie awarii z pomyłką znaczyłoby, że admin
+    // 🪤 SPROSTOWANIE 2026-09-07: trasa NIE siedzi już w `SKIP_2FA_PATHS` —
+    // wpis `'/api/admin/2fa/'` został stamtąd zdjęty (P-073), więc `/api/admin/*`
+    // wchodzi pod bramkę 2FA i ten kod jest DRUGĄ warstwą, nie jedyną. `ownCode`
+    // zostaje mimo to celowo: bramka dowodzi, że admin ma ważną sesję MFA, a ten
+    // kod dowodzi, że ma telefon PRZY SOBIE w chwili kasowania cudzych czynników.
+    //
+    // Awaria bazy NIE może wracać jako `invalid_own_code`. To jest najcięższa
+    // trasa w repo — kasuje WSZYSTKIE urządzenia i kody zapasowe innej osoby. Sklejenie awarii z pomyłką znaczyłoby, że admin
     // klepie poprawny kod w kółko, a w logach nie ma nic. Jeden kod błędu na dwie
     // przyczyny ukrywał już w tym projekcie awarię przez miesiące.
     const ownCheck = await verifyChallenge(auth.user.id, body.ownCode);

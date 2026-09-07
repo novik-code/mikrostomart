@@ -427,15 +427,28 @@ export async function removePasskey(
         .maybeSingle();
     if (!employee) return { ok: false, error: 'employee_not_found' };
 
-    const { error: delErr } = await supabase
+    const { data: usuniete, error: delErr } = await supabase
         .from('employee_passkeys')
         .delete()
         .eq('id', passkeyId)
-        .eq('employee_id', employee.id);
+        .eq('employee_id', employee.id)
+        .select('id');
 
     if (delErr) {
         console.error('[Passkey] removePasskey error:', delErr);
         return { ok: false, error: 'database_error' };
+    }
+
+    // 🔴 NIC NIE USUNIĘTO ⇒ NIE podbijamy epoki i NIE piszemy do audytu.
+    // Bez tego sprawdzenia `DELETE` z losowym, poprawnie zbudowanym UUID-em kończył się
+    // sukcesem i podbiciem epoki, czyli KASOWANIEM WSZYSTKICH żywych sesji MFA właściciela.
+    // Kto znał samo hasło pracownika (a rejestracja passkeya jest przed nim zamknięta),
+    // wołał to w pętli i wyrzucał ofiarę z panelu tak często, jak chciał — dławika tu nie ma.
+    // Druga szkoda: dziennik audytu, dodany w tej samej paczce właśnie po to, żeby
+    // odpowiedzieć na pytanie „kto ruszył moje klucze", zapełniał się wpisami
+    // o kluczach, które nigdy nie istniały.
+    if (!usuniete || usuniete.length === 0) {
+        return { ok: false, error: 'passkey_not_found' };
     }
 
     // 🔒 Odebrano czynnik ⇒ wszystkie sesje MFA padają (migracja 191).

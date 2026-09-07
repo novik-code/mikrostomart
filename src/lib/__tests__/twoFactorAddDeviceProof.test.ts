@@ -35,6 +35,9 @@ vi.mock("@/lib/twoFactorService", () => ({
     getTwoFactorStatus: (...a: unknown[]) => getTwoFactorStatusMock(...a),
     verifyChallenge: (...a: unknown[]) => verifyChallengeMock(...a),
     verifyBackupChallenge: (...a: unknown[]) => verifyBackupChallengeMock(...a),
+    MFA_RATE_LIMITED: "too_many_attempts",
+    MFA_DATABASE_ERROR: "database_error",
+    MFA_ATTEMPT_WINDOW_MS: 15 * 60_000,
 }));
 
 const USER_ID = "11111111-1111-4111-8111-111111111111";

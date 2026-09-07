@@ -39,7 +39,9 @@ export async function DELETE(
 
     const result = await removePasskey(auth.user.id, passkeyId);
     if (!result.ok) {
-        const status = result.error === 'employee_not_found' ? 404 : 500;
+        const status = result.error === 'employee_not_found' ? 404
+            : result.error === 'passkey_not_found' ? 404
+            : 500;
         return NextResponse.json({ error: result.error }, { status });
     }
 
