@@ -50,3 +50,16 @@ export function parsePmsLimit(surowy: unknown, domyslny: number, max: number): n
     if (!Number.isFinite(n) || n < 1) return domyslny;
     return Math.min(n, max);
 }
+
+/**
+ * Bliźniak `parsePmsLimit` dla przesunięcia strony (P-084).
+ *
+ * 🔑 Zero jest POPRAWNĄ wartością (pierwsza strona), więc — inaczej niż przy limicie —
+ * nie wolno go traktować jak śmieci. Ujemne i nieliczbowe schodzą do zera, a górna
+ * granica istnieje po to, żeby jedno żądanie nie kazało PMS-owi przewijać w nieskończoność.
+ */
+export function parsePmsOffset(surowy: unknown, max: number): number {
+    const n = Number.parseInt(String(surowy ?? ''), 10);
+    if (!Number.isFinite(n) || n < 0) return 0;
+    return Math.min(n, max);
+}

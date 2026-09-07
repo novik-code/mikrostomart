@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { verifyPatientSession } from '@/lib/jwt';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { isDemoMode } from '@/lib/demoMode';
+import { parsePmsLimit, parsePmsOffset } from '@/lib/prodentisId';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,8 +27,17 @@ export async function GET(request: NextRequest) {
 
         // Get query params
         const { searchParams } = new URL(request.url);
-        const limit = searchParams.get('limit') || '50';
-        const offset = searchParams.get('offset') || '0';
+        /**
+         * 🔴 P-084: `limit` i `offset` szły stąd WPROST do ścieżki żądania do PMS —
+         * bez parsowania do liczb i bez kodowania. Zalogowany pacjent doklejał własne
+         * parametry do wywołania `/api/patient/<własne id>/appointments` albo żądał
+         * dowolnie dużej strony. Segment ścieżki i identyfikator były już bezpieczne
+         * (P-035); dziurą został sam parametr.
+         * 🔑 Parsujemy do LICZBY — doklejka nie ma wtedy jak przetrwać, bo do ścieżki
+         * trafia liczba, nie napis. Ta sama reguła co w `employee/patient-history`.
+         */
+        const limit = parsePmsLimit(searchParams.get('limit'), 50, 200);
+        const offset = parsePmsOffset(searchParams.get('offset'), 100_000);
 
         // Fetch visits from Prodentis
         const path = `/api/patient/${payload.prodentisId}/appointments?limit=${limit}&offset=${offset}`;

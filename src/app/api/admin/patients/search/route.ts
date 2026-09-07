@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/authGuards';
 import { logAudit } from '@/lib/auditLog';
 import { prodentisFetch } from '@/lib/prodentisFetch';
+import { parsePmsLimit } from '@/lib/prodentisId';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,8 @@ export async function GET(request: Request) {
         }
 
         // Call Prodentis API 5.0 patient search
-        const sciezka = `/api/patients/search?q=${encodeURIComponent(query)}&limit=${limit}`;
+        // 🔴 P-084: `limit` parsowany do LICZBY, nie wklejany jako napis.
+        const sciezka = `/api/patients/search?q=${encodeURIComponent(query)}&limit=${parsePmsLimit(limit, 10, 50)}`;
 
         console.log(`[Patient Search] Querying Prodentis: ${sciezka}`);
 

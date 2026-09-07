@@ -3,6 +3,7 @@ import { verifyAdmin } from '@/lib/auth';
 import { hasRole } from '@/lib/roles';
 import { logAudit } from '@/lib/auditLog';
 import { prodentisFetch } from '@/lib/prodentisFetch';
+import { parsePmsLimit } from '@/lib/prodentisId';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,9 @@ async function szukaj(request: Request, query: string | undefined, limit: string
 
         // Call Prodentis API patient search
         const res = await prodentisFetch(
-            `/api/patients/search?q=${encodeURIComponent(query)}&limit=${limit}`, {
+            // 🔴 P-084: `limit` parsowany do LICZBY — surowy napis pozwalał dokleić
+            // własne parametry do żądania PMS. Ta sama reguła co w `patient-history`.
+            `/api/patients/search?q=${encodeURIComponent(query)}&limit=${parsePmsLimit(limit, 5, 50)}`, {
             klucz: 'personel', timeoutMs: 5000 });
 
         if (!res.ok) {
