@@ -137,3 +137,32 @@ export async function photoBelongsToIncident(path: string): Promise<string | nul
         .maybeSingle();
     return data?.id ?? null;
 }
+
+/** Wzorzec klucza zdjęcia awarii: `<szkic|id>/<znacznik>-<losowe>.jpg` (patrz `buildPhotoPath`). */
+export const WZORZEC_SCIEZKI_ZDJECIA = /^[A-Za-z0-9-]{1,40}\/[0-9]{10,16}-[a-z0-9]{4,12}\.jpg$/;
+
+/**
+ * Czy obiekt REALNIE leży w buckecie (P-108).
+ *
+ * 🔴 Bez tego `POST /incidents` przypinało do zgłoszenia dowolny napis. Skutki były dwa:
+ * zepsuta miniatura oraz — groźniejszy — DUPLIKAT. `photoBelongsToIncident` używa
+ * `maybeSingle()`, więc ścieżka przypięta do dwóch awarii zwraca PGRST116 i trasa
+ * podpisująca oddaje 404 dla OBU, także dla prawowitej. Zdjęcie-dowód staje się
+ * nieotwieralne, a naprawa jest możliwa tylko w bazie.
+ */
+export async function istniejeZdjecieAwarii(path: string): Promise<boolean> {
+    const ukosnik = path.lastIndexOf('/');
+    if (ukosnik <= 0) return false;
+    const katalog = path.slice(0, ukosnik);
+    const nazwa = path.slice(ukosnik + 1);
+
+    const { data, error } = await supabase.storage
+        .from(INCIDENT_BUCKET)
+        .list(katalog, { search: nazwa, limit: 1 });
+
+    if (error) {
+        console.error('[incidents] sprawdzenie istnienia nieudane:', error.message);
+        return false;
+    }
+    return (data ?? []).some((o) => o.name === nazwa);
+}

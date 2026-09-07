@@ -20,6 +20,9 @@ import {
     STATUSES,
     type IncidentSeverity,
     type IncidentStatus,
+    istniejeZdjecieAwarii,
+    photoBelongsToIncident,
+    WZORZEC_SCIEZKI_ZDJECIA,
 } from '@/lib/incidents';
 
 export const dynamic = 'force-dynamic';
@@ -67,10 +70,35 @@ export async function POST(request: NextRequest) {
         ? (body.severity as IncidentSeverity)
         : 'hinders';
 
-    // Zdjęcia trafiły już do bucketa osobną trasą; tutaj tylko przypinamy ścieżki.
-    const photoPaths = Array.isArray(body.photoPaths)
-        ? body.photoPaths.filter((p) => typeof p === 'string').slice(0, MAX_PHOTOS_PER_INCIDENT)
+    /**
+     * Zdjęcia trafiły już do bucketa osobną trasą; tutaj tylko przypinamy ścieżki.
+     *
+     * 🔴 P-108: do 07.09 przypinaliśmy DOWOLNE napisy — bez wzorca, bez sprawdzenia
+     * istnienia obiektu i bez pytania, czy zdjęcie nie wisi już przy innej awarii.
+     * 🪤 Najgorszy skutek nie był oczywisty: `photoBelongsToIncident` używa
+     * `maybeSingle()`, więc ścieżka przypięta DWA razy zwraca PGRST116, a trasa
+     * podpisująca oddaje wtedy 404 dla OBU awarii — także dla prawowitej. Duplikat
+     * wystarczyło zgłosić raz, żeby uczynić cudze zdjęcie-dowód nieotwieralnym.
+     * Ścieżki, które nie przejdą, po prostu odpadają — zgłoszenie awarii ma powstać.
+     */
+    const kandydaci = Array.isArray(body.photoPaths)
+        ? body.photoPaths
+              .filter((p): p is string => typeof p === 'string' && WZORZEC_SCIEZKI_ZDJECIA.test(p))
+              .slice(0, MAX_PHOTOS_PER_INCIDENT)
         : [];
+
+    const photoPaths: string[] = [];
+    for (const sciezka of kandydaci) {
+        if (await photoBelongsToIncident(sciezka)) {
+            console.warn('[incidents] ścieżka już przypięta do innej awarii — pomijam');
+            continue;
+        }
+        if (!(await istniejeZdjecieAwarii(sciezka))) {
+            console.warn('[incidents] ścieżka nie wskazuje na obiekt w buckecie — pomijam');
+            continue;
+        }
+        photoPaths.push(sciezka);
+    }
 
     const reporterName = await resolveStaffName(auth.user.id, auth.user.email ?? null);
 

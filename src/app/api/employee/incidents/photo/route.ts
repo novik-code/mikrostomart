@@ -15,6 +15,7 @@ import { requireEmployeeOrAdmin } from '@/lib/authGuards';
 import { logAudit } from '@/lib/auditLog';
 import { detectImageMime, readUploadedFile } from '@/lib/chatAttachments';
 import { photoBelongsToIncident, signIncidentPhoto, storeIncidentPhoto } from '@/lib/incidents';
+import { checkRateLimit } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -23,6 +24,19 @@ export const maxDuration = 30;
 export async function POST(request: NextRequest) {
     const auth = await requireEmployeeOrAdmin();
     if (!auth.ok) return auth.response;
+
+    /**
+     * 🔒 DŁAWIK (P-108) — PRZED odczytem pliku i przed `sharp`. Każde żądanie to dekoder
+     * na pliku do 10 MB. Kubełek po UŻYTKOWNIKU, nie po adresie: mamy sesję, a
+     * `getClientIP` czyta nagłówek podawany przez klienta (lekcja z P-088).
+     */
+    const { allowed } = await checkRateLimit(`incident-photo:${auth.user.id}`, 12, 60_000);
+    if (!allowed) {
+        return NextResponse.json(
+            { error: 'Zbyt wiele zdjęć w krótkim czasie. Spróbuj za chwilę.' },
+            { status: 429, headers: { 'Retry-After': '60' } },
+        );
+    }
 
     let form: FormData;
     try {
