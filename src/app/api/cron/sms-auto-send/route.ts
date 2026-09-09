@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { deliverToPatient, hasPatientResponded, updateDeliveryStatus } from '@/lib/patientDelivery';
 import type { PushPayload } from '@/lib/pushService';
-import { brand } from '@/lib/brandConfig';
+import { loadConfirmationLink, buildAppointmentReminderPush, buildReminderBody } from '@/lib/appointmentReminderPush';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { recordPushPath } from '@/lib/pushHealth';
 
@@ -176,7 +176,12 @@ export async function GET(req: Request) {
                     patientId: draft.patient_id || null,
                     prodentisPatientId: String(draft.prodentis_id || ''),
                     phone: draft.phone,
-                    pushPayload: buildReminderPush(draft, confirmLink),
+                    pushPayload: buildAppointmentReminderPush({
+                        title: 'Przypomnienie o wizycie',
+                        body: buildReminderBody(draft),
+                        appointmentProdentisId: draft.prodentis_id,
+                        confirm: confirmLink,
+                    }),
                     smsMessage: draft.sms_message,
                     smsType: 'reminder',
                 });
@@ -282,86 +287,6 @@ export async function GET(req: Request) {
     }
 }
 
-/**
- * Odczytaj token potwierdzenia i short link dla przypomnienia.
- *
- * Oba powstają w `appointment-reminders`. Zwracamy `null`, gdy wiersza nie ma
- * albo brakuje tokenu — wtedy push idzie BEZ akcji potwierdzenia (SMS też jej
- * nie ma, więc kanały pozostają równoważne), a cron raportuje to w podsumowaniu.
- */
-async function loadConfirmationLink(
-    supabase: SupabaseClient,
-    appointmentProdentisId: string | number | null,
-    appointmentDate: string | null
-): Promise<{ token: string; url: string } | null> {
-    if (!appointmentProdentisId || !appointmentDate) return null;
-
-    const day = String(appointmentDate).split('T')[0];
-    const { data, error } = await supabase
-        .from('appointment_actions')
-        .select('id, confirmation_token')
-        .eq('prodentis_id', String(appointmentProdentisId))
-        .gte('appointment_date', `${day}T00:00:00.000Z`)
-        .lte('appointment_date', `${day}T23:59:59.999Z`)
-        .limit(1)
-        .maybeSingle();
-
-    if (error) {
-        console.error(`   ⚠️ Nie udało się odczytać tokenu potwierdzenia: ${error.message}`);
-        return null;
-    }
-
-    const action = data as { id?: string; confirmation_token?: string } | null;
-    const token = action?.confirmation_token;
-    if (!token || !action?.id) return null;
-
-    // Bierzemy DOKŁADNIE ten short link, który poszedł SMS-em — zamiast składać
-    // adres z kawałków. Slug w `/wizyta/[type]` pochodzi z mapowania typu wizyty,
-    // więc zgadywanie go tutaj rozjechałoby oba kanały przy pierwszym nietypowym
-    // rodzaju wizyty. Ten sam link = ta sama strona i ta sama telemetria.
-    const { data: linkRow } = await supabase
-        .from('short_links')
-        .select('short_code')
-        .eq('appointment_id', action.id)
-        .limit(1)
-        .maybeSingle();
-
-    const shortCode = (linkRow as { short_code?: string } | null)?.short_code;
-    if (!shortCode) return null;
-
-    return { token, url: `${brand.appUrl}/s/${shortCode}` };
-}
-
-/**
- * Payload pusha o wizycie.
- *
- * `url` zostaje webowy (kanał FCM w przeglądarce otwiera stronę potwierdzenia),
- * a apka rozpoznaje powiadomienie po `data.type` i przechwytuje je NATYWNIE,
- * używając tego samego `confirmationToken` co link w SMS-ie. Dzięki temu oba
- * kanały prowadzą do tej samej akcji na tym samym wierszu `appointment_actions`.
- */
-function buildReminderPush(
-    draft: { appointment_date?: string | null; doctor_name?: string | null; appointment_type?: string | null; prodentis_id?: string | number | null },
-    confirm: { token: string; url: string } | null
-): PushPayload {
-    const time = draft.appointment_date
-        ? String(draft.appointment_date).slice(11, 16)
-        : '';
-    const parts = [time && `Wizyta ${time}`, draft.doctor_name, draft.appointment_type]
-        .filter(Boolean)
-        .join(' — ');
-
-    return {
-        title: 'Przypomnienie o wizycie',
-        body: parts || 'Masz zaplanowaną wizytę',
-        url: confirm ? confirm.url : '/strefa-pacjenta/powiadomienia',
-        tag: `appointment-${draft.prodentis_id ?? 'unknown'}`,
-        data: {
-            type: 'appointment_reminder',
-            ...(confirm ? { confirmationToken: confirm.token } : {}),
-        },
-    };
-}
 
 /**
  * Get today's date range (00:00:00 to 23:59:59)

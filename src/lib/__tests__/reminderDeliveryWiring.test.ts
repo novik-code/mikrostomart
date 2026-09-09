@@ -93,14 +93,6 @@ describe('każdy producent pusha o wizycie używa wspólnego buildera', () => {
     /** Trasy świadomie POZA builderem — każda z powodem, nie „bo tak wyszło". */
     const WYJATKI: Array<{ plik: string; powod: string }> = [
         {
-            plik: 'src/app/api/cron/sms-auto-send/route.ts',
-            powod: 'ma własną, sprawdzoną kopię (buildReminderPush) — złożenie w jedno idzie osobną zmianą, poza hotfiksem awarii',
-        },
-        {
-            plik: 'src/lib/reminderDelivery.ts',
-            powod: 'jw. — ręczna wysyłka draftu z panelu, ładunek niesie data.type od dawna',
-        },
-        {
             plik: 'src/lib/patientDelivery.ts',
             powod: 'TRANSPORT, nie producent — dostaje gotowy ładunek i tylko wybiera kanał (push/SMS)',
         },

@@ -102,12 +102,6 @@ export async function GET(req: Request) {
     console.log('[Post-Visit SMS] Starting draft generation...');
     const startTime = Date.now();
 
-    // Check if post-visit SMS is enabled
-    const smsEnabled = await isSmsTypeEnabled('post_visit');
-    if (!smsEnabled) {
-        console.log('[Post-Visit SMS] Disabled via admin settings');
-        return NextResponse.json({ success: true, skipped: true, reason: 'SMS type disabled' });
-    }
 
     const authHeader = req.headers.get('authorization');
     const isCronAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`;
@@ -120,6 +114,18 @@ export async function GET(req: Request) {
         if (!adminAuth.ok) return adminAuth.response;
     } else if (!isCronAuth && process.env.NODE_ENV === 'production') {
         return new NextResponse('Unauthorized', { status: 401 });
+    }
+
+    // 🪤 SPRAWDZENIE STANU KANAŁU STOI ZA AUTORYZACJĄ, nie przed nią.
+    // Wcześniej `isSmsTypeEnabled` wykonywało się PIERWSZE, więc anonim dostawał
+    // 200 z treścią `{"reason":"SMS type disabled"}` — czyli wyrocznię stanu
+    // konfiguracji gabinetu i zapytanie do bazy bez uwierzytelnienia.
+    // Zmierzone na produkcji 09.09: ta trasa i `week-after-visit-sms` oddawały 200
+    // anonimowo, pozostałe crony tej rodziny — poprawne 401.
+    const smsEnabled = await isSmsTypeEnabled('post_visit');
+    if (!smsEnabled) {
+        console.log('[Post-Visit SMS] Disabled via admin settings');
+        return NextResponse.json({ success: true, skipped: true, reason: 'SMS type disabled' });
     }
 
     const supabase = createClient(

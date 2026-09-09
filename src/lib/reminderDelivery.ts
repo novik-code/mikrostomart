@@ -16,7 +16,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import { brand } from './brandConfig';
+import { loadConfirmationLink, buildAppointmentReminderPush, buildReminderBody } from './appointmentReminderPush';
 import { deliverToPatient, updateDeliveryStatus, type DeliveryResult } from './patientDelivery';
 import { recordPushPath } from './pushHealth';
 import { sendSMS } from './smsService';
@@ -46,50 +46,13 @@ export interface ReminderDeliveryOutcome {
     pushSent: boolean;
 }
 
-/** Treść pusha — BEZ nazwiska pacjenta, bo ląduje na ekranie blokady. */
-export function buildReminderBody(row: Pick<ReminderRow, 'appointment_date' | 'doctor_name' | 'appointment_type'>): string {
-    const time = row.appointment_date ? String(row.appointment_date).slice(11, 16) : '';
-    const parts = [time && `Wizyta ${time}`, row.doctor_name, row.appointment_type].filter(Boolean);
-    return parts.join(' — ') || 'Masz zaplanowaną wizytę';
-}
-
 /**
- * Ten sam short link, który niesie SMS — czytany z bazy, NIE składany.
- * Slug `/wizyta/[type]` zależy od typu wizyty, więc sklejanie go w kodzie
- * rozjechałoby się z treścią SMS-a.
+ * 🔑 Ładunek i link potwierdzenia pochodzą ze WSPÓLNEGO modułu
+ * `lib/appointmentReminderPush`. Do 2026-09-09 ten plik miał WŁASNE kopie obu
+ * funkcji, tak jak `cron/sms-auto-send` — i właśnie dlatego trzeci producent
+ * (`cron/push-appointment-1h`) mógł się rozjechać i wysyłać push bez `data.type`,
+ * przez co pacjenci nie mogli potwierdzić wizyty z powiadomienia.
  */
-export async function loadConfirmationLink(
-    appointmentProdentisId: string | number | null | undefined,
-    appointmentDate: string | null | undefined
-): Promise<{ token: string; url: string } | null> {
-    if (!appointmentProdentisId || !appointmentDate) return null;
-
-    const day = String(appointmentDate).split('T')[0];
-    const { data, error } = await supabase
-        .from('appointment_actions')
-        .select('id, confirmation_token')
-        .eq('prodentis_id', String(appointmentProdentisId))
-        .gte('appointment_date', `${day}T00:00:00.000Z`)
-        .lte('appointment_date', `${day}T23:59:59.999Z`)
-        .limit(1)
-        .maybeSingle();
-
-    if (error) return null;
-    const action = data as { id?: string; confirmation_token?: string } | null;
-    if (!action?.confirmation_token || !action.id) return null;
-
-    const { data: linkRow } = await supabase
-        .from('short_links')
-        .select('short_code')
-        .eq('appointment_id', action.id)
-        .limit(1)
-        .maybeSingle();
-
-    const code = (linkRow as { short_code?: string } | null)?.short_code;
-    if (!code) return null;
-
-    return { token: action.confirmation_token, url: `${brand.appUrl}/s/${code}` };
-}
 
 /**
  * Wyślij draft przypomnienia: NAJPIERW push do aplikacji, SMS dopiero jako zapas.
@@ -121,7 +84,7 @@ export async function deliverReminderDraft(
         return { ok: res.success, channel: 'sms-fallback', messageId: res.messageId, error: res.error, pushSent: false };
     }
 
-    const confirm = await loadConfirmationLink(row.prodentis_id, row.appointment_date);
+    const confirm = await loadConfirmationLink(supabase, row.prodentis_id, row.appointment_date);
 
     const delivery = await deliverToPatient({
         patientId: row.patient_id || null,
@@ -129,16 +92,12 @@ export async function deliverReminderDraft(
         // `deliverToPatient` szuka tokenów wyłącznie po `patientId` (UUID konta).
         prodentisPatientId: String(row.prodentis_id || ''),
         phone,
-        pushPayload: {
+        pushPayload: buildAppointmentReminderPush({
             title: 'Przypomnienie o wizycie',
             body: buildReminderBody(row),
-            url: confirm ? confirm.url : '/strefa-pacjenta/powiadomienia',
-            tag: `appointment-${row.prodentis_id ?? 'unknown'}`,
-            data: {
-                type: 'appointment_reminder',
-                ...(confirm ? { confirmationToken: confirm.token } : {}),
-            },
-        },
+            appointmentProdentisId: row.prodentis_id,
+            confirm,
+        }),
         smsMessage: message,
         smsType: 'reminder',
     });
