@@ -5,6 +5,7 @@ import { pushToPatientAll } from '@/lib/pushService';
 import { getPushTranslation } from '@/lib/pushTranslations';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
+import { loadConfirmationLink, buildAppointmentReminderPush } from '@/lib/appointmentReminderPush';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -147,12 +148,33 @@ export async function GET(req: Request) {
                 continue;
             }
 
-            // Send push notification (oba kanały: web-push FCM + apka mobilna Expo)
-            const result = await pushToPatientAll(patient.id, {
-                title,
-                body,
-                url: '/strefa-pacjenta/dashboard',
-            });
+            // 🔴 NAPRAWA 2026-09-09 — AWARIA POTWIERDZANIA WIZYT Z PUSHA.
+            // Stało tu `{ title, body, url: '/strefa-pacjenta/dashboard' }` — BEZ pola
+            // `data`. Apka rozpoznaje powiadomienie o wizycie WYŁĄCZNIE po
+            // `data.type === 'appointment_reminder'` (`NotificationRouter`), więc taki
+            // push wpadał w fallback i otwierał ekran główny. Pacjent dostawał
+            // przypomnienie godzinę przed wizytą i nie miał jak jej potwierdzić,
+            // odwołać ani przełożyć.
+            //
+            // 🪤 Ten cron jest TRZECIM producentem pusha o wizycie. Dwa pozostałe
+            // (`sms-auto-send`, `lib/reminderDelivery`) niosły `data.type` i token od
+            // dawna — funkcję dostały dwie trasy z trzech. Dlatego ładunek powstaje
+            // dziś we WSPÓLNYM builderze, a nie w każdym cronie osobno.
+            const confirm = await loadConfirmationLink(supabase, apt.id, apt.date);
+            if (!confirm) {
+                console.warn(`   ⚠️ Brak linku potwierdzenia dla wizyty ${apt.id} — push pójdzie bez tokenu`);
+            }
+
+            const result = await pushToPatientAll(
+                patient.id,
+                buildAppointmentReminderPush({
+                    title,
+                    body,
+                    appointmentProdentisId: apt.id,
+                    confirm,
+                }),
+                'appointment_1h',
+            );
 
             if (result.sent > 0) {
                 sent++;

@@ -72,4 +72,81 @@ describe('okablowanie wysyłki przypomnień', () => {
         walk(path.join(API, 'cron'));
         expect(offenders).toEqual([]);
     });
+
+});
+
+/**
+ * 🔴 LUKA, KTÓRA WYWOŁAŁA AWARIĘ 2026-09-09.
+ *
+ * Blok wyżej pilnuje tras wysyłających DRAFTY przypomnień. `cron/push-appointment-1h`
+ * draftów nie wysyła — produkuje push bezpośrednio — więc nigdy nie był w zasięgu
+ * tego strażnika i przez to jako jedyny nie nauczył się nieść `data.type`.
+ * Pacjenci przestali móc potwierdzić wizytę z powiadomienia.
+ *
+ * Ten blok pilnuje SZERSZEJ własności: każdy, kto wysyła push o wizycie, buduje
+ * ładunek WSPÓLNYM builderem. Zachowanie samego buildera sprawdza wykonaniem
+ * `pushWizytyLadunek.test.ts`; tutaj chodzi o to, żeby nikt go nie ominął.
+ */
+describe('każdy producent pusha o wizycie używa wspólnego buildera', () => {
+    const BUILDER = 'buildAppointmentReminderPush';
+
+    /** Trasy świadomie POZA builderem — każda z powodem, nie „bo tak wyszło". */
+    const WYJATKI: Array<{ plik: string; powod: string }> = [
+        {
+            plik: 'src/app/api/cron/sms-auto-send/route.ts',
+            powod: 'ma własną, sprawdzoną kopię (buildReminderPush) — złożenie w jedno idzie osobną zmianą, poza hotfiksem awarii',
+        },
+        {
+            plik: 'src/lib/reminderDelivery.ts',
+            powod: 'jw. — ręczna wysyłka draftu z panelu, ładunek niesie data.type od dawna',
+        },
+        {
+            plik: 'src/lib/patientDelivery.ts',
+            powod: 'TRANSPORT, nie producent — dostaje gotowy ładunek i tylko wybiera kanał (push/SMS)',
+        },
+    ];
+
+    function producenciPushaWizyt(): string[] {
+        const znalezione: string[] = [];
+        const chodz = (kat: string) => {
+            for (const wpis of fs.readdirSync(kat, { withFileTypes: true })) {
+                const pelna = path.join(kat, wpis.name);
+                if (wpis.isDirectory()) { chodz(pelna); continue; }
+                if (!/\.ts$/.test(wpis.name)) continue;
+                if (pelna.includes('__tests__')) continue; // testy opisują producentów, nie są nimi
+                const src = fs.readFileSync(pelna, 'utf8');
+                // Producent = wysyła push I mówi o wizycie (tytuł/typ przypomnienia).
+                if (/pushToPatientAll|deliverToPatient/.test(src)
+                    && /appointment_reminder|appointment_1h/.test(src)) {
+                    znalezione.push(path.relative(process.cwd(), pelna));
+                }
+            }
+        };
+        chodz(path.join(process.cwd(), 'src'));
+        return znalezione.sort();
+    }
+
+    const producenci = producenciPushaWizyt();
+
+    it('inwentarz w ogóle kogoś znajduje (wzorzec nie zmurszał)', () => {
+        // Strażnik, który po refaktorze przestaje cokolwiek znajdować, świeci
+        // na zielono i jest GORSZY niż jego brak.
+        expect(producenci.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('każdy producent używa wspólnego buildera albo ma spisany powód', () => {
+        const naruszenia = producenci.filter(p =>
+            !fs.readFileSync(path.join(process.cwd(), p), 'utf8').includes(BUILDER)
+            && !WYJATKI.some(w => w.plik === p));
+        expect(
+            naruszenia,
+            'producenci pusha o wizycie z własnym ładunkiem (ryzyko powtórki awarii 09.09):\n  '
+            + naruszenia.join('\n  '),
+        ).toEqual([]);
+    });
+
+    it('każdy wyjątek ma niepusty powód', () => {
+        for (const w of WYJATKI) expect(w.powod.length).toBeGreaterThan(20);
+    });
+
 });
