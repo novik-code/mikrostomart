@@ -81,7 +81,7 @@ export async function GET(req: Request) {
     if (isManualTrigger) {
         const adminAuth = await requireAdmin();
         if (!adminAuth.ok) return adminAuth.response;
-    } else if (!isCronAuth && process.env.NODE_ENV === 'production') {
+    } else if (!isCronAuth) {
         console.error('❌ [SMS Reminders] Unauthorized access attempt');
         return new NextResponse('Unauthorized', { status: 401 });
     }

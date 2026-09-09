@@ -17,12 +17,15 @@ export async function GET(req: NextRequest) {
     }
     try {
         // Verify cron secret (Vercel adds this automatically)
+        //
+        // 🪤 Do 2026-09-09 odmowa była warunkowana `NODE_ENV === 'production'`
+        // ORAZ obecnością sekretu — czyli poza produkcją bramki nie było wcale,
+        // a brak zmiennej ją wyłączał. Podglądy Vercela bywają publiczne, więc
+        // „poza produkcją" nie znaczy „tylko na moim laptopie". Ta sama klasa,
+        // którą zamknęło P-021 w gałęzi ręcznej cronów.
         const authHeader = req.headers.get('authorization');
-        if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-            // Allow local/dev calls without secret
-            if (process.env.NODE_ENV === 'production' && process.env.CRON_SECRET) {
-                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-            }
+        if (!process.env.CRON_SECRET || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
         console.log('[Cron] social-comments: starting...');

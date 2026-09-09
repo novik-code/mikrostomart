@@ -35,7 +35,7 @@ export async function GET(req: Request) {
     const authHeader = req.headers.get('authorization');
     const isCronAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`;
 
-    if (!isCronAuth && process.env.NODE_ENV === 'production') {
+    if (!isCronAuth) {
         console.error('❌ [SMS Auto-Send] Unauthorized access attempt');
         return new NextResponse('Unauthorized', { status: 401 });
     }

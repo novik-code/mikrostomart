@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     if (isDemoMode) return NextResponse.json({ skipped: 'demo mode' });
 
     const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV === 'production') {
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         return new NextResponse('Unauthorized', { status: 401 });
     }
 

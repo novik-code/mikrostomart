@@ -58,7 +58,7 @@ export async function GET(req: Request) {
     const elapsed = () => `${((Date.now() - startTime) / 1000).toFixed(2)}s`;
 
     const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV === 'production') {
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         return new NextResponse('Unauthorized', { status: 401, headers: NO_STORE });
     }
 

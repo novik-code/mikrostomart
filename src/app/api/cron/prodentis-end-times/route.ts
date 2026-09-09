@@ -23,8 +23,7 @@ export async function GET(req: NextRequest) {
         const adminAuth = await requireAdmin();
         if (!adminAuth.ok) return adminAuth.response;
     } else if (
-        authHeader !== `Bearer ${process.env.CRON_SECRET}` &&
-        process.env.NODE_ENV === 'production'
+        authHeader !== `Bearer ${process.env.CRON_SECRET}`
     ) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

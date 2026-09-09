@@ -35,7 +35,7 @@ export async function GET(req: Request) {
     console.log('⏰ [Push 1h] Starting 1-hour appointment push cron...');
 
     const authHeader = req.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}` && process.env.NODE_ENV === 'production') {
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         return new NextResponse('Unauthorized', { status: 401, headers: NO_STORE });
     }
 

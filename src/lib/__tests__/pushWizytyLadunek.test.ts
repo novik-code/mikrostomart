@@ -92,11 +92,19 @@ beforeEach(() => {
     tokenIstnieje = true;
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://x.supabase.co';
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'k'.repeat(40);
+    process.env.CRON_SECRET = 'sekret-testowy';
 });
 
 async function odpalCron() {
     const { GET } = await import('@/app/api/cron/push-appointment-1h/route');
-    return GET(new Request('https://x/api/cron/push-appointment-1h'));
+    // 🪤 Nagłówek jest OBOWIĄZKOWY od 2026-09-09. Wcześniej ten test przechodził
+    // bez niego, bo bramka crona była warunkowana `NODE_ENV === 'production'` —
+    // czyli poza produkcją nie chroniła niczego. Zamknięcie tej dziury wywróciło
+    // pięć asercji i to jest dokładnie ten sygnał, o który chodzi: test korzystał
+    // z luki, którą właśnie usunięto.
+    return GET(new Request('https://x/api/cron/push-appointment-1h', {
+        headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
+    }));
 }
 
 describe('push godzinę przed wizytą prowadzi do POTWIERDZENIA, nie na ekran główny', () => {
