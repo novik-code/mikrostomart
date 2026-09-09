@@ -1,5 +1,23 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
+> **Last Updated:** 2026-09-09 — 🔴 **AWARIA U PACJENTÓW NAPRAWIONA + FALA 1b NA PRODUKCJI** (`7018cde`). Zgłoszenie: pacjenci nie mogli potwierdzić wizyty z powiadomienia — tapnięcie otwierało ekran główny apki.
+>
+> **PRZYCZYNA.** Apka rozpoznaje powiadomienie o wizycie WYŁĄCZNIE po `data.type === 'appointment_reminder'` (`NotificationRouter`). Cron `push-appointment-1h` — ten, który realnie dociera do pacjentów (co 15 min, wszyscy z żywym tokenem; zmierzone: 74 tokeny, 18 pushy dziś, w dzienniku widać `⏰ Wizyta za godzinę!`) — wysyłał `{ title, body, url: '/strefa-pacjenta/dashboard' }` **bez pola `data`**, więc tapnięcie wpadało w fallback.
+>
+> 🪤 **Push o wizycie produkowały TRZY miejsca, każde z własną kopią kodu.** Dwa (`sms-auto-send`, `lib/reminderDelivery`) dostały `data.type` i token przy wdrażaniu natywnego potwierdzania w apce, trzecie nie. **Piąty nawrót klasy „naprawa objęła jedną trasę z kilku".** Dziś wszystkie trzy używają `lib/appointmentReminderPush` — czwarty producent nie ma jak się rozjechać.
+>
+> 🎯 **NAJWAŻNIEJSZA LEKCJA — ZASIĘG STRAŻNIKA BYŁ WĘŻSZY NIŻ KLASA BŁĘDU.** Strażnik `reminderDeliveryWiring` ISTNIAŁ i był zielony, ale pilnował **tras wysyłających DRAFTY**. Ten cron draftów nie wysyła — produkuje push bezpośrednio — więc nigdy nie był w jego zasięgu. Inwentarz opisywał rolę w przepływie, a klasa błędu brzmiała „każdy, kto produkuje push o wizycie". Dziś inwentarz budowany jest po SKUTKU.
+>
+> **DIAGNOZA POMIAREM, NIE ZGADYWANIEM.** Najpierw ustalone, że `origin/main` = produkcja = `db0e23e`, czyli paczka auth NIE była wdrożona i nie mogła być przyczyną. Potem: 74 tokeny push (53 posiadaczy, wszyscy z kontem — mapowanie `prodentis_id` sprawne 53/53), `push_notifications_log` pokazał, który push realnie dochodzi. ⚠️ Po drodze skorygowana własna teza: `push_receipts` bez wpisów pacjentów NIE dowodziło ciszy — to bilety Expo personelu.
+>
+> 🔴 **DWIE RZECZY ZNALEZIONE PRZY OKAZJI, obie naprawione i zweryfikowane u źródła:**
+> 1. `post-visit-sms` i `week-after-visit-sms` sprawdzały `isSmsTypeEnabled()` PRZED autoryzacją → anonim dostawał **200** z `{"reason":"SMS type disabled"}`, czyli wyrocznię konfiguracji gabinetu. Bramka BYŁA — wadliwa była KOLEJNOŚĆ, czego grep po `requireAdmin` nie pokazuje. Dziś **401** (zmierzone).
+> 2. **21 cronów** miało bramkę warunkowaną `NODE_ENV === 'production'` — czyli **poza produkcją nie chroniła NICZEGO**, a podglądy Vercela bywają publiczne i chodzą na tej samej bazie. Ta sama klasa co P-021, tam trzy trasy, tu dwadzieścia jeden. 🔑 Zero ryzyka dla produkcji: tam koniunkcja i tak była prawdziwa.
+>
+> 🪤 **Dwa pomiary, które by mnie oszukały:** (a) po naprawie grep DALEJ znajdował `NODE_ENV === 'production'` — w MOIM komentarzu opisującym naprawę (piąty raz ta pomyłka; strażnik wycina komentarze); (b) zamknięcie bramki cronów **wywróciło mój własny strażnik hotfiksu** — przechodził, bo wołał crona bez sekretu, korzystając dokładnie z tej luki.
+>
+> ⏳ **ZOSTAJE:** playtest logowania (pacjent, gość, personel z 2FA) — reguła 0.2.4; warstwa (B) karty P-004 (`assertStaffMfa` w strażnikach, 214 plików) osobną paczką.
+>
 > **Last Updated:** 2026-09-07 (późna noc) — 🏁 **FALA 1b PLANU AUDYTU ZAMKNIĘTA W KODZIE.** Osiem pozycji planu (P-008, P-002, P-076, P-080, P-077, P-074, P-073, P-004) plus dwie potwierdzone spoza planu: obejście bramki strefy pacjenta nagłówkiem bota i parametry WebAuthn brane z nagłówka `Host`. **Migracja 203 wgrana i zweryfikowana na produkcji PRZED kodem** (kolumna `employee_2fa_devices.last_totp_step`, 16 wierszy, wszystkie 0 — bez backfillu; semantyka `UPDATE … WHERE last_totp_step < :krok` sprawdzona na żywej bazie: pierwsze zajęcie przechodzi, powtórzenie odpada). Bramki: `tsc` czysto · **vitest 1078/1078** (było 974) · `lint:ci` bez regresji · `next build` OK.
 >
 > 🔑 **CZEGO KARTY AUDYTU NIE WIEDZIAŁY** — każda pozycja weryfikowana w kodzie przed pisaniem, bo karta to hipoteza sprzed wdrożenia:
