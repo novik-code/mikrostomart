@@ -4,6 +4,7 @@ import { hasRole } from '@/lib/roles';
 import { createClient } from '@supabase/supabase-js';
 import { demoSanitize } from '@/lib/brandConfig';
 import { prodentisFetch } from '@/lib/prodentisFetch';
+import { zbudujZbioryZgod, flagiDlaWizyty } from '@/lib/zgodyPoEkarcie';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,6 +60,9 @@ interface ScheduleAppointment {
     patientPhone: string;
     notes: string | null;
     badges: ProdentisBadge[];
+    /** Additive (2026-09-11) — apka 1.3.x czyta tę trasę i nieznane pola ignoruje. */
+    ekartaDzis?: boolean;
+    zgodyDzis?: boolean;
 }
 
 interface ScheduleDay {
@@ -68,6 +72,74 @@ interface ScheduleDay {
 }
 
 const POLISH_DAYS = ['Niedziela', 'Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota'];
+
+/**
+ * Górna granica wierszy na jedno zapytanie flag. Zgód podpisuje się kilkadziesiąt
+ * dziennie, e-Kart kilka — 1000 na 9 dni to wielokrotny zapas. Zwrot RÓWNY limitowi
+ * znaczy „lista mogła zostać ucięta" i wtedy flag nie dokładamy (patrz niżej).
+ */
+const LIMIT_WIERSZY_FLAG = 1000;
+
+/**
+ * Dokłada każdej wizycie flagi `ekartaDzis` / `zgodyDzis` (2026-09-11).
+ *
+ * PO CO: u nowych pacjentów w Prodentisie brakowało biometrii podpisu, bo nikt nie
+ * wystawił im linku do zgód — a biometria powstaje WYŁĄCZNIE przy podpisywaniu zgód.
+ * Status e-Karty był widoczny dopiero w oknie zgód. Te flagi pozwalają panelowi
+ * ostrzec rejestrację na kafelku wizyty, bez klikania.
+ *
+ * 🔑 DWA zapytania na CAŁY tydzień, nie po jednym na wizytę — i tylko po DACIE,
+ *    bez `.in(pacjenci)`: tydzień grafiku to kilkaset pacjentów, a PostgREST niesie
+ *    ten filtr w adresie URL. Wierszy z samego zakresu dat jest niewiele.
+ * 🔑 Zakres poszerzony o dobę w obie strony: dzień liczymy w strefie Warszawy,
+ *    a baza trzyma UTC.
+ * 🔴 FAIL-SOFT I CAŁOŚCIOWO: grafik jest narzędziem krytycznym, ostrzeżenie —
+ *    pomocniczym. Gdy padnie KTÓREKOLWIEK z zapytań albo lista mogła zostać ucięta,
+ *    nie dokładamy ŻADNYCH flag. Same e-Karty bez kompletu zgód dałyby fałszywe
+ *    „brak zgód" u każdego pacjenta z e-Kartą.
+ */
+async function dolozFlagiZgod(days: ScheduleDay[]): Promise<void> {
+    if (!days.some(d => d.appointments.some(a => a.patientId))) return;
+
+    const od = new Date(`${days[0].date}T00:00:00Z`);
+    od.setUTCDate(od.getUTCDate() - 1);
+    const doDnia = new Date(`${days[days.length - 1].date}T00:00:00Z`);
+    doDnia.setUTCDate(doDnia.getUTCDate() + 2);
+
+    try {
+        const [ekarty, zgody] = await Promise.all([
+            supabase
+                .from('patient_intake_submissions')
+                .select('prodentis_patient_id, submitted_at')
+                .gte('submitted_at', od.toISOString())
+                .lt('submitted_at', doDnia.toISOString())
+                .limit(LIMIT_WIERSZY_FLAG),
+            supabase
+                .from('patient_consents')
+                .select('prodentis_patient_id, signed_at')
+                .gte('signed_at', od.toISOString())
+                .lt('signed_at', doDnia.toISOString())
+                .limit(LIMIT_WIERSZY_FLAG),
+        ]);
+        if (ekarty.error || zgody.error) {
+            console.error('[Schedule] flagi zgód pominięte — zapytanie padło:',
+                ekarty.error?.message ?? zgody.error?.message);
+            return;
+        }
+        if ((ekarty.data?.length ?? 0) >= LIMIT_WIERSZY_FLAG || (zgody.data?.length ?? 0) >= LIMIT_WIERSZY_FLAG) {
+            console.error('[Schedule] flagi zgód pominięte — lista mogła zostać ucięta na limicie');
+            return;
+        }
+        const zbiory = zbudujZbioryZgod(ekarty.data ?? [], zgody.data ?? []);
+        for (const day of days) {
+            for (const apt of day.appointments) {
+                Object.assign(apt, flagiDlaWizyty(day.date, apt.patientId, zbiory));
+            }
+        }
+    } catch (err) {
+        console.error('[Schedule] flagi zgód pominięte:', err);
+    }
+}
 
 /**
  * GET /api/employee/schedule?weekStart=2026-02-09
@@ -274,6 +346,11 @@ export async function GET(req: Request) {
             days.push({ date: dateStr, dayName, appointments: [] });
         }
     }
+
+    // Flagi „e-Karta bez zgód" — PRZED filtrem, żeby niosły je OBIE ścieżki zwrotne
+    // (po filtrze i awaryjna po jego błędzie). Wstawione za filtrem, znikałyby
+    // akurat wtedy, gdy filtr padnie.
+    await dolozFlagiZgod(days);
 
     // ── Filtr dezaktywowanych operatorów (auto-discovery NIE robi się tutaj) ──
     //

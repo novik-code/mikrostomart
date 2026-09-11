@@ -7,6 +7,7 @@ import { Calendar, ChevronLeft, ChevronRight, RefreshCw, Clock, X, Plus, User, A
 import { QRCodeSVG } from 'qrcode.react';
 import { CONSENT_TYPES as HARDCODED_CONSENT_TYPES } from '@/lib/consentTypes';
 import type { Badge, ScheduleAppointment, Visit, ScheduleDay, ScheduleData } from './ScheduleTypes';
+import { pokazOstrzezenieZgod, zbudujZbioryZgod } from '@/lib/zgodyPoEkarcie';
 import type { EmployeeTask } from './TaskTypes';
 import { PRODENTIS_COLORS, DEFAULT_COLOR, BADGE_LETTERS, getBadgeLetter, getAppointmentColor, TIME_SLOTS, timeToSlotIndex, timeToMinutes, getMonday, formatDateShort } from './ScheduleTypes';
 import { otworzDokumentPersonelu } from '@/lib/staffDocumentLink';
@@ -128,6 +129,67 @@ export default function ScheduleTab({
     const [intakeSubmissionId, setIntakeSubmissionId] = useState<string | null>(null);
     const [pdfGenerating, setPdfGenerating] = useState(false);
     const [CONSENT_TYPES, setConsentTypes] = useState(HARDCODED_CONSENT_TYPES);
+
+    /**
+     * Klucze dzień|pacjent ze zgód, które panel POBRAŁ po otwarciu okna zgód.
+     * Grafik nie odświeża się sam, a pacjent podpisuje na tablecie kilka minut po
+     * wystawieniu linku — bez tego baner „zgody niepodpisane" wisiałby nad kimś,
+     * kto już podpisał. Patrz `pokazOstrzezenieZgod`.
+     */
+    const [zgodyPodpisaneLokalnie, setZgodyPodpisaneLokalnie] = useState<ReadonlySet<string>>(() => new Set());
+
+    /** Dzień wybranej wizyty — tak samo, jak ustala go niżej zapis do CareFlow. */
+    const dzienWybranejWizyty = selectedAppointment
+        ? scheduleData?.days.find(d => d.appointments.some(a => a.id === selectedAppointment.id))?.date ?? null
+        : null;
+
+    /**
+     * Otwiera okno zgód dla wybranej wizyty — JEDNA funkcja dla przycisku „📝 Zgody"
+     * i dla banera „e-Karta bez zgód" (2026-09-11). Dwie kopie tej logiki rozjechałyby
+     * się przy pierwszej zmianie, a baner otwierałby okno bez e-Karty i bez zgód.
+     */
+    const otworzOknoZgod = async () => {
+        if (!selectedAppointment) return;
+        setConsentModalOpen(true);
+        setConsentSelectedTypes([]);
+        setConsentUrl('');
+        setShowSignature(false);
+        setPatientPdfUrl(null);
+        setIntakeSubmissionId(null);
+        if (selectedAppointment.patientId) {
+            const patientId = selectedAppointment.patientId;
+            try {
+                const [consentsRes, intakeRes] = await Promise.all([
+                    // `includeSignature=1` — popover niżej renderuje `<img src={c.signature_data}>`,
+                    // a od 06.09 (P-071/P-095) obraz podpisu wychodzi z API wyłącznie na żądanie.
+                    // Apka personelu tego parametru nie dokłada, bo podpisu nie pokazuje.
+                    fetch(`/api/employee/patient-consents?prodentisId=${patientId}&includeSignature=1`),
+                    // `includeSignature=1` — sekcja e-Karty renderuje `<img src={patientSignature}>`,
+                    // a od 07.09 (P-095) obraz podpisu wychodzi z API wyłącznie na żądanie.
+                    fetch(`/api/employee/patient-intake?prodentisId=${patientId}&includeSignature=1`),
+                ]);
+                if (consentsRes.ok) {
+                    const d = await consentsRes.json();
+                    const consents = d.consents || [];
+                    setPatientConsents(consents);
+                    // Zgody podpisane już po załadowaniu grafiku gaszą baner bez odświeżania.
+                    const { zgody } = zbudujZbioryZgod([], consents.map((c: { signed_at?: string | null }) => ({
+                        prodentis_patient_id: patientId,
+                        signed_at: c.signed_at ?? null,
+                    })));
+                    if (zgody.size > 0) {
+                        setZgodyPodpisaneLokalnie(prev => new Set([...prev, ...zgody]));
+                    }
+                }
+                if (intakeRes.ok) {
+                    const d = await intakeRes.json();
+                    setPatientSignature(d.intake?.signatureData || null);
+                    setPatientPdfUrl(d.intake?.pdfUrl || null);
+                    setIntakeSubmissionId(d.intake?.id || null);
+                }
+            } catch { /* ignore */ }
+        }
+    };
 
     // CareFlow enrollment state
     const [careflowOpen, setCareflowOpen] = useState(false);
@@ -804,6 +866,24 @@ export default function ScheduleTab({
                                                                 }}>
                                                                     {apt.patientName}
                                                                 </div>
+                                                                {/* Zabezpieczenie 2026-09-11: e-Karta bez podpisanych zgód. */}
+                                                                {pokazOstrzezenieZgod(apt, day.date, zgodyPodpisaneLokalnie) && (
+                                                                    <div
+                                                                        title="e-Karta wypełniona, zgody niepodpisane — bez zgód biometria podpisu nie trafi do Prodentisa"
+                                                                        aria-label="e-Karta bez podpisanych zgód"
+                                                                        style={{
+                                                                            position: 'absolute',
+                                                                            bottom: '1px',
+                                                                            right: '2px',
+                                                                            fontSize: '0.6rem',
+                                                                            lineHeight: 1,
+                                                                            zIndex: 3,
+                                                                            pointerEvents: 'auto',
+                                                                        }}
+                                                                    >
+                                                                        ⚠️
+                                                                    </div>
+                                                                )}
                                                                 {rowSpan > 1 && (
                                                                     <div style={{
                                                                         fontSize: '0.55rem',
@@ -1203,6 +1283,45 @@ export default function ScheduleTab({
                             <div style={{ fontSize: '0.75rem', color: '#38bdf8', marginTop: '0.15rem' }}>
                                 {selectedAppointment.startTime} – {selectedAppointment.endTime} ({selectedAppointment.duration} min)
                             </div>
+                            {/* Zabezpieczenie 2026-09-11: e-Karta wypełniona, zgody niepodpisane. */}
+                            {pokazOstrzezenieZgod(selectedAppointment, dzienWybranejWizyty, zgodyPodpisaneLokalnie) && (
+                                <div
+                                    role="alert"
+                                    style={{
+                                        marginTop: '0.6rem',
+                                        padding: '0.55rem 0.7rem',
+                                        background: 'rgba(245, 158, 11, 0.12)',
+                                        border: '1px solid rgba(245, 158, 11, 0.55)',
+                                        borderRadius: '0.5rem',
+                                        color: '#fcd34d',
+                                        fontSize: '0.75rem',
+                                        lineHeight: 1.35,
+                                        maxWidth: '360px',
+                                    }}
+                                >
+                                    <div style={{ fontWeight: 700, marginBottom: '0.2rem' }}>
+                                        ⚠️ e-Karta wypełniona, zgody niepodpisane
+                                    </div>
+                                    <div style={{ color: 'rgba(252, 211, 77, 0.85)', marginBottom: '0.45rem' }}>
+                                        Bez podpisanych zgód biometria podpisu nie trafi do Prodentisa.
+                                    </div>
+                                    <button
+                                        onClick={otworzOknoZgod}
+                                        style={{
+                                            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                            border: 'none',
+                                            borderRadius: '0.4rem',
+                                            padding: '0.35rem 0.6rem',
+                                            color: '#fff',
+                                            fontSize: '0.72rem',
+                                            fontWeight: 600,
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        📝 Wygeneruj zgody
+                                    </button>
+                                </div>
+                            )}
                         </div>
                         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'flex-start', flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end', maxWidth: '260px' }}>
                             {/* E-Karta QR button */}
@@ -1330,37 +1449,7 @@ export default function ScheduleTab({
                             </button>
                             {/* Consent signing button */}
                             <button
-                                onClick={async () => {
-                                    setConsentModalOpen(true);
-                                    setConsentSelectedTypes([]);
-                                    setConsentUrl('');
-                                    setShowSignature(false);
-                                    setPatientPdfUrl(null);
-                                    setIntakeSubmissionId(null);
-                                    if (selectedAppointment.patientId) {
-                                        try {
-                                            const [consentsRes, intakeRes] = await Promise.all([
-                                                // `includeSignature=1` — popover niżej renderuje `<img src={c.signature_data}>`,
-                                                // a od 06.09 (P-071/P-095) obraz podpisu wychodzi z API wyłącznie na żądanie.
-                                                // Apka personelu tego parametru nie dokłada, bo podpisu nie pokazuje.
-                                                fetch(`/api/employee/patient-consents?prodentisId=${selectedAppointment.patientId}&includeSignature=1`),
-                                                // `includeSignature=1` — sekcja e-Karty renderuje `<img src={patientSignature}>`,
-                                                // a od 07.09 (P-095) obraz podpisu wychodzi z API wyłącznie na żądanie.
-                                                fetch(`/api/employee/patient-intake?prodentisId=${selectedAppointment.patientId}&includeSignature=1`),
-                                            ]);
-                                            if (consentsRes.ok) {
-                                                const d = await consentsRes.json();
-                                                setPatientConsents(d.consents || []);
-                                            }
-                                            if (intakeRes.ok) {
-                                                const d = await intakeRes.json();
-                                                setPatientSignature(d.intake?.signatureData || null);
-                                                setPatientPdfUrl(d.intake?.pdfUrl || null);
-                                                setIntakeSubmissionId(d.intake?.id || null);
-                                            }
-                                        } catch { /* ignore */ }
-                                    }
-                                }}
+                                onClick={otworzOknoZgod}
                                 style={{
                                     background: 'linear-gradient(135deg, #f59e0b, #d97706)',
                                     border: 'none',

@@ -22,6 +22,13 @@ export interface ScheduleAppointment {
     patientPhone: string;
     notes: string | null;
     badges: Badge[];
+    /**
+     * Dokładane przez `/api/employee/schedule` (2026-09-11). Oba OPCJONALNE:
+     * trasa ich nie wysyła, gdy któreś z zapytań padło — brak flag = brak ostrzeżenia.
+     * Patrz `lib/zgodyPoEkarcie.ts`.
+     */
+    ekartaDzis?: boolean;
+    zgodyDzis?: boolean;
 }
 
 export interface Visit {
