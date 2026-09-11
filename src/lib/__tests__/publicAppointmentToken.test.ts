@@ -90,7 +90,11 @@ const WIERSZ = {
     prodentis_id: '0100234418',
     patient_name: 'Pacjent Testowy',
     patient_phone: '+48000000000',
-    appointment_date: '2026-09-11T14:30:00.000Z',
+    // 🪤 Data WZGLĘDNA, nie wpisana na sztywno. Było '2026-09-11T14:30:00.000Z' i test
+    // wybuchł 11.09 po 14:30 czasu polskiego: trasa odwołania odmawia (400), gdy do wizyty
+    // zostało mniej niż 2 h, więc „odwołanie na token przechodzi" zaczęło padać samo
+    // z siebie — bez żadnej zmiany w kodzie. Trzy dni zapasu = zawsze poza tym oknem.
+    appointment_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
     doctor_name: 'Lekarz Testowy',
     status: 'pending',
 };
