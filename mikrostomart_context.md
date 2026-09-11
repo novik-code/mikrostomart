@@ -1,6 +1,16 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-09-09 — 🔴 **AWARIA U PACJENTÓW NAPRAWIONA + FALA 1b NA PRODUKCJI** (`7018cde`). Zgłoszenie: pacjenci nie mogli potwierdzić wizyty z powiadomienia — tapnięcie otwierało ekran główny apki.
+> **Last Updated:** 2026-09-11 — 🛡️ **ZABEZPIECZENIE „e-KARTA BEZ ZGÓD" W GRAFIKU PERSONELU.** Zgłoszenie: u nowych pacjentów w Prodentisie „jest tylko e-Karta, bez biometrii podpisu — po ostatnich zmianach".
+>
+> **DIAGNOZA: TO NIE BYŁ KOD.** Biometria podpisu powstaje WYŁĄCZNIE przy podpisywaniu ZGÓD na tablecie — e-Karta nigdy jej nie wysyłała. Zgłoszonym pacjentom nikt nie wystawił linku do zgód (trzem rejestracja nawet nie otworzyła okna „📝 Zgody"). Ścieżka zgód działała w 100 %: PDF, podpis PNG i biometria JSON dochodzą do PMS także dziś. 🔑 **I to nie jest nowe:** od lipca do 07.09 aż **42 %** e-Kart nowych pacjentów nie miało tego samego dnia linku do zgód. Status e-Karty był widoczny tylko WEWNĄTRZ okna zgód — tam, gdzie nikt nie zagląda, kiedy o zgodach zapomniał.
+>
+> **CO ZROBIONE.** `/api/employee/schedule` dokłada każdej wizycie `ekartaDzis` / `zgodyDzis` (reguła w `lib/zgodyPoEkarcie.ts`, dzień w strefie Warszawy). Panel pokazuje **⚠️ na kafelku** i **baner z przyciskiem „📝 Wygeneruj zgody"** w szczegółach wizyty; baner i „📝 Zgody" wołają TĘ SAMĄ funkcję. Baner gaśnie bez odświeżania grafiku, gdy okno zgód pobierze zgody podpisane tego dnia. 🔑 Pola wyłącznie DODANE — apka 1.3.x czyta tę trasę. 🔴 **Fail-soft całościowo:** dwa zapytania na tydzień, tylko po dacie (bez `.in()` — kilkaset id w URL); gdy KTÓREKOLWIEK padnie albo zwróci ≥ 1000 wierszy, flag nie ma u NIKOGO — same e-Karty bez kompletu zgód dałyby fałszywe „brak zgód".
+>
+> **POMIAR NA PRODUKCJI** (te same zapytania): tydzień 07–13.09 = 19 e-Kart, 115 zgód, zero e-Kart bez `prodentis_patient_id`. **Dziś reguła daje 3 ostrzeżenia — dokładnie przypadki z diagnozy.** 10.09 milczy słusznie: zgłoszona pacjentka nie ma u nas e-Karty. 🪤 Kolumna to `signed_at`, nie `created_at` — obie mają `DEFAULT now()`, ale „kiedy podpisano" znaczy tylko `signed_at`. ⚠️ **UI nieoglądane w przeglądarce** (panel wymaga logowania personelu z 2FA) — sprawdzone `tsc`, `next build` i strażnikiem trasy.
+>
+> **STRAŻNICY.** `grafikFlagiZgod` (wykonuje `GET` trasy: flagi, przypięty zestaw kluczy wizyty, druga ścieżka zwrotna po padnięciu filtra dezaktywowanych, awaria i ucięcie) + `zgodyPoEkarcie` (granice doby, gaszenie lokalne). **Cofki 7/7** — każda pada na zepsutym kodzie. 🪤 **Przy okazji: bomba zegarowa w `publicAppointmentToken.test.ts`** — wizyta wpisana na sztywno `2026-09-11T14:30Z`, a trasa odwołania odmawia na < 2 h przed wizytą; test zaczął padać sam z siebie dziś po 14:30. Data względna.
+>
+> **Poprzednio (2026-09-09):** — 🔴 **AWARIA U PACJENTÓW NAPRAWIONA + FALA 1b NA PRODUKCJI** (`7018cde`). Zgłoszenie: pacjenci nie mogli potwierdzić wizyty z powiadomienia — tapnięcie otwierało ekran główny apki.
 >
 > **PRZYCZYNA.** Apka rozpoznaje powiadomienie o wizycie WYŁĄCZNIE po `data.type === 'appointment_reminder'` (`NotificationRouter`). Cron `push-appointment-1h` — ten, który realnie dociera do pacjentów (co 15 min, wszyscy z żywym tokenem; zmierzone: 74 tokeny, 18 pushy dziś, w dzienniku widać `⏰ Wizyta za godzinę!`) — wysyłał `{ title, body, url: '/strefa-pacjenta/dashboard' }` **bez pola `data`**, więc tapnięcie wpadało w fallback.
 >
