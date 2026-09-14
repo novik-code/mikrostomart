@@ -10,42 +10,12 @@ import { demoSanitize, brand } from '@/lib/brandConfig';
 import { requireAdmin } from '@/lib/authGuards';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { DLUGOSC_KODU_SKROTU } from '@/lib/shortLinkCodes';
+import { ocenWizyteDoPrzypomnienia, LEKARZE_PRZYPOMNIEN, MIN_GODZINA_GABINETU, MAX_GODZINA_GABINETU } from '@/lib/wizytaDoPrzypomnienia';
 
 export const maxDuration = 120; // Vercel function timeout (increased: many appointments + multiple DB queries per appointment)
 
-// Doctor list for reminders (comma-separated env variable)
-const REMINDER_DOCTORS = process.env.REMINDER_DOCTORS?.split(',').map(d => d.trim()) || [
-    'Marcin Nowosielski',
-    'Ilona Piechaczek',
-    'Katarzyna Halupczok',
-    'Małgorzata Maćków Huras',
-    'Dominika Milicz',
-    'Elżbieta Nowosielska'
-];
-
-/**
- * Fuzzy doctor name matching — normalizes and compares name parts
- * Handles variations like "Maćków-Huras" vs "Maćków Huras", with/without "(I)" suffix
- */
-function isDoctorInList(apiDoctorName: string, doctorList: string[]): boolean {
-    const normalize = (name: string) =>
-        name.replace(/\s*\(I\)\s*/g, ' ')
-            .replace(/-/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim()
-            .toLowerCase();
-
-    const normalizedApi = normalize(apiDoctorName);
-
-    return doctorList.some(listName => {
-        const normalizedList = normalize(listName);
-        // Check if all parts of one name appear in the other
-        const apiParts = normalizedApi.split(' ');
-        const listParts = normalizedList.split(' ');
-        return listParts.every(part => apiParts.some(ap => ap.includes(part) || part.includes(ap)))
-            || apiParts.every(part => listParts.some(lp => lp.includes(part) || part.includes(lp)));
-    });
-}
+// Lista lekarzy i reguła „która wizyta dostaje przypomnienie” żyją w `lib/wizytaDoPrzypomnienia`
+// (2026-09-14) — tej samej reguły używa `push-appointment-1h`.
 
 /**
  * SMS Draft Generation Cron Job (Stage 1 of 2) - API 4.0
@@ -221,8 +191,6 @@ export async function GET(req: Request) {
 
         // Business hours: appointments must be between 8:00 and 20:00
         // This filters informational entries that appear at 5:45, 6:45, 7:15 etc.
-        const MIN_BUSINESS_HOUR = 8;
-        const MAX_BUSINESS_HOUR = 20;
 
         // 5. Clean up old drafts
         if (isMondayMode) {
@@ -282,80 +250,61 @@ export async function GET(req: Request) {
                 console.log(`   Working Hour: ${appointment.isWorkingHour}`);
 
                 const doctorId = appointment.doctor?.id || '';
-                const doctorName = appointment.doctor.name.replace(/\s*\(I\)\s*/g, ' ').trim();
 
-                // ======== SPECIAL EXCEPTION: Elżbieta Nowosielska ========
-                // She's the practice owner — books patients on any field type (white/grey/red).
-                // No isWorkingHour rule applies. Custom hours: 8:30-16:00.
-                const isNowosielska = doctorName.toLowerCase().includes('nowosielska')
-                    && (doctorName.toLowerCase().includes('elżbieta') || doctorName.toLowerCase().includes('elzbieta'));
+                // 🔑 Reguła „która wizyta dostaje przypomnienie” jest WSPÓLNA z `push-appointment-1h`
+                // (`lib/wizytaDoPrzypomnienia`). Wyciągnięta 2026-09-14 bez zmiany decyzji —
+                // kolejność filtrów i wyjątek dr Nowosielskiej pilnuje test równoważności.
+                const ocena = ocenWizyteDoPrzypomnienia(appointment, { lekarze: LEKARZE_PRZYPOMNIEN });
+                const doctorName = ocena.lekarz;
+                const isNowosielska = ocena.nowosielska;
+
+                if (!ocena.ok) {
+                    switch (ocena.powod) {
+                        case 'nowosielska_poza_godzinami':
+                            console.log(`   ⛔ Skipping: Nowosielska outside custom hours (${appointmentTime}, must be 08:30-16:00)`);
+                            break;
+                        case 'pole_nie_robocze':
+                            console.log(`   ⛔ Skipping: Non-working hour (grey/red field in Prodentis calendar)`);
+                            break;
+                        case 'poza_godzinami_gabinetu':
+                            console.log(`   ⛔ Skipping: Outside business hours (${appointmentTime}, must be ${MIN_GODZINA_GABINETU}:00-${MAX_GODZINA_GABINETU}:00)`);
+                            break;
+                        case 'brak_telefonu':
+                            console.log(`   ⚠️  Skipping: No phone number`);
+                            skippedPatients.push({
+                                patientName: appointment.patientName || 'Nieznany pacjent',
+                                doctorName: doctorName,
+                                appointmentTime: appointmentTime,
+                                appointmentType: appointment.appointmentType?.name || '',
+                                reason: 'Brak numeru telefonu'
+                            });
+                            errors.push({
+                                appointment: `${appointment.patientName} (${appointment.id})`,
+                                error: 'Missing phone number'
+                            });
+                            break;
+                        case 'lekarz_spoza_listy':
+                        case 'brak_lekarza':
+                            console.log(`   ⚠️  Skipping: Doctor not in reminder list (${doctorName})`);
+                            skippedPatients.push({
+                                patientName: appointment.patientName || 'Nieznany pacjent',
+                                doctorName: doctorName,
+                                appointmentTime: appointmentTime,
+                                appointmentType: appointment.appointmentType?.name || '',
+                                reason: `Lekarz spoza listy przypomnień (${doctorName})`
+                            });
+                            break;
+                    }
+                    skippedCount++;
+                    continue;
+                }
 
                 if (isNowosielska) {
-                    const totalMinutes = appointmentHour * 60 + appointmentMinute;
-                    if (totalMinutes < 8 * 60 + 30 || totalMinutes >= 16 * 60) {
-                        console.log(`   ⛔ Skipping: Nowosielska outside custom hours (${appointmentTime}, must be 08:30-16:00)`);
-                        skippedCount++;
-                        continue;
-                    }
                     console.log(`   👑 Nowosielska exception: bypassing isWorkingHour check (custom 08:30-16:00)`);
+                } else if (workingDoctorIds.has(doctorId)) {
+                    console.log(`   ✅ Doctor confirmed working today (has free slots)`);
                 } else {
-                    // 6a. WORKING HOUR VALIDATION (standard doctors)
-                    // Three filters: isWorkingHour flag + business hours window (8-20) + doctor list
-
-                    // Filter 1: isWorkingHour flag — from Prodentis calendar (white vs grey/red)
-                    if (appointment.isWorkingHour !== true) {
-                        console.log(`   ⛔ Skipping: Non-working hour (grey/red field in Prodentis calendar)`);
-                        skippedCount++;
-                        continue;
-                    }
-
-                    // Filter 2: Business hours window (8:00 - 20:00)
-                    // Catches informational entries at 5:45, 6:45, 7:15 etc. that have isWorkingHour=true
-                    if (appointmentHour < MIN_BUSINESS_HOUR || appointmentHour >= MAX_BUSINESS_HOUR) {
-                        console.log(`   ⛔ Skipping: Outside business hours (${appointmentTime}, must be ${MIN_BUSINESS_HOUR}:00-${MAX_BUSINESS_HOUR}:00)`);
-                        skippedCount++;
-                        continue;
-                    }
-
-                    // Log working doctor confirmation
-                    if (workingDoctorIds.has(doctorId)) {
-                        console.log(`   ✅ Doctor confirmed working today (has free slots)`);
-                    } else {
-                        console.log(`   ℹ️  Doctor not in free slots (fully booked) — proceeding with isWorkingHour=true`);
-                    }
-                }
-
-                // 5b. Filter: Has phone number?
-                if (!appointment.patientPhone) {
-                    console.log(`   ⚠️  Skipping: No phone number`);
-                    skippedCount++;
-                    skippedPatients.push({
-                        patientName: appointment.patientName || 'Nieznany pacjent',
-                        doctorName: doctorName,
-                        appointmentTime: appointmentTime,
-                        appointmentType: appointment.appointmentType?.name || '',
-                        reason: 'Brak numeru telefonu'
-                    });
-                    errors.push({
-                        appointment: `${appointment.patientName} (${appointment.id})`,
-                        error: 'Missing phone number'
-                    });
-                    continue;
-                }
-
-                // 5c. Filter: Is doctor in reminder list? (fuzzy matching)
-                // Nowosielska bypasses this — she's hardcoded as a special case
-                if (!isNowosielska && !isDoctorInList(doctorName, REMINDER_DOCTORS)) {
-                    console.log(`   ⚠️  Skipping: Doctor not in reminder list (${doctorName})`);
-                    skippedCount++;
-                    skippedPatients.push({
-                        patientName: appointment.patientName || 'Nieznany pacjent',
-                        doctorName: doctorName,
-                        appointmentTime: appointmentTime,
-                        appointmentType: appointment.appointmentType?.name || '',
-                        reason: `Lekarz spoza listy przypomnień (${doctorName})`
-                    });
-                    continue;
+                    console.log(`   ℹ️  Doctor not in free slots (fully booked) — proceeding with isWorkingHour=true`);
                 }
 
                 // NOTE: No duplicate-check needed — we always clean up old drafts above (step 5)

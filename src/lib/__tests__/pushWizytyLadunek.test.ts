@@ -20,7 +20,8 @@
  * z kilku"), więc strażnik celuje w ŁADUNEK PRZEKAZANY DO WYSYŁKI, a nie w to,
  * czy w pliku stoi jakiś napis.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { czasSciennyWarszawy } from '@/lib/wizytaDoPrzypomnienia';
 
 const wyslaneLadunki: Array<Record<string, unknown>> = [];
 
@@ -38,9 +39,14 @@ vi.mock('@/lib/pushService', () => ({
     },
 }));
 
-/** Wizyta 60 minut w przyszłość — środek okna 45–75 min, którego pilnuje cron. */
-const zaGodzine = () => new Date(Date.now() + 60 * 60 * 1000).toISOString();
-const WIZYTA = { id: '0100235682', date: '', patientId: '0100007883', doctor: { name: 'dr Kowalski' } };
+/**
+ * Wizyta 60 minut w przyszłość — środek okna 45–75 min, którego pilnuje cron.
+ * 🪤 (2026-09-14) W CZASIE ŚCIENNYM Warszawy, tak jak oddaje ją Prodentis. Wcześniej fixture
+ * brał prawdziwy UTC — i dlatego test nie widział, że cron przesuwa okno o 2 h.
+ * Lekarz z listy przypomnień i pole robocze: cron stosuje dziś wspólną regułę wizyt.
+ */
+const zaGodzine = () => czasSciennyWarszawy(new Date(Date.now() + 60 * 60 * 1000)).toISOString();
+const WIZYTA = { id: '0100235682', date: '', patientId: '0100007883', isWorkingHour: true, doctor: { name: 'Ilona Piechaczek' } };
 
 vi.mock('@/lib/prodentisFetch', () => ({
     prodentisFetch: async () => ({
@@ -87,7 +93,12 @@ vi.mock('@supabase/supabase-js', () => {
     return { createClient: () => ({ from: (t: string) => budujZapytanie(t) }) };
 });
 
+afterEach(() => { vi.useRealTimers(); });
+
 beforeEach(() => {
+    // Zegar zamrożony na 10:00 czasu polskiego — inaczej test puszczony w nocy (CI) trafiałby
+    // wizytą w godziny spoza gabinetu i reguła wizyt słusznie by ją pominęła.
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-09-14T08:00:00Z') });
     wyslaneLadunki.length = 0;
     tokenIstnieje = true;
     process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://x.supabase.co';

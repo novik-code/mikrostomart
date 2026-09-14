@@ -6,6 +6,7 @@ import { getPushTranslation } from '@/lib/pushTranslations';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { loadConfirmationLink, buildAppointmentReminderPush } from '@/lib/appointmentReminderPush';
+import { ocenWizyteDoPrzypomnienia, czasSciennyWarszawy, LEKARZE_PRZYPOMNIEN } from '@/lib/wizytaDoPrzypomnienia';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -53,11 +54,15 @@ export async function GET(req: Request) {
     try {
         // Calculate time window: 45 min to 75 min from now
         const now = new Date();
-        const windowStart = new Date(now.getTime() + 45 * 60 * 1000);
-        const windowEnd = new Date(now.getTime() + 75 * 60 * 1000);
+        // 🔴 (2026-09-14) Okno w CZASIE ŚCIENNYM Warszawy. Prodentis oddaje godzinę polską z `Z`,
+        // a porównanie z prawdziwym UTC przesuwało okno o 2 h (latem): push przychodził 45–75 min
+        // PO starcie wizyty — zmierzone 24 z 24 od 07.09. `now` zostaje do deduplikacji (prawdziwy czas).
+        const terazSciennie = czasSciennyWarszawy(now);
+        const windowStart = new Date(terazSciennie.getTime() + 45 * 60 * 1000);
+        const windowEnd = new Date(terazSciennie.getTime() + 75 * 60 * 1000);
 
         // Format for Prodentis API date query
-        const today = now.toISOString().split('T')[0];
+        const today = terazSciennie.toISOString().split('T')[0];
         console.log(`⏰ [Push 1h] Checking appointments for ${today} between ${windowStart.toISOString()} and ${windowEnd.toISOString()}`);
 
         // Fetch today's appointments from Prodentis
@@ -76,6 +81,16 @@ export async function GET(req: Request) {
         for (const apt of appointments) {
             const aptDate = new Date(apt.date);
             if (aptDate < windowStart || aptDate > windowEnd) continue;
+
+            // 🔴 (2026-09-14) Ta sama reguła co przypomnienia SMS (`lib/wizytaDoPrzypomnienia`):
+            // bez niej push szedł do wpisów informacyjnych recepcji (01:00–07:59) — 14.09 o 4:30 i 5:30
+            // rano. Telefon niepotrzebny: push idzie do aplikacji.
+            const ocena = ocenWizyteDoPrzypomnienia(apt, { lekarze: LEKARZE_PRZYPOMNIEN, wymagajTelefonu: false });
+            if (!ocena.ok) {
+                console.log(`⏰ [Push 1h] Skipping ${apt.id}: ${ocena.powod} (${ocena.godzina})`);
+                skipped++;
+                continue;
+            }
 
             const aptTime = `${aptDate.getUTCHours().toString().padStart(2, '0')}:${aptDate.getUTCMinutes().toString().padStart(2, '0')}`;
             const doctorName = apt.doctor?.name?.replace(/\s*\(I\)\s*/g, ' ').trim() || 'Lekarz';
