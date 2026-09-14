@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
+import sharp from 'sharp';
 
 const runSmilePipelineMock = vi.fn();
 vi.mock('@/lib/smile/pipeline', () => ({
@@ -27,8 +28,14 @@ vi.mock('@/lib/rateLimit', () => ({
 
 const DEVICE_UUID = 'AAAAAAAA-BBBB-4CCC-8DDD-EEEEEEEEEEEE';
 
+/**
+ * Plik z nagłówkiem JPEG (FF D8 FF) — od 2026-09-14 trasa sniffuje magic bytes,
+ * więc sam wypełniacz bez nagłówka to „nie obraz" i kończy się 400.
+ */
 function photoFile(bytes = 1000, type = 'image/jpeg'): File {
-    return new File([Buffer.alloc(bytes, 7)], 'photo.jpg', { type });
+    const buf = Buffer.alloc(bytes, 7);
+    buf[0] = 0xff; buf[1] = 0xd8; buf[2] = 0xff;
+    return new File([buf], 'photo.jpg', { type });
 }
 
 function makeRequest(form: FormData, headers: Record<string, string> = {}): NextRequest {
@@ -203,5 +210,81 @@ describe('POST /api/smile — pipeline mapping', () => {
 
         expect(response.status).toBe(400);
         expect(await response.json()).toEqual({ ok: false, reason: 'bad_input' });
+    });
+});
+
+/**
+ * STRAŻNIK (2026-09-14): o typie zdjęcia decydują BAJTY, nie etykieta.
+ *
+ * 🔴 CO BYŁO ZEPSUTE. Trasa sprawdzała tylko `photo.type` — typ zadeklarowany przez
+ * klienta — i oddawała bajty do `sharp`, który dekoduje po ZAWARTOŚCI. Plik AVIF
+ * z etykietą `image/jpeg` szedł więc do libheif, a dla sharp < 0.35.4 to znana
+ * możliwość wykonania kodu (GHSA-rgj7-g3m4-5g8c). Trasa jest publiczna: gość bez
+ * logowania. Obrazy do testów robi PRAWDZIWY sharp, nie ręcznie klejone nagłówki.
+ *
+ * DOWÓD, ŻE GRYZIE (cofka): usuń sniff z trasy → padają przypadki 🔴.
+ */
+describe('POST /api/smile — o typie decydują bajty, nie etykieta', () => {
+    const plotno = () => sharp({ create: { width: 16, height: 16, channels: 3, background: '#88aacc' } });
+
+    function formZ(bufor: Buffer, type: string): FormData {
+        const form = new FormData();
+        // `Uint8Array` — `Buffer` z sharpa ma typ `ArrayBufferLike`, którego `BlobPart` nie przyjmuje.
+        form.set('photo', new File([new Uint8Array(bufor)], 'photo', { type }));
+        return form;
+    }
+
+    it('KONTROLA MIERNIKA: sharp naprawdę rozpoznaje AVIF po zawartości (heif)', async () => {
+        // Gdyby sharp nie dekodował AVIF, przypadek niżej nie chroniłby przed niczym.
+        const avif = await plotno().avif().toBuffer();
+        expect((await sharp(avif).metadata()).format).toBe('heif');
+    });
+
+    it('🔴 AVIF z etykietą image/jpeg → 400, NIC nie trafia do potoku', async () => {
+        const avif = await plotno().avif().toBuffer();
+        const { POST } = await import('@/app/api/smile/route');
+        const response = await POST(makeRequest(formZ(avif, 'image/jpeg')));
+        expect(response.status).toBe(400);
+        expect(await response.json()).toEqual({ ok: false, reason: 'bad_input' });
+        expect(runSmilePipelineMock).not.toHaveBeenCalled();
+    });
+
+    it('🔴 SVG z etykietą image/png → 400', async () => {
+        const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"><script>1</script></svg>');
+        const { POST } = await import('@/app/api/smile/route');
+        const response = await POST(makeRequest(formZ(svg, 'image/png')));
+        expect(response.status).toBe(400);
+        expect(runSmilePipelineMock).not.toHaveBeenCalled();
+    });
+
+    it('🔴 GIF (prawdziwy, dekodowalny przez sharp) z etykietą image/webp → 400', async () => {
+        const gif = await plotno().gif().toBuffer();
+        const { POST } = await import('@/app/api/smile/route');
+        const response = await POST(makeRequest(formZ(gif, 'image/webp')));
+        expect(response.status).toBe(400);
+        expect(runSmilePipelineMock).not.toHaveBeenCalled();
+    });
+
+    it('KONTROLA NEGATYWNA: prawdziwe JPEG, PNG i WebP przechodzą do potoku bajt w bajt', async () => {
+        runSmilePipelineMock.mockResolvedValue({ kind: 'generation_failed' });
+        const { POST } = await import('@/app/api/smile/route');
+        for (const [bufor, type] of [
+            [await plotno().jpeg().toBuffer(), 'image/jpeg'],
+            [await plotno().png().toBuffer(), 'image/png'],
+            [await plotno().webp().toBuffer(), 'image/webp'],
+        ] as const) {
+            runSmilePipelineMock.mockClear();
+            const response = await POST(makeRequest(formZ(bufor, type)));
+            expect(response.status, type).toBe(502);
+            expect(runSmilePipelineMock, type).toHaveBeenCalledTimes(1);
+            expect(Buffer.compare(runSmilePipelineMock.mock.calls[0][0].photo, bufor), type).toBe(0);
+        }
+    });
+
+    it('🔒 zainstalowany libheif ma poprawkę (sharp ≥ 0.35.4 → libheif ≥ 1.23.2)', () => {
+        // Sniff w trasie zamyka TĘ trasę; aktualizacja sharp zamyka klasę. Ten przypadek
+        // pada, gdyby lockfile cofnął sharp do wersji z podatnym libheif.
+        const [maj, min, pat] = (sharp.versions.heif ?? '0.0.0').split('.').map(Number);
+        expect(maj * 1e6 + min * 1e3 + pat, `libheif ${sharp.versions.heif}`).toBeGreaterThanOrEqual(1 * 1e6 + 23 * 1e3 + 2);
     });
 });

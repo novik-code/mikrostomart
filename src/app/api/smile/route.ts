@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifyPatientSession } from '@/lib/jwt';
 import { getClientIP } from '@/lib/rateLimit';
 import { runSmilePipeline } from '@/lib/smile/pipeline';
+import { detectImageMime } from '@/lib/imageMagicBytes';
 import { SMILE_STYLES, SmileStyle } from '@/lib/smile/prompts';
 
 export const runtime = 'nodejs';
@@ -64,6 +65,19 @@ export async function POST(req: NextRequest) {
         return badInput();
     }
 
+    // 🔒 O TYPIE DECYDUJĄ BAJTY, NIE ETYKIETA (2026-09-14). `photo.type` to typ
+    // zadeklarowany przez klienta — dowolny plik z etykietą `image/jpeg` szedł prosto
+    // do `sharp`, a ten dekoduje po ZAWARTOŚCI, także AVIF przez libheif. Dla sharp
+    // < 0.35.4 to znana możliwość wykonania kodu (GHSA-rgj7-g3m4-5g8c), a ta trasa
+    // jest PUBLICZNA — gość bez logowania. Czaty i zdjęcia zadań sniffują bajty od
+    // dawna; ta trasa była jedyną, która przyjmowała obraz od użytkownika bez tego.
+    // Sniff idzie PRZED dekoderem i przed zużyciem dziennego limitu.
+    const photoBuffer = Buffer.from(await photo.arrayBuffer());
+    const wykrytyTyp = detectImageMime(photoBuffer);
+    if (!wykrytyTyp || !ALLOWED_MIME_TYPES.includes(wykrytyTyp)) {
+        return badInput();
+    }
+
     const styleRaw = formData.get('style');
     const style: SmileStyle =
         typeof styleRaw === 'string' && (SMILE_STYLES as readonly string[]).includes(styleRaw)
@@ -76,7 +90,6 @@ export async function POST(req: NextRequest) {
     const deviceId = UUID_REGEX.test(deviceIdRaw) ? deviceIdRaw.toLowerCase() : undefined;
     const client = req.headers.get('x-client') === 'native' ? 'native' : 'web';
 
-    const photoBuffer = Buffer.from(await photo.arrayBuffer());
 
     const result = await runSmilePipeline({
         photo: photoBuffer,
