@@ -135,7 +135,7 @@ const SONDY_ZDARZENIOWE: Record<string, () => Promise<{ zaniedbane: number } | n
 
         const { data: przypomnienia, error: e1 } = await supabase
             .from('sms_reminders')
-            .select('patient_id, delivery_channel')
+            .select('patient_id, delivery_channel, push_sent')
             .eq('sms_type', 'reminder')
             .not('patient_id', 'is', null)
             .gte('sent_at', od)
@@ -144,9 +144,13 @@ const SONDY_ZDARZENIOWE: Record<string, () => Promise<{ zaniedbane: number } | n
             console.error('[PushHealth] Sonda appointment_reminder (przypomnienia):', e1.message);
             return null;
         }
-        const smsem = (przypomnienia ?? []).filter(
-            (r) => (r as { delivery_channel?: string }).delivery_channel !== 'push',
-        );
+        // 🔴 (2026-09-14) `push_sent = true` wyklucza wiersz: eskalacja zapisuje `push+sms`
+        // z `sent_at`, a push DOSZEDŁ — liczenie go jako „miał token, dostał SMS" dawało
+        // fałszywy alarm na Telegramie przy każdej eskalacji (możliwe dopiero od migracji 204).
+        const smsem = (przypomnienia ?? []).filter((r) => {
+            const w = r as { delivery_channel?: string; push_sent?: boolean };
+            return w.delivery_channel !== 'push' && w.push_sent !== true;
+        });
         if (smsem.length === 0) return { zaniedbane: 0 };
 
         // UUID konta → prodentis_id (klucz, którym kluczowana jest tabela tokenów).

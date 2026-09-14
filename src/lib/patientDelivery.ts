@@ -20,6 +20,7 @@ import { createClient } from '@supabase/supabase-js';
 import { pushToPatientAll, PushPayload } from './pushService';
 import { hasPatientAppToken } from './expoPush';
 import { sendSMS } from './smsService';
+import { POWOD_PUSH } from './opisDostarczenia';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -179,7 +180,7 @@ export async function deliverToPatient(options: DeliveryOptions): Promise<Delive
                     `(fcm=${pushResult.fcm.sent} app=${pushResult.expo.sent})`
                 );
             } else {
-                result.pushError = `Push sent to 0 devices (fcm failed=${pushResult.fcm.failed}, app failed=${pushResult.expo.failed})`;
+                result.pushError = `${POWOD_PUSH.PREFIKS_ZERO_URZADZEN} (fcm failed=${pushResult.fcm.failed}, app failed=${pushResult.expo.failed})`;
                 console.log(`  ⚠️ [Delivery] Push failed: ${result.pushError}`);
             }
         } catch (err: any) {
@@ -187,12 +188,12 @@ export async function deliverToPatient(options: DeliveryOptions): Promise<Delive
             console.error(`  ❌ [Delivery] Push error: ${result.pushError}`);
         }
     } else if (!patientId) {
-        result.pushError = 'Pacjent nie ma konta w portalu';
+        result.pushError = POWOD_PUSH.BRAK_KONTA;
     } else if (tokenLookupFailed) {
         // Rozróżnienie jest istotne dla diagnostyki: „nie wiemy" ≠ „nie ma".
-        result.pushError = 'Nie udało się odczytać tokenów push (błąd bazy) — wysyłam SMS';
+        result.pushError = POWOD_PUSH.BLAD_ODCZYTU_TOKENOW;
     } else {
-        result.pushError = 'Brak tokenu push (pacjent nie ma apki ani powiadomień w przeglądarce)';
+        result.pushError = POWOD_PUSH.BRAK_TOKENU;
     }
 
     // ─── Step 3: SMS fallback / force ─────────────────────────
@@ -251,6 +252,9 @@ export async function updateDeliveryStatus(
     };
 
     // If push succeeded and no SMS needed → mark as "push_sent" instead of "draft"
+    // 🔴 `push_sent` MUSI być dozwolony przez CHECK na `sms_reminders.status` (migracja 204).
+    // Do 2026-09-14 nie był: baza odrzucała CAŁY ten zapis i przypomnienie wysłane pushem
+    // zostawało szkicem, który znikał przy czyszczeniu. Pilnuje `smsRemindersStatusZgodnyZBaza`.
     if (deliveryResult.pushSent && !deliveryResult.smsSent) {
         updateData.status = 'push_sent';
     }
@@ -276,18 +280,46 @@ export async function updateDeliveryStatus(
  * Check if a patient has responded to an appointment action.
  * Used by escalation cron to decide if SMS fallback is needed.
  */
+/**
+ * Statusy `appointment_actions`, które znaczą „pacjent zareagował na przypomnienie".
+ * Pisane przez trasy potwierdzenia (`attendance_confirmed`), odwołania (`cancelled`,
+ * publiczne `reschedule_requested`) i przełożenia w strefie pacjenta (`rescheduled`).
+ * `confirmed` pisze tylko adapter samodzielnego PMS — zostaje dla zgodności.
+ * Pilnuje `odpowiedzPacjentaZatrzymujeEskalacje` (inwentarz po skutku).
+ */
+export const STATUSY_ODPOWIEDZI_PACJENTA: readonly string[] = [
+    'attendance_confirmed', 'cancelled', 'reschedule_requested', 'rescheduled', 'confirmed',
+];
+
 export async function hasPatientResponded(
     prodentisId: string,
     appointmentDate: string
 ): Promise<boolean> {
-    const { data } = await supabase
+    // 🔴 (2026-09-14) Do tej pory filtr szukał statusów `confirmed`/`cancelled`/`reschedule_requested`,
+    // a potwierdzenie z SMS-a i z aplikacji zapisuje `attendance_confirmed` — czyli pacjent,
+    // który potwierdził, wyglądał na takiego, który NIE zareagował. Martwe, dopóki nie było
+    // wierszy `push_sent` (migracja 204); od niej eskalacja wysłałaby SMS „potwierdź"
+    // każdemu, kto już potwierdził pushem.
+    //
+    // 🔴 Bez filtra DNIA: przełożenie w strefie pacjenta przepisuje `appointment_date`
+    // na nowy termin, więc szukanie po starym dniu gubiło odpowiedź i eskalacja słała
+    // SMS ze STARĄ godziną. `prodentis_id` to identyfikator wizyty — wystarcza.
+    const { data, error } = await supabase
         .from('appointment_actions')
-        .select('status')
+        .select('status, attendance_confirmed, cancellation_requested, reschedule_requested')
         .eq('prodentis_id', prodentisId)
-        .gte('appointment_date', `${appointmentDate.split('T')[0]}T00:00:00.000Z`)
-        .lte('appointment_date', `${appointmentDate.split('T')[0]}T23:59:59.999Z`)
-        .in('status', ['confirmed', 'cancelled', 'reschedule_requested'])
-        .limit(1);
+        .limit(5);
 
-    return (data && data.length > 0) || false;
+    if (error) {
+        // Fail-open na SMS: ta funkcja decyduje także o jedynym przypomnieniu pacjentów
+        // BEZ aplikacji (`sms-auto-send`) — „nie wiemy" nie może skasować im SMS-a.
+        console.error(`[Delivery] hasPatientResponded(${prodentisId}, ${appointmentDate}) błąd bazy:`, error.message);
+        return false;
+    }
+    return (data ?? []).some((a) =>
+        a.attendance_confirmed === true
+        || a.cancellation_requested === true
+        || a.reschedule_requested === true
+        || STATUSY_ODPOWIEDZI_PACJENTA.includes(String(a.status)),
+    );
 }

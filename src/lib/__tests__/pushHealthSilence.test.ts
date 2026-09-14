@@ -234,4 +234,19 @@ describe('appointment_reminder — DRUGA sztuka tego samego defektu', () => {
         expect(out).toHaveLength(1);
         expect(out[0].path_key).toBe('appointment_reminder');
     });
+
+    it('🔴 eskalacja (push doszedł, potem SMS) to NIE awaria push-first → bez alarmu', async () => {
+        // Od migracji 204 (2026-09-14) `push-escalation` zapisuje `push+sms` z `sent_at`
+        // odbiorcy, który MA token. Bez wykluczenia `push_sent = true` każda eskalacja
+        // wysyłała Telegram „powiadomienia push — możliwy problem" o zdrowym kanale.
+        rows = wiersz();
+        tabeleSondy = {
+            sms_reminders: [{ patient_id: 'u1', delivery_channel: 'push+sms', push_sent: true }],
+            patients: [{ prodentis_id: '0100001711' }],
+            patient_push_tokens: [{ patient_id: '0100001711' }],
+        };
+        const { findSilentPushPaths } = await import('../pushHealth');
+
+        expect(await findSilentPushPaths()).toEqual([]);
+    });
 });

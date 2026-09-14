@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
 import { hasPatientResponded } from '@/lib/patientDelivery';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
+import { PREFIKS_ESKALACJI, PREFIKS_ESKALACJA_NIEUDANA, PREFIKS_ESKALACJA_POMINIETA } from '@/lib/opisDostarczenia';
 
 export const maxDuration = 60;
 
@@ -45,6 +46,7 @@ export async function GET(req: Request) {
     let escalatedCount = 0;
     let respondedCount = 0;
     let failedCount = 0;
+    let skippedCount = 0;
 
     try {
         // Find push-sent reminders that are >2 hours old and need escalation
@@ -77,9 +79,29 @@ export async function GET(req: Request) {
 
         console.log(`📊 [Push Escalation] Found ${pushReminders.length} push reminders to check...`);
 
+        // Dzień KALENDARZOWY gabinetu. `appointment_date` trzyma czas ścienny Warszawy
+        // zapisany jako UTC, więc jego pierwsze 10 znaków to już dzień gabinetu.
+        const dzisWarszawa = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Warsaw' }).format(new Date());
+
         for (const reminder of pushReminders) {
             try {
                 // Check if patient responded to the appointment
+                // 🔴 (2026-09-14) Eskalacja WYŁĄCZNIE przed dniem wizyty. Cron chodzi 11:00–20:00,
+                // a `push_sent_at` nie ma górnej granicy: szkice wysłane z panelu po 18:00
+                // eskalowałyby się następnego ranka, czyli w DNIU wizyty — SMS-em „jutro o …",
+                // czasem już po wizycie. Wiersz zamykamy jako dostarczony pushem, z wyjaśnieniem.
+                const dzienWizyty = String(reminder.appointment_date || '').slice(0, 10);
+                if (!dzienWizyty || dzienWizyty <= dzisWarszawa) {
+                    await supabase.from('sms_reminders').update({
+                        status: 'sent',
+                        delivery_channel: 'push',
+                        send_error: `${PREFIKS_ESKALACJA_POMINIETA} wizyta dziś albo już minęła (${dzienWizyty || 'brak daty'})`,
+                        updated_at: new Date().toISOString(),
+                    }).eq('id', reminder.id);
+                    skippedCount++;
+                    continue;
+                }
+
                 const responded = await hasPatientResponded(
                     String(reminder.prodentis_id),
                     reminder.appointment_date
@@ -112,16 +134,17 @@ export async function GET(req: Request) {
                         delivery_channel: 'push+sms',
                         sent_at: new Date().toISOString(),
                         sms_message_id: smsResult.messageId,
-                        send_error: 'Escalation: pacjent nie odpowiedział na push w ciągu 2h',
+                        send_error: `${PREFIKS_ESKALACJI} pacjent nie odpowiedział na push w ciągu 2h`,
                         updated_at: new Date().toISOString(),
                     }).eq('id', reminder.id);
                     escalatedCount++;
                     console.log(`  ✅ SMS escalation sent (ID: ${smsResult.messageId})`);
                 } else {
+                    // 🔑 Status ZOSTAJE `push_sent`: push doszedł, a `failed` skasowałoby wiersz przy
+                    // najbliższym czyszczeniu szkiców (znów zniknąłby ślad pusha). Następny przebieg
+                    // spróbuje ponownie — do dnia wizyty, potem bramka wyżej zamyka wiersz.
                     await supabase.from('sms_reminders').update({
-                        status: 'failed',
-                        delivery_channel: 'push+sms',
-                        send_error: `Push OK, SMS failed: ${smsResult.error}`,
+                        send_error: `${PREFIKS_ESKALACJA_NIEUDANA} ${smsResult.error}`,
                         updated_at: new Date().toISOString(),
                     }).eq('id', reminder.id);
                     failedCount++;
@@ -139,7 +162,7 @@ export async function GET(req: Request) {
         await logCronHeartbeat(
             'push-escalation',
             'ok',
-            `Escalated: ${escalatedCount}, Responded: ${respondedCount}, Failed: ${failedCount}`,
+            `Escalated: ${escalatedCount}, Responded: ${respondedCount}, Failed: ${failedCount}, Skipped (dzień wizyty): ${skippedCount}`,
             Date.now() - startTime
         );
 
@@ -148,6 +171,7 @@ export async function GET(req: Request) {
             escalated: escalatedCount,
             responded: respondedCount,
             failed: failedCount,
+            skipped: skippedCount,
             duration: `${duration}s`,
         });
 
