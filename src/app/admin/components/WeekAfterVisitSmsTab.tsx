@@ -91,8 +91,9 @@ const renderWeekAfterVisitSmsTab = () => {
     );
 
     const statusBadge = (status: string) => {
-        const colors: Record<string, string> = { sent: '#22c55e', failed: '#ef4444', draft: '#f59e0b', cancelled: '#6b7280' };
-        return <span style={{ padding: '0.1rem 0.5rem', borderRadius: '1rem', fontSize: '0.68rem', fontWeight: 'bold', background: `${colors[status] || '#888'}22`, color: colors[status] || '#888', border: `1px solid ${colors[status] || '#888'}44` }}>{status}</span>;
+        // `push_sent` — dostarczone pushem; od migracji 204 (2026-09-14) takie wiersze naprawdę się zapisują.
+        const colors: Record<string, string> = { sent: '#22c55e', failed: '#ef4444', draft: '#f59e0b', cancelled: '#6b7280', push_sent: '#a78bfa' };
+        return <span style={{ padding: '0.1rem 0.5rem', borderRadius: '1rem', fontSize: '0.68rem', fontWeight: 'bold', background: `${colors[status] || '#888'}22`, color: colors[status] || '#888', border: `1px solid ${colors[status] || '#888'}44` }}>{status === 'push_sent' ? '📲 push' : status}</span>;
     };
 
     return (
@@ -179,7 +180,7 @@ const renderWeekAfterVisitSmsTab = () => {
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)' }}>
                             Łącznie: <strong style={{ color: 'white' }}>{weekAfterSms.length}</strong>
                             &nbsp;|&nbsp; Szkice: <strong style={{ color: '#f59e0b' }}>{weekAfterSms.filter(s => s.status === 'draft').length}</strong>
-                            &nbsp;|&nbsp; Wysłanych: <strong style={{ color: '#22c55e' }}>{weekAfterSms.filter(s => s.status === 'sent').length}</strong>
+                            &nbsp;|&nbsp; Wysłanych: <strong style={{ color: '#22c55e' }}>{weekAfterSms.filter(s => s.status === 'sent' || s.status === 'push_sent').length}</strong>
                             &nbsp;|&nbsp; Błędów: <strong style={{ color: '#ef4444' }}>{weekAfterSms.filter(s => s.status === 'failed').length}</strong>
                         </div>
                     </div>

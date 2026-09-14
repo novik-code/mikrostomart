@@ -3,14 +3,23 @@ import { useState, useEffect } from "react";
 import { inputStyle } from "./adminStyles";
 import { createBrowserClient } from "@supabase/ssr";
 import { demoSanitize } from '@/lib/brandConfig';
+import { opisDostarczenia, podsumujDostarczenia, OPIS_POWODU, type KodPowodu, type KanalDostarczenia } from '@/lib/opisDostarczenia';
 
 const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+/** Kolory i ikony kanałów dostarczenia — wspólne dla karty i nagłówka dnia. */
+const KOLOR_KANALU: Record<KanalDostarczenia, string> = {
+    push: '#7c3aed', 'push+sms': '#d97706', sms: '#0284c7', brak: '#dc2626', oczekuje: '#6b7280',
+};
+const IKONA_KANALU: Record<KanalDostarczenia, string> = {
+    push: '📲', 'push+sms': '🔄', sms: '📱', brak: '❌', oczekuje: '⏳',
+};
+
 export default function SmsRemindersTab() {
     const [smsReminders, setSmsReminders] = useState<any[]>([]);
-    const [smsStats, setSmsStats] = useState({ total: 0, draft: 0, sent: 0, failed: 0, cancelled: 0 });
+    const [smsStats, setSmsStats] = useState({ total: 0, draft: 0, sent: 0, failed: 0, cancelled: 0, push_sent: 0 });
     const [editingSmsId, setEditingSmsId] = useState<string | null>(null);
     const [editingSmsMessage, setEditingSmsMessage] = useState('');
     const [sendingAll, setSendingAll] = useState(false);
@@ -597,7 +606,7 @@ export default function SmsRemindersTab() {
                 {(['drafts', 'sent', 'manual'] as const).map(tab => {
                     const labels = {
                         drafts: `📝 Szkice (${smsStats.draft})`,
-                        sent: `📤 Wysłane (${smsStats.sent})`,
+                        sent: `📤 Wysłane (${smsStats.sent + (smsStats.push_sent || 0)})`,
                         manual: '✉️ Wyślij ręcznie'
                     };
                     return (
@@ -910,12 +919,17 @@ export default function SmsRemindersTab() {
 
             {/* ═══ SENT TAB — Grouped by Date ═══ */}
             {smsTab === 'sent' && (() => {
-                const sentSms = smsReminders.filter(sms => sms.status === 'sent' || sms.status === 'failed');
+                const sentSms = smsReminders.filter(sms => sms.status === 'sent' || sms.status === 'failed' || sms.status === 'push_sent');
 
                 // Group by appointment date
                 const grouped: Record<string, any[]> = {};
                 sentSms.forEach(sms => {
-                    const dateKey = new Date(sms.sent_at || sms.appointment_date).toLocaleDateString('pl-PL', { timeZone: 'UTC' });
+                    // `sent_at`/`push_sent_at` to prawdziwe chwile (UTC) → dzień w strefie gabinetu; `appointment_date`
+                    // trzyma czas ścienny zapisany jako UTC, więc dla niego zostaje UTC.
+                    const chwila = sms.sent_at || sms.push_sent_at;
+                    const dateKey = chwila
+                        ? new Date(chwila).toLocaleDateString('pl-PL', { timeZone: 'Europe/Warsaw' })
+                        : new Date(sms.appointment_date).toLocaleDateString('pl-PL', { timeZone: 'UTC' });
                     if (!grouped[dateKey]) grouped[dateKey] = [];
                     grouped[dateKey].push(sms);
                 });
@@ -952,7 +966,7 @@ export default function SmsRemindersTab() {
                             >
                                 <option value="">Wszystkie daty ({sentSms.length})</option>
                                 {sortedDates.map(date => (
-                                    <option key={date} value={date}>{date} ({grouped[date].length} SMS)</option>
+                                    <option key={date} value={date}>{date} ({grouped[date].length})</option>
                                 ))}
                             </select>
                             {sentDateFilter && (
@@ -981,7 +995,34 @@ export default function SmsRemindersTab() {
                                     }}>
                                         <span style={{ fontSize: "1rem" }}>📅</span>
                                         <strong style={{ fontSize: "0.95rem", color: "var(--color-primary)" }}>{dateKey}</strong>
-                                        <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>({grouped[dateKey].length} SMS)</span>
+                                        <span style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>({grouped[dateKey].length})</span>
+                                        {/* Podsumowanie dnia: kanały + powody braku pusha (2026-09-14) */}
+                                        {(() => {
+                                            const p = podsumujDostarczenia(grouped[dateKey]);
+                                            const kafelki: Array<[string, number, string]> = [
+                                                ['📲 Push', p.push, '#a78bfa'],
+                                                ['🔄 Push, potem SMS', p.pushSms, '#f59e0b'],
+                                                ['📱 SMS', p.sms, '#38bdf8'],
+                                                ['❌ Nie doszło', p.brak, '#ef4444'],
+                                            ];
+                                            return (
+                                                <span style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap", marginLeft: "auto", alignItems: "center" }}>
+                                                    {kafelki.filter(([, n]) => n > 0).map(([etykieta, n, kolor]) => (
+                                                        <span key={etykieta} style={{ fontSize: "0.75rem", padding: "0.1rem 0.5rem", borderRadius: "1rem", color: kolor, border: `1px solid ${kolor}55`, background: `${kolor}14` }}>
+                                                            {etykieta}: <strong>{n}</strong>
+                                                        </span>
+                                                    ))}
+                                                    {Object.keys(p.powody).length > 0 && (
+                                                        <span
+                                                            title={(Object.entries(p.powody) as Array<[KodPowodu, number]>).map(([kod, n]) => `${n} × ${OPIS_POWODU[kod]}`).join('\n')}
+                                                            style={{ fontSize: "0.72rem", color: "var(--color-text-muted)", cursor: "help", borderBottom: "1px dotted var(--color-text-muted)" }}
+                                                        >
+                                                            dlaczego nie push?
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            );
+                                        })()}
                                     </div>
 
                                     {/* SMS cards for this date */}
@@ -989,6 +1030,7 @@ export default function SmsRemindersTab() {
                                         {grouped[dateKey].map(sms => {
                                             const timeMatch = sms.sms_message?.match(/(\d{1,2}):(\d{2})/);
                                             const appointmentTime = timeMatch ? `${timeMatch[1]}:${timeMatch[2]}` : '';
+                                            const opis = opisDostarczenia(sms);
 
                                             return (
                                                 <div key={sms.id} style={{
@@ -1014,8 +1056,8 @@ export default function SmsRemindersTab() {
                                                                     color: 'white',
                                                                     fontWeight: 600,
                                                                 }}>✅ Pacjent kliknął</span>
-                                                            ) : sms.status === 'sent' ? (
-                                                                <span title="SMS wysłany, pacjent jeszcze nie kliknął linku" style={{
+                                                            ) : (sms.status === 'sent' || sms.status === 'push_sent') ? (
+                                                                <span title="Przypomnienie dostarczone, pacjent jeszcze nie kliknął linku" style={{
                                                                     padding: "0.2rem 0.5rem",
                                                                     borderRadius: "4px",
                                                                     fontSize: "0.75rem",
@@ -1044,25 +1086,41 @@ export default function SmsRemindersTab() {
                                                                     fontWeight: 600,
                                                                 }}>🔄 Prodentis ❌</span>
                                                             )}
-                                                            <span style={{
+                                                            <span title={opis.powod || undefined} style={{
                                                                 padding: "0.2rem 0.5rem",
                                                                 borderRadius: "4px",
                                                                 fontSize: "0.75rem",
-                                                                background: sms.status === 'sent' ? '#4caf50' : '#f44336',
+                                                                fontWeight: 600,
+                                                                background: KOLOR_KANALU[opis.kanal],
                                                                 color: 'white',
-                                                            }}>{sms.status}</span>
+                                                            }}>{IKONA_KANALU[opis.kanal]} {opis.etykieta}</span>
                                                         </div>
                                                     </div>
 
                                                     <div style={{ padding: "0.75rem", background: "var(--color-background)", borderRadius: "4px", marginBottom: "0.75rem", fontSize: "0.88rem", lineHeight: "1.6" }}>
                                                         {sms.sms_message}
                                                     </div>
+                                                    {/* Kanał i powód braku pusha (2026-09-14) */}
+                                                    {opis.powod && (
+                                                        <div style={{ marginBottom: "0.75rem", padding: "0.45rem 0.7rem", borderRadius: "4px", fontSize: "0.8rem", background: "rgba(255,255,255,0.04)", border: "1px solid var(--color-border)", color: "var(--color-text-muted)" }}>
+                                                            {opis.kanal === 'push+sms' ? '🔄 ' : opis.kanal === 'push' ? '⚠️ ' : '📵 Dlaczego nie push: '}
+                                                            <span style={{ color: "var(--color-text-main)" }}>{opis.powod}</span>
+                                                        </div>
+                                                    )}
 
                                                     <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", alignItems: "center" }}>
-                                                        <button
-                                                            onClick={() => handleResendSms(sms)}
-                                                            style={{ padding: "0.4rem 0.9rem", background: "var(--color-primary)", border: "none", borderRadius: "4px", color: "black", cursor: "pointer", fontWeight: "bold", fontSize: "0.85rem" }}
-                                                        >🔄 Wyślij ponownie</button>
+                                                        {sms.status === 'push_sent' ? (
+                                                            // 🔴 Bez „Wyślij ponownie": ręczny SMS nie zamyka wiersza `push_sent`,
+                                                            // więc eskalacja 2 h później dosłałaby DRUGI identyczny SMS.
+                                                            <span title="Wiersz dostarczony pushem. Jeśli pacjent nie potwierdzi, nie odwoła ani nie przełoży wizyty w ciągu 2 godzin, SMS pójdzie automatycznie (do dnia przed wizytą)." style={{ padding: "0.35rem 0.7rem", borderRadius: "4px", fontSize: "0.8rem", color: "var(--color-text-muted)", border: "1px dashed var(--color-border)", cursor: "help" }}>
+                                                                ⏱️ SMS pójdzie sam po 2 h bez reakcji
+                                                            </span>
+                                                        ) : (
+                                                            <button
+                                                                onClick={() => handleResendSms(sms)}
+                                                                style={{ padding: "0.4rem 0.9rem", background: "var(--color-primary)", border: "none", borderRadius: "4px", color: "black", cursor: "pointer", fontWeight: "bold", fontSize: "0.85rem" }}
+                                                            >🔄 Wyślij ponownie</button>
+                                                        )}
                                                         {sms.attendance_confirmed && sms.appointment_action_id && (
                                                             <button
                                                                 onClick={() => handleResetConfirmation(sms.appointment_action_id, sms.patient_name || sms.phone)}
@@ -1077,9 +1135,11 @@ export default function SmsRemindersTab() {
                                                         {sms.status === 'failed' && sms.send_error && (
                                                             <div style={{ flex: 1, padding: "0.4rem 0.6rem", background: "#fff3cd", color: "#856404", borderRadius: "4px", fontSize: "0.8rem" }}>❌ {sms.send_error}</div>
                                                         )}
-                                                        {sms.sent_at && (
-                                                            <span style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginLeft: "auto" }}>
-                                                                Wysłano: {new Date(sms.sent_at).toLocaleString('pl-PL', { timeZone: 'UTC' })}
+                                                        {(sms.push_sent_at || sms.sent_at) && (
+                                                            <span style={{ fontSize: "0.78rem", color: "var(--color-text-muted)", marginLeft: "auto", display: "flex", gap: "0.75rem" }}>
+                                                                {/* 🪤 Do 2026-09-14 było `timeZone: 'UTC'` — godzina wysyłki wychodziła o 2 h za wcześnie. */}
+                                                                {sms.push_sent_at && <span>Push: {new Date(sms.push_sent_at).toLocaleString('pl-PL', { timeZone: 'Europe/Warsaw' })}</span>}
+                                                                {sms.sent_at && <span>SMS: {new Date(sms.sent_at).toLocaleString('pl-PL', { timeZone: 'Europe/Warsaw' })}</span>}
                                                             </span>
                                                         )}
                                                     </div>

@@ -4,6 +4,7 @@ import SmsRemindersTab from "./SmsRemindersTab";
 import PostVisitSmsTab from "./PostVisitSmsTab";
 import WeekAfterVisitSmsTab from "./WeekAfterVisitSmsTab";
 import PushTab from "./PushTab";
+import { opisDostarczenia, podsumujDostarczenia, OPIS_POWODU, type KanalDostarczenia, type KodPowodu } from "@/lib/opisDostarczenia";
 
 type SubTab = 'reminders' | 'post-visit' | 'week-after' | 'push' | 'delivery-log';
 
@@ -11,7 +12,7 @@ export default function PatientCommunicationTab() {
     const [activeSubTab, setActiveSubTab] = useState<SubTab>('reminders');
     const [deliveryLog, setDeliveryLog] = useState<any[]>([]);
     const [deliveryLoading, setDeliveryLoading] = useState(false);
-    const [deliveryFilter, setDeliveryFilter] = useState<'all' | 'push' | 'sms' | 'push+sms' | 'none'>('all');
+    const [deliveryFilter, setDeliveryFilter] = useState<'all' | KanalDostarczenia>('all');
 
     const subTabs: { id: SubTab; label: string; icon: string }[] = [
         { id: 'reminders', label: 'Przypomnienia', icon: '📋' },
@@ -35,27 +36,27 @@ export default function PatientCommunicationTab() {
         setDeliveryLoading(false);
     };
 
-    const channelBadge = (channel: string | null, pushSent: boolean, pushError: string | null) => {
-        const ch = channel || 'sms';
-        const styles: Record<string, { bg: string; border: string; color: string; label: string; icon: string }> = {
-            'push': { bg: 'rgba(139,92,246,0.12)', border: 'rgba(139,92,246,0.35)', color: '#a78bfa', label: 'Push', icon: '🔔' },
-            'sms': { bg: 'rgba(56,189,248,0.12)', border: 'rgba(56,189,248,0.35)', color: '#38bdf8', label: 'SMS', icon: '📱' },
-            'push+sms': { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.35)', color: '#f59e0b', label: 'Push+SMS', icon: '🔄' },
-            'pending': { bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.35)', color: '#9ca3af', label: 'Oczekuje', icon: '⏳' },
-            'none': { bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.35)', color: '#ef4444', label: 'Brak', icon: '❌' },
+    const channelBadge = (item: Parameters<typeof opisDostarczenia>[0]) => {
+        const opis = opisDostarczenia(item);
+        const styles: Record<KanalDostarczenia, { bg: string; border: string; color: string; icon: string }> = {
+            'push': { bg: 'rgba(139,92,246,0.12)', border: 'rgba(139,92,246,0.35)', color: '#a78bfa', icon: '📲' },
+            'sms': { bg: 'rgba(56,189,248,0.12)', border: 'rgba(56,189,248,0.35)', color: '#38bdf8', icon: '📱' },
+            'push+sms': { bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.35)', color: '#f59e0b', icon: '🔄' },
+            'oczekuje': { bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.35)', color: '#9ca3af', icon: '⏳' },
+            'brak': { bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.35)', color: '#ef4444', icon: '❌' },
         };
-        const s = styles[ch] || styles['sms'];
+        const s = styles[opis.kanal];
         return (
             <span
-                title={pushError ? `Push error: ${pushError}` : (pushSent ? 'Push wysłany pomyślnie' : 'Brak FCM tokenu')}
+                title={opis.powod || undefined}
                 style={{
                     display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
                     padding: '0.15rem 0.5rem', borderRadius: '1rem', fontSize: '0.68rem',
                     fontWeight: 'bold', background: s.bg, color: s.color,
-                    border: `1px solid ${s.border}`, cursor: pushError ? 'help' : 'default',
+                    border: `1px solid ${s.border}`, cursor: opis.powod ? 'help' : 'default',
                 }}
             >
-                {s.icon} {s.label}
+                {s.icon} {opis.etykieta}
             </span>
         );
     };
@@ -92,7 +93,7 @@ export default function PatientCommunicationTab() {
 
     const filteredLog = deliveryLog.filter(item => {
         if (deliveryFilter === 'all') return true;
-        return (item.delivery_channel || 'sms') === deliveryFilter;
+        return opisDostarczenia(item).kanal === deliveryFilter;
     });
 
     return (
@@ -163,7 +164,7 @@ export default function PatientCommunicationTab() {
                             {deliveryLoading ? '⏳ Ładowanie...' : '🔄 Odśwież'}
                         </button>
                         <div style={{ display: 'flex', gap: '0.3rem' }}>
-                            {(['all', 'push', 'sms', 'push+sms', 'none'] as const).map(f => (
+                            {(['all', 'push', 'sms', 'push+sms', 'brak'] as const).map(f => (
                                 <button key={f} onClick={() => setDeliveryFilter(f)}
                                     style={{
                                         padding: '0.35rem 0.8rem', fontSize: '0.75rem',
@@ -173,7 +174,7 @@ export default function PatientCommunicationTab() {
                                         color: deliveryFilter === f ? '#a78bfa' : 'rgba(255,255,255,0.4)',
                                         cursor: 'pointer',
                                     }}>
-                                    {f === 'all' ? 'Wszystkie' : f === 'none' ? 'Niedostarczone' : f.toUpperCase()}
+                                    {f === 'all' ? 'Wszystkie' : f === 'brak' ? 'Niedostarczone' : f.toUpperCase()}
                                 </button>
                             ))}
                         </div>
@@ -187,11 +188,13 @@ export default function PatientCommunicationTab() {
                         display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap'
                     }}>
                         {[
-                            { label: 'Push', count: deliveryLog.filter(d => d.delivery_channel === 'push').length, color: '#a78bfa' },
-                            { label: 'SMS', count: deliveryLog.filter(d => !d.delivery_channel || d.delivery_channel === 'sms').length, color: '#38bdf8' },
-                            { label: 'Push+SMS', count: deliveryLog.filter(d => d.delivery_channel === 'push+sms').length, color: '#f59e0b' },
-                            { label: 'Z kontem', count: deliveryLog.filter(d => d.patient_has_account).length, color: '#22c55e' },
-                            { label: 'Z push', count: deliveryLog.filter(d => d.patient_has_push).length, color: '#a78bfa' },
+                            { label: 'Push', count: podsumujDostarczenia(deliveryLog).push, color: '#a78bfa' },
+                            { label: 'SMS', count: podsumujDostarczenia(deliveryLog).sms, color: '#38bdf8' },
+                            { label: 'Push, potem SMS', count: podsumujDostarczenia(deliveryLog).pushSms, color: '#f59e0b' },
+                            { label: 'Nie doszło', count: podsumujDostarczenia(deliveryLog).brak, color: '#ef4444' },
+                            ...(Object.entries(podsumujDostarczenia(deliveryLog).powody) as Array<[KodPowodu, number]>).map(([kod, n]) => ({
+                                label: OPIS_POWODU[kod], count: n, color: 'rgba(255,255,255,0.6)',
+                            })),
                         ].map(stat => (
                             <div key={stat.label} style={{
                                 padding: '0.6rem 1rem', background: 'rgba(255,255,255,0.03)',
@@ -226,7 +229,7 @@ export default function PatientCommunicationTab() {
                             }}>
                                 {/* Channel badge */}
                                 <div style={{ minWidth: '95px' }}>
-                                    {channelBadge(item.delivery_channel, item.push_sent, item.push_error)}
+                                    {channelBadge(item)}
                                 </div>
 
                                 {/* Status */}
@@ -253,16 +256,14 @@ export default function PatientCommunicationTab() {
                                     )}
                                 </div>
 
-                                {/* Push info tooltip */}
-                                {item.push_error && (
+                                {/* Dlaczego nie push — pełny tekst, bez ucinania (2026-09-14) */}
+                                {opisDostarczenia(item).powod && (
                                     <div style={{
-                                        fontSize: '0.65rem', color: '#f59e0b',
-                                        padding: '0.1rem 0.4rem', borderRadius: '0.3rem',
-                                        background: 'rgba(245,158,11,0.1)',
-                                        maxWidth: '200px', overflow: 'hidden',
-                                        textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                                    }} title={item.push_error}>
-                                        ⚠ {item.push_error}
+                                        flexBasis: '100%', fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)',
+                                        padding: '0.2rem 0.5rem', borderRadius: '0.3rem',
+                                        background: 'rgba(245,158,11,0.06)',
+                                    }}>
+                                        {opisDostarczenia(item).kanal === 'push+sms' ? '🔄 ' : opisDostarczenia(item).kanal === 'push' ? '⚠️ ' : '📵 Dlaczego nie push: '}{opisDostarczenia(item).powod}
                                     </div>
                                 )}
                             </div>

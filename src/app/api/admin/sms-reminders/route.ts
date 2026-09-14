@@ -130,7 +130,10 @@ export async function GET(req: Request) {
             draft: allReminders?.filter(r => r.status === 'draft').length || 0,
             sent: allReminders?.filter(r => r.status === 'sent').length || 0,
             failed: allReminders?.filter(r => r.status === 'failed').length || 0,
-            cancelled: allReminders?.filter(r => r.status === 'cancelled').length || 0
+            cancelled: allReminders?.filter(r => r.status === 'cancelled').length || 0,
+            // Dostarczone pushem, bez SMS-a. Od migracji 204 (2026-09-14) — wcześniej baza
+            // odrzucała ten status i takie przypomnienia znikały z listy.
+            push_sent: allReminders?.filter(r => r.status === 'push_sent').length || 0,
         };
 
         return NextResponse.json({
