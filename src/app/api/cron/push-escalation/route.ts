@@ -3,10 +3,19 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { sendSMS } from '@/lib/smsService';
 import { hasPatientResponded } from '@/lib/patientDelivery';
+import { odswiezWizyte, rozjazdWizyty } from '@/lib/prodentisAppointment';
 import { logCronHeartbeat } from '@/lib/cronHeartbeat';
 import { PREFIKS_ESKALACJI, PREFIKS_ESKALACJA_NIEUDANA, PREFIKS_ESKALACJA_POMINIETA } from '@/lib/opisDostarczenia';
 
 export const maxDuration = 60;
+
+/**
+ * 🔴 (2026-09-14) Budżet czasu przebiegu. Każdy wiersz czeka dziś na Prodentis (do 10 s),
+ * a wierszy może być 50 — bez budżetu Vercel ubija funkcję po 60 s. Najgorszy przypadek:
+ * ubicie PO wysłaniu SMS-a, a PRZED zapisem wiersza → następny przebieg wysłałby ten sam SMS
+ * drugi raz. Po przekroczeniu budżetu reszta wierszy czeka na następny przebieg (co godzinę).
+ */
+const BUDZET_CZASU_MS = 40_000;
 
 /**
  * Push Escalation Cron — Send SMS if patient didn't respond to push
@@ -47,6 +56,8 @@ export async function GET(req: Request) {
     let respondedCount = 0;
     let failedCount = 0;
     let skippedCount = 0;
+    let bezSprawdzeniaPmsCount = 0;
+    let odlozoneCount = 0;
 
     try {
         // Find push-sent reminders that are >2 hours old and need escalation
@@ -83,7 +94,12 @@ export async function GET(req: Request) {
         // zapisany jako UTC, więc jego pierwsze 10 znaków to już dzień gabinetu.
         const dzisWarszawa = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Warsaw' }).format(new Date());
 
-        for (const reminder of pushReminders) {
+        for (const [indeks, reminder] of pushReminders.entries()) {
+            if (Date.now() - startTime > BUDZET_CZASU_MS) {
+                odlozoneCount = pushReminders.length - indeks;
+                console.warn(`⏱️ [Push Escalation] Budżet czasu wyczerpany — ${odlozoneCount} wierszy zostaje na następny przebieg`);
+                break;
+            }
             try {
                 // Check if patient responded to the appointment
                 // 🔴 (2026-09-14) Eskalacja WYŁĄCZNIE przed dniem wizyty. Cron chodzi 11:00–20:00,
@@ -120,6 +136,41 @@ export async function GET(req: Request) {
                     continue;
                 }
 
+                // 🔴 (2026-09-14) Przed SMS-em: czy wizyta NADAL stoi w Prodentisie o tej porze?
+                // Push wyszedł rano, a do eskalacji mijają co najmniej 2 h — recepcja mogła w tym
+                // czasie odwołać albo przenieść wizytę (np. pacjent zadzwonił). Bez tej bramki SMS
+                // „potwierdź wizytę jutro o …” szedłby do wizyty, której już nie ma.
+                // 🪤 `unavailable` (awaria, timeout, odmowa klucza) to „nie wiemy”, NIE „nie ma wizyty”.
+                // Zgodnie z regułą `lib/prodentisAppointment` działamy wtedy jak dotąd, czyli wysyłamy
+                // SMS — z adnotacją. Wstrzymywanie kończyło się tym, że przy całodziennej awarii PMS
+                // pacjent nie dostawał przypomnienia wcale.
+                const stan = await odswiezWizyte(String(reminder.prodentis_id || ''));
+                const pmsNiedostepny = !stan.ok && stan.powod === 'unavailable';
+                if (pmsNiedostepny) {
+                    console.warn(`  ⚠️ ${reminder.patient_name}: Prodentis niedostępny — SMS bez sprawdzenia grafiku`);
+                    bezSprawdzeniaPmsCount++;
+                }
+                const zapamietanaData = String(reminder.appointment_date || '');
+                const zmiany = stan.ok
+                    ? rozjazdWizyty(stan.wizyta, { date: zapamietanaData.slice(0, 10), time: zapamietanaData.slice(11, 16) })
+                    : [];
+                if ((!stan.ok && !pmsNiedostepny) || zmiany.length > 0) {
+                    const opis = stan.ok
+                        ? `wizyta zmieniona w Prodentisie (${zmiany.join('; ')})`
+                        : stan.powod === 'cancelled'
+                            ? 'wizyta odwołana w Prodentisie'
+                            : 'wizyty nie ma już pod tym identyfikatorem w Prodentisie (przeniesiona albo usunięta)';
+                    console.log(`  ⏭ ${reminder.patient_name}: ${opis} — bez SMS-a`);
+                    await supabase.from('sms_reminders').update({
+                        status: 'sent',
+                        delivery_channel: 'push',
+                        send_error: `${PREFIKS_ESKALACJA_POMINIETA} ${opis}`,
+                        updated_at: new Date().toISOString(),
+                    }).eq('id', reminder.id);
+                    skippedCount++;
+                    continue;
+                }
+
                 // Patient didn't respond — escalate to SMS
                 console.log(`  📱 ${reminder.patient_name}: no response — escalating to SMS`);
 
@@ -134,7 +185,7 @@ export async function GET(req: Request) {
                         delivery_channel: 'push+sms',
                         sent_at: new Date().toISOString(),
                         sms_message_id: smsResult.messageId,
-                        send_error: `${PREFIKS_ESKALACJI} pacjent nie odpowiedział na push w ciągu 2h`,
+                        send_error: `${PREFIKS_ESKALACJI} pacjent nie odpowiedział na push w ciągu 2h${pmsNiedostepny ? ' (Prodentis niedostępny — grafiku nie sprawdzono)' : ''}`,
                         updated_at: new Date().toISOString(),
                     }).eq('id', reminder.id);
                     escalatedCount++;
@@ -162,7 +213,7 @@ export async function GET(req: Request) {
         await logCronHeartbeat(
             'push-escalation',
             'ok',
-            `Escalated: ${escalatedCount}, Responded: ${respondedCount}, Failed: ${failedCount}, Skipped (dzień wizyty): ${skippedCount}`,
+            `Escalated: ${escalatedCount}, Responded: ${respondedCount}, Failed: ${failedCount}, Pominięte: ${skippedCount}, Bez sprawdzenia PMS: ${bezSprawdzeniaPmsCount}, Odłożone (budżet czasu): ${odlozoneCount}`,
             Date.now() - startTime
         );
 
@@ -172,6 +223,8 @@ export async function GET(req: Request) {
             responded: respondedCount,
             failed: failedCount,
             skipped: skippedCount,
+            bezSprawdzeniaPms: bezSprawdzeniaPmsCount,
+            odlozone: odlozoneCount,
             duration: `${duration}s`,
         });
 
