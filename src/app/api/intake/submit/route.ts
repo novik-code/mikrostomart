@@ -4,6 +4,7 @@ import { generateEKartaPdf } from '@/app/api/intake/generate-pdf/route';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { prepareIntakeSubmissionInsert } from '@/lib/encryptedPiiFields';
 import { storagePathsReady } from '@/lib/privateStorage';
+import { ocenPodpisSerwerowo } from '@/lib/podpisPacjentaSerwer';
 
 /**
  * POST /api/intake/submit
@@ -46,6 +47,21 @@ export async function POST(req: Request) {
 
     if (new Date(tokenRow.expires_at) < new Date()) {
         return NextResponse.json({ error: 'Token expired' }, { status: 410 });
+    }
+
+    // 🔴 Podpis obowiązkowy (decyzja właściciela 17.09.2026). Zmierzone: 51 z 399 e-Kart trafiło
+    // do dokumentacji BEZ podpisu. Strona od tego dnia nie wyśle karty bez podpisu obejrzanego
+    // na podglądzie; ta bramka łapie starą, zbuforowaną wersję strony na tablecie. Stoi PO
+    // weryfikacji tokenu (zużyty link dostaje swój komunikat) i PRZED jakimkolwiek zapisem —
+    // token nie jest zużywany, więc pacjent podpisuje się i wysyła ponownie tym samym linkiem.
+    // 🪤 Sam format nie wystarcza: stara strona wysyłała PUSTY obraz płótna (13 takich e-Kart).
+    const ocenaPodpisu = await ocenPodpisSerwerowo(formData.signatureData);
+    if (ocenaPodpisu === 'brak' || ocenaPodpisu === 'pusty') {
+        console.warn(`[IntakeSubmit] Odrzucona e-Karta bez podpisu (${ocenaPodpisu}), token ${tokenRow.id} nieużyty`);
+        return NextResponse.json(
+            { error: 'Brak podpisu. Złóż podpis w polu na dole formularza i wyślij ponownie.' },
+            { status: 400 },
+        );
     }
 
     // 2. Build medical notes text for Prodentis — with clear formatting

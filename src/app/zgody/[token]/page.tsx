@@ -6,6 +6,8 @@ import { PDFDocument, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { CONSENT_TYPES as HARDCODED_CONSENT_TYPES, ConsentType, CheckboxFieldPosition } from '@/lib/consentTypes';
 import { demoSanitize } from '@/lib/brandConfig';
+import { maTusz, trzebaPrzeskalowac, type PotwierdzonyPodpis } from '@/lib/podpisPacjenta';
+import { usePodgladPodpisu } from '@/lib/usePodgladPodpisu';
 
 /** Cache for the Inter font bytes so we only fetch it once */
 let cachedFontBytes: ArrayBuffer | null = null;
@@ -78,7 +80,6 @@ export default function ConsentSigningPage() {
     const [patientDetails, setPatientDetails] = useState<PatientDetails | null>(null);
     const [consents, setConsents] = useState<ConsentItem[]>([]);
     const [currentConsent, setCurrentConsent] = useState<ConsentItem | null>(null);
-    const [signing, setSigning] = useState(false);
     const [prefilledPdfBytes, setPrefilledPdfBytes] = useState<Uint8Array | null>(null);
     const [prefillOk, setPrefillOk] = useState(true);
     const [prefillError, setPrefillError] = useState<string | null>(null);
@@ -116,6 +117,11 @@ export default function ConsentSigningPage() {
     const strokeStartTimeRef = useRef<number>(0);
     const sigStartTimeRef = useRef<number>(0);
     const detectedPointerTypeRef = useRef<string>('unknown');
+    const szerokoscPlotnaRef = useRef<number | null>(null);
+
+    // Podgląd i potwierdzenie podpisu przed wysyłką — reguły w `lib/podpisPacjenta.ts`.
+    const podpis = usePodgladPodpisu<BiometricSignatureData>();
+    const signing = podpis.stan.etap === 'wysylanie';
 
     // Load consent types from DB on mount
     useEffect(() => {
@@ -182,13 +188,38 @@ export default function ConsentSigningPage() {
             .catch(() => { });
     }, [token]);
 
+    /**
+     * Zapis podpisu od zera: trajektoria, bieżąca kreska, zegar i „czy jest podpis".
+     *
+     * 🔴 Do 17.09.2026 trajektoria NIE była zerowana między zgodami ani przy powrocie do podpisu —
+     * czyściło ją wyłącznie „Wyczyść". Zmierzone na produkcji: w 553 z 603 par kolejnych zgód
+     * jednej sesji biometria drugiej zaczynała się od punktu pierwszej (średnio 6,8 → 14,3 kreski),
+     * więc plik biometrii każdej kolejnej zgody w Prodentisie niósł też wcześniejsze podpisy.
+     * Obraz był poprawny, bo płótno czyściło się przy skalowaniu. Reguła: KAŻDE wyczyszczenie
+     * płótna i KAŻDY nowy podpis wołają tę funkcję.
+     */
+    const wyczyscZapisPodpisu = useCallback(() => {
+        biometricStrokesRef.current = [];
+        currentStrokeRef.current = [];
+        sigStartTimeRef.current = 0;
+        lastPointRef.current = null;
+        setIsDrawing(false);
+        setHasDrawn(false);
+    }, []);
+
     // Canvas resize
+    // 🪤 Ustawienie `canvas.width` kasuje rysunek. Skalujemy wyłącznie przy zmianie SZEROKOŚCI
+    // (obrót tabletu) — `resize` od paska adresu iOS nie może kasować podpisu w połowie — i zawsze
+    // razem z rysunkiem zerujemy zapis, żeby biometria nie niosła kresek, których nie widać.
     const resizeCanvas = useCallback(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
         const container = canvas.parentElement;
         if (!container) return;
         const w = container.clientWidth;
+        if (!trzebaPrzeskalowac(szerokoscPlotnaRef.current, w)) return;
+        szerokoscPlotnaRef.current = w;
+        wyczyscZapisPodpisu();
         const h = 180;
         canvas.width = w * 2;
         canvas.height = h * 2;
@@ -202,15 +233,20 @@ export default function ConsentSigningPage() {
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
         }
-    }, []);
+    }, [wyczyscZapisPodpisu]);
 
+    // Płótno istnieje tylko przy rysowaniu — po „Podpisz ponownie" montuje się od nowa.
+    const rysowaniePodpisu = phase === 'signing' && podpis.stan.etap === 'rysowanie';
     useEffect(() => {
-        if (phase === 'signing') {
-            setTimeout(resizeCanvas, 100);
-            window.addEventListener('resize', resizeCanvas);
-            return () => window.removeEventListener('resize', resizeCanvas);
-        }
-    }, [phase, resizeCanvas]);
+        if (!rysowaniePodpisu) return;
+        szerokoscPlotnaRef.current = null;
+        const t = setTimeout(resizeCanvas, 100);
+        window.addEventListener('resize', resizeCanvas);
+        return () => {
+            clearTimeout(t);
+            window.removeEventListener('resize', resizeCanvas);
+        };
+    }, [rysowaniePodpisu, resizeCanvas]);
 
     // ── Drawing handlers (Pointer Events — biometric capture) ──
     const getPos = (e: React.PointerEvent) => {
@@ -229,7 +265,6 @@ export default function ConsentSigningPage() {
         (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
 
         setIsDrawing(true);
-        setHasDrawn(true);
         const pos = getPos(e);
         lastPointRef.current = pos;
 
@@ -290,6 +325,8 @@ export default function ConsentSigningPage() {
                 endTime: Math.round(performance.now() - sigStartTimeRef.current),
             });
             currentStrokeRef.current = [];
+            // „Jest podpis" dopiero po kresce z RUCHEM — samo dotknięcie płótna nie odblokowuje „Dalej".
+            setHasDrawn(maTusz(biometricStrokesRef.current.map((s) => s.points)));
         }
         setIsDrawing(false);
         lastPointRef.current = null;
@@ -301,11 +338,7 @@ export default function ConsentSigningPage() {
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        setHasDrawn(false);
-        // Reset biometric data
-        biometricStrokesRef.current = [];
-        currentStrokeRef.current = [];
-        sigStartTimeRef.current = 0;
+        wyczyscZapisPodpisu();
     };
 
     /** Build the final biometric signature JSON */
@@ -653,20 +686,38 @@ export default function ConsentSigningPage() {
         }
     };
 
-    // Go to signing phase
+    // Go to signing phase — każdy podpis zaczyna się od pustego zapisu (patrz `wyczyscZapisPodpisu`).
     const goToSigning = () => {
+        wyczyscZapisPodpisu();
+        podpis.resetuj();
         setPhase('signing');
-        setHasDrawn(false);
     };
 
-    // Submit signed consent
-    const submitSignature = async () => {
-        if (!canvasRef.current || !currentConsent) return;
+    // „Dalej" pod podpisem — NIE wysyła. Robi migawkę obrazu i biometrii i pokazuje ją pacjentowi.
+    const pokazPodgladPodpisu = () => {
+        const canvas = canvasRef.current;
+        if (!canvas || !currentConsent) return;
+        const tusz = maTusz(biometricStrokesRef.current.map((s) => s.points));
+        if (!podpis.pokaz(canvas.toDataURL('image/png'), buildBiometricData(), tusz)) return;
+        window.scrollTo(0, 0);
+    };
 
-        setSigning(true);
+    const podpiszPonownie = (e?: React.MouseEvent) => {
+        if (podpis.ponownie(e)) wyczyscZapisPodpisu();
+    };
+
+    const zatwierdzPodpis = (e?: React.MouseEvent) => {
+        const zatwierdzony = podpis.potwierdz(e);
+        if (zatwierdzony) void submitSignature(zatwierdzony);
+    };
+
+    // Submit signed consent — przyjmuje WYŁĄCZNIE podpis zatwierdzony na podglądzie.
+    const submitSignature = async (zatwierdzony: PotwierdzonyPodpis<BiometricSignatureData>) => {
+        if (!currentConsent) { podpis.nieudana(); return; }
+
         try {
-            // Get signature as PNG data URL
-            const signatureDataUrl = canvasRef.current.toDataURL('image/png');
+            // Obraz i biometria z TEJ SAMEJ migawki, którą pacjent obejrzał (płótna już nie ma w drzewie).
+            const signatureDataUrl = zatwierdzony.obraz;
 
             // ── STEP 1: Load original PDF and re-apply prefill + signatures ──
             // Always load from the original file to avoid "No PDF header" parse errors
@@ -851,8 +902,8 @@ export default function ConsentSigningPage() {
             }
             const signedPdfBase64 = btoa(binary);
 
-            // Build biometric data before sending
-            const biometricData = buildBiometricData();
+            // Biometria z migawki podglądu; `signedAt` = chwila ZATWIERDZENIA podpisu przez pacjenta.
+            const biometricData: BiometricSignatureData = { ...zatwierdzony.dane, signedAt: new Date().toISOString() };
 
             const res = await fetch('/api/consents/sign', {
                 method: 'POST',
@@ -867,9 +918,9 @@ export default function ConsentSigningPage() {
             });
 
             if (!res.ok) {
-                const data = await res.json();
-                alert(`Błąd: ${data.error}`);
-                setSigning(false);
+                const data = await res.json().catch(() => ({}));
+                alert(`Błąd: ${data.error || 'nie udało się zapisać podpisu'}`);
+                podpis.nieudana(); // wracamy do TEGO SAMEGO podglądu — bez ponownego podpisywania
                 return;
             }
 
@@ -879,13 +930,16 @@ export default function ConsentSigningPage() {
             setConsents(prev =>
                 prev.map(c => c.type === currentConsent.type ? { ...c, signed: true } : c)
             );
+            // Następna zgoda zaczyna się od pustego zapisu — trajektoria tej nie może do niej przejść.
+            wyczyscZapisPodpisu();
+            podpis.resetuj();
             setCurrentConsent(null);
             setPhase('list');
         } catch (err: any) {
             console.error('Sign error:', err);
             alert('Błąd podczas zapisywania podpisu: ' + (err?.message || 'Nieznany błąd'));
+            podpis.nieudana();
         }
-        setSigning(false);
     };
 
     const allSigned = consents.length > 0 && consents.every(c => c.signed);
@@ -1263,10 +1317,59 @@ export default function ConsentSigningPage() {
         );
     }
 
+    if (phase === 'signing' && currentConsent && podpis.stan.etap !== 'rysowanie') {
+        return (
+            <div style={styles.container}>
+                {/* 🪤 UKŁAD LUSTRZANY do ekranu podpisu (karta jest wyśrodkowana w pionie): w miejscu „Dalej"
+                    stoi „Podpisz ponownie", a zatwierdzenie tam, gdzie był rząd Wyczyść/Wróć. Ponowny dotyk
+                    w miejscu „Dalej" nie zatwierdza podpisu (wyłapane przeglądem 17.09). */}
+                <div style={{ ...styles.card, maxWidth: '600px', width: '90vw' }} onPointerDownCapture={podpis.dotyk}>
+                    <h2 style={{ ...styles.title, fontSize: '1.1rem' }}>Sprawdź podpis: {currentConsent.label}</h2>
+                    <p style={styles.subtitle}>Czy podpis jest kompletny? Tak trafi do dokumentu.</p>
+
+                    <div
+                        style={{
+                            border: '2px solid rgba(56, 189, 248, 0.4)',
+                            borderRadius: '0.75rem',
+                            background: '#fff',
+                            marginBottom: '1rem',
+                            marginTop: '0.75rem',
+                            overflow: 'hidden',
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            WebkitTouchCallout: 'none',
+                        }}
+                        onContextMenu={(e) => e.preventDefault()}
+                    >
+                        {/* eslint-disable-next-line @next/next/no-img-element -- data URL z płótna; next/image nie obsługuje go i nie ma czego optymalizować */}
+                        <img src={podpis.stan.obraz} alt="Twój podpis" data-testid="podglad-podpisu" draggable={false} style={{ display: 'block', width: '100%', height: 'auto', pointerEvents: 'none' }} />
+                    </div>
+
+                    <button
+                        onClick={zatwierdzPodpis}
+                        aria-disabled={!podpis.aktywne}
+                        style={{ ...styles.primaryBtn, opacity: podpis.aktywne ? 1 : 0.5 }}
+                    >
+                        {signing ? '⏳ Zapisuję...' : '✅ Podpis prawidłowy'}
+                    </button>
+
+                    <button
+                        onClick={podpiszPonownie}
+                        aria-disabled={!podpis.aktywne}
+                        style={{ ...styles.secondaryBtn, width: '100%', marginTop: '0.75rem', padding: '0.875rem', fontSize: '0.9rem', opacity: podpis.aktywne ? 1 : 0.5 }}
+                    >
+                        ✏️ Podpisz ponownie
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     if (phase === 'signing' && currentConsent) {
         return (
             <div style={styles.container}>
-                <div style={{ ...styles.card, maxWidth: '600px', width: '90vw' }}>
+                {/* Po „Podpisz ponownie" przez chwilę bez dotyku — drugi dotyk trafiłby w „Dalej"/„Wróć". */}
+                <div data-testid="widok-rysowania-podpisu" style={{ ...styles.card, maxWidth: '600px', width: '90vw', pointerEvents: podpis.rysowanieAktywne ? 'auto' : 'none' }}>
                     <h2 style={{ ...styles.title, fontSize: '1.1rem' }}>Podpisz: {currentConsent.label}</h2>
                     <p style={styles.subtitle}>Złóż podpis palcem lub rysikiem poniżej</p>
 
@@ -1315,15 +1418,15 @@ export default function ConsentSigningPage() {
                     </div>
 
                     <button
-                        onClick={submitSignature}
-                        disabled={!hasDrawn || signing}
+                        onClick={pokazPodgladPodpisu}
+                        disabled={!hasDrawn}
                         style={{
                             ...styles.primaryBtn,
                             marginTop: '0.75rem',
-                            opacity: (!hasDrawn || signing) ? 0.5 : 1,
+                            opacity: !hasDrawn ? 0.5 : 1,
                         }}
                     >
-                        {signing ? '⏳ Zapisuję...' : '✅ Podpisz i zatwierdź'}
+                        Dalej — sprawdź podpis →
                     </button>
                 </div>
             </div>

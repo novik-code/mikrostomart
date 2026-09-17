@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { demoSanitize } from '@/lib/brandConfig';
+import { maTusz, trzebaPrzeskalowac, type PotwierdzonyPodpis, type PunktRysunku } from '@/lib/podpisPacjenta';
+import { usePodgladPodpisu } from '@/lib/usePodgladPodpisu';
 
 // ─── Types ────────────────────────────────────────────────
 interface TokenData {
@@ -237,7 +239,6 @@ export default function EKartaPage() {
     const [loading, setLoading] = useState(true);
     const [step, setStep] = useState(1);
     const [form, setForm] = useState<FormData>(defaultForm);
-    const [submitting, setSubmitting] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [peselError, setPeselError] = useState<string | null>(null);
@@ -245,6 +246,12 @@ export default function EKartaPage() {
     const sigCanvas = useRef<HTMLCanvasElement>(null);
     const sigContainer = useRef<HTMLDivElement>(null);
     const [drawing, setDrawing] = useState(false);
+    // Kreski tylko do rozstrzygnięcia „czy jest podpis" — e-Karta nie wysyła trajektorii.
+    const kreskiRef = useRef<PunktRysunku[][]>([]);
+    const szerokoscPlotnaRef = useRef<number | null>(null);
+    const [maPodpis, setMaPodpis] = useState(false);
+    const podpis = usePodgladPodpisu();
+    const wysylanie = podpis.stan.etap === 'wysylanie';
 
     // PESEL handler — validates and auto-fills birthDate + gender
     const handlePeselChange = (raw: string) => {
@@ -282,11 +289,17 @@ export default function EKartaPage() {
     }, [token]);
 
     // ─── Signature canvas — resize to container width ───
+    // 🪤 Ustawienie `canvas.width` KASUJE rysunek. Do 17.09 działo się to przy każdym `resize`
+    // (także od paska adresu iOS) i przy powrocie z kroku 2, a stary podpis zostawał w formularzu
+    // niewidoczny i szedł do dokumentacji. Dziś: skalujemy tylko przy zmianie SZEROKOŚCI i zawsze
+    // czyścimy razem z rysunkiem to, co wiemy o podpisie — co widać, to zostanie wysłane.
     const initCanvas = useCallback(() => {
         const canvas = sigCanvas.current;
         const container = sigContainer.current;
         if (!canvas || !container) return;
         const rect = container.getBoundingClientRect();
+        if (!trzebaPrzeskalowac(szerokoscPlotnaRef.current, rect.width)) return;
+        szerokoscPlotnaRef.current = rect.width;
         const dpr = window.devicePixelRatio || 1;
         canvas.width = rect.width * dpr;
         canvas.height = 160 * dpr;
@@ -294,15 +307,32 @@ export default function EKartaPage() {
         canvas.style.height = '160px';
         const ctx = canvas.getContext('2d')!;
         ctx.scale(dpr, dpr);
+        kreskiRef.current = [];
+        setMaPodpis(false);
     }, []);
 
+    // Po „Podpisz ponownie" pole podpisu na środek ekranu — podgląd był przewinięty do góry.
+    // Raz na każdy powrót — nie przy późniejszym wejściu do kroku 3 z kroku 2 (przegląd 17.09, runda 2).
+    const powrotZPodgladuOd = podpis.stan.etap === 'rysowanie' ? podpis.stan.od : undefined;
+    const przewinietoDlaRef = useRef<number | undefined>(undefined);
     useEffect(() => {
-        if (step === 3) {
-            setTimeout(initCanvas, 50);
-            window.addEventListener('resize', initCanvas);
-            return () => window.removeEventListener('resize', initCanvas);
-        }
-    }, [step, initCanvas]);
+        if (step !== 3 || powrotZPodgladuOd === undefined || przewinietoDlaRef.current === powrotZPodgladuOd) return;
+        przewinietoDlaRef.current = powrotZPodgladuOd;
+        sigContainer.current?.scrollIntoView({ block: 'center' });
+    }, [step, powrotZPodgladuOd]);
+
+    // Płótno istnieje tylko w kroku 3 przy rysowaniu — po „Podpisz ponownie" montuje się od nowa.
+    const rysowanie = step === 3 && podpis.stan.etap === 'rysowanie';
+    useEffect(() => {
+        if (!rysowanie) return;
+        szerokoscPlotnaRef.current = null;
+        const t = setTimeout(initCanvas, 50);
+        window.addEventListener('resize', initCanvas);
+        return () => {
+            clearTimeout(t);
+            window.removeEventListener('resize', initCanvas);
+        };
+    }, [rysowanie, initCanvas]);
 
     const getPos = (e: React.TouchEvent | React.MouseEvent) => {
         const c = sigCanvas.current!;
@@ -318,6 +348,7 @@ export default function EKartaPage() {
         const ctx = sigCanvas.current!.getContext('2d')!;
         const pos = getPos(e);
         ctx.beginPath(); ctx.moveTo(pos.x, pos.y);
+        kreskiRef.current.push([pos]);
     };
     const draw = (e: React.TouchEvent | React.MouseEvent) => {
         if (!drawing) return;
@@ -326,35 +357,73 @@ export default function EKartaPage() {
         const pos = getPos(e);
         ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.strokeStyle = '#38bdf8';
         ctx.lineTo(pos.x, pos.y); ctx.stroke();
+        kreskiRef.current[kreskiRef.current.length - 1]?.push(pos);
     };
+    // 🪤 Obrazu NIE zapisujemy już przy każdym oderwaniu palca: do 17.09 samo `mouseleave`
+    // bez rysowania zapisywało pusty obraz jako „podpis" (13 takich e-Kart na produkcji).
+    // Obraz powstaje raz, w chwili „Dalej", i dokładnie ten pacjent ogląda na podglądzie.
     const endDraw = () => {
+        if (!drawing) return;
         setDrawing(false);
-        const c = sigCanvas.current;
-        if (c) setForm(f => ({ ...f, signatureData: c.toDataURL() }));
+        setMaPodpis(maTusz(kreskiRef.current));
     };
     const clearSig = () => {
         const c = sigCanvas.current;
         if (c) { const ctx = c.getContext('2d')!; ctx.clearRect(0, 0, c.width, c.height); }
-        setForm(f => ({ ...f, signatureData: '' }));
+        kreskiRef.current = [];
+        setMaPodpis(false);
+    };
+
+    // „Dalej" pod podpisem — NIE wysyła. Pokazuje pacjentowi jego podpis do zatwierdzenia.
+    const pokazPodgladPodpisu = () => {
+        if (!form.rodoConsent) { setError('Zgoda na przetwarzanie danych jest wymagana.'); return; }
+        const c = sigCanvas.current;
+        const tusz = maTusz(kreskiRef.current);
+        if (!c || !tusz) { setError('Złóż podpis w polu powyżej — bez podpisu karta nie zostanie przyjęta.'); return; }
+        if (!podpis.pokaz(c.toDataURL('image/png'), undefined, tusz)) {
+            setError('Nie udało się odczytać podpisu. Wyczyść pole i podpisz się ponownie.');
+            return;
+        }
+        setError(null);
+        window.scrollTo(0, 0);
+    };
+
+    const podpiszPonownie = (e?: React.MouseEvent) => {
+        if (!podpis.ponownie(e)) return;
+        kreskiRef.current = [];
+        setMaPodpis(false);
+        setError(null);
     };
 
     const sv = form.medicalSurvey;
     const setSv = (key: keyof MedicalSurvey, value: any) =>
         setForm(f => ({ ...f, medicalSurvey: { ...f.medicalSurvey, [key]: value } }));
 
-    const handleSubmit = async () => {
-        if (!form.rodoConsent) { setError('Zgoda na przetwarzanie danych jest wymagana.'); return; }
-        setSubmitting(true); setError(null);
+    // Wysyłka przyjmuje WYŁĄCZNIE podpis zatwierdzony na podglądzie (typ nie do podrobienia).
+    const wyslijKarte = async (zatwierdzony: PotwierdzonyPodpis) => {
+        setError(null);
         try {
             const res = await fetch('/api/intake/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token, formData: form }),
+                body: JSON.stringify({ token, formData: { ...form, signatureData: zatwierdzony.obraz } }),
             });
-            if (!res.ok) { const d = await res.json(); setError(d.error || 'Błąd wysyłki.'); }
-            else { setSubmitted(true); }
-        } catch { setError('Błąd połączenia.'); }
-        finally { setSubmitting(false); }
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                setError(d.error || 'Błąd wysyłki.');
+                podpis.nieudana();
+            } else {
+                setSubmitted(true);
+            }
+        } catch {
+            setError('Błąd połączenia. Podpis został zachowany — spróbuj wysłać ponownie.');
+            podpis.nieudana();
+        }
+    };
+
+    const zatwierdzPodpis = (e?: React.MouseEvent) => {
+        const zatwierdzony = podpis.potwierdz(e);
+        if (zatwierdzony) void wyslijKarte(zatwierdzony);
     };
 
     // ── Loading
@@ -626,8 +695,48 @@ export default function EKartaPage() {
                     )}
 
                     {/* ═══ STEP 3 — ZGODY I PODPIS ═══ */}
-                    {step === 3 && (
+                    {step === 3 && podpis.stan.etap !== 'rysowanie' && (
                         <>
+                            <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.2rem', fontWeight: 600 }}>Sprawdź swój podpis</h2>
+                            <p style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)', lineHeight: 1.5, margin: '0 0 1rem' }}>
+                                Tak Twój podpis trafi do dokumentacji. Jeśli jest niepełny albo niewyraźny, podpisz się ponownie.
+                            </p>
+                            {/* 🪤 Obraz bez menu przytrzymania („Zachowaj w Zdjęciach", „Pobierz obraz") — tablet jest wspólny. */}
+                            <div
+                                style={{ border: '1px solid rgba(56,189,248,0.25)', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.3)', width: '100%', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+                                onContextMenu={(e) => e.preventDefault()}
+                            >
+                                {/* eslint-disable-next-line @next/next/no-img-element -- data URL z płótna; next/image nie obsługuje go i nie ma czego optymalizować */}
+                                <img src={podpis.stan.obraz} alt="Twój podpis" data-testid="podglad-podpisu" draggable={false} style={{ display: 'block', width: '100%', height: 'auto', borderRadius: '0.5rem', pointerEvents: 'none' }} />
+                            </div>
+
+                            {error && <p style={{ color: '#f87171', marginTop: '1rem', fontSize: '0.9rem', padding: '0.75rem', background: 'rgba(248,113,113,0.1)', borderRadius: '0.5rem', border: '1px solid rgba(248,113,113,0.3)' }}>{error}</p>}
+
+                            {/* Zatwierdzenie NAD „Podpisz ponownie": ponowny dotyk w okolicy dawnego „Dalej" (niżej na stronie)
+                                trafia w nieszkodliwe podpisanie się jeszcze raz. Bez `disabled` — patrz usePodgladPodpisu. */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.5rem' }} onPointerDownCapture={podpis.dotyk}>
+                                <button
+                                    style={{ ...S.primaryBtn, marginTop: 0, opacity: podpis.aktywne ? 1 : 0.5 }}
+                                    onClick={zatwierdzPodpis}
+                                    aria-disabled={!podpis.aktywne}
+                                >
+                                    {wysylanie ? 'Wysyłanie...' : '✅ Podpis prawidłowy — wyślij'}
+                                </button>
+                                <button
+                                    style={{ ...S.secondaryBtn, width: '100%', padding: '0.9rem', fontSize: '1rem', opacity: podpis.aktywne ? 1 : 0.5 }}
+                                    onClick={podpiszPonownie}
+                                    aria-disabled={!podpis.aktywne}
+                                >
+                                    ✏️ Podpisz ponownie
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    {step === 3 && podpis.stan.etap === 'rysowanie' && (
+                        // Po „Podpisz ponownie" przez chwilę widok nie przyjmuje dotyku — drugie tapnięcie
+                        // trafiłoby w wiersz zgody pod palcem (np. po cichu zaznaczona zgoda marketingowa).
+                        <div data-testid="widok-rysowania-podpisu" style={{ pointerEvents: podpis.rysowanieAktywne ? 'auto' : 'none' }}>
                             <h2 style={{ margin: '0 0 1.25rem', fontSize: '1.2rem', fontWeight: 600 }}>Zgody i podpis</h2>
 
                             <Check label="Oświadczam, że podane powyżej dane są zgodne z prawdą. Wszystkie zmiany w sytuacji zdrowotnej zobowiązuję się zgłosić w czasie najbliższej wizyty. *" checked={form.rodoConsent} onChange={() => setForm(f => ({ ...f, rodoConsent: !f.rodoConsent }))} />
@@ -657,11 +766,11 @@ export default function EKartaPage() {
 
                             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
                                 <button style={S.secondaryBtn} onClick={() => { setStep(2); window.scrollTo(0, 0); }}>← Wstecz</button>
-                                <button style={{ ...S.primaryBtn, marginTop: 0, flex: 1, opacity: submitting ? 0.7 : 1 }} onClick={handleSubmit} disabled={submitting}>
-                                    {submitting ? 'Wysyłanie...' : '✅ Wyślij dane'}
+                                <button style={{ ...S.primaryBtn, marginTop: 0, flex: 1, opacity: maPodpis ? 1 : 0.6 }} onClick={pokazPodgladPodpisu}>
+                                    Dalej — sprawdź podpis →
                                 </button>
                             </div>
-                        </>
+                        </div>
                     )}
                 </div>
             </div>
