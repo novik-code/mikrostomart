@@ -56,7 +56,7 @@ export interface SMSResponse {
 /**
  * Transliterate Polish diacritics and strip non-GSM-7 characters.
  * GSM-7 encoding allows 160 chars/SMS vs UCS-2's 70 chars/SMS.
- * This ensures every SMS is always counted as 1 part = 0.17 PLN.
+ * Keeps an SMS to 1 part = 0.17 PLN whenever that doesn't cut a link (see przytnijDoJednejCzesci).
  *
  * Polish: ą→a, ć→c, ę→e, ł→l, ń→n, ó→o, ś→s, ź→z, ż→z, etc.
  * Also removes emoji and other Unicode characters outside GSM-7.
@@ -91,12 +91,35 @@ export function toGSM7(text: string): string {
     // Collapse multiple spaces (from removed emoji)
     result = result.replace(/  +/g, ' ').trim();
 
-    // Truncate to 160 chars (single SMS limit in GSM-7)
-    if (result.length > 160) {
-        result = result.substring(0, 157) + '...';
-    }
+    return przytnijDoJednejCzesci(result);
+}
 
-    return result;
+const LIMIT_JEDNEJ_CZESCI = 160;
+
+/**
+ * Mieści SMS w jednej części (160 znaków GSM-7), ale NIGDY kosztem linku.
+ *
+ * 🔴 PO CO (zmierzone 2026-09-17). Dawniej każdy tekst powyżej 160 znaków był ucinany do 157
+ * i dostawał „...”. Link stoi na końcu przypomnienia, więc to link tracił końcówkę: od 01.06
+ * na 1574 wysłane przypomnienia 244 poszły z uciętym linkiem i pacjent nie mógł potwierdzić
+ * wizyty. Od 07.09 kod linku ma 10 znaków zamiast 6, więc takich wiadomości przybyło.
+ *
+ * Kolejność: (1) mieści się — bez zmian; (2) po zwinięciu nowych linii w spacje się mieści —
+ * zwijamy, zostaje jedna część; (3) cięcie nie narusza żadnego linku — tniemy jak dawniej;
+ * (4) cięcie weszłoby w link — wysyłamy całość, SMSAPI składa ją z dwóch części.
+ */
+function przytnijDoJednejCzesci(tekst: string): string {
+    if (tekst.length <= LIMIT_JEDNEJ_CZESCI) return tekst;
+
+    const zwiniety = tekst.replace(/\s+/g, ' ');
+    if (zwiniety.length <= LIMIT_JEDNEJ_CZESCI) return zwiniety;
+
+    const DLUGOSC_CIECIA = LIMIT_JEDNEJ_CZESCI - 3;
+    const cieciePrzecinaLink = [...tekst.matchAll(/https?:\/\/\S+/gi)]
+        .some((m) => (m.index ?? 0) + m[0].length > DLUGOSC_CIECIA);
+    if (cieciePrzecinaLink) return tekst;
+
+    return tekst.substring(0, DLUGOSC_CIECIA) + '...';
 }
 
 /**

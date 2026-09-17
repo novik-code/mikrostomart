@@ -321,7 +321,7 @@ export async function GET(req: Request) {
                     const typeKey = `bytype:${normalizedType}`;
                     template = cachedTemplates.get(typeKey)
                         || cachedTemplates.get('default')
-                        || `Gabinet ${brand.smsSenderName} przypomina o wizycie {date} o {time}. Prosimy o potwierdzenie:`;
+                        || `Gabinet ${brand.smsSenderName} przypomina o wizycie {date} o {time}. Potwierdz:`;
                 } else {
                     template = await getSMSTemplate(doctorName, appointmentType);
                 }

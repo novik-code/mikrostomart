@@ -1,6 +1,12 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-09-17 — 🧯 **CZARNA STRONA W SAFARI NA MACU → SERVICE WORKER NIE INSTALOWAŁ SIĘ U NIKOGO OD MAJA.**
+> **Last Updated:** 2026-09-17 (popołudnie) — ✂️ **SMS-Y Z UCIĘTYM LINKIEM POTWIERDZENIA + WORKER BEZ PAMIĘCI API.**
+>
+> **SMS.** `toGSM7` ucinał każdy tekst > 160 znaków do 157 + „...”, a link stoi na końcu. Od 01.06: 244 z 1574 przypomnień z uciętym linkiem (pacjent nie mógł potwierdzić); od 07.09 kod linku ma 10 znaków, więc przybyło. Szkic ma `\n\n` przed linkiem, niewidoczne w panelu. Teraz: mieści się → bez zmian; po zwinięciu nowych linii się mieści → zwijamy; cięcie nie narusza linku → tniemy; inaczej całość jako 2 części (SMSAPI test=1: 0,34 zł). Strażnik `smsLinkNigdyNieUciety.test.ts` (prawdziwy szkic Kożucha aż do treści dla SMSAPI, cofka 3 czerwone). 🔑 Decyzja właściciela: w szablonach wszędzie „Potwierdz:” zamiast „Prosimy o potwierdzenie:” (baza `sms_templates` + zapasowy tekst w cronie), żeby dwuczęściowych było mniej; 5 pacjentów z wizytą 18.09 dostało poprawiony SMS.
+>
+> **Worker (poprawka do porannego wdrożenia, z przeglądu 3 soczewki + sceptycy).** Po pierwszej udanej instalacji ruszyły reguły `defaultCache`: `apis` trzymała GET `/api/*` zalogowanych 24 h i po 10 s oddawała starą kopię; `staff-pages` łapała `/api/admin`; `?dpl=` od Vercela sprawiał, że precache nigdy nie trafiał; stary precache next-pwa zostawał. Teraz `lib/swOpcje.ts`: `/api/*` NetworkOnly przed `defaultCache`, staff-pages tylko strony, `ignoreURLParametersMatching` z `dpl`, `cleanupOutdatedCaches`, kasowanie `apis`/`start-url` przy aktywacji. Strażnik `swRegulyApiINigdyZPamieci.test.ts` wykonuje PRODUKCYJNY `defaultCache` (🪤 pod vitestem `defaultCache` to jedna reguła NetworkOnly — pierwsza wersja testu przechodziła na pusto, złapała to kontrola miernika).
+>
+> **Poprzednio (2026-09-17) — 🧯 **CZARNA STRONA W SAFARI NA MACU → SERVICE WORKER NIE INSTALOWAŁ SIĘ U NIKOGO OD MAJA.**
 >
 > **Zmierzone.** Precache miał 1220 wpisów, w tym 644 pliki z `/public` (284 MB). 131 plików `kb-*.avif` i `google…html` dają 404 (middleware ich nie wyjmuje), a jeden błąd wywraca całą instalację. Chrome kasuje rejestrację i zostawia ~40 MB, WebKit wisi w `installing`. Pobieranie rusza od nowa przy każdej wizycie. Przeglądarka ze starym workerem zostaje z nim na zawsze — główny podejrzany czarnej strony (świeży WebKit 26.4 i pośrednik na innym originie renderują poprawnie).
 >

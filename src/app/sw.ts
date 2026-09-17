@@ -16,9 +16,9 @@
 // - /push-sw.js → imported via self.importScripts() below for pushsubscriptionchange
 //   handler (browser push endpoint rotation). Same SW context — extends our handlers.
 
-import { defaultCache } from "@serwist/next/worker";
-import type { PrecacheEntry, RuntimeCaching, SerwistGlobalConfig } from "serwist";
-import { NetworkFirst, NetworkOnly, Serwist, ExpirationPlugin } from "serwist";
+import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
+import { Serwist } from "serwist";
+import { opcjeSerwista, PAMIECI_DO_USUNIECIA } from "@/lib/swOpcje";
 
 declare global {
     interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -33,47 +33,17 @@ declare const self: ServiceWorkerGlobalScope;
 // MUST be top-level (before any await) per service worker spec.
 self.importScripts('/push-sw.js');
 
-// Custom runtime caching strategies — preserved 1:1 from old workboxOptions.runtimeCaching.
-// The default Serwist cache (defaultCache) handles standard precaching + image/asset
-// strategies; we PREPEND custom rules so they match before defaults.
-const customRuntimeCaching: RuntimeCaching[] = [
-    // Auth API routes: always go to network, never cache.
-    {
-        matcher: /^https?:\/\/.*\/api\/auth\/.*/i,
-        handler: new NetworkOnly(),
-    },
-    // Supabase auth endpoints: never cache.
-    {
-        matcher: /^https?:\/\/.*supabase.*\/auth\/.*/i,
-        handler: new NetworkOnly(),
-    },
-    // Login/pracownik/admin page navigations: network first with short timeout,
-    // 1-minute cache for failover. Equivalent to old NetworkFirst rule with
-    // expiration: { maxEntries: 16, maxAgeSeconds: 60 }, networkTimeoutSeconds: 5.
-    {
-        matcher: /^https?:\/\/.*\/(pracownik|admin)(\/.*)?$/i,
-        handler: new NetworkFirst({
-            cacheName: "staff-pages",
-            networkTimeoutSeconds: 5,
-            plugins: [
-                new ExpirationPlugin({
-                    maxEntries: 16,
-                    maxAgeSeconds: 60,
-                }),
-            ],
-        }),
-    },
-];
-
-const serwist = new Serwist({
-    precacheEntries: self.__SW_MANIFEST,
-    skipWaiting: true,
-    clientsClaim: true,
-    navigationPreload: true,
-    runtimeCaching: [...customRuntimeCaching, ...defaultCache],
-});
+// Reguły cache, precache i ich uzasadnienie: src/lib/swOpcje.ts (wykonywane w teście
+// swRegulyApiINigdyZPamieci.test.ts).
+const serwist = new Serwist(opcjeSerwista(self.__SW_MANIFEST));
 
 serwist.addEventListeners();
+
+// 2026-09-17: usuń pamięci, których nic już nie używa (odpowiedzi API zapisane przez regułę
+// `apis` i `start-url` ze starego next-pwa). Idempotentne — przy każdej aktywacji.
+self.addEventListener("activate", (event) => {
+    event.waitUntil(Promise.all(PAMIECI_DO_USUNIECIA.map((nazwa) => caches.delete(nazwa))));
+});
 
 // Push notification handler — moved from old worker/index.ts.
 // Handles incoming push events from web-push (subscribe via PushManager).
