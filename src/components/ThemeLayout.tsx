@@ -3,6 +3,8 @@
 import { ThemeProvider, useTheme, usePresetId } from '@/context/ThemeContext';
 import { ReactNode } from 'react';
 import dynamic from 'next/dynamic';
+import { usePathname } from 'next/navigation';
+import { czyTrasaTabletowa } from '@/lib/trasyTabletowe';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
@@ -46,7 +48,10 @@ function ThemedContent({ children }: { children: ReactNode }) {
 
     // Standalone templates render their own nav/footer — skip global ones
     const STANDALONE_TEMPLATES = ['dental-luxe', 'fresh-smile', 'nordic-dental', 'warm-care'];
-    const skipGlobalChrome = STANDALONE_TEMPLATES.includes(presetId);
+    // 🔴 Strony podpisywane na tablecie (e-Karta, zgody) — bez żadnych nakładek witryny: dolny pasek
+    // zasłaniał „Przejdź do podpisania”, a menu wyprowadzało pacjenta z dokumentu (lib/trasyTabletowe.ts).
+    const trasaTabletowa = czyTrasaTabletowa(usePathname());
+    const skipGlobalChrome = STANDALONE_TEMPLATES.includes(presetId) || trasaTabletowa;
 
     // Dynamically load Google Fonts ONLY for custom theme fonts.
     // Inter + Playfair Display are already statically loaded via next/font in
@@ -89,13 +94,16 @@ function ThemedContent({ children }: { children: ReactNode }) {
             )}
             {!skipGlobalChrome && f.backgroundVideo && <BackgroundVideo videoId={theme.hero.backgroundVideoId} />}
             <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                {/* Baner ciasteczek żyje w root layout (serwer); na trasie tabletowej chowamy go stylem
+                    już w SSR — pyta tylko o pamięć czatu AI, którego tu nie ma. */}
+                {trasaTabletowa && <style>{'[data-cookie-banner]{display:none !important}'}</style>}
                 {!skipGlobalChrome && <Navbar />}
                 {children}
-                {f.assistantTeaser && <AssistantTeaser />}
-                {f.pwaInstallPrompt && <PWAInstallPrompt />}
+                {!trasaTabletowa && f.assistantTeaser && <AssistantTeaser />}
+                {!trasaTabletowa && f.pwaInstallPrompt && <PWAInstallPrompt />}
                 {!skipGlobalChrome && <Footer />}
-                {f.simulatorModal && <SimulatorModal />}
-                {f.opinionSurvey && <OpinionSurvey />}
+                {!trasaTabletowa && f.simulatorModal && <SimulatorModal />}
+                {!trasaTabletowa && f.opinionSurvey && <OpinionSurvey />}
                 {/* S7-3 LUXURY: sticky bottom bar mobile (3 CTAs).
                     Render po Footer żeby był ostatni element w DOM = always on top.
                     skipGlobalChrome warunek wyłącza dla embedded/admin pages. */}

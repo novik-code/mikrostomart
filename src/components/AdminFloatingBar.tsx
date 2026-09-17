@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { useVisualEditor } from '@/context/VisualEditorContext';
 import { usePathname, useRouter } from 'next/navigation';
+import { czyTrasaTabletowa } from '@/lib/trasyTabletowe';
 
 /**
  * AdminFloatingBar — compact floating pill visible on ALL pages
@@ -29,6 +30,9 @@ export default function AdminFloatingBar() {
     // Don't render if not admin, still loading, or already in admin panel
     if (loading || !isAdmin) return null;
     if (pathname?.startsWith('/admin')) return null;
+    // Tablet w recepcji bywa zalogowany kontem z rolą admin (gabinet@) — pigułka w prawym dolnym rogu
+    // zasłaniałaby przyciski podpisu i wyprowadzała do panelu (lib/trasyTabletowe.ts).
+    if (czyTrasaTabletowa(pathname)) return null;
 
     const shortEmail = email ? email.split('@')[0] : 'Admin';
 
