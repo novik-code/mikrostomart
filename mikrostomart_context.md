@@ -1,6 +1,12 @@
 # Mikrostomart / DensFlow.Ai - Complete Project Context
 
-> **Last Updated:** 2026-09-14 (noc) — 🔧 **TRZY OTWARTE SPRAWY Z 14.09 ZAMKNIĘTE: PUSH „ZA GODZINĘ”, ESKALACJA vs PRODENTIS, PACZKI Z LUKAMI.**
+> **Last Updated:** 2026-09-17 — 🧯 **CZARNA STRONA W SAFARI NA MACU → SERVICE WORKER NIE INSTALOWAŁ SIĘ U NIKOGO OD MAJA.**
+>
+> **Zmierzone.** Precache miał 1220 wpisów, w tym 644 pliki z `/public` (284 MB). 131 plików `kb-*.avif` i `google…html` dają 404 (middleware ich nie wyjmuje), a jeden błąd wywraca całą instalację. Chrome kasuje rejestrację i zostawia ~40 MB, WebKit wisi w `installing`. Pobieranie rusza od nowa przy każdej wizycie. Przeglądarka ze starym workerem zostaje z nim na zawsze — główny podejrzany czarnej strony (świeży WebKit 26.4 i pośrednik na innym originie renderują poprawnie).
+>
+> **Zrobione.** Z `/public` do precache tylko manifest i ikony PWA (`lib/swPrecachePubliczne.ts`). Strażnik `swPrecacheTylkoSerwowanePliki.test.ts` wykonuje `globSync` jak Serwist i przepuszcza każdy plik przez prawdziwy `config.matcher` + limit 1 MB (cofka na starym wzorcu: 2 czerwone). Lokalny build: 579/579 w precache, worker aktywny, Chrome i WebKit renderują pod jego kontrolą. vitest 1187/1187, tsc, lint baseline zielone. 🔴 Otwarte osobno: 404 na `.avif` i pliku weryfikacyjnym GSC (matcher middleware).
+>
+> **Poprzednio (2026-09-14 (noc)) — 🔧 **TRZY OTWARTE SPRAWY Z 14.09 ZAMKNIĘTE: PUSH „ZA GODZINĘ”, ESKALACJA vs PRODENTIS, PACZKI Z LUKAMI.**
 >
 > **(1) Push „Wizyta za godzinę!”.** Cron porównywał godzinę z Prodentisa (czas polski zapisany z `Z`) z prawdziwym UTC → latem okno przesunięte o 2 h; 24 z 24 pushy od 07.09 przyszło PO starcie wizyty. Do tego nie stosował reguły wizyt, więc wpisy informacyjne recepcji (01:00–07:59) dostawały push o 4:30–5:30. Teraz okno liczone w czasie ściennym Warszawy (`czasSciennyWarszawy`), a reguła „która wizyta dostaje przypomnienie” jest WSPÓLNA z cronem SMS (`lib/wizytaDoPrzypomnienia.ts`, wyciągnięta z `appointment-reminders` bez zmiany decyzji — test równoważności na 15 840 przypadkach; pierwsza wersja wyciągnięcia ZMIENIAŁA decyzję dla pustej nazwy lekarza i test to złapał).
 >
