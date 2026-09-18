@@ -35,6 +35,11 @@ let zapisyPMS: { path: string; method: string }[] = [];
 let powiadomienia: string[] = [];
 let sms: string[] = [];
 let kluczeLimitu: string[] = [];
+const LEKARZ = '0100000024';
+/** Wolne terminy PMS (`/api/slots/free`) dla testów przełożenia; `null` = PMS nie odpowiada. */
+let wolneSloty: { doctor: string; start: string }[] | null = [];
+let zapytaniaSlotow: string[] = [];
+let dlugoscWizytyPms = 30;
 
 vi.mock('@/lib/rateLimit', () => ({
     checkRateLimit: async (klucz: string) => { kluczeLimitu.push(klucz); return { allowed: true, remaining: 9 }; },
@@ -66,7 +71,13 @@ vi.mock('@/lib/prodentisFetch', () => ({
             return { ok: true, status: 200, json: async () => ({ appointments: [{ id: WIZYTA, patientId: JA, date: '2099-01-01T10:00:00.000Z' }] }) };
         }
         if (/\/api\/schedule\/appointment\/[0-9]+$/.test(path) && method === 'GET') {
-            return { ok: true, status: 200, json: async () => ({ id: WIZYTA, patientId: JA, date: '2099-01-01', startTime: '11:00', status: 'scheduled' }) };
+            return { ok: true, status: 200, json: async () => ({ id: WIZYTA, patientId: JA, doctorId: LEKARZ, duration: dlugoscWizytyPms, date: '2099-01-01', startTime: '11:00', status: 'scheduled' }) };
+        }
+        if (/\/api\/slots\/free/.test(path)) {
+            zapytaniaSlotow.push(path);
+            if (wolneSloty === null) return { ok: false, status: 503, json: async () => ({}) };
+            const sloty = wolneSloty;
+            return { ok: true, status: 200, json: async () => sloty };
         }
         zapisyPMS.push({ path, method });
         return { ok: true, status: 200, json: async () => ({ success: true, newEndTime: '11:30' }), text: async () => '' };
@@ -131,6 +142,7 @@ const za3dni = () => new Date(Date.now() + 3 * 24 * 3600_000).toISOString();
 beforeEach(() => {
     vi.clearAllMocks();
     zapisyBazy = []; zapisyPMS = []; powiadomienia = []; sms = []; kluczeLimitu = []; blizniaki = [];
+    wolneSloty = [{ doctor: LEKARZ, start: '2099-02-01T10:00:00' }]; zapytaniaSlotow = []; dlugoscWizytyPms = 30;
     wiersz = {
         id: WIERSZ_ID, patient_id: PACJENT_UUID, prodentis_id: WIZYTA, confirmation_token: TOKEN,
         appointment_date: za3dni(), doctor_name: 'Lekarz Testowy', patient_name: 'Pacjent Testowy',
@@ -501,5 +513,67 @@ describe('potwierdzenie w strefie po prośbie gabinetu (przypomnienie z linkiem)
             expect(st.canConfirmAttendance).toBe(false);
             expect(st.confirmationRequested).toBe(false);
         }
+    });
+});
+
+/**
+ * 🔴 ZGŁOSZENIE WŁAŚCICIELA 18.09: pacjentka przełożyła wizytę u Ilony Piechaczek na 12.10, 16:30,
+ * choć Ilona przyjmuje tego dnia 09:00–15:00 — 16:30 było wolne tylko u innej lekarki. Ekrany
+ * pokazywały sumę wolnych godzin wszystkich lekarzy, a trasa niczego nie sprawdzała.
+ */
+describe('przełożenie tylko na termin WOLNY U LEKARZA TEJ WIZYTY', () => {
+    const przeloz = async (newDate: string, newStartTime: string) => {
+        const { POST } = await import('@/app/api/patients/appointments/[id]/reschedule/route');
+        const res = await POST(post('/x', { newDate, newStartTime }), params(WIERSZ_ID));
+        return { status: res.status, body: await res.json() };
+    };
+    const putDoPms = () => zapisyPMS.filter((z) => /\/reschedule$/.test(z.path) && z.method === 'PUT');
+
+    it('🔴 termin wolny WYŁĄCZNIE u innego lekarza → 409 z kodem, ZERO zapisu do PMS i bazy', async () => {
+        wolneSloty = [{ doctor: '0100000036', start: '2099-02-01T16:30:00' }];
+        const { status, body } = await przeloz('2099-02-01', '16:30');
+        expect(status).toBe(409);
+        expect(body.code).toBe('SLOT_NOT_AVAILABLE_FOR_DOCTOR');
+        expect(body.error).toMatch(/570 270 470/);
+        expect(putDoPms()).toEqual([]);
+        expect(zapisyBazy).toEqual([]);
+        // zapytanie idzie o lekarza WIZYTY
+        expect(zapytaniaSlotow.some((p) => p.includes(`doctor=${LEKARZ}`))).toBe(true);
+    });
+
+    it('🔴 PMS nie odpowiada → 503 (fail-closed), ZERO zapisu do PMS', async () => {
+        wolneSloty = null;
+        const { status, body } = await przeloz('2099-02-01', '10:00');
+        expect(status).toBe(503);
+        expect(body.code).toBe('SLOT_CHECK_UNAVAILABLE');
+        expect(putDoPms()).toEqual([]);
+    });
+
+    it('kontrola pozytywna: termin wolny u lekarza wizyty → przełożenie w PMS', async () => {
+        const { status } = await przeloz('2099-02-01', '10:00');
+        expect(status).toBe(200);
+        expect(putDoPms()).toHaveLength(1);
+    });
+
+    it('lekarz zapisany bez zer wiodących to ten sam lekarz; czas trwania z PMS idzie do zapytania', async () => {
+        dlugoscWizytyPms = 60;
+        wolneSloty = [{ doctor: '100000024', start: '2099-02-01T10:00:00' }];
+        const { status } = await przeloz('2099-02-01', '10:00');
+        expect(status).toBe(200);
+        expect(zapytaniaSlotow.some((p) => p.includes('duration=60'))).toBe(true);
+    });
+
+    it('🪤 wizyta 15-minutowa: zapytanie idzie z duration=30 (PMS na < 30 oddaje pustą listę → fałszywa odmowa)', async () => {
+        dlugoscWizytyPms = 15;
+        const { status } = await przeloz('2099-02-01', '10:00');
+        expect(status).toBe(200);
+        expect(zapytaniaSlotow.some((p) => p.includes('duration=30'))).toBe(true);
+        expect(zapytaniaSlotow.some((p) => p.includes('duration=15'))).toBe(false);
+    });
+
+    it('inny dzień albo inna godzina u tego samego lekarza → 409', async () => {
+        wolneSloty = [{ doctor: LEKARZ, start: '2099-02-02T10:00:00' }, { doctor: LEKARZ, start: '2099-02-01T10:30:00' }];
+        expect((await przeloz('2099-02-01', '10:00')).status).toBe(409);
+        expect(putDoPms()).toEqual([]);
     });
 });

@@ -573,6 +573,8 @@ export default function PatientDashboard() {
                                                             confirmationRequested={actionInfo.status.confirmationRequested}
                                                             hoursUntilAppointment={actionInfo.status.hoursUntilAppointment}
                                                             doctorName={apt.doctor.name?.replace(/\s*\(I\)\s*/g, ' ').trim() || ''}
+                                                            doctorId={apt.doctor.id || undefined}
+                                                            durationMin={durMin}
                                                             authToken={getAuthToken() || ''}
                                                             patientName={patient ? `${patient.firstName} ${patient.lastName}` : ''}
                                                             patientEmail={patient?.email || ''}

@@ -17,6 +17,13 @@ interface RescheduleAppointmentModalProps {
     appointmentDate: string;
     appointmentTime: string;
     authToken: string;
+    /**
+     * Lekarz i czas trwania TEJ wizyty (18.09.2026). Bez nich lista pokazywała sumę wolnych godzin
+     * WSZYSTKICH lekarzy, a przełożenie przesuwało wizytę tego lekarza poza jego grafik.
+     * Serwer i tak odrzuca taki termin (`lib/terminPrzelozenia.ts`) — to tylko uczciwa lista.
+     */
+    doctorId?: string;
+    durationMin?: number;
 }
 
 interface FreeSlot {
@@ -30,7 +37,9 @@ export default function RescheduleAppointmentModal({
     onConfirm,
     appointmentDate,
     appointmentTime,
-    authToken
+    authToken,
+    doctorId,
+    durationMin,
 }: RescheduleAppointmentModalProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [success, setSuccess] = useState(false);
@@ -73,13 +82,19 @@ export default function RescheduleAppointmentModal({
             try {
                 // 🔑 3e: `meta=1` dokłada statusy operatorów, żeby pusty dzień przestał znaczyć
                 // „nie ma terminów" także wtedy, gdy wszyscy mają komplet albo gabinet nie pracuje.
-                const res = await fetch(`/api/prodentis/slots?date=${selectedDate}&duration=30&meta=1`, {
+                const lekarz = doctorId && /^\d{1,10}$/.test(doctorId) ? `&doctor=${doctorId.padStart(10, '0')}` : '';
+                // Min. 30: PMS na krótszy czas oddaje pustą listę (polityka strict) — patrz lib/terminPrzelozenia.
+                const dlugosc = Math.max(30, durationMin && durationMin > 0 ? Math.round(durationMin) : 30);
+                const res = await fetch(`/api/prodentis/slots?date=${selectedDate}&duration=${dlugosc}&meta=1${lekarz}`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
                 if (res.ok) {
                     const data = await res.json();
                     // Prodentis returns Slot[] with { start: ISO, end: ISO, doctor, doctorName }
-                    const rawSlots: Array<{ start: string; end: string; doctor: string; doctorName: string }> = Array.isArray(data) ? data : (data.slots || []);
+                    const wszystkieSloty: Array<{ start: string; end: string; doctor: string; doctorName: string }> = Array.isArray(data) ? data : (data.slots || []);
+                    // Druga warstwa: nawet gdyby PMS zignorował `doctor`, pokazujemy wyłącznie terminy lekarza wizyty.
+                    const bezZer = (v: string) => String(v ?? '').replace(/^0+/, '');
+                    const rawSlots = doctorId ? wszystkieSloty.filter((s) => bezZer(s.doctor) === bezZer(doctorId)) : wszystkieSloty;
                     // Convert to simple startTime/endTime format, dedup by time
                     const seen = new Set<string>();
                     const parsed: FreeSlot[] = [];
@@ -133,7 +148,7 @@ export default function RescheduleAppointmentModal({
         };
 
         fetchSlots();
-    }, [selectedDate, isOpen, authToken]);
+    }, [selectedDate, isOpen, authToken, doctorId, durationMin]);
 
     if (!isOpen) return null;
 

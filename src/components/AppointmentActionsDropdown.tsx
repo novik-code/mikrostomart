@@ -25,6 +25,10 @@ interface AppointmentActionsDropdownProps {
     confirmationRequested?: boolean;
     hoursUntilAppointment: number;
     doctorName: string;
+    /** Prodentis id lekarza wizyty — przełożenie pokazuje wyłącznie jego wolne terminy (18.09). */
+    doctorId?: string;
+    /** Czas trwania wizyty w minutach — wolne terminy liczone dla tej długości. */
+    durationMin?: number;
     authToken: string;
     onStatusChange: () => void;
     patientName?: string;
@@ -50,6 +54,8 @@ export default function AppointmentActionsDropdown({
     confirmationRequested,
     hoursUntilAppointment,
     doctorName,
+    doctorId,
+    durationMin,
     authToken,
     onStatusChange,
     patientName,
@@ -420,6 +426,8 @@ export default function AppointmentActionsDropdown({
                     hour: '2-digit', minute: '2-digit'
                 })}
                 authToken={authToken}
+                doctorId={doctorId}
+                durationMin={durationMin}
             />
         </>
     );

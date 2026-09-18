@@ -15,6 +15,12 @@ import { prodentisFetch } from '@/lib/prodentisFetch';
 import { rescheduleCareflowForAppointment } from '@/lib/careflowLifecycle';
 import { warsawIso } from '@/lib/careflowSchedule';
 import { odmowaDlaPotwierdzonejWizyty } from '@/lib/blokadaPotwierdzonejWizyty';
+import { TELEFON_GABINETU } from '@/lib/deklaracjaPotwierdzenia';
+import { sprawdzTerminULekarza } from '@/lib/terminPrzelozenia';
+
+/** Kody odmowy przełożenia (apka i strona rozpoznają po polu `code`). */
+const KOD_TERMIN_NIEDOSTEPNY = 'SLOT_NOT_AVAILABLE_FOR_DOCTOR';
+const KOD_TERMIN_NIEZNANY = 'SLOT_CHECK_UNAVAILABLE';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -176,6 +182,35 @@ export async function POST(
             // 🪤 Realny przypadek: u nas 11.09 14:30, w Prodentisie 16:30. Bez tego logu
             // rozjazd byłby niewidoczny aż do skargi pacjenta.
             if (roznice.length) console.warn(`[RESCHEDULE] Rozjazd stanu wizyty ${prodentisAptId}: ${roznice.join(' · ')}`);
+        }
+
+        /**
+         * 🔒 NOWY TERMIN MUSI BYĆ WOLNY U LEKARZA TEJ WIZYTY (zgłoszenie właściciela 18.09.2026).
+         * Ekrany przełożenia pokazywały sumę wolnych godzin WSZYSTKICH lekarzy, a Prodentis przy
+         * `PUT /reschedule` sprawdza tylko kolizję — wizyta u Ilony Piechaczek wylądowała na 16:30,
+         * choć Ilona tego dnia przyjmuje do 15:00 (16:30 było wolne u innej lekarki).
+         * Lekarz i czas trwania z PMS (świeży odczyt), a gdy go brak — z naszego wiersza.
+         * „Nie wiemy” = odmowa (fail-closed): przełożenie bez sprawdzenia to dokładnie ten błąd.
+         * Szczegóły: `lib/terminPrzelozenia.ts`.
+         */
+        const lekarzWizyty = (stanWizyty.ok ? stanWizyty.wizyta.doctorId : null) || appointmentAction.doctor_id || null;
+        const dlugoscWizyty = stanWizyty.ok && Number(stanWizyty.wizyta.duration) > 0
+            ? Number(stanWizyty.wizyta.duration)
+            : Math.round((new Date(appointmentAction.appointment_end_date || 0).getTime() - appointmentDate.getTime()) / 60000) || 30;
+        const termin = await sprawdzTerminULekarza({
+            doctorId: lekarzWizyty,
+            date: String(body.newDate),
+            time: String(body.newStartTime),
+            duration: dlugoscWizyty > 0 ? dlugoscWizyty : 30,
+        });
+        if (termin !== 'wolny') {
+            console.warn(`[RESCHEDULE] Odmowa: ${body.newDate} ${body.newStartTime} ${termin === 'niedostepny' ? 'nie jest wolny' : 'nie dało się sprawdzić'} u lekarza ${lekarzWizyty ?? '(brak)'} (wizyta ${prodentisAptId})`);
+            return NextResponse.json(
+                termin === 'niedostepny'
+                    ? { error: `Ten termin nie jest dostępny u lekarza prowadzącego Twoją wizytę. Wybierz inny termin z listy albo zadzwoń: ${TELEFON_GABINETU}.`, code: KOD_TERMIN_NIEDOSTEPNY }
+                    : { error: `Nie możemy teraz sprawdzić dostępności terminu. Spróbuj za chwilę albo zadzwoń: ${TELEFON_GABINETU}.`, code: KOD_TERMIN_NIEZNANY },
+                { status: termin === 'niedostepny' ? 409 : 503, headers: NO_STORE }
+            );
         }
 
         if (prodentisAptId && PRODENTIS_KEY) {
