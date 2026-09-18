@@ -46,6 +46,7 @@ interface WierszWizyty {
     status?: string | null;
     cancellation_requested?: boolean | null;
     prodentis_id?: string | number | null;
+    confirmation_token?: string | null;
 }
 
 /** Minimalny kształt klienta Supabase, którego potrzebuje sprawdzenie per wizyta (atrapy w testach). */
@@ -106,6 +107,33 @@ export async function czyWizytaPotwierdzonaGdziekolwiek(
 export function czyWizytaOdwolana(wiersz: WierszWizyty | null | undefined): boolean {
     if (!wiersz) return false;
     return wiersz.status === 'reschedule_requested' || wiersz.status === 'cancelled' || wiersz.cancellation_requested === true;
+}
+
+/**
+ * Czy gabinet poprosił o potwierdzenie tej wizyty — cron przypomnień nadaje wierszowi
+ * `confirmation_token` razem z SMS-em/pushem „potwierdź wizytę”. Wiersz założony przez
+ * samą strefę pacjenta (`/create`) tokenu nie ma.
+ */
+export function czyGabinetProsiOPotwierdzenie(wiersz: WierszWizyty | null | undefined): boolean {
+    return typeof wiersz?.confirmation_token === 'string' && wiersz.confirmation_token.length > 0;
+}
+
+/** Okno potwierdzenia w strefie bez prośby gabinetu (od zawsze). */
+export const OKNO_POTWIERDZENIA_H = 24;
+/** Okno po prośbie gabinetu — TO SAMO co publiczny `/api/appointments/confirm` (link z SMS-a/pusha). */
+export const OKNO_PO_PROSBIE_H = 7 * 24;
+
+/**
+ * Ile godzin przed wizytą strefa pacjenta (apka, strona) pozwala potwierdzić obecność.
+ *
+ * 🔴 PO CO (zgłoszenie właściciela 18.09.2026). Push „potwierdź wizytę” w poniedziałek przychodzi
+ * w piątek (~75 h wcześniej), a strefa pokazywała „Potwierdź obecność” dopiero 24 h przed wizytą.
+ * Pacjent, który nie tapnął pusha od razu (albo tapnął i wyszedł), nie miał jak wrócić do
+ * potwierdzenia — w strefie widział tylko „Przełóż” i „Odwołaj”. Po prośbie gabinetu strefa
+ * pozwala więc potwierdzić w tym samym oknie co link; bez prośby zostaje dotychczasowe 24 h.
+ */
+export function oknoPotwierdzeniaH(wiersz: WierszWizyty | null | undefined): number {
+    return czyGabinetProsiOPotwierdzenie(wiersz) ? OKNO_PO_PROSBIE_H : OKNO_POTWIERDZENIA_H;
 }
 
 /**

@@ -19,6 +19,10 @@ interface AppointmentActionsDropdownProps {
     cancellationPending?: boolean;
     /** Z `/status` (18.09): potwierdzona w którymkolwiek wierszu tej wizyty — bez odwołania i przełożenia. */
     lockedAfterConfirmation?: boolean;
+    /** Z `/status`: czy serwer pozwala potwierdzić (24 h albo 7 dni po prośbie gabinetu). Brak = stara reguła 24 h. */
+    canConfirmAttendanceServer?: boolean;
+    /** Z `/status` (18.09): gabinet poprosił o potwierdzenie (przypomnienie z linkiem). */
+    confirmationRequested?: boolean;
     hoursUntilAppointment: number;
     doctorName: string;
     authToken: string;
@@ -42,6 +46,8 @@ export default function AppointmentActionsDropdown({
     attendanceConfirmed,
     cancellationPending,
     lockedAfterConfirmation,
+    canConfirmAttendanceServer,
+    confirmationRequested,
     hoursUntilAppointment,
     doctorName,
     authToken,
@@ -70,7 +76,9 @@ export default function AppointmentActionsDropdown({
      */
     const zgloszoneOdwolanie = cancellationPending === true || currentStatus === 'reschedule_requested' || currentStatus === 'cancelled';
     const zablokowana = !zgloszoneOdwolanie && (lockedAfterConfirmation === true || attendanceConfirmed);
-    const canConfirmAttendance = hoursUntilAppointment > 0 && hoursUntilAppointment <= 24 && !attendanceConfirmed && !zgloszoneOdwolanie;
+    // Okno z SERWERA (po prośbie gabinetu 7 dni jak link z SMS-a) — lokalne 24 h tylko, gdy pola brak.
+    const oknoOtwarte = canConfirmAttendanceServer ?? (hoursUntilAppointment > 0 && hoursUntilAppointment <= 24);
+    const canConfirmAttendance = oknoOtwarte && !attendanceConfirmed && !zgloszoneOdwolanie;
     const canPayDeposit = !depositPaid && hoursUntilAppointment > 0;
     const canCancel = hoursUntilAppointment > 0 && !zablokowana && !zgloszoneOdwolanie && currentStatus !== 'cancellation_pending';
     const canReschedule = hoursUntilAppointment > 0 && !zablokowana && currentStatus !== 'reschedule_pending' && currentStatus !== 'rescheduled' && currentStatus !== 'cancelled';
@@ -146,6 +154,13 @@ export default function AppointmentActionsDropdown({
 
                 {/* 🔒 Potwierdzona wizyta: bez przełożenia i odwołania — niezależnie od innych akcji (np. zadatku). */}
                 {zablokowana && hoursUntilAppointment > 0 && <InformacjaPotwierdzonaWizyta />}
+
+                {/* Prośba gabinetu o potwierdzenie — pacjent, który nie odpowiedział na push/SMS, wraca tu (18.09). */}
+                {confirmationRequested && canConfirmAttendance && (
+                    <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: '#f59e0b', fontWeight: 600 }}>
+                        🔔 Gabinet prosi o potwierdzenie obecności na tej wizycie.
+                    </div>
+                )}
 
                 {/* ── Action Buttons ── */}
                 {hasAnyAction && (

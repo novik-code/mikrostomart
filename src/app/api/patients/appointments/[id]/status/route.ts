@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyPatientSession } from '@/lib/jwt';
 import type { AppointmentAction, AppointmentStatusResponse } from '@/types/appointmentActions';
-import { czyWizytaOdwolana, czyWizytaPotwierdzonaGdziekolwiek } from '@/lib/blokadaPotwierdzonejWizyty';
+import {
+    czyGabinetProsiOPotwierdzenie,
+    czyWizytaOdwolana,
+    czyWizytaPotwierdzonaGdziekolwiek,
+    oknoPotwierdzeniaH,
+} from '@/lib/blokadaPotwierdzonejWizyty';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -72,8 +77,16 @@ export async function GET(
         const odwolana = czyWizytaOdwolana(appointmentAction);
         const zablokowana = !odwolana && (await czyWizytaPotwierdzonaGdziekolwiek(supabase, appointmentAction));
 
-        // Determine if can confirm attendance (must be <24h before appointment)
-        const canConfirmAttendance = hoursUntil > 0 && hoursUntil <= 24 && !appointmentAction.attendance_confirmed && !odwolana;
+        // Potwierdzenie: 24 h przed wizytą, a po prośbie gabinetu (przypomnienie z linkiem) — jak link, 7 dni.
+        const canConfirmAttendance = hoursUntil > 0
+            && hoursUntil <= oknoPotwierdzeniaH(appointmentAction)
+            && !appointmentAction.attendance_confirmed
+            && !odwolana;
+        /** Gabinet poprosił o potwierdzenie, a pacjent jeszcze nie odpowiedział (addytywnie, 18.09). */
+        const confirmationRequested = hoursUntil > 0
+            && czyGabinetProsiOPotwierdzenie(appointmentAction)
+            && !appointmentAction.attendance_confirmed
+            && !odwolana;
 
         // Build response
         const response: AppointmentStatusResponse = {
@@ -85,6 +98,7 @@ export async function GET(
             reschedulePending: appointmentAction.reschedule_requested,
             hoursUntilAppointment: Math.round(hoursUntil * 10) / 10, // Round to 1 decimal
             canConfirmAttendance,
+            confirmationRequested,
             // 🔒 Addytywnie (18.09.2026): potwierdzonej wizyty nie da się odwołać ani przełożyć.
             lockedAfterConfirmation: zablokowana,
             actions: {

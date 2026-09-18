@@ -569,6 +569,8 @@ export default function PatientDashboard() {
                                                             attendanceConfirmed={actionInfo.status.attendanceConfirmed}
                                                             cancellationPending={actionInfo.status.cancellationPending}
                                                             lockedAfterConfirmation={actionInfo.status.lockedAfterConfirmation}
+                                                            canConfirmAttendanceServer={actionInfo.status.canConfirmAttendance}
+                                                            confirmationRequested={actionInfo.status.confirmationRequested}
                                                             hoursUntilAppointment={actionInfo.status.hoursUntilAppointment}
                                                             doctorName={apt.doctor.name?.replace(/\s*\(I\)\s*/g, ' ').trim() || ''}
                                                             authToken={getAuthToken() || ''}

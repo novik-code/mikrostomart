@@ -445,3 +445,61 @@ describe('przegląd 18.09 — cron przypomnień nie unieważnia linków z poprze
         expect(zrodlo).not.toMatch(/const confirmationToken = nanoid\(/);
     });
 });
+
+/**
+ * 🔴 ZGŁOSZENIE WŁAŚCICIELA 18.09 (po OTA #11): push „potwierdź wizytę” w poniedziałek przychodzi
+ * w piątek (~75 h wcześniej), a strefa pokazywała „Potwierdź obecność” dopiero 24 h przed wizytą —
+ * pacjent, który nie tapnął pusha od razu, nie miał jak wrócić do potwierdzenia.
+ */
+describe('potwierdzenie w strefie po prośbie gabinetu (przypomnienie z linkiem) — okno jak link, 7 dni', () => {
+    const zaGodzin = (h: number) => new Date(Date.now() + h * 3600_000).toISOString();
+
+    it('🔴 status: prośba gabinetu (token) + 75 h → „Potwierdź obecność” widoczny + `confirmationRequested`', async () => {
+        wiersz.appointment_date = zaGodzin(75);
+        const { GET } = await import('@/app/api/patients/appointments/[id]/status/route');
+        const st = await (await GET(get('/x'), params(WIERSZ_ID))).json();
+        expect(st.canConfirmAttendance).toBe(true);
+        expect(st.actions.canConfirmAttendance).toBe(true); // to pole czyta apka 1.3.x (bez OTA)
+        expect(st.confirmationRequested).toBe(true);
+    });
+
+    it('🔴 potwierdzenie w strefie po prośbie, 75 h przed wizytą → zapis potwierdzenia', async () => {
+        wiersz.appointment_date = zaGodzin(75);
+        const { POST } = await import('@/app/api/patients/appointments/[id]/confirm-attendance/route');
+        const res = await POST(post('/x', { appointmentDate: wiersz.appointment_date }), params(WIERSZ_ID));
+        expect(res.status).toBe(200);
+        expect(zapisyBazy.some((z) => z.attendance_confirmed === true)).toBe(true);
+    });
+
+    it('kontrola: BEZ prośby (wiersz ze strefy, bez tokenu) zostaje dotychczasowe 24 h', async () => {
+        Object.assign(wiersz, { appointment_date: zaGodzin(75), confirmation_token: null });
+        const { GET } = await import('@/app/api/patients/appointments/[id]/status/route');
+        const st = await (await GET(get('/x'), params(WIERSZ_ID))).json();
+        expect(st.canConfirmAttendance).toBe(false);
+        expect(st.confirmationRequested).toBe(false);
+
+        const { POST } = await import('@/app/api/patients/appointments/[id]/confirm-attendance/route');
+        const res = await POST(post('/x', { appointmentDate: wiersz.appointment_date }), params(WIERSZ_ID));
+        expect(res.status).toBe(400);
+        expect(zapisyBazy).toEqual([]);
+
+        wiersz.appointment_date = zaGodzin(10);
+        expect((await (await GET(get('/x'), params(WIERSZ_ID))).json()).canConfirmAttendance).toBe(true);
+    });
+
+    it('kontrola: po prośbie, ale ponad 7 dni przed wizytą → nie (okno linku)', async () => {
+        wiersz.appointment_date = zaGodzin(8 * 24);
+        const { GET } = await import('@/app/api/patients/appointments/[id]/status/route');
+        expect((await (await GET(get('/x'), params(WIERSZ_ID))).json()).canConfirmAttendance).toBe(false);
+    });
+
+    it('prośba nie otwiera potwierdzenia wizyty potwierdzonej ani ze zgłoszonym odwołaniem', async () => {
+        const { GET } = await import('@/app/api/patients/appointments/[id]/status/route');
+        for (const stan of [{ attendance_confirmed: true }, { cancellation_requested: true }]) {
+            Object.assign(wiersz, { appointment_date: zaGodzin(75), attendance_confirmed: false, cancellation_requested: false }, stan);
+            const st = await (await GET(get('/x'), params(WIERSZ_ID))).json();
+            expect(st.canConfirmAttendance).toBe(false);
+            expect(st.confirmationRequested).toBe(false);
+        }
+    });
+});

@@ -64,9 +64,11 @@ export interface AppointmentStatusResponse {
     cancellationPending: boolean;
     reschedulePending: boolean;
     hoursUntilAppointment: number;
-    canConfirmAttendance: boolean; // True if <24h before appointment
+    canConfirmAttendance: boolean; // 24 h przed wizytą; po prośbie gabinetu (przypomnienie z linkiem) 7 dni
     /** Potwierdzona wizyta: odwołanie i przełożenie zablokowane (lib/blokadaPotwierdzonejWizyty.ts). */
     lockedAfterConfirmation?: boolean;
+    /** 18.09: gabinet poprosił o potwierdzenie (przypomnienie z linkiem), pacjent jeszcze nie odpowiedział. */
+    confirmationRequested?: boolean;
     actions: {
         canPayDeposit: boolean;
         canConfirmAttendance: boolean;

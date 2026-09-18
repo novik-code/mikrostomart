@@ -10,7 +10,7 @@ import type { ConfirmAttendanceRequest, AppointmentActionResponse, AppointmentAc
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 import { prodentisFetch } from '@/lib/prodentisFetch';
-import { czyWizytaOdwolana, odmowaPotwierdzeniaOdwolanej } from '@/lib/blokadaPotwierdzonejWizyty';
+import { czyWizytaOdwolana, odmowaPotwierdzeniaOdwolanej, oknoPotwierdzeniaH } from '@/lib/blokadaPotwierdzonejWizyty';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -76,14 +76,14 @@ export async function POST(
 
         const appointmentAction = action as AppointmentAction;
 
-        // Validate timing (must be <24h before appointment)
+        // Validate timing: 24 h przed wizytą, a po prośbie gabinetu (przypomnienie z linkiem) — jak link, 7 dni.
         const appointmentDate = new Date(appointmentAction.appointment_date);
         const now = new Date();
         const hoursUntil = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
-        if (hoursUntil > 24) {
+        if (hoursUntil > oknoPotwierdzeniaH(appointmentAction)) {
             return NextResponse.json(
-                { error: 'Potwierdzenie obecności możliwe tylko 24h przed wizytą' },
+                { error: 'Potwierdzenie obecności będzie możliwe na 24 godziny przed wizytą.' },
                 { status: 400 }
             );
         }
