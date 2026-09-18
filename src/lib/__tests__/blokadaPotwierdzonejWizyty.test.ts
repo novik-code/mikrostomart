@@ -21,7 +21,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 import { KOD_WIZYTA_ODWOLANA, KOD_WIZYTA_POTWIERDZONA } from '@/lib/deklaracjaPotwierdzenia';
 
-const TOKEN = 'AbCdEfGh12345678';
+const TOKEN = 'TestowyTokenLinku'; // gitleaks:allow — fikcyjny token atrapy (same litery)
 const WIERSZ_ID = 'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa';
 const PACJENT_UUID = 'bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb';
 const JA = '0100001110';
@@ -246,7 +246,7 @@ describe('stan wizyty po tokenie — wyłącznie tak/nie (decyzja właściciela)
     it('zły token → 400, nieznany → 404', async () => {
         expect((await stan({ token: 'x' })).status).toBe(400);
         expect((await stan({})).status).toBe(400);
-        wiersz.confirmation_token = 'InnyToken1234567';
+        wiersz.confirmation_token = 'InnyTokenLinku'; // gitleaks:allow — atrapa
         expect((await stan({ token: TOKEN })).status).toBe(404);
     });
 });
@@ -420,7 +420,7 @@ describe('przegląd 18.09 — „odwołana” = ZGŁOSZENIE, na obu trasach potw
 describe('przegląd 18.09 — cron przypomnień nie unieważnia linków z poprzedniego przebiegu', () => {
     it('🔴 istniejący wiersz zachowuje `id` i token (piątkowy link do wizyty poniedziałkowej działa po niedzieli)', async () => {
         const { kluczeAkcjiWizyty } = await import('@/lib/kluczeAkcjiWizyty');
-        const nowe = { id: 'nowe-id', token: 'NowyToken1234567' };
+        const nowe = { id: 'nowe-id', token: 'NowyTokenLinku' }; // gitleaks:allow — atrapa
         const baza = { from: (t: string) => zapytanie(t) };
         const k = await kluczeAkcjiWizyty(baza, WIZYTA, String(wiersz.appointment_date), nowe);
         expect(k).toEqual({ id: WIERSZ_ID, token: TOKEN, istnial: true });
