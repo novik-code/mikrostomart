@@ -4,6 +4,7 @@ import { guardPublicAppointment } from '@/lib/appointmentActionThrottle';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/pushService';
 import { cancelCareflowForAppointment } from '@/lib/careflowLifecycle';
+import { czyWizytaOdwolana, odmowaDlaPotwierdzonejWizyty } from '@/lib/blokadaPotwierdzonejWizyty';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -85,13 +86,29 @@ export async function POST(req: NextRequest) {
         });
 
         // Check if already cancelled - return success (not error)
-        if (action.status === 'cancelled' || action.status === 'reschedule_requested') {
+        // 🔑 Także po trwałej fladze: cron przypomnień nadpisuje `status` na 'pending' (przegląd 18.09).
+        if (czyWizytaOdwolana(action)) {
             console.log('[CANCEL-PUBLIC] Already cancelled - returning success');
             return NextResponse.json({
                 success: true,
                 alreadyCancelled: true,
                 message: 'Wizyta została już wcześniej odwołana.'
             }, { headers: NO_STORE });
+        }
+
+        /**
+         * 🔒 POTWIERDZONEJ WIZYTY NIE ODWOŁUJE SIĘ (zgłoszenie właściciela 18.09.2026). Do tego dnia
+         * ta trasa — wołana ze strony z linku SMS i z ekranu pusha w apce („Nie mogę przyjść”) —
+         * w ogóle nie czytała `attendance_confirmed`: 48 z 52 odwołań pacjentów w 90 dni szło tędy.
+         * Bramka stoi PRZED oknem 2 h (inaczej pacjent dostałby angielskie „Cancellation must be…”
+         * zamiast pouczenia) i PRZED zapisem, Telegramem i pushem „PACJENT ODWOŁAŁ” do recepcji.
+         * ⚪ Bez zapisu warunkowego: wyścig „potwierdzenie i odwołanie z dwóch urządzeń w tej samej
+         * chwili” nie ma motywu ani skali, a atrapy strażników nie odróżniają zapisu warunkowego.
+         */
+        const blokada = await odmowaDlaPotwierdzonejWizyty(supabase, action, 'odwolanie', 409);
+        if (blokada) {
+            console.warn('[CANCEL-PUBLIC] Odmowa: wizyta potwierdzona przez pacjenta — odwołanie zablokowane');
+            return blokada;
         }
 
         // Validate timing (must be > 2 hours before appointment)
@@ -114,12 +131,22 @@ export async function POST(req: NextRequest) {
         }
 
         // Update appointment action to cancelled
+        /**
+         * 🔑 `cancellation_requested` + znacznik czasu: TRWAŁY ślad zgłoszenia. Sam `status` nie
+         * wystarczał — cron przypomnień przy ponownym przebiegu (piątek → niedziela dla wizyt
+         * poniedziałkowych) nadpisywał go na 'pending', a wtedy znikała i odmowa potwierdzenia
+         * odwołanej, i „odpowiedź pacjenta” w `hasPatientResponded` (nowy SMS „potwierdź”).
+         * Cron tej flagi nie dotyka. Prodentisa nadal nie ruszamy — to zgłoszenie dla recepcji.
+         */
+        const teraz = new Date().toISOString();
         const { error: updateError } = await supabase
             .from('appointment_actions')
             .update({
                 status: 'reschedule_requested',
-                reschedule_requested_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
+                reschedule_requested_at: teraz,
+                cancellation_requested: true,
+                cancellation_requested_at: teraz,
+                updated_at: teraz
             })
             .eq('id', resolvedAppointmentId);
 

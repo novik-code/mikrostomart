@@ -14,6 +14,7 @@ import { getProdentisKey } from '@/lib/pmsConfig';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { rescheduleCareflowForAppointment } from '@/lib/careflowLifecycle';
 import { warsawIso } from '@/lib/careflowSchedule';
+import { odmowaDlaPotwierdzonejWizyty } from '@/lib/blokadaPotwierdzonejWizyty';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -84,13 +85,10 @@ export async function POST(
 
         const appointmentAction = action as AppointmentAction;
 
-        // ── Block if attendance confirmed ──
-        if (appointmentAction.attendance_confirmed) {
-            return NextResponse.json(
-                { error: 'Nie można przełożyć wizyty po potwierdzeniu obecności' },
-                { status: 400, headers: NO_STORE }
-            );
-        }
+        // ── Block if attendance confirmed ── (reguła wspólna: lib/blokadaPotwierdzonejWizyty.ts;
+        // 400 jak dotąd — 409 znaczy tu już „termin zajęty”, więc blokadę rozróżnia pole `code`)
+        const blokada = await odmowaDlaPotwierdzonejWizyty(supabase, appointmentAction, 'przelozenie', 400);
+        if (blokada) return blokada;
 
         // Validate appointment hasn't passed
         const appointmentDate = new Date(appointmentAction.appointment_date);

@@ -6,6 +6,7 @@ import type { AppointmentStatus } from '@/types/appointmentActions';
 import ConfirmAttendanceModal from './modals/ConfirmAttendanceModal';
 import CancelAppointmentModal from './modals/CancelAppointmentModal';
 import RescheduleAppointmentModal from './modals/RescheduleAppointmentModal';
+import { InformacjaPotwierdzonaWizyta } from './DeklaracjaPotwierdzenia';
 
 interface AppointmentActionsDropdownProps {
     appointmentId: string;
@@ -14,6 +15,10 @@ interface AppointmentActionsDropdownProps {
     currentStatus: AppointmentStatus;
     depositPaid: boolean;
     attendanceConfirmed: boolean;
+    /** Z `/status` (18.09): zgłoszone odwołanie (link/push/strefa) — bez potwierdzenia i odwołania. */
+    cancellationPending?: boolean;
+    /** Z `/status` (18.09): potwierdzona w którymkolwiek wierszu tej wizyty — bez odwołania i przełożenia. */
+    lockedAfterConfirmation?: boolean;
     hoursUntilAppointment: number;
     doctorName: string;
     authToken: string;
@@ -35,6 +40,8 @@ export default function AppointmentActionsDropdown({
     currentStatus,
     depositPaid,
     attendanceConfirmed,
+    cancellationPending,
+    lockedAfterConfirmation,
     hoursUntilAppointment,
     doctorName,
     authToken,
@@ -56,14 +63,28 @@ export default function AppointmentActionsDropdown({
     const router = useRouter();
 
     // Action availability
-    const canConfirmAttendance = hoursUntilAppointment > 0 && hoursUntilAppointment <= 24 && !attendanceConfirmed;
+    /**
+     * 🔒 18.09.2026 (przegląd): zgłoszonego odwołania (link z SMS-a, push, strefa) nie potwierdzamy —
+     * wcześniej obok plakietki „Zgłoszono odwołanie” stał aktywny „Potwierdź obecność”. Zgłoszenie
+     * wygrywa z potwierdzeniem (oba naraz mają tylko wiersze sprzed 18.09).
+     */
+    const zgloszoneOdwolanie = cancellationPending === true || currentStatus === 'reschedule_requested' || currentStatus === 'cancelled';
+    const zablokowana = !zgloszoneOdwolanie && (lockedAfterConfirmation === true || attendanceConfirmed);
+    const canConfirmAttendance = hoursUntilAppointment > 0 && hoursUntilAppointment <= 24 && !attendanceConfirmed && !zgloszoneOdwolanie;
     const canPayDeposit = !depositPaid && hoursUntilAppointment > 0;
-    const canCancel = hoursUntilAppointment > 0 && !attendanceConfirmed && currentStatus !== 'cancellation_pending' && currentStatus !== 'cancelled';
-    const canReschedule = hoursUntilAppointment > 0 && !attendanceConfirmed && currentStatus !== 'reschedule_pending' && currentStatus !== 'rescheduled' && currentStatus !== 'cancelled';
+    const canCancel = hoursUntilAppointment > 0 && !zablokowana && !zgloszoneOdwolanie && currentStatus !== 'cancellation_pending';
+    const canReschedule = hoursUntilAppointment > 0 && !zablokowana && currentStatus !== 'reschedule_pending' && currentStatus !== 'rescheduled' && currentStatus !== 'cancelled';
 
     // Status display
+    // 🪤 Cron przypomnień nadpisuje `status` na 'pending' przy ponownym przebiegu, a flaga zostaje —
+    // potwierdzona wizyta ma więc plakietkę z FLAGI, nie ze statusu.
     const getStatusInfo = () => {
-        switch (currentStatus) {
+        const klucz = currentStatus === 'cancelled'
+            ? 'cancelled'
+            : zgloszoneOdwolanie
+                ? 'reschedule_requested'
+                : zablokowana ? 'attendance_confirmed' : currentStatus;
+        switch (klucz) {
             case 'unpaid_reservation':
                 return { icon: '⚠️', text: 'Rezerwacja niepotwierdzona', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.25)' };
             case 'deposit_paid':
@@ -76,6 +97,10 @@ export default function AppointmentActionsDropdown({
                 return { icon: '🕐', text: 'Przełożenie w toku', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.25)' };
             case 'cancelled':
                 return { icon: '❌', text: 'Wizyta odwołana', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.25)' };
+            case 'pending':
+                return { icon: '🕐', text: 'Oczekuje na potwierdzenie', color: '#9ca3af', bg: 'rgba(156, 163, 175, 0.12)', border: 'rgba(156, 163, 175, 0.25)' };
+            case 'reschedule_requested':
+                return { icon: '🕐', text: 'Zgłoszono odwołanie', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.25)' };
             case 'rescheduled':
                 return { icon: '📅', text: 'Wizyta przełożona', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.12)', border: 'rgba(168, 85, 247, 0.25)' };
             default:
@@ -118,6 +143,9 @@ export default function AppointmentActionsDropdown({
                     <span style={{ fontSize: '1rem' }}>{status.icon}</span>
                     <span style={{ color: status.color, fontSize: '0.85rem', fontWeight: '600' }}>{status.text}</span>
                 </div>
+
+                {/* 🔒 Potwierdzona wizyta: bez przełożenia i odwołania — niezależnie od innych akcji (np. zadatku). */}
+                {zablokowana && hoursUntilAppointment > 0 && <InformacjaPotwierdzonaWizyta />}
 
                 {/* ── Action Buttons ── */}
                 {hasAnyAction && (

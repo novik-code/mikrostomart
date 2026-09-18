@@ -10,6 +10,7 @@ import type { ConfirmAttendanceRequest, AppointmentActionResponse, AppointmentAc
 import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 import { prodentisFetch } from '@/lib/prodentisFetch';
+import { czyWizytaOdwolana, odmowaPotwierdzeniaOdwolanej } from '@/lib/blokadaPotwierdzonejWizyty';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -92,6 +93,16 @@ export async function POST(
                 { error: 'Wizyta już się odbyła' },
                 { status: 400 }
             );
+        }
+
+        /**
+         * 🔒 Zgłoszonego odwołania nie potwierdzamy — ta sama reguła co publiczne `/api/appointments/confirm`
+         * (przegląd 18.09: była tylko na jednej trasie z pary). Pacjent tapał „Nie mogę przyjść” na
+         * pushu, a potem w panelu „Potwierdź obecność” zamrażało wizytę, którą recepcja właśnie skreśla.
+         * PRZED „już potwierdzona”: późniejsze zgłoszenie odwołania wygrywa (wiersze sprzed 18.09).
+         */
+        if (czyWizytaOdwolana(appointmentAction)) {
+            return odmowaPotwierdzeniaOdwolanej();
         }
 
         if (appointmentAction.attendance_confirmed) {

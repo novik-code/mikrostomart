@@ -10,6 +10,7 @@ import { demoSanitize, brand } from '@/lib/brandConfig';
 import { requireAdmin } from '@/lib/authGuards';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { DLUGOSC_KODU_SKROTU } from '@/lib/shortLinkCodes';
+import { kluczeAkcjiWizyty } from '@/lib/kluczeAkcjiWizyty';
 import { ocenWizyteDoPrzypomnienia, LEKARZE_PRZYPOMNIEN, MIN_GODZINA_GABINETU, MAX_GODZINA_GABINETU } from '@/lib/wizytaDoPrzypomnienia';
 
 export const maxDuration = 120; // Vercel function timeout (increased: many appointments + multiple DB queries per appointment)
@@ -408,7 +409,13 @@ export async function GET(req: Request) {
                 //     Push wysyłany w tym miejscu fizycznie nie mógł nieść linku
                 //     potwierdzenia i kierował na ogólną listę powiadomień.
                 try {
-                    const appointmentActionId = randomUUID();
+                    // 🔑 Istniejący wiersz tej wizyty zachowuje `id` i token — inaczej piątkowy link
+                    // do wizyty poniedziałkowej umiera w niedzielę (`lib/kluczeAkcjiWizyty`).
+                    const klucze = await kluczeAkcjiWizyty(supabase, appointment.id, appointment.date, {
+                        id: randomUUID(),
+                        token: nanoid(16),
+                    });
+                    const appointmentActionId = klucze.id;
 
                     // Calculate end date (default 30 minutes duration)
                     const appointmentEndDate = new Date(appointment.date);
@@ -420,7 +427,8 @@ export async function GET(req: Request) {
                     // Migration 124 added the column; if the upsert fails because the
                     // column hasn't been deployed to this Supabase project yet, the
                     // catch path below falls back to the legacy appointmentId-only URL.
-                    const confirmationToken = nanoid(16);
+                    // (token nowego wiersza losuje `kluczeAkcjiWizyty` — `nanoid(16)` wyżej)
+                    const confirmationToken = klucze.token;
 
                     // Upsert appointment_action (update if exists, insert if not)
                     const { data: actionData, error: actionError } = await supabase

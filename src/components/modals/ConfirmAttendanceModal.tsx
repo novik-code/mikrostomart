@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { DeklaracjaPrzedPotwierdzeniem, InformacjaPotwierdzonaWizyta } from '../DeklaracjaPotwierdzenia';
 
 interface ConfirmAttendanceModalProps {
     isOpen: boolean;
@@ -42,7 +44,17 @@ export default function ConfirmAttendanceModal({
         }
     };
 
-    return (
+    // Otwierany wyłącznie po kliknięciu, więc `document` zawsze jest — strażnik na wszelki wypadek.
+    if (typeof document === 'undefined') return null;
+
+    /**
+     * 🪤 PORTAL do `body` (przegląd 18.09): przodek „Twoje wizyty” ma `backdrop-filter`, a to
+     * w Chromium i nowym WebKit zamienia `position: fixed` w pozycjonowanie względem TEGO
+     * kontenera. Z deklaracją obecności modal ma 1000+ px i przycisk „Potwierdzam obecność”
+     * lądował poza zasięgiem na telefonie. Portal + przewijana warstwa + `margin: auto` na
+     * pudełku (wyśrodkowane, gdy się mieści; od góry i przewijane, gdy nie).
+     */
+    return createPortal(
         <div
             style={{
                 position: 'fixed',
@@ -52,8 +64,10 @@ export default function ConfirmAttendanceModal({
                 bottom: 0,
                 background: 'rgba(0, 0, 0, 0.8)',
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 justifyContent: 'center',
+                overflowY: 'auto',
+                WebkitOverflowScrolling: 'touch',
                 zIndex: 9999,
                 padding: '1rem'
             }}
@@ -66,6 +80,7 @@ export default function ConfirmAttendanceModal({
                     borderRadius: '12px',
                     maxWidth: '500px',
                     width: '100%',
+                    margin: 'auto',
                     padding: '2rem',
                     boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
                 }}
@@ -81,6 +96,7 @@ export default function ConfirmAttendanceModal({
                         <p style={{ color: '#aaa' }}>
                             Gabinet został powiadomiony o Twojej obecności.
                         </p>
+                        <InformacjaPotwierdzonaWizyta />
                     </div>
                 ) : (
                     <>
@@ -144,6 +160,11 @@ export default function ConfirmAttendanceModal({
                             }}
                         >
                             ℹ️ Gabinet otrzyma automatyczne powiadomienie email o potwierdzeniu Twojej obecności.
+                        </div>
+
+                        {/* 🔒 Deklaracja obecności — PRZED przyciskiem potwierdzenia (18.09.2026) */}
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <DeklaracjaPrzedPotwierdzeniem />
                         </div>
 
                         {/* Error Message */}
@@ -218,6 +239,7 @@ export default function ConfirmAttendanceModal({
                     </>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 }

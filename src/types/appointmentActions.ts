@@ -7,7 +7,9 @@ export type AppointmentStatus =
     | 'cancellation_pending'    // Patient requested cancellation (legacy)
     | 'cancelled'               // Appointment cancelled + deleted from Prodentis
     | 'reschedule_pending'      // Patient requested reschedule (legacy)
-    | 'rescheduled';            // Appointment rescheduled in Prodentis
+    | 'rescheduled'             // Appointment rescheduled in Prodentis
+    | 'pending'                 // Wiersz z crona przypomnień (cron nadpisuje nim status przy ponownym przebiegu)
+    | 'reschedule_requested';   // Odwołanie z linku SMS/push (publiczne /api/appointments/cancel)
 
 export interface AppointmentAction {
     id: string;
@@ -63,6 +65,8 @@ export interface AppointmentStatusResponse {
     reschedulePending: boolean;
     hoursUntilAppointment: number;
     canConfirmAttendance: boolean; // True if <24h before appointment
+    /** Potwierdzona wizyta: odwołanie i przełożenie zablokowane (lib/blokadaPotwierdzonejWizyty.ts). */
+    lockedAfterConfirmation?: boolean;
     actions: {
         canPayDeposit: boolean;
         canConfirmAttendance: boolean;

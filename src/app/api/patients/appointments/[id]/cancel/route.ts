@@ -12,6 +12,8 @@ import { demoSanitize } from '@/lib/brandConfig';
 import { sendEmail } from '@/lib/emailSender';
 import { prodentisFetch } from '@/lib/prodentisFetch';
 import { cancelCareflowForAppointment } from '@/lib/careflowLifecycle';
+import { odmowaDlaPotwierdzonejWizyty } from '@/lib/blokadaPotwierdzonejWizyty';
+import { TELEFON_GABINETU } from '@/lib/deklaracjaPotwierdzenia';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -74,13 +76,10 @@ export async function POST(
 
         const appointmentAction = action as AppointmentAction;
 
-        // ── Block if attendance confirmed ──
-        if (appointmentAction.attendance_confirmed) {
-            return NextResponse.json(
-                { error: 'Nie można odwołać wizyty po potwierdzeniu obecności' },
-                { status: 400, headers: NO_STORE }
-            );
-        }
+        // ── Block if attendance confirmed ── (reguła wspólna: lib/blokadaPotwierdzonejWizyty.ts;
+        // 400 jak dotąd — dochodzą `code`, `locked` i pełne pouczenie w `error`)
+        const blokada = await odmowaDlaPotwierdzonejWizyty(supabase, appointmentAction, 'odwolanie', 400);
+        if (blokada) return blokada;
 
         // Validate appointment hasn't passed
         const appointmentDate = new Date(appointmentAction.appointment_date);
@@ -360,7 +359,7 @@ export async function POST(
             try {
                 await sendSMS({
                     to: patient.phone,
-                    message: `Twoja wizyta ${appointmentDateFormatted} o godz. ${appointmentTime} została odwołana. Aby umówić nowy termin odwiedź strefę pacjenta lub zadzwoń: 77 454 24 24. Mikrostomart`,
+                    message: `Twoja wizyta ${appointmentDateFormatted} o godz. ${appointmentTime} została odwołana. Aby umówić nowy termin odwiedź strefę pacjenta lub zadzwoń: ${TELEFON_GABINETU}. Mikrostomart`,
                 });
             } catch (smsErr) {
                 console.error('[CANCEL] SMS to patient failed:', smsErr);

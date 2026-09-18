@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyPatientSession } from '@/lib/jwt';
 import type { AppointmentAction, AppointmentStatusResponse } from '@/types/appointmentActions';
+import { czyWizytaOdwolana, czyWizytaPotwierdzonaGdziekolwiek } from '@/lib/blokadaPotwierdzonejWizyty';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -62,8 +63,17 @@ export async function GET(
         const now = new Date();
         const hoursUntil = (appointmentDate.getTime() - now.getTime()) / (1000 * 60 * 60);
 
+        /**
+         * 🔒 18.09.2026: potwierdzenie = deklaracja obecności. Potwierdzona (w KTÓRYMKOLWIEK wierszu
+         * tej wizyty) → bez odwołania i przełożenia. Zgłoszone odwołanie (link/push/strefa, trwała
+         * flaga) → bez potwierdzenia, a panel pokazuje „odwołanie zgłoszone” (`cancellationPending`).
+         * Zgłoszenie wygrywa z potwierdzeniem — oba naraz mają tylko wiersze sprzed 18.09.
+         */
+        const odwolana = czyWizytaOdwolana(appointmentAction);
+        const zablokowana = !odwolana && (await czyWizytaPotwierdzonaGdziekolwiek(supabase, appointmentAction));
+
         // Determine if can confirm attendance (must be <24h before appointment)
-        const canConfirmAttendance = hoursUntil > 0 && hoursUntil <= 24 && !appointmentAction.attendance_confirmed;
+        const canConfirmAttendance = hoursUntil > 0 && hoursUntil <= 24 && !appointmentAction.attendance_confirmed && !odwolana;
 
         // Build response
         const response: AppointmentStatusResponse = {
@@ -71,15 +81,17 @@ export async function GET(
             depositPaid: appointmentAction.deposit_paid,
             depositAmount: appointmentAction.deposit_amount,
             attendanceConfirmed: appointmentAction.attendance_confirmed,
-            cancellationPending: appointmentAction.cancellation_requested,
+            cancellationPending: appointmentAction.cancellation_requested === true || odwolana,
             reschedulePending: appointmentAction.reschedule_requested,
             hoursUntilAppointment: Math.round(hoursUntil * 10) / 10, // Round to 1 decimal
             canConfirmAttendance,
+            // 🔒 Addytywnie (18.09.2026): potwierdzonej wizyty nie da się odwołać ani przełożyć.
+            lockedAfterConfirmation: zablokowana,
             actions: {
                 canPayDeposit: !appointmentAction.deposit_paid && hoursUntil > 0,
                 canConfirmAttendance,
-                canCancel: hoursUntil > 0 && !appointmentAction.attendance_confirmed && !appointmentAction.cancellation_requested,
-                canReschedule: hoursUntil > 0 && !appointmentAction.attendance_confirmed && !appointmentAction.reschedule_requested
+                canCancel: hoursUntil > 0 && !zablokowana && !odwolana,
+                canReschedule: hoursUntil > 0 && !zablokowana && !appointmentAction.reschedule_requested
             }
         };
 

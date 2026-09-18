@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { guardPublicAppointment } from '@/lib/appointmentActionThrottle';
+import { czyWizytaOdwolana, odmowaPotwierdzeniaOdwolanej } from '@/lib/blokadaPotwierdzonejWizyty';
 import { sendTelegramNotification } from '@/lib/telegram';
 import { broadcastPush } from '@/lib/pushService';
 import { recordPushPath } from '@/lib/pushHealth';
@@ -80,12 +81,27 @@ export async function POST(req: NextRequest) {
             confirmed: action.attendance_confirmed
         });
 
+        /**
+         * 🔒 Wizyty ODWOŁANEJ nie potwierdzamy (18.09.2026). Od tego dnia potwierdzenie blokuje
+         * odwołanie i przełożenie — potwierdzenie po odwołaniu tym samym linkiem zamroziłoby wizytę,
+         * którą recepcja już skreśla, i dało jej sprzeczne sygnały (Telegram „odwołał”, potem
+         * „potwierdził”). Kryterium: `lib/blokadaPotwierdzonejWizyty.czyWizytaOdwolana`.
+         * 🔑 PRZED „już potwierdzona”: wiersze sprzed 18.09 bywają potwierdzone I POTEM odwołane
+         * linkiem (stary cancel nie sprawdzał potwierdzenia) — późniejsze zgłoszenie wygrywa.
+         */
+        if (czyWizytaOdwolana(action)) {
+            console.warn('[CONFIRM-PUBLIC] Odmowa: wizyta wcześniej odwołana przez pacjenta');
+            return odmowaPotwierdzeniaOdwolanej();
+        }
+
         // Check if already confirmed - return success (not error)
+        // `locked` (addytywnie): potwierdzonej wizyty nie da się odwołać ani przełożyć.
         if (action.attendance_confirmed) {
             console.log('[CONFIRM-PUBLIC] Already confirmed - returning success');
             return NextResponse.json({
                 success: true,
                 alreadyConfirmed: true,
+                locked: true,
                 message: 'Wizyta została już wcześniej potwierdzona.'
             });
         }
@@ -336,6 +352,7 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             success: true,
+            locked: true,
             message: 'Potwierdzenie wysłane. Gabinet został powiadomiony.',
             telegramSent,
             iconAdded,

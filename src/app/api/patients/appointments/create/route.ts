@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyPatientSession } from '@/lib/jwt';
 import { listaWizytPacjenta, znajdzWizyteNaLiscie, type PozycjaListyWizyt } from '@/lib/prodentisAppointment';
+import { wariantyIdWizyty } from '@/lib/blokadaPotwierdzonejWizyty';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -97,13 +98,22 @@ export async function POST(request: NextRequest) {
         const rangeEnd = new Date(searchDate.getTime() + 120000);
 
         // Strategy 1: Find by schedule appointment ID
+        /**
+         * 🔴 Po WSZYSTKICH zapisach numeru wizyty, nie po surowej wartości z ciała żądania
+         * (przegląd 18.09). Kontrola własności wyżej normalizuje zera wiodące, a wyszukiwanie
+         * używało surowego `schedule_appointment_id` — `100234418` zamiast `0100234418` mijało
+         * potwierdzony wiersz i zakładało DRUGI, niepotwierdzony, na którym odwołanie przechodziło.
+         * Przy kilku wierszach wygrywa potwierdzony (`nullsFirst: false` — DESC stawia NULL na górze).
+         */
         let existing: any = null;
         if (schedule_appointment_id) {
             const { data } = await supabase
                 .from('appointment_actions')
                 .select('*')
                 .eq('patient_id', patient.id)
-                .eq('prodentis_id', schedule_appointment_id)
+                .in('prodentis_id', wariantyIdWizyty(pozycjaZPMS?.id ?? schedule_appointment_id))
+                .order('attendance_confirmed', { ascending: false, nullsFirst: false })
+                .limit(1)
                 .maybeSingle();
             existing = data;
         }
